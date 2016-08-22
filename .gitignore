@@ -13,7 +13,6 @@ gobin/*
 _obj
 _test
 .idea
-vendor
 # Architecture specific extensions/prefixes
 
 *.cgo1.go
