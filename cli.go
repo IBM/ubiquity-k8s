@@ -12,7 +12,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 
 	"github.ibm.com/almaden-containers/spectrum-common.git/models"
-	"github.ibm.com/almaden-containers/spectrum-container-plugin.git/core"
+	"github.ibm.com/almaden-containers/spectrum-flexvolume-cli.git/core"
 )
 
 var filesystemName = flag.String(
@@ -41,162 +41,96 @@ func (i *InitCommand) Execute(args []string) error {
 		Message: "FlexVolume Init success",
 		Device:  "",
 	}
-	responseBytes, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s", string(responseBytes[:]))
-	return nil
+	return response.PrintResponse()
 }
 
 type AttachCommand struct {
 	Attach func() `short:"a" long:"attach" description:"Attach a volume"`
 }
 
-func (a *AttachCommand) Execute(args []string) models.FlexVolumeResponse {
+func (a *AttachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
-	attachOpt := models.FlexVolumeAttachOptions{}
+	attachRequest := models.FlexVolumeAttachRequest{}
 
-	err := json.Unmarshal([]byte(args[0]), &attachOpt)
+	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
-		return models.FlexVolumeResponse{
+		response := models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume %#v", err),
 			Device:  "",
 		}
+		return response.PrintResponse()
 	}
-	controller := core.NewController(logger, attachOpt.VolumeId, attachOpt.Path)
-	activateResponse := controller.Activate()
-
-	if len(activateResponse.Implements) == 0 {
-		return models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach the volume %#v", attachOpt),
-			Device:  attachOpt.VolumeId,
-		}
-	}
-
-	createrequest := models.CreateRequest{Name: attachOpt.VolumeId,
-		Opts: map[string]interface{}{"VolumeId": attachOpt.VolumeId,
-			"fileset": attachOpt.FileSet},
-	}
-	createResponse := controller.Create(&createrequest)
-
-	if createResponse.Err != "" {
-		return models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach the volume %#v with error %s", attachOpt, createResponse.Err),
-			Device:  attachOpt.VolumeId,
-		}
-	} else {
-		return models.FlexVolumeResponse{
-			Status:  "Success",
-			Message: fmt.Sprintf("Device attached successfully %#v", attachOpt),
-			Device:  attachOpt.VolumeId,
-		}
-	}
+	controller := core.NewController(logger, attachRequest.VolumeId, attachRequest.Path)
+	attachResponse := controller.Attach(&attachRequest)
+	return attachResponse.PrintResponse()
 }
 
 type DetachCommand struct {
 	Detach func() `short:"d" long:"detach" description:"Detach a volume"`
 }
 
-func (d *DetachCommand) Execute(args []string) models.FlexVolumeResponse {
+func (d *DetachCommand) Execute(args []string) error {
 	mountDevice := args[0]
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
 	controller := core.NewController(logger, "filesysten", "mountpath")
 	removeRequest := models.GenericRequest{Name: mountDevice}
-	removeResponse := controller.Remove(&removeRequest)
-	if removeResponse.Err != "" {
-		return models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to detach device %s due to : %#v", mountDevice, removeResponse.Err),
-			Device:  mountDevice,
-		}
-
-	} else {
-		return models.FlexVolumeResponse{
-			Status:  "Success",
-			Message: fmt.Sprintf("Detached volume %s successfully", mountDevice),
-			Device:  mountDevice,
-		}
-	}
+	removeResponse := controller.Detach(&removeRequest)
+	return removeResponse.PrintResponse()
 }
 
 type MountCommand struct {
 	Mount func() `short:"m" long:"mount" description:"Mount a volume Id to a path"`
 }
 
-func (m *MountCommand) Execute(args []string) models.FlexVolumeResponse {
+func (m *MountCommand) Execute(args []string) error {
 	targetMountDir := args[0]
 	mountDevice := args[1]
-	mountOpt := models.FlexVolumeMountOptions{}
+	mountRequest := models.FlexVolumeMountRequest{}
 
-	err := json.Unmarshal([]byte(args[2]), &mountOpt)
+	err := json.Unmarshal([]byte(args[2]), &mountRequest)
 	if err != nil {
-		return models.FlexVolumeResponse{
+		mountResponse := models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount device %s to %s due to: %#v", mountDevice, targetMountDir, err),
 			Device:  mountDevice,
 		}
+		return mountResponse.PrintResponse()
 	}
 
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
-	controller := core.NewController(logger, mountOpt.MountDevice, mountOpt.MountPath)
+	controller := core.NewController(logger, mountRequest.MountDevice, mountRequest.MountPath)
 
-	mountRequest := models.GenericRequest{
-		Name: mountDevice,
+	mountRequest = models.FlexVolumeMountRequest{
+		MountPath:   targetMountDir,
+		MountDevice: mountDevice,
+		Opts:        mountRequest.Opts,
 	}
 	mountResponse := controller.Mount(&mountRequest)
-	if mountResponse.Err != "" {
-		return models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to mount device %s to %s due to %s", mountDevice, targetMountDir, mountResponse.Err),
-			Device:  mountDevice,
-		}
-
-	}
-	return models.FlexVolumeResponse{
-		Status:  "Success",
-		Message: fmt.Sprintf("Device %s mounted to %s successfully", mountDevice, targetMountDir),
-		Device:  mountResponse.Mountpoint,
-	}
+	return mountResponse.PrintResponse()
 }
 
 type UnmountCommand struct {
 	UnMount func() `short:"u" long:"unmount" description:"UnMount a volume Id to a path"`
 }
 
-func (u *UnmountCommand) Execute(args []string) models.FlexVolumeResponse {
+func (u *UnmountCommand) Execute(args []string) error {
 	mountDir := args[0]
 
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
-	controller := core.NewController(logger, "filesystem", mountDir)
+	controller := core.NewController(logger, "gpfs1", mountDir)
 
 	unmountRequest := models.GenericRequest{
 		Name: mountDir,
 	}
 	unmountResponse := controller.Unmount(&unmountRequest)
-	if unmountResponse.Err != "" {
-		return models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to unmount %s due to %s", mountDir, unmountResponse.Err),
-			Device:  "",
-		}
-
-	} else {
-		return models.FlexVolumeResponse{
-			Status:  "Success",
-			Message: fmt.Sprintf("%s unmounted successfully", mountDir),
-			Device:  "",
-		}
-	}
+	return unmountResponse.PrintResponse()
 }
 
 type Options struct{}

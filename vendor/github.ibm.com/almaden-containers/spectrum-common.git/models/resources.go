@@ -115,13 +115,22 @@ type FlexVolumeResponse struct {
 	Device  string `json:"device"`
 }
 
-type FlexVolumeMountOptions struct {
-	MountPath   string `json:"mount_path"`
-	MountDevice string `json:"mount_device"`
-	FSType      string `json:"fstype"`
+func (f *FlexVolumeResponse) PrintResponse() error {
+	responseBytes, err := json.Marshal(f)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s", string(responseBytes[:]))
+	return nil
 }
 
-type FlexVolumeAttachOptions struct {
+type FlexVolumeMountRequest struct {
+	MountPath   string                 `json:"mount_path"`
+	MountDevice string                 `json:"mount_device"`
+	Opts        map[string]interface{} `json:"opts"`
+}
+
+type FlexVolumeAttachRequest struct {
 	VolumeId    string `json:"volume_id"`
 	Size        int    `json:"size"`
 	VolumeGroup string `json:"volume_group"`

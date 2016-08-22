@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.ibm.com/almaden-containers/spectrum-flexvolume-cli",
+	"ImportPath": "github.ibm.com/almaden-containers/spectrum-flexvolume-cli.git",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Deps": [
@@ -10,15 +10,11 @@
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/core",
-			"Rev": "7edb80e492531e419a0a59510f68ad795e72c527"
+			"Rev": "5c605767a7db2bf7642f1613e2a7e5b65abf52c2"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/models",
-			"Rev": "7edb80e492531e419a0a59510f68ad795e72c527"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/spectrum-container-plugin.git/core",
-			"Rev": "88472ae6b26fe64dc26e4cf18aec40077100c8ce"
+			"Rev": "5c605767a7db2bf7642f1613e2a7e5b65abf52c2"
 		}
 	]
 }
