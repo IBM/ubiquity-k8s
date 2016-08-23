@@ -26,6 +26,7 @@ type SpectrumClient interface {
 	Get(name string) (*models.VolumeMetadata, *models.SpectrumConfig, error)
 	IsMounted() (bool, error)
 	Mount() error
+	GetFileSetForMountPoint(mountPoint string) (string, error)
 }
 
 type Fileset struct {
@@ -327,6 +328,20 @@ func (m *MMCliFilesetClient) retrieveMappingConfig() (MappingConfig, error) {
 	}
 	return mappingConfig, nil
 }
+
+func (m *MMCliFilesetClient) GetFileSetForMountPoint(mountPoint string) (string, error) {
+	mappingConfig, err := m.retrieveMappingConfig()
+	if err != nil {
+		return "", err
+	}
+	for _, fileset := range mappingConfig.Mappings {
+		if fileset.Mountpoint == mountPoint {
+			return fileset.Name, nil
+		}
+	}
+	return "", nil
+}
+
 func (m *MMCliFilesetClient) persistMappingConfig(mappingConfig MappingConfig) error {
 	//m.log.Println("MMCliFilesetClient: persisteMappingConfig start")
 	//defer m.log.Println("MMCliFilesetClient: persisteMappingConfig end")

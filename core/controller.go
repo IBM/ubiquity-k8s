@@ -9,9 +9,8 @@ import (
 )
 
 type Controller struct {
-	Client      common.SpectrumClient
-	log         *log.Logger
-	isActivated bool
+	Client common.SpectrumClient
+	log    *log.Logger
 }
 
 func NewController(logger *log.Logger, filesystem, mountpath string) *Controller {
@@ -26,36 +25,6 @@ func (c *Controller) Init() *models.FlexVolumeResponse {
 	c.log.Println("controller-activate-start")
 	defer c.log.Println("controller-activate-end")
 
-	if c.isActivated == true {
-		return &models.FlexVolumeResponse{
-			Status:  "Success",
-			Message: "Plugin init successfully",
-			Device:  "",
-		}
-	}
-
-	//check if filesystem is mounted
-	mounted, err := c.Client.IsMounted()
-	if err != nil {
-		return &models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: "Failed to init plugin",
-			Device:  "",
-		}
-	}
-
-	if mounted == false {
-		err = c.Client.Mount()
-		if err != nil {
-			return &models.FlexVolumeResponse{
-				Status:  "Failure",
-				Message: "Failed to init plugin",
-				Device:  "",
-			}
-		}
-	}
-	c.isActivated = true
-
 	return &models.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Plugin init successfully",
@@ -68,25 +37,8 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	defer c.log.Println("controller-attach-end")
 	c.log.Printf("attach-details %#v\n", attachRequest)
 
-	existingVolume, _, err := c.Client.Get(attachRequest.VolumeId)
-	if err != nil && err.Error() != "Cannot find info" {
-		return &models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach Volume %#v", err),
-			Device:  attachRequest.VolumeId,
-		}
-	}
-
-	if existingVolume != nil {
-		return &models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach volume: volume already exists"),
-			Device:  attachRequest.VolumeId,
-		}
-
-	}
 	opts := map[string]interface{}{"fileset": attachRequest.FileSet}
-	err = c.Client.Create(attachRequest.VolumeId, opts)
+	err := c.Client.Create(attachRequest.VolumeId, opts)
 	var attachResponse *models.FlexVolumeResponse
 	if err != nil {
 		attachResponse = &models.FlexVolumeResponse{
@@ -101,7 +53,6 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 			Device:  attachRequest.VolumeId,
 		}
 	}
-
 	return attachResponse
 }
 
@@ -175,7 +126,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 
 	return &models.FlexVolumeResponse{
 		Status:  "Success",
-		Message: fmt.Sprintf("Volume mounted successfully to %s:", mountedPath),
+		Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
 		Device:  "",
 	}
 }
@@ -184,16 +135,15 @@ func (c *Controller) Unmount(unmountRequest *models.GenericRequest) *models.Flex
 	c.log.Println("Controller: unmount start")
 	defer c.log.Println("Controller: unmount end")
 
-	existingVolume, _, err := c.Client.Get(unmountRequest.Name)
-	if err != nil && err.Error() != "Cannot find info" {
+	filesetName, err := c.Client.GetFileSetForMountPoint(unmountRequest.Name)
+	if err != nil {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to unmount volume %#v", err),
+			Message: fmt.Sprintf("Error finding the volume %#v", err),
 			Device:  "",
 		}
 	}
-
-	if existingVolume == nil {
+	if filesetName == "" {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: "Volume not found",
@@ -201,15 +151,7 @@ func (c *Controller) Unmount(unmountRequest *models.GenericRequest) *models.Flex
 		}
 	}
 
-	if existingVolume.Mountpoint == "" {
-		return &models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: "Volume already unmounted",
-			Device:  "",
-		}
-	}
-
-	err = c.Client.Detach(unmountRequest.Name)
+	err = c.Client.Detach(filesetName)
 	if err != nil {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
