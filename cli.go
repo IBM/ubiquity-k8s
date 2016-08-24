@@ -22,12 +22,12 @@ var filesystemName = flag.String(
 )
 var defaultMountPath = flag.String(
 	"mountpath",
-	"/gpfs/fs1",
+	"/gpfs/gpfs1",
 	"gpfs mount path",
 )
 var logPath = flag.String(
 	"logPath",
-	"/tmp",
+	"/tmp/log/spectrum",
 	"log path",
 )
 
@@ -53,7 +53,12 @@ func (a *AttachCommand) Execute(args []string) error {
 	defer closeLogs(logFile)
 
 	attachRequest := models.FlexVolumeAttachRequest{}
-
+	// type FlexVolumeAttachRequest struct {
+	// 	VolumeId    string `json:"volumeID"`
+	// 	Filesystem  string `json:"filesystem"`
+	// 	Size        string `json:"size"`
+	// 	Path        string `json:"path"`
+	// }
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
 		response := models.FlexVolumeResponse{
@@ -63,7 +68,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return response.PrintResponse()
 	}
-	controller := core.NewController(logger, attachRequest.VolumeId, attachRequest.Path)
+	controller := core.NewController(logger, "gpfs1", "")
 	attachResponse := controller.Attach(&attachRequest)
 	return attachResponse.PrintResponse()
 }
@@ -88,11 +93,19 @@ type MountCommand struct {
 }
 
 func (m *MountCommand) Execute(args []string) error {
+	// type FlexVolumeMountRequest struct {
+	// 	MountPath   string                 `json:"mountPath"`
+	// 	MountDevice string                 `json:"name"`
+	// 	Opts        map[string]interface{} `json:"opts"`
+	// }
 	targetMountDir := args[0]
 	mountDevice := args[1]
-	mountRequest := models.FlexVolumeMountRequest{}
+	var mountOpts map[string]interface{}
+	logger, logFile := setupLogger(*logPath)
+	defer closeLogs(logFile)
 
-	err := json.Unmarshal([]byte(args[2]), &mountRequest)
+	logger.Printf("mount-args %#v\n", args[2])
+	err := json.Unmarshal([]byte(args[2]), &mountOpts)
 	if err != nil {
 		mountResponse := models.FlexVolumeResponse{
 			Status:  "Failure",
@@ -102,14 +115,13 @@ func (m *MountCommand) Execute(args []string) error {
 		return mountResponse.PrintResponse()
 	}
 
-	logger, logFile := setupLogger(*logPath)
-	defer closeLogs(logFile)
-	controller := core.NewController(logger, mountRequest.MountDevice, mountRequest.MountPath)
+	logger.Printf("mount-unmarshalled-args %#v\n", mountOpts)
+	controller := core.NewController(logger, "gpfs1", targetMountDir)
 
-	mountRequest = models.FlexVolumeMountRequest{
+	mountRequest := models.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
 		MountDevice: mountDevice,
-		Opts:        mountRequest.Opts,
+		Opts:        mountOpts,
 	}
 	mountResponse := controller.Mount(&mountRequest)
 	return mountResponse.PrintResponse()

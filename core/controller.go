@@ -37,7 +37,7 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	defer c.log.Println("controller-attach-end")
 	c.log.Printf("attach-details %#v\n", attachRequest)
 
-	opts := map[string]interface{}{"fileset": attachRequest.FileSet}
+	opts := map[string]interface{}{"fileset": attachRequest.VolumeId}
 	err := c.Client.Create(attachRequest.VolumeId, opts)
 	var attachResponse *models.FlexVolumeResponse
 	if err != nil {
@@ -59,6 +59,8 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVolumeResponse {
 	c.log.Println("controller-detach-start")
 	defer c.log.Println("controller-detach-end")
+
+	c.log.Printf("detach-details %#v\n", detachRequest)
 
 	existingVolume, _, err := c.Client.Get(detachRequest.Name)
 
