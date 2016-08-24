@@ -46,6 +46,7 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
 			Device:  attachRequest.VolumeId,
 		}
+		c.log.Printf("Failed-to-attach-volume %#v ", err)
 	} else {
 		attachResponse = &models.FlexVolumeResponse{
 			Status:  "Success",
@@ -107,6 +108,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
 		}
+		c.log.Printf("Error getting volume info %#v", err)
 	}
 
 	if existingVolume == nil {
@@ -115,6 +117,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 			Message: "Failed to mount volume: volume not found",
 			Device:  "",
 		}
+		c.log.Printf("Volume %s could not be found", mountRequest.MountDevice)
 	}
 
 	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
@@ -124,6 +127,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
 		}
+		c.log.Printf("Failed to mount volume %#v", err)
 	}
 
 	return &models.FlexVolumeResponse{

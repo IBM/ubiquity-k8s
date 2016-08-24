@@ -125,15 +125,14 @@ func (f *FlexVolumeResponse) PrintResponse() error {
 }
 
 type FlexVolumeMountRequest struct {
-	MountPath   string                 `json:"mount_path"`
-	MountDevice string                 `json:"mount_device"`
+	MountPath   string                 `json:"mountPath"`
+	MountDevice string                 `json:"name"`
 	Opts        map[string]interface{} `json:"opts"`
 }
 
 type FlexVolumeAttachRequest struct {
-	VolumeId    string `json:"volume_id"`
-	Size        int    `json:"size"`
-	VolumeGroup string `json:"volume_group"`
-	FileSet     string `json:"fileset"`
-	Path        string `json:"path"`
+	VolumeId   string `json:"volumeID"`
+	Filesystem string `json:"filesystem"`
+	Size       string `json:"size"`
+	Path       string `json:"path"`
 }

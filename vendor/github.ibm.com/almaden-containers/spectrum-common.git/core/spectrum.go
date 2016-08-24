@@ -54,10 +54,12 @@ func (m *MMCliFilesetClient) Create(name string, opts map[string]interface{}) er
 	defer m.log.Println("MMCliFilesetClient: create end")
 	mappingConfig, err := m.retrieveMappingConfig()
 	if err != nil {
+		m.log.Printf("error retrieving mapping %#v", err)
 		return err
 	}
 	_, ok := mappingConfig.Mappings[name]
 	if ok == true {
+		m.log.Printf("Volume %s already exists", name)
 		return fmt.Errorf("Volume already exists")
 	}
 	userSpecifiedFileset, exists := opts["fileset"]
@@ -78,7 +80,7 @@ func (m *MMCliFilesetClient) updateMappingWithExistingFileset(name, userSpecifie
 	cmd := exec.Command(spectrumCommand, args...)
 	_, err := cmd.Output()
 	if err != nil {
-		m.log.Println(err)
+		m.log.Printf("error updating mapping with existing fileset %#v", err)
 		return err
 	}
 	mappingConfig.Mappings[name] = Fileset{Name: userSpecifiedFileset, DockerVolumeName: name}
@@ -102,6 +104,7 @@ func (m *MMCliFilesetClient) create(name string, opts map[string]interface{}, ma
 	cmd := exec.Command(spectrumCommand, args...)
 	output, err := cmd.Output()
 	if err != nil {
+		m.log.Printf("failed to create fileset %#v", err)
 		return fmt.Errorf("Failed to create fileset")
 	}
 	m.log.Printf("Createfileset output: %s\n", string(output))
@@ -110,6 +113,7 @@ func (m *MMCliFilesetClient) create(name string, opts map[string]interface{}, ma
 	// persist mapping config
 	err = m.persistMappingConfig(mappingConfig)
 	if err != nil {
+		m.log.Printf("failed to persist mapping  %#v", err)
 		return err
 	}
 	return nil
@@ -145,14 +149,16 @@ func (m *MMCliFilesetClient) Attach(name string) (string, error) {
 	defer m.log.Println("MMCliFilesetClient: attach end")
 	mappingConfig, err := m.retrieveMappingConfig()
 	if err != nil {
+		m.log.Printf("error retrieving mapping %#v", err)
 		return "", err
 	}
 	mapping, ok := mappingConfig.Mappings[name]
 	if ok == false {
+		m.log.Printf("fileset %s not found", name)
 		return "", fmt.Errorf("fileset couldn't be located")
 	}
 	if mapping.Mountpoint != "" {
-		//return "", fmt.Errorf("fileset already linked")
+		m.log.Printf("fileset %s already linked", name)
 		return mapping.Mountpoint, nil
 	}
 	spectrumCommand := "/usr/lpp/mmfs/bin/mmlinkfileset"
@@ -161,6 +167,7 @@ func (m *MMCliFilesetClient) Attach(name string) (string, error) {
 	cmd := exec.Command(spectrumCommand, args...)
 	output, err := cmd.Output()
 	if err != nil {
+		m.log.Printf("failed to link fileset %#v", err)
 		return "", fmt.Errorf("Failed to link fileset")
 	}
 	m.log.Printf("MMCliFilesetClient: Linkfileset output: %s\n", string(output))
@@ -170,6 +177,7 @@ func (m *MMCliFilesetClient) Attach(name string) (string, error) {
 	cmd = exec.Command("chmod", args...)
 	output, err = cmd.Output()
 	if err != nil {
+		m.log.Printf("failed to set permissions to fileset %#v", err)
 		return "", fmt.Errorf("Failed to set permissions for fileset")
 	}
 
@@ -177,6 +185,7 @@ func (m *MMCliFilesetClient) Attach(name string) (string, error) {
 	mappingConfig.Mappings[name] = mapping
 	err = m.persistMappingConfig(mappingConfig)
 	if err != nil {
+		m.log.Printf("failed to update mapping %#v", err)
 		return "", fmt.Errorf("internal error updating mapping")
 	}
 
