@@ -313,8 +313,8 @@ func extractMountedNodes(spectrumOutput string) []string {
 }
 
 func (m *MMCliFilesetClient) retrieveMappingConfig() (MappingConfig, error) {
-	//m.log.Println("MMCliFilesetClient: retrieveMappingConfig start")
-	//defer m.log.Println("MMCliFilesetClient: retrieveMappingConfig end")
+	m.log.Println("MMCliFilesetClient: retrieveMappingConfig start")
+	defer m.log.Println("MMCliFilesetClient: retrieveMappingConfig end")
 	mappingFile, err := os.Open(path.Join(m.Mountpoint, ".docker.json"))
 	if err != nil {
 		m.log.Println(err.Error())
@@ -352,8 +352,8 @@ func (m *MMCliFilesetClient) GetFileSetForMountPoint(mountPoint string) (string,
 }
 
 func (m *MMCliFilesetClient) persistMappingConfig(mappingConfig MappingConfig) error {
-	//m.log.Println("MMCliFilesetClient: persisteMappingConfig start")
-	//defer m.log.Println("MMCliFilesetClient: persisteMappingConfig end")
+	m.log.Println("MMCliFilesetClient: persisteMappingConfig start")
+	defer m.log.Println("MMCliFilesetClient: persisteMappingConfig end")
 	data, err := json.Marshal(&mappingConfig)
 	if err != nil {
 		return fmt.Errorf("Error marshalling mapping config to file: %s", err.Error())

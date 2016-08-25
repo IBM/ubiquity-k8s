@@ -135,4 +135,5 @@ type FlexVolumeAttachRequest struct {
 	Filesystem string `json:"filesystem"`
 	Size       string `json:"size"`
 	Path       string `json:"path"`
+	Fileset    string `json:"fileset"`
 }

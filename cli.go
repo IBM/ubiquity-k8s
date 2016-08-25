@@ -27,7 +27,7 @@ var defaultMountPath = flag.String(
 )
 var logPath = flag.String(
 	"logPath",
-	"/tmp/log/spectrum",
+	"/tmp/spectrum-flex/log",
 	"log path",
 )
 
@@ -53,12 +53,6 @@ func (a *AttachCommand) Execute(args []string) error {
 	defer closeLogs(logFile)
 
 	attachRequest := models.FlexVolumeAttachRequest{}
-	// type FlexVolumeAttachRequest struct {
-	// 	VolumeId    string `json:"volumeID"`
-	// 	Filesystem  string `json:"filesystem"`
-	// 	Size        string `json:"size"`
-	// 	Path        string `json:"path"`
-	// }
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
 		response := models.FlexVolumeResponse{
@@ -68,7 +62,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return response.PrintResponse()
 	}
-	controller := core.NewController(logger, "gpfs1", "")
+	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
 	attachResponse := controller.Attach(&attachRequest)
 	return attachResponse.PrintResponse()
 }
@@ -82,7 +76,7 @@ func (d *DetachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
-	controller := core.NewController(logger, "filesysten", "mountpath")
+	controller := core.NewController(logger, "filesysten", *defaultMountPath)
 	removeRequest := models.GenericRequest{Name: mountDevice}
 	removeResponse := controller.Detach(&removeRequest)
 	return removeResponse.PrintResponse()
@@ -115,8 +109,7 @@ func (m *MountCommand) Execute(args []string) error {
 		return mountResponse.PrintResponse()
 	}
 
-	logger.Printf("mount-unmarshalled-args %#v\n", mountOpts)
-	controller := core.NewController(logger, "gpfs1", targetMountDir)
+	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
 
 	mountRequest := models.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
@@ -138,7 +131,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 	defer closeLogs(logFile)
 	//in this case the filesystem name will not be used
 	// the spectrum client will get the right mapping from the mountDir
-	controller := core.NewController(logger, "gpfs1", mountDir)
+	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
 
 	unmountRequest := models.GenericRequest{
 		Name: mountDir,
@@ -192,7 +185,7 @@ func setupLogger(logPath string) (*log.Logger, *os.File) {
 		return nil, nil
 	}
 	log.SetOutput(logFile)
-	logger := log.New(io.MultiWriter(logFile, os.Stdout), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
+	logger := log.New(io.MultiWriter(logFile), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
 	return logger, logFile
 }
 

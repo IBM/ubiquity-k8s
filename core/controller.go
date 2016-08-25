@@ -36,17 +36,27 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	c.log.Println("controller-attach-start")
 	defer c.log.Println("controller-attach-end")
 	c.log.Printf("attach-details %#v\n", attachRequest)
+	var opts map[string]interface{}
+	if attachRequest.Fileset != "" {
+		opts = map[string]interface{}{"fileset": attachRequest.Fileset}
+	}
 
-	opts := map[string]interface{}{"fileset": attachRequest.VolumeId}
 	err := c.Client.Create(attachRequest.VolumeId, opts)
 	var attachResponse *models.FlexVolumeResponse
-	if err != nil {
+	if err != nil && err.Error() != "Volume already exists" {
 		attachResponse = &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
 			Device:  attachRequest.VolumeId,
 		}
 		c.log.Printf("Failed-to-attach-volume %#v ", err)
+	} else if err.Error() == "Volume already exists" {
+		attachResponse = &models.FlexVolumeResponse{
+			Status:  "Success",
+			Message: "Volume already attached",
+			Device:  attachRequest.VolumeId,
+		}
+
 	} else {
 		attachResponse = &models.FlexVolumeResponse{
 			Status:  "Success",
