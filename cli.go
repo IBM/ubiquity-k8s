@@ -76,7 +76,7 @@ func (d *DetachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
-	controller := core.NewController(logger, "filesysten", *defaultMountPath)
+	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
 	removeRequest := models.GenericRequest{Name: mountDevice}
 	removeResponse := controller.Detach(&removeRequest)
 	return removeResponse.PrintResponse()

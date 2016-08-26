@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,6 +20,7 @@ import (
 
 type SpectrumClient interface {
 	Create(name string, opts map[string]interface{}) error
+	CreateWithoutProvisioning(name string, opts map[string]interface{}) error
 	Remove(name string) error
 	Attach(name string) (string, error)
 	Detach(name string) error
@@ -26,6 +28,7 @@ type SpectrumClient interface {
 	Get(name string) (*models.VolumeMetadata, *models.SpectrumConfig, error)
 	IsMounted() (bool, error)
 	Mount() error
+	RemoveWithoutDeletingVolume(string) error
 	GetFileSetForMountPoint(mountPoint string) (string, error)
 }
 
@@ -70,6 +73,68 @@ func (m *MMCliFilesetClient) Create(name string, opts map[string]interface{}) er
 	}
 
 }
+
+func (m *MMCliFilesetClient) CreateWithoutProvisioning(name string, opts map[string]interface{}) error {
+	m.log.Println("MMCliFilesetClient: CreateWithoutProvisioning start")
+	defer m.log.Println("MMCliFilesetClient: createWithoutProvisioning end")
+	mappingConfig, err := m.retrieveMappingConfig()
+	if err != nil {
+		m.log.Printf("error retrieving mapping %#v", err)
+		return err
+	}
+	_, ok := mappingConfig.Mappings[name]
+	if ok == true {
+		m.log.Printf("Volume %s already exists", name)
+		return fmt.Errorf("Volume already exists")
+	}
+	userSpecifiedFileset, exists := opts["fileset"]
+	if exists == true {
+		return m.updateMappingWithExistingFileset(name, userSpecifiedFileset.(string), mappingConfig)
+	} else {
+
+		err := m.filesetExists(name)
+		if err != nil {
+			m.log.Printf("Fileset not found %#v", err)
+			return err
+		}
+
+		mappingConfig.Mappings[name] = Fileset{Name: name}
+		err = m.persistMappingConfig(mappingConfig)
+		if err != nil {
+			m.log.Printf("Error persisting mapping %#v", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *MMCliFilesetClient) filesetExists(name string) error {
+	m.log.Println("MMCliFilesetClient:  fileset exists start")
+	defer m.log.Println("MMCliFilesetClient: fileset exists end")
+	m.log.Printf("filesetExists: %s\n", name)
+
+	spectrumCommand := "/usr/lpp/mmfs/bin/mmlsfileset"
+	args := []string{m.Filesystem, name, "-Y"}
+	cmd := exec.Command(spectrumCommand, args...)
+
+	_, err := cmd.Output()
+	if err != nil {
+		m.log.Printf("error checking fileset %#v", err)
+		return err
+	}
+	var line string
+	scanner := bufio.NewScanner(cmd.Stdin)
+	for scanner.Scan() {
+		line = (scanner.Text())
+		lineSlice := strings.Split(line, " ")
+		if lineSlice[0] == name {
+			return nil
+		}
+	}
+	m.log.Println("fileset not found")
+	return fmt.Errorf("volume not found in the filesystem")
+}
+
 func (m *MMCliFilesetClient) updateMappingWithExistingFileset(name, userSpecifiedFileset string, mappingConfig MappingConfig) error {
 	m.log.Println("MMCliFilesetClient:  updateMappingWithExistingFileset start")
 	defer m.log.Println("MMCliFilesetClient: updateMappingWithExistingFileset end")
@@ -147,6 +212,27 @@ func (m *MMCliFilesetClient) Remove(name string) error {
 	}
 	return nil
 }
+
+func (m *MMCliFilesetClient) RemoveWithoutDeletingVolume(name string) error {
+	m.log.Println("MMCliFilesetClient: RemoveWithoutDeletingVolume start")
+	defer m.log.Println("MMCliFilesetClient: RemoveWithoutDeletingVolume end")
+	mappingConfig, err := m.retrieveMappingConfig()
+	if err != nil {
+		m.log.Printf("error retrieving mapping %#v", err)
+		return err
+	}
+	_, ok := mappingConfig.Mappings[name]
+	if ok == true {
+		delete(mappingConfig.Mappings, name)
+		err = m.persistMappingConfig(mappingConfig)
+		if err != nil {
+			m.log.Printf("Failed to persist mapping %#v", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *MMCliFilesetClient) Attach(name string) (string, error) {
 	m.log.Println("MMCliFilesetClient: attach start")
 	defer m.log.Println("MMCliFilesetClient: attach end")
@@ -349,9 +435,9 @@ func (m *MMCliFilesetClient) GetFileSetForMountPoint(mountPoint string) (string,
 	if err != nil {
 		return "", err
 	}
-	for _, fileset := range mappingConfig.Mappings {
+	for indexName, fileset := range mappingConfig.Mappings {
 		if fileset.Mountpoint == mountPoint {
-			return fileset.Name, nil
+			return indexName, nil
 		}
 	}
 	return "", nil

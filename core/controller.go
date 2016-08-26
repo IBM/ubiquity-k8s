@@ -39,8 +39,8 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	var opts map[string]interface{}
 	opts = map[string]interface{}{"fileset": attachRequest.VolumeId}
 
-	err := c.Client.Create(attachRequest.VolumeId, opts)
 	var attachResponse *models.FlexVolumeResponse
+	err := c.Client.CreateWithoutProvisioning(attachRequest.VolumeId, opts)
 	if err != nil && err.Error() != "Volume already exists" {
 		attachResponse = &models.FlexVolumeResponse{
 			Status:  "Failure",
@@ -82,7 +82,7 @@ func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVo
 	}
 
 	if existingVolume != nil {
-		err = c.Client.Remove(detachRequest.Name)
+		err = c.Client.RemoveWithoutDeletingVolume(detachRequest.Name)
 		if err != nil {
 			return &models.FlexVolumeResponse{
 				Status:  "Failure",
