@@ -131,6 +131,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 	defer closeLogs(logFile)
 	//in this case the filesystem name will not be used
 	// the spectrum client will get the right mapping from the mountDir
+	logger.Printf("CLI: unmount arg0 (mountDir)", mountDir)
 	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
 
 	unmountRequest := models.GenericRequest{

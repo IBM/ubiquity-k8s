@@ -124,6 +124,7 @@ func (m *MMCliFilesetClient) Remove(name string) error {
 	defer m.log.Println("MMCliFilesetClient: remove end")
 	mappingConfig, err := m.retrieveMappingConfig()
 	if err != nil {
+		m.log.Printf("error retrieving mapping %#v", err)
 		return err
 	}
 	existingMapping, ok := mappingConfig.Mappings[name]
@@ -133,12 +134,14 @@ func (m *MMCliFilesetClient) Remove(name string) error {
 		cmd := exec.Command(spectrumCommand, args...)
 		output, err := cmd.Output()
 		if err != nil {
+			m.log.Printf("Failed to remove fileset  %#v", err)
 			return fmt.Errorf("Failed to remove fileset")
 		}
 		m.log.Printf("MMCliFilesetClient: Deletefileset output: %s\n", string(output))
 		delete(mappingConfig.Mappings, name)
 		err = m.persistMappingConfig(mappingConfig)
 		if err != nil {
+			m.log.Printf("Failed to persist mapping %#v", err)
 			return err
 		}
 	}
@@ -197,13 +200,16 @@ func (m *MMCliFilesetClient) Detach(name string) error {
 	defer m.log.Println("MMCliFilesetClient: detach end")
 	mappingConfig, err := m.retrieveMappingConfig()
 	if err != nil {
+		m.log.Printf("MMCliFilesetClient detach: error retrieving mapping %#v", err)
 		return err
 	}
 	mapping, ok := mappingConfig.Mappings[name]
 	if ok == false {
+		m.log.Println("MMCliFilesetClient detach: fileset not found")
 		return fmt.Errorf("fileset couldn't be located")
 	}
 	if mapping.Mountpoint == "" {
+		m.log.Println("MMCliFilesetClient detach: fileset not linked")
 		return fmt.Errorf("fileset not linked")
 	}
 	spectrumCommand := "/usr/lpp/mmfs/bin/mmunlinkfileset"

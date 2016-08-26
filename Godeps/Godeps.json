@@ -10,11 +10,11 @@
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/core",
-			"Rev": "f5d991c23c20ad978fd11072f4c8fc9f4c8d0d2b"
+			"Rev": "f7e0a7d00044de1e993513d3cdf25eed75fa64ee"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/models",
-			"Rev": "f5d991c23c20ad978fd11072f4c8fc9f4c8d0d2b"
+			"Rev": "f7e0a7d00044de1e993513d3cdf25eed75fa64ee"
 		}
 	]
 }

@@ -37,9 +37,7 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	defer c.log.Println("controller-attach-end")
 	c.log.Printf("attach-details %#v\n", attachRequest)
 	var opts map[string]interface{}
-	if attachRequest.Fileset != "" {
-		opts = map[string]interface{}{"fileset": attachRequest.Fileset}
-	}
+	opts = map[string]interface{}{"fileset": attachRequest.VolumeId}
 
 	err := c.Client.Create(attachRequest.VolumeId, opts)
 	var attachResponse *models.FlexVolumeResponse
@@ -50,7 +48,7 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 			Device:  attachRequest.VolumeId,
 		}
 		c.log.Printf("Failed-to-attach-volume %#v ", err)
-	} else if err.Error() == "Volume already exists" {
+	} else if err != nil && err.Error() == "Volume already exists" {
 		attachResponse = &models.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume already attached",
@@ -166,9 +164,9 @@ func (c *Controller) Unmount(unmountRequest *models.GenericRequest) *models.Flex
 			Device:  "",
 		}
 	}
-
+	c.log.Printf("Controller: unmount trying to unlink volume %s .", filesetName)
 	err = c.Client.Detach(filesetName)
-	if err != nil {
+	if err != nil && err.Error() != "fileset not linked" {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to unmount volume %#v", err),
