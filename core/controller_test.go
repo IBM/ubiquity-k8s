@@ -30,23 +30,23 @@ var _ = Describe("Controller", func() {
 
 		Context(".Attach", func() {
 			It("does not error on create with valid opts", func() {
-				fakeClient.CreateReturns(nil)
-				attachRequest := &models.FlexVolumeAttachRequest{VolumeId: "vol1", Size: 200, VolumeGroup: "vg1", FileSet: "fs1", Path: "myPath"}
+				fakeClient.CreateWithoutProvisioningReturns(nil)
+				attachRequest := &models.FlexVolumeAttachRequest{VolumeId: "vol1", Filesystem: "gpfs1", Size: "200m", Fileset: "fs1", Path: "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Success"))
 				Expect(attachResponse.Message).To(Equal("Volume attached successfully"))
 				Expect(attachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.CreateCallCount()).To(Equal(1))
+				Expect(fakeClient.CreateWithoutProvisioningCallCount()).To(Equal(1))
 			})
 			It("does error on create when client fails to attach", func() {
 				err := fmt.Errorf("Spectrum internal error on attach")
-				fakeClient.CreateReturns(err)
-				attachRequest := &models.FlexVolumeAttachRequest{VolumeId: "vol", Size: 200, VolumeGroup: "vg1", FileSet: "fs1", Path: "myPath"}
+				fakeClient.CreateWithoutProvisioningReturns(err)
+				attachRequest := &models.FlexVolumeAttachRequest{VolumeId: "vol", Size: "200m", Filesystem: "gpfs1", Fileset: "fs1", Path: "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Failure"))
 				Expect(attachResponse.Message).To(Equal(fmt.Sprintf("Failed to attach volume: %#v", err)))
 				Expect(attachResponse.Device).To(Equal("vol"))
-				Expect(fakeClient.CreateCallCount()).To(Equal(1))
+				Expect(fakeClient.CreateWithoutProvisioningCallCount()).To(Equal(1))
 			})
 
 		})
@@ -55,14 +55,14 @@ var _ = Describe("Controller", func() {
 			It("does not error when existing volume name is given", func() {
 				volume := &models.VolumeMetadata{Name: "vol1"}
 				fakeClient.GetReturns(volume, nil, nil)
-				fakeClient.RemoveReturns(nil)
+				fakeClient.RemoveWithoutDeletingVolumeReturns(nil)
 				detachRequest := &models.GenericRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Success"))
 				Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
 				Expect(detachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.GetCallCount()).To(Equal(1))
-				Expect(fakeClient.RemoveCallCount()).To(Equal(1))
+				Expect(fakeClient.RemoveWithoutDeletingVolumeCallCount()).To(Equal(1))
 			})
 			It("error when volume not found", func() {
 				fakeClient.GetReturns(nil, nil, nil)
@@ -72,7 +72,7 @@ var _ = Describe("Controller", func() {
 				Expect(detachResponse.Message).To(Equal("Volume not found"))
 				Expect(detachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.GetCallCount()).To(Equal(1))
-				Expect(fakeClient.RemoveCallCount()).To(Equal(0))
+				Expect(fakeClient.RemoveWithoutDeletingVolumeCallCount()).To(Equal(0))
 			})
 
 			It("error when client fails to retrieve volume info", func() {
@@ -91,14 +91,14 @@ var _ = Describe("Controller", func() {
 				err := fmt.Errorf("error detaching volume")
 				volume := &models.VolumeMetadata{Name: "vol1"}
 				fakeClient.GetReturns(volume, nil, nil)
-				fakeClient.RemoveReturns(err)
+				fakeClient.RemoveWithoutDeletingVolumeReturns(err)
 				detachRequest := &models.GenericRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Failure"))
 				Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
 				Expect(detachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.GetCallCount()).To(Equal(1))
-				Expect(fakeClient.RemoveCallCount()).To(Equal(1))
+				Expect(fakeClient.RemoveWithoutDeletingVolumeCallCount()).To(Equal(1))
 			})
 		})
 		Context(".Mount", func() {

@@ -18,6 +18,15 @@ type FakeSpectrumClient struct {
 	createReturns struct {
 		result1 error
 	}
+	CreateWithoutProvisioningStub        func(name string, opts map[string]interface{}) error
+	createWithoutProvisioningMutex       sync.RWMutex
+	createWithoutProvisioningArgsForCall []struct {
+		name string
+		opts map[string]interface{}
+	}
+	createWithoutProvisioningReturns struct {
+		result1 error
+	}
 	RemoveStub        func(name string) error
 	removeMutex       sync.RWMutex
 	removeArgsForCall []struct {
@@ -73,6 +82,14 @@ type FakeSpectrumClient struct {
 	mountReturns     struct {
 		result1 error
 	}
+	RemoveWithoutDeletingVolumeStub        func(string) error
+	removeWithoutDeletingVolumeMutex       sync.RWMutex
+	removeWithoutDeletingVolumeArgsForCall []struct {
+		arg1 string
+	}
+	removeWithoutDeletingVolumeReturns struct {
+		result1 error
+	}
 	GetFileSetForMountPointStub        func(mountPoint string) (string, error)
 	getFileSetForMountPointMutex       sync.RWMutex
 	getFileSetForMountPointArgsForCall []struct {
@@ -116,6 +133,40 @@ func (fake *FakeSpectrumClient) CreateArgsForCall(i int) (string, map[string]int
 func (fake *FakeSpectrumClient) CreateReturns(result1 error) {
 	fake.CreateStub = nil
 	fake.createReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSpectrumClient) CreateWithoutProvisioning(name string, opts map[string]interface{}) error {
+	fake.createWithoutProvisioningMutex.Lock()
+	fake.createWithoutProvisioningArgsForCall = append(fake.createWithoutProvisioningArgsForCall, struct {
+		name string
+		opts map[string]interface{}
+	}{name, opts})
+	fake.recordInvocation("CreateWithoutProvisioning", []interface{}{name, opts})
+	fake.createWithoutProvisioningMutex.Unlock()
+	if fake.CreateWithoutProvisioningStub != nil {
+		return fake.CreateWithoutProvisioningStub(name, opts)
+	} else {
+		return fake.createWithoutProvisioningReturns.result1
+	}
+}
+
+func (fake *FakeSpectrumClient) CreateWithoutProvisioningCallCount() int {
+	fake.createWithoutProvisioningMutex.RLock()
+	defer fake.createWithoutProvisioningMutex.RUnlock()
+	return len(fake.createWithoutProvisioningArgsForCall)
+}
+
+func (fake *FakeSpectrumClient) CreateWithoutProvisioningArgsForCall(i int) (string, map[string]interface{}) {
+	fake.createWithoutProvisioningMutex.RLock()
+	defer fake.createWithoutProvisioningMutex.RUnlock()
+	return fake.createWithoutProvisioningArgsForCall[i].name, fake.createWithoutProvisioningArgsForCall[i].opts
+}
+
+func (fake *FakeSpectrumClient) CreateWithoutProvisioningReturns(result1 error) {
+	fake.CreateWithoutProvisioningStub = nil
+	fake.createWithoutProvisioningReturns = struct {
 		result1 error
 	}{result1}
 }
@@ -332,6 +383,39 @@ func (fake *FakeSpectrumClient) MountReturns(result1 error) {
 	}{result1}
 }
 
+func (fake *FakeSpectrumClient) RemoveWithoutDeletingVolume(arg1 string) error {
+	fake.removeWithoutDeletingVolumeMutex.Lock()
+	fake.removeWithoutDeletingVolumeArgsForCall = append(fake.removeWithoutDeletingVolumeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("RemoveWithoutDeletingVolume", []interface{}{arg1})
+	fake.removeWithoutDeletingVolumeMutex.Unlock()
+	if fake.RemoveWithoutDeletingVolumeStub != nil {
+		return fake.RemoveWithoutDeletingVolumeStub(arg1)
+	} else {
+		return fake.removeWithoutDeletingVolumeReturns.result1
+	}
+}
+
+func (fake *FakeSpectrumClient) RemoveWithoutDeletingVolumeCallCount() int {
+	fake.removeWithoutDeletingVolumeMutex.RLock()
+	defer fake.removeWithoutDeletingVolumeMutex.RUnlock()
+	return len(fake.removeWithoutDeletingVolumeArgsForCall)
+}
+
+func (fake *FakeSpectrumClient) RemoveWithoutDeletingVolumeArgsForCall(i int) string {
+	fake.removeWithoutDeletingVolumeMutex.RLock()
+	defer fake.removeWithoutDeletingVolumeMutex.RUnlock()
+	return fake.removeWithoutDeletingVolumeArgsForCall[i].arg1
+}
+
+func (fake *FakeSpectrumClient) RemoveWithoutDeletingVolumeReturns(result1 error) {
+	fake.RemoveWithoutDeletingVolumeStub = nil
+	fake.removeWithoutDeletingVolumeReturns = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeSpectrumClient) GetFileSetForMountPoint(mountPoint string) (string, error) {
 	fake.getFileSetForMountPointMutex.Lock()
 	fake.getFileSetForMountPointArgsForCall = append(fake.getFileSetForMountPointArgsForCall, struct {
@@ -371,6 +455,8 @@ func (fake *FakeSpectrumClient) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
+	fake.createWithoutProvisioningMutex.RLock()
+	defer fake.createWithoutProvisioningMutex.RUnlock()
 	fake.removeMutex.RLock()
 	defer fake.removeMutex.RUnlock()
 	fake.attachMutex.RLock()
@@ -385,6 +471,8 @@ func (fake *FakeSpectrumClient) Invocations() map[string][][]interface{} {
 	defer fake.isMountedMutex.RUnlock()
 	fake.mountMutex.RLock()
 	defer fake.mountMutex.RUnlock()
+	fake.removeWithoutDeletingVolumeMutex.RLock()
+	defer fake.removeWithoutDeletingVolumeMutex.RUnlock()
 	fake.getFileSetForMountPointMutex.RLock()
 	defer fake.getFileSetForMountPointMutex.RUnlock()
 	return fake.invocations
