@@ -7,17 +7,17 @@ bin=$(dirname $0)
 go build -o $bin/../out/spectrum $bin/../cli.go
 
 #create a fileset
-echo "creating test volume"
+printf "\n creating test volume \n "
 mmcrfileset gpfs1 testvolume
 cd $bin/../out
-echo "calling spectrum attach"
-./spectrum attach \{\"volumeID\"\:\"testvolume\",\"filesystem\"\:\"gpfs1\"\,\"path\"\:\"/gpfs/gpfs1\"\}
-echo "calling spectrum mount"
-./spectrum mount /gpfs/gpfs1 testvolume
-echo "calling spectrum unmount"
+printf "\n calling spectrum attach \n "
+./spectrum attach \{\"volumeID\"\:\"testvolume\",\"filesystem\"\:\"gpfs1\",\"path\"\:\"/gpfs/gpfs1\"\}
+printf "\n calling spectrum mount \n"
+./spectrum mount /gpfs/gpfs1 testvolume \{\}
+printf "\n calling spectrum unmount \n "
 ./spectrum unmount /gpfs/gpfs1/testvolume
-echo "calling spectrum detach"
+printf "\n calling spectrum detach \n "
 ./spectrum detach testvolume
-echo "cleaning test volume"
+printf "\n cleaning test volume \n "
 mmdelfileset gpfs1 testvolume
 
