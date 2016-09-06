@@ -9,6 +9,12 @@ import (
 )
 
 type FakeSpectrumClient struct {
+	ActivateStub        func() error
+	activateMutex       sync.RWMutex
+	activateArgsForCall []struct{}
+	activateReturns     struct {
+		result1 error
+	}
 	CreateStub        func(name string, opts map[string]interface{}) error
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
@@ -50,6 +56,24 @@ type FakeSpectrumClient struct {
 		name string
 	}
 	detachReturns struct {
+		result1 error
+	}
+	ExportNfsStub        func(name string, clientCIDR string) (string, error)
+	exportNfsMutex       sync.RWMutex
+	exportNfsArgsForCall []struct {
+		name       string
+		clientCIDR string
+	}
+	exportNfsReturns struct {
+		result1 string
+		result2 error
+	}
+	UnexportNfsStub        func(name string) error
+	unexportNfsMutex       sync.RWMutex
+	unexportNfsArgsForCall []struct {
+		name string
+	}
+	unexportNfsReturns struct {
 		result1 error
 	}
 	ListStub        func() ([]models.VolumeMetadata, error)
@@ -101,6 +125,31 @@ type FakeSpectrumClient struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeSpectrumClient) Activate() error {
+	fake.activateMutex.Lock()
+	fake.activateArgsForCall = append(fake.activateArgsForCall, struct{}{})
+	fake.recordInvocation("Activate", []interface{}{})
+	fake.activateMutex.Unlock()
+	if fake.ActivateStub != nil {
+		return fake.ActivateStub()
+	} else {
+		return fake.activateReturns.result1
+	}
+}
+
+func (fake *FakeSpectrumClient) ActivateCallCount() int {
+	fake.activateMutex.RLock()
+	defer fake.activateMutex.RUnlock()
+	return len(fake.activateArgsForCall)
+}
+
+func (fake *FakeSpectrumClient) ActivateReturns(result1 error) {
+	fake.ActivateStub = nil
+	fake.activateReturns = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeSpectrumClient) Create(name string, opts map[string]interface{}) error {
@@ -267,6 +316,74 @@ func (fake *FakeSpectrumClient) DetachArgsForCall(i int) string {
 func (fake *FakeSpectrumClient) DetachReturns(result1 error) {
 	fake.DetachStub = nil
 	fake.detachReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeSpectrumClient) ExportNfs(name string, clientCIDR string) (string, error) {
+	fake.exportNfsMutex.Lock()
+	fake.exportNfsArgsForCall = append(fake.exportNfsArgsForCall, struct {
+		name       string
+		clientCIDR string
+	}{name, clientCIDR})
+	fake.recordInvocation("ExportNfs", []interface{}{name, clientCIDR})
+	fake.exportNfsMutex.Unlock()
+	if fake.ExportNfsStub != nil {
+		return fake.ExportNfsStub(name, clientCIDR)
+	} else {
+		return fake.exportNfsReturns.result1, fake.exportNfsReturns.result2
+	}
+}
+
+func (fake *FakeSpectrumClient) ExportNfsCallCount() int {
+	fake.exportNfsMutex.RLock()
+	defer fake.exportNfsMutex.RUnlock()
+	return len(fake.exportNfsArgsForCall)
+}
+
+func (fake *FakeSpectrumClient) ExportNfsArgsForCall(i int) (string, string) {
+	fake.exportNfsMutex.RLock()
+	defer fake.exportNfsMutex.RUnlock()
+	return fake.exportNfsArgsForCall[i].name, fake.exportNfsArgsForCall[i].clientCIDR
+}
+
+func (fake *FakeSpectrumClient) ExportNfsReturns(result1 string, result2 error) {
+	fake.ExportNfsStub = nil
+	fake.exportNfsReturns = struct {
+		result1 string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeSpectrumClient) UnexportNfs(name string) error {
+	fake.unexportNfsMutex.Lock()
+	fake.unexportNfsArgsForCall = append(fake.unexportNfsArgsForCall, struct {
+		name string
+	}{name})
+	fake.recordInvocation("UnexportNfs", []interface{}{name})
+	fake.unexportNfsMutex.Unlock()
+	if fake.UnexportNfsStub != nil {
+		return fake.UnexportNfsStub(name)
+	} else {
+		return fake.unexportNfsReturns.result1
+	}
+}
+
+func (fake *FakeSpectrumClient) UnexportNfsCallCount() int {
+	fake.unexportNfsMutex.RLock()
+	defer fake.unexportNfsMutex.RUnlock()
+	return len(fake.unexportNfsArgsForCall)
+}
+
+func (fake *FakeSpectrumClient) UnexportNfsArgsForCall(i int) string {
+	fake.unexportNfsMutex.RLock()
+	defer fake.unexportNfsMutex.RUnlock()
+	return fake.unexportNfsArgsForCall[i].name
+}
+
+func (fake *FakeSpectrumClient) UnexportNfsReturns(result1 error) {
+	fake.UnexportNfsStub = nil
+	fake.unexportNfsReturns = struct {
 		result1 error
 	}{result1}
 }
@@ -453,6 +570,8 @@ func (fake *FakeSpectrumClient) GetFileSetForMountPointReturns(result1 string, r
 func (fake *FakeSpectrumClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.activateMutex.RLock()
+	defer fake.activateMutex.RUnlock()
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
 	fake.createWithoutProvisioningMutex.RLock()
@@ -463,6 +582,10 @@ func (fake *FakeSpectrumClient) Invocations() map[string][][]interface{} {
 	defer fake.attachMutex.RUnlock()
 	fake.detachMutex.RLock()
 	defer fake.detachMutex.RUnlock()
+	fake.exportNfsMutex.RLock()
+	defer fake.exportNfsMutex.RUnlock()
+	fake.unexportNfsMutex.RLock()
+	defer fake.unexportNfsMutex.RUnlock()
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
 	fake.getMutex.RLock()

@@ -11,7 +11,7 @@ import (
 
 	flags "github.com/jessevdk/go-flags"
 
-	"github.ibm.com/almaden-containers/spectrum-common.git/core"
+	common "github.ibm.com/almaden-containers/spectrum-common.git/core"
 	"github.ibm.com/almaden-containers/spectrum-common.git/models"
 	"github.ibm.com/almaden-containers/spectrum-flexvolume-cli.git/core"
 )
@@ -62,7 +62,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return response.PrintResponse()
 	}
-	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	dbClient := common.NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
 	defer dbClient.Close()
 
 	err = dbClient.Init()
@@ -98,10 +98,10 @@ func (d *DetachCommand) Execute(args []string) error {
 
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
-	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	dbClient := common.NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
 	defer dbClient.Close()
 
-	err = dbClient.Init()
+	err := dbClient.Init()
 	if err != nil {
 		response := models.FlexVolumeResponse{
 			Status:  "Failure",
@@ -144,7 +144,7 @@ func (m *MountCommand) Execute(args []string) error {
 		return mountResponse.PrintResponse()
 	}
 
-	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	dbClient := common.NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
 	defer dbClient.Close()
 
 	err = dbClient.Init()
@@ -180,10 +180,10 @@ func (u *UnmountCommand) Execute(args []string) error {
 	//in this case the filesystem name will not be used
 	// the spectrum client will get the right mapping from the mountDir
 	logger.Printf("CLI: unmount arg0 (mountDir)", mountDir)
-	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	dbClient := common.NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
 	defer dbClient.Close()
 
-	err = dbClient.Init()
+	err := dbClient.Init()
 	if err != nil {
 		response := models.FlexVolumeResponse{
 			Status:  "Failure",

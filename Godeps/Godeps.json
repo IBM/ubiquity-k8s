@@ -14,7 +14,7 @@
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/models",
-			"Rev": "20117a3f7d2eeb1e645453fb3e30ebe1044ddea2"
+			"Rev": "381ca8c234fbf0eb1627de79417cff0e59236b2f"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-sqlite3",
