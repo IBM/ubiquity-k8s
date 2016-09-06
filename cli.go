@@ -11,6 +11,7 @@ import (
 
 	flags "github.com/jessevdk/go-flags"
 
+	"github.ibm.com/almaden-containers/spectrum-common.git/core"
 	"github.ibm.com/almaden-containers/spectrum-common.git/models"
 	"github.ibm.com/almaden-containers/spectrum-flexvolume-cli.git/core"
 )
@@ -51,7 +52,6 @@ type AttachCommand struct {
 func (a *AttachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
-
 	attachRequest := models.FlexVolumeAttachRequest{}
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
@@ -62,7 +62,29 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return response.PrintResponse()
 	}
-	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
+	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	defer dbClient.Close()
+
+	err = dbClient.Init()
+	if err != nil {
+		response := models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to init databasee %#v", err),
+			Device:  "",
+		}
+		return response.PrintResponse()
+	}
+	err = dbClient.CreateVolumeTable()
+	if err != nil {
+		response := models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to create volume table %#v", err),
+			Device:  "",
+		}
+		return response.PrintResponse()
+	}
+
+	controller := core.NewController(logger, *filesystemName, *defaultMountPath, dbClient)
 	attachResponse := controller.Attach(&attachRequest)
 	return attachResponse.PrintResponse()
 }
@@ -73,10 +95,23 @@ type DetachCommand struct {
 
 func (d *DetachCommand) Execute(args []string) error {
 	mountDevice := args[0]
+
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
+	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	defer dbClient.Close()
 
-	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
+	err = dbClient.Init()
+	if err != nil {
+		response := models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to init databasee %#v", err),
+			Device:  "",
+		}
+		return response.PrintResponse()
+	}
+
+	controller := core.NewController(logger, *filesystemName, *defaultMountPath, dbClient)
 	removeRequest := models.GenericRequest{Name: mountDevice}
 	removeResponse := controller.Detach(&removeRequest)
 	return removeResponse.PrintResponse()
@@ -109,7 +144,20 @@ func (m *MountCommand) Execute(args []string) error {
 		return mountResponse.PrintResponse()
 	}
 
-	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
+	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	defer dbClient.Close()
+
+	err = dbClient.Init()
+	if err != nil {
+		response := models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to init databasee %#v", err),
+			Device:  "",
+		}
+		return response.PrintResponse()
+	}
+
+	controller := core.NewController(logger, *filesystemName, *defaultMountPath, dbClient)
 
 	mountRequest := models.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
@@ -132,7 +180,20 @@ func (u *UnmountCommand) Execute(args []string) error {
 	//in this case the filesystem name will not be used
 	// the spectrum client will get the right mapping from the mountDir
 	logger.Printf("CLI: unmount arg0 (mountDir)", mountDir)
-	controller := core.NewController(logger, "gpfs1", *defaultMountPath)
+	dbClient := NewDatabaseClient(logger, *filesystemName, *defaultMountPath)
+	defer dbClient.Close()
+
+	err = dbClient.Init()
+	if err != nil {
+		response := models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to init databasee %#v", err),
+			Device:  "",
+		}
+		return response.PrintResponse()
+	}
+
+	controller := core.NewController(logger, *filesystemName, *defaultMountPath, dbClient)
 
 	unmountRequest := models.GenericRequest{
 		Name: mountDir,

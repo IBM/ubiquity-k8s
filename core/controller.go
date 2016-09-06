@@ -13,8 +13,8 @@ type Controller struct {
 	log    *log.Logger
 }
 
-func NewController(logger *log.Logger, filesystem, mountpath string) *Controller {
-	return &Controller{log: logger, Client: common.NewSpectrumClient(logger, filesystem, mountpath)}
+func NewController(logger *log.Logger, filesystem, mountpath string, dbClient *common.DatabaseClient) *Controller {
+	return &Controller{log: logger, Client: common.NewSpectrumClient(logger, filesystem, mountpath, dbClient)}
 }
 
 func NewControllerWithClient(logger *log.Logger, client common.SpectrumClient) *Controller {
