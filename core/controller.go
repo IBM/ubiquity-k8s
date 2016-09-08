@@ -145,14 +145,18 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 			Device:  "",
 		}
 	}
-	c.log.Printf("cerating symlink source %s destination%s", mountedPath, mountRequest.M:x
-)
+	c.log.Printf("cerating symlink source %s destination%s", mountedPath, mountRequest.MountPath)
 	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, mountRequest.MounPath}
+	args := []string{"-s", mountedPath, mountRequest.MountPath}
 	cmd := exec.Command(symLinkCommand, args...)
-	_, err := cmd.Output()
+	_, err = cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("Error running command: %s", err.Error())
+		return &models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed running ln command %#v", err),
+			Device:  "",
+		}
+
 	}
 
 	return &models.FlexVolumeResponse{

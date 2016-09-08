@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+bin=$(dirname $0)
+mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~spectrum/
+
+cp $bin/../out/spectrum /usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~spectrum/spectrum
