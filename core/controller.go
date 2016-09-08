@@ -3,24 +3,29 @@ package core
 import (
 	"fmt"
 	"log"
+	"os/exec"
 
 	common "github.ibm.com/almaden-containers/spectrum-common.git/core"
 	"github.ibm.com/almaden-containers/spectrum-common.git/models"
 )
 
+//Controller this is a structure that controls volume management
 type Controller struct {
 	Client common.SpectrumClient
 	log    *log.Logger
 }
 
+//NewController allows to instantiate a controller
 func NewController(logger *log.Logger, filesystem, mountpath string, dbClient *common.DatabaseClient) *Controller {
 	return &Controller{log: logger, Client: common.NewSpectrumClient(logger, filesystem, mountpath, dbClient)}
 }
 
+//NewControllerWithClient is made for unit testing purposes where we can pass a fake client
 func NewControllerWithClient(logger *log.Logger, client common.SpectrumClient) *Controller {
 	return &Controller{log: logger, Client: client}
 }
 
+//Init method is to initialize the flexvolume, it is a no op right now
 func (c *Controller) Init() *models.FlexVolumeResponse {
 	c.log.Println("controller-activate-start")
 	defer c.log.Println("controller-activate-end")
@@ -32,6 +37,7 @@ func (c *Controller) Init() *models.FlexVolumeResponse {
 	}
 }
 
+//Attach method attaches a volume/ fileset to a pod
 func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *models.FlexVolumeResponse {
 	c.log.Println("controller-attach-start")
 	defer c.log.Println("controller-attach-end")
@@ -65,6 +71,7 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 	return attachResponse
 }
 
+//Detach detaches the volume/ fileset from the pod
 func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVolumeResponse {
 	c.log.Println("controller-detach-start")
 	defer c.log.Println("controller-detach-end")
@@ -105,37 +112,47 @@ func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVo
 	}
 }
 
+//Mount method allows to mount the volume/fileset to a given location for a pod
 func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.FlexVolumeResponse {
 	c.log.Println("controller-mount-start")
 	defer c.log.Println("controller-mount-end")
 
 	existingVolume, _, err := c.Client.Get(mountRequest.MountDevice)
 	if err != nil && err.Error() != "Cannot find info" {
+		c.log.Printf("Error getting volume info %#v", err)
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
 		}
-		c.log.Printf("Error getting volume info %#v", err)
 	}
 
 	if existingVolume == nil {
+		c.log.Printf("Volume %s could not be found", mountRequest.MountDevice)
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: "Failed to mount volume: volume not found",
 			Device:  "",
 		}
-		c.log.Printf("Volume %s could not be found", mountRequest.MountDevice)
 	}
 
 	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
 	if err != nil {
+		c.log.Printf("Failed to mount volume %#v", err)
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
 		}
-		c.log.Printf("Failed to mount volume %#v", err)
+	}
+	c.log.Printf("cerating symlink source %s destination%s", mountedPath, mountRequest.M:x
+)
+	symLinkCommand := "/bin/ln"
+	args := []string{"-s", mountedPath, mountRequest.MounPath}
+	cmd := exec.Command(symLinkCommand, args...)
+	_, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("Error running command: %s", err.Error())
 	}
 
 	return &models.FlexVolumeResponse{
@@ -145,6 +162,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	}
 }
 
+//Unmount methods unmounts the volume/ fileset from the pod
 func (c *Controller) Unmount(unmountRequest *models.GenericRequest) *models.FlexVolumeResponse {
 	c.log.Println("Controller: unmount start")
 	defer c.log.Println("Controller: unmount end")
