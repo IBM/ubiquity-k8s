@@ -247,6 +247,7 @@ func setupLogger(logPath string) (*log.Logger, *os.File) {
 		return nil, nil
 	}
 	log.SetOutput(logFile)
+	// logger := log.New(io.MultiWriter(logFile, os.Stdout), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
 	logger := log.New(io.MultiWriter(logFile), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
 	return logger, logFile
 }

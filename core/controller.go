@@ -3,7 +3,9 @@ package core
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	common "github.ibm.com/almaden-containers/spectrum-common.git/core"
 	"github.ibm.com/almaden-containers/spectrum-common.git/models"
@@ -137,6 +139,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	}
 
 	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
+
 	if err != nil {
 		c.log.Printf("Failed to mount volume %#v", err)
 		return &models.FlexVolumeResponse{
@@ -145,11 +148,34 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 			Device:  "",
 		}
 	}
-	c.log.Printf("cerating symlink source %s destination%s", mountedPath, mountRequest.MountPath)
+	dir := filepath.Dir(mountRequest.MountPath)
+
+	c.log.Printf("volume/ fileset mounted at %s", mountedPath)
+
+	c.log.Printf("creating volume directory %s", dir)
+	err = os.MkdirAll(mountRequest.MountPath, 0777)
+	if err != nil && !os.IsExist(err) {
+		return &models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed creating volume directory %#v", err),
+			Device:  "",
+		}
+
+	}
+
 	symLinkCommand := "/bin/ln"
 	args := []string{"-s", mountedPath, mountRequest.MountPath}
 	cmd := exec.Command(symLinkCommand, args...)
 	_, err = cmd.Output()
+	if err != nil {
+		return &models.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed running ln command %#v", err),
+			Device:  "",
+		}
+
+	}
+
 	if err != nil {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",

@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"fmt"
+	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -105,14 +106,17 @@ var _ = Describe("Controller", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
 				volume := &models.VolumeMetadata{Name: "vol1"}
 				fakeClient.GetReturns(volume, nil, nil)
-				fakeClient.AttachReturns("some-mountpath", nil)
-				mountRequest := &models.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				fakeClient.AttachReturns("/tmp/mnt1", nil)
+				mountRequest := &models.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Success"))
-				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to some-mountpath"))
+				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
 				Expect(mountResponse.Device).To(Equal(""))
 				Expect(fakeClient.GetCallCount()).To(Equal(1))
 				Expect(fakeClient.AttachCallCount()).To(Equal(1))
+			})
+			AfterEach(func() {
+				os.RemoveAll("/tmp/mnt2")
 			})
 			It("errors when volume get returns error", func() {
 				err := fmt.Errorf("error listing volume")

@@ -13,11 +13,13 @@ cd $bin/../out
 printf "\n calling spectrum attach \n "
 ./spectrum attach \{\"volumeID\"\:\"testvolume\",\"filesystem\"\:\"gpfs1\",\"path\"\:\"/gpfs/gpfs1\"\}
 printf "\n calling spectrum mount \n"
-./spectrum mount /gpfs/gpfs1 testvolume \{\}
+mkdir -p /tmp/dir1
+./spectrum mount /tmp/dir1/testvolume  testvolume \{\}
+rm -rf /tmp/dir1
 printf "\n calling spectrum unmount \n "
 ./spectrum unmount /gpfs/gpfs1/testvolume
 printf "\n calling spectrum detach \n "
 ./spectrum detach testvolume
 printf "\n cleaning test volume \n "
-mmdelfileset gpfs1 testvolume
+mmdelfileset gpfs1 testvolume -f
 

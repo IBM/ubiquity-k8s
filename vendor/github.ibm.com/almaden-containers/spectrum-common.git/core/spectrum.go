@@ -349,7 +349,7 @@ func (m *MMCliFilesetClient) Attach(name string) (Mountpoint string, err error) 
 	volExists, err := m.DbClient.VolumeExists(name)
 
 	if err != nil {
-		m.log.Println(err.Error())
+		m.log.Printf("Attach: error finding volume %#v", err.Error())
 		return "", err
 	}
 
@@ -360,23 +360,26 @@ func (m *MMCliFilesetClient) Attach(name string) (Mountpoint string, err error) 
 	existingVolume, err := m.DbClient.GetVolume(name)
 
 	if err != nil {
-		m.log.Println(err.Error())
+		m.log.Println("Attach: error getting volume info %#v", err.Error())
 		return "", err
 	}
 
-	if existingVolume.Mountpoint != "" {
-		Mountpoint = existingVolume.Mountpoint
-		return Mountpoint, nil
-	}
+	// if existingVolume.Mountpoint != "" {
+	// 	Mountpoint = existingVolume.Mountpoint
+	// 	return Mountpoint, nil
+	// }
 
 	spectrumCommand := "/usr/lpp/mmfs/bin/mmlinkfileset"
 	filesetPath := path.Join(m.Mountpoint, existingVolume.Fileset)
 	args := []string{m.Filesystem, existingVolume.Fileset, "-J", filesetPath}
 	cmd := exec.Command(spectrumCommand, args...)
 	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("Failed to link fileset")
-	}
+	// if err != nil {
+	// 	//TODO add the needed mechanisms to handle this case
+	// 	// if volumeexists and mountpath is not empty and mmlink failes => that means that the fileset is already mounted
+	// 	m.log.Printf("MMCliFilesetClient: failed to link fileset: %#v\n", err)
+	// 	return "", fmt.Errorf("Failed to link fileset %#v", err)
+	// }
 	m.log.Printf("MMCliFilesetClient: Linkfileset output: %s\n", string(output))
 
 	//hack for now
