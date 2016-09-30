@@ -153,7 +153,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	c.log.Printf("volume/ fileset mounted at %s", mountedPath)
 
 	c.log.Printf("creating volume directory %s", dir)
-	err = os.MkdirAll(mountRequest.MountPath, 0777)
+	err = os.MkdirAll(dir, 0777)
 	if err != nil && !os.IsExist(err) {
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
@@ -168,15 +168,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	cmd := exec.Command(symLinkCommand, args...)
 	_, err = cmd.Output()
 	if err != nil {
-		return &models.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed running ln command %#v", err),
-			Device:  "",
-		}
-
-	}
-
-	if err != nil {
+		c.log.Printf("Controller: mount failed to symlink %#v", err)
 		return &models.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed running ln command %#v", err),

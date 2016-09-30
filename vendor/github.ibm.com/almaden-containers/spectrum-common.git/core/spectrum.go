@@ -374,12 +374,12 @@ func (m *MMCliFilesetClient) Attach(name string) (Mountpoint string, err error) 
 	args := []string{m.Filesystem, existingVolume.Fileset, "-J", filesetPath}
 	cmd := exec.Command(spectrumCommand, args...)
 	output, err := cmd.Output()
-	// if err != nil {
-	// 	//TODO add the needed mechanisms to handle this case
-	// 	// if volumeexists and mountpath is not empty and mmlink failes => that means that the fileset is already mounted
-	// 	m.log.Printf("MMCliFilesetClient: failed to link fileset: %#v\n", err)
-	// 	return "", fmt.Errorf("Failed to link fileset %#v", err)
-	// }
+	if err != nil {
+		// 	//TODO add the needed mechanisms to handle this case
+		// 	// if volumeexists and mountpath is not empty and mmlink failes => that means that the fileset is already mounted
+		m.log.Printf("MMCliFilesetClient: failed to link fileset: %#v\n", err)
+		// 	return "", fmt.Errorf("Failed to link fileset %#v", err)
+	}
 	m.log.Printf("MMCliFilesetClient: Linkfileset output: %s\n", string(output))
 
 	//hack for now
