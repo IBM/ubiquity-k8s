@@ -4,4 +4,4 @@ set -e
 
 bin=$(dirname $0)
 
-go build -o $bin/../out/spectrum $bin/../cli.go
+go build -o $bin/../out/ubiquity $bin/../cli.go

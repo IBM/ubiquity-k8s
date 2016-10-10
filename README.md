@@ -1,6 +1,6 @@
-# Spectrum Scale FlexVolume Cli for kubernetes
+# Ubiquity FlexVolume Cli for kubernetes
 
-Spectrum Scale flexvolume cli provides access to persistent storage, utilizing Spectrum Scale, within kubernetes
+Ubiquity flexvolume cli provides access to persistent storage, utilizing Spectrum Scale, within kubernetes
 
 # Prerequesites
 
@@ -12,39 +12,39 @@ In order to create the spectrum binary we need to start by getting all the depen
 We suppose that [godep](https://github.com/tools/godep) is installed.
 
 ```bash
-git clone git@github.ibm.com:almaden-containers/spectrum-flexvolume-cli.git
-cd spectrum-flexvolume-cli
+git clone git@github.ibm.com:almaden-containers/ubiquity-flexvolume.git
+cd ubiquity-flexvolume
 godep restore
-go build -o output/spectrum
+go build -o output/ubiquity
 ```
 
 # Testing the plugin
-Install the spectrum binary on all nodes in the kubelet plugin path.
+Install the ubiquity binary on all nodes in the kubelet plugin path.
 
 Path for installing the plugin is:
 ```bash
-/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~spectrum/spectrum
+/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
 ```
 # Driver invocation model
 Init:
 ```bash
-spectrum init
+ubiquity init
 ```
 Attach:
 ```bash
-spectrum attach <json options>
+ubiquity attach <json options>
 ```
 Detach:
 ```bash
-spectrum detach <mount device>
+ubiquity detach <mount device>
 ```
 Mount:
 ```bash
-spectrum mount <target mount dir> <mount device> <json options>
+ubiquity mount <target mount dir> <mount device> <json options>
 ```
 Unmount:
 ```bash
-spectrum unmount <mount dir>
+ubiquity unmount <mount dir>
 ```
 
 
@@ -69,15 +69,14 @@ spec:
   - name: nginx
     image: nginx
     volumeMounts:
-    - name: spectrum
+    - name: ubiquity
       mountPath: /data
     ports:
     - containerPort: 80
   volumes:
-  - name: spectrum
+  - name: ubiquity
     flexVolume:
-      driver: "ibm/spectrum"
-      fsType: "ext4"
+      driver: "ibm/ubiquity"
       options:
         volumeID: "gpfs1"
         size: "1000m"

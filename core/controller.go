@@ -7,32 +7,33 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	common "github.ibm.com/almaden-containers/spectrum-common.git/core"
-	"github.ibm.com/almaden-containers/spectrum-common.git/models"
+	"github.ibm.com/almaden-containers/ibm-storage-broker.git/backends"
+	"github.ibm.com/almaden-containers/ibm-storage-broker.git/clients"
+	"github.ibm.com/almaden-containers/ibm-storage-broker.git/model"
 )
 
 //Controller this is a structure that controls volume management
 type Controller struct {
-	Client common.SpectrumClient
-	log    *log.Logger
+	Client backends.StorageBackend
+	logger *log.Logger
 }
 
 //NewController allows to instantiate a controller
-func NewController(logger *log.Logger, filesystem, mountpath string, dbClient *common.DatabaseClient) *Controller {
-	return &Controller{log: logger, Client: common.NewSpectrumClient(logger, filesystem, mountpath, dbClient)}
+func NewController(logger *log.Logger, filesystem, mountpath, storageApiURL string) *Controller {
+	return &Controller{logger: logger, Client: clients.NewSpectrumRemoteClient(logger, filesystem, mountpath, storageApiURL)}
 }
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, client common.SpectrumClient) *Controller {
-	return &Controller{log: logger, Client: client}
+func NewControllerWithClient(logger *log.Logger, client backends.StorageBackend) *Controller {
+	return &Controller{logger: logger, Client: client}
 }
 
 //Init method is to initialize the flexvolume, it is a no op right now
-func (c *Controller) Init() *models.FlexVolumeResponse {
-	c.log.Println("controller-activate-start")
-	defer c.log.Println("controller-activate-end")
+func (c *Controller) Init() model.FlexVolumeResponse {
+	c.logger.Println("controller-activate-start")
+	defer c.logger.Println("controller-activate-end")
 
-	return &models.FlexVolumeResponse{
+	return model.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Plugin init successfully",
 		Device:  "",
@@ -40,31 +41,31 @@ func (c *Controller) Init() *models.FlexVolumeResponse {
 }
 
 //Attach method attaches a volume/ fileset to a pod
-func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *models.FlexVolumeResponse {
-	c.log.Println("controller-attach-start")
-	defer c.log.Println("controller-attach-end")
-	c.log.Printf("attach-details %#v\n", attachRequest)
+func (c *Controller) Attach(attachRequest model.FlexVolumeAttachRequest) model.FlexVolumeResponse {
+	c.logger.Println("controller-attach-start")
+	defer c.logger.Println("controller-attach-end")
+	c.logger.Printf("attach-details %#v\n", attachRequest)
 	var opts map[string]interface{}
 	opts = map[string]interface{}{"fileset": attachRequest.VolumeId}
 
-	var attachResponse *models.FlexVolumeResponse
-	err := c.Client.CreateWithoutProvisioning(attachRequest.VolumeId, opts)
+	var attachResponse model.FlexVolumeResponse
+	err := c.Client.CreateVolume(attachRequest.VolumeId, opts)
 	if err != nil && err.Error() != "Volume already exists" {
-		attachResponse = &models.FlexVolumeResponse{
+		attachResponse = model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
 			Device:  attachRequest.VolumeId,
 		}
-		c.log.Printf("Failed-to-attach-volume %#v ", err)
+		c.logger.Printf("Failed-to-attach-volume %#v ", err)
 	} else if err != nil && err.Error() == "Volume already exists" {
-		attachResponse = &models.FlexVolumeResponse{
+		attachResponse = model.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume already attached",
 			Device:  attachRequest.VolumeId,
 		}
 
 	} else {
-		attachResponse = &models.FlexVolumeResponse{
+		attachResponse = model.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume attached successfully",
 			Device:  attachRequest.VolumeId,
@@ -74,40 +75,40 @@ func (c *Controller) Attach(attachRequest *models.FlexVolumeAttachRequest) *mode
 }
 
 //Detach detaches the volume/ fileset from the pod
-func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVolumeResponse {
-	c.log.Println("controller-detach-start")
-	defer c.log.Println("controller-detach-end")
+func (c *Controller) Detach(detachRequest model.FlexVolumeDetachRequest) model.FlexVolumeResponse {
+	c.logger.Println("controller-detach-start")
+	defer c.logger.Println("controller-detach-end")
 
-	c.log.Printf("detach-details %#v\n", detachRequest)
+	c.logger.Printf("detach-details %#v\n", detachRequest)
 
-	existingVolume, _, err := c.Client.Get(detachRequest.Name)
+	existingVolume, _, err := c.Client.GetVolume(detachRequest.Name)
 
 	if err != nil && err.Error() != "Cannot find info" {
-		return &models.FlexVolumeResponse{
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to detach volume %#v", err),
 			Device:  detachRequest.Name,
 		}
 	}
-
-	if existingVolume != nil {
-		err = c.Client.RemoveWithoutDeletingVolume(detachRequest.Name)
+	v := model.VolumeMetadata{}
+	if existingVolume != v {
+		err = c.Client.RemoveVolume(detachRequest.Name, false)
 		if err != nil {
-			return &models.FlexVolumeResponse{
+			return model.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: fmt.Sprintf("Failed to detach volume %#v", err),
 				Device:  detachRequest.Name,
 			}
 		}
 
-		return &models.FlexVolumeResponse{
+		return model.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume detached successfully",
 			Device:  detachRequest.Name,
 		}
 	}
 
-	return &models.FlexVolumeResponse{
+	return model.FlexVolumeResponse{
 		Status:  "Failure",
 		Message: "Volume not found",
 		Device:  detachRequest.Name,
@@ -115,23 +116,23 @@ func (c *Controller) Detach(detachRequest *models.GenericRequest) *models.FlexVo
 }
 
 //Mount method allows to mount the volume/fileset to a given location for a pod
-func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.FlexVolumeResponse {
-	c.log.Println("controller-mount-start")
-	defer c.log.Println("controller-mount-end")
+func (c *Controller) Mount(mountRequest model.FlexVolumeMountRequest) model.FlexVolumeResponse {
+	c.logger.Println("controller-mount-start")
+	defer c.logger.Println("controller-mount-end")
 
-	existingVolume, _, err := c.Client.Get(mountRequest.MountDevice)
+	existingVolume, _, err := c.Client.GetVolume(mountRequest.MountDevice)
 	if err != nil && err.Error() != "Cannot find info" {
-		c.log.Printf("Error getting volume info %#v", err)
-		return &models.FlexVolumeResponse{
+		c.logger.Printf("Error getting volume info %#v", err)
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
 		}
 	}
-
-	if existingVolume == nil {
-		c.log.Printf("Volume %s could not be found", mountRequest.MountDevice)
-		return &models.FlexVolumeResponse{
+	v := model.VolumeMetadata{}
+	if existingVolume == v {
+		c.logger.Printf("Volume %s could not be found", mountRequest.MountDevice)
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: "Failed to mount volume: volume not found",
 			Device:  "",
@@ -141,8 +142,8 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
 
 	if err != nil {
-		c.log.Printf("Failed to mount volume %#v", err)
-		return &models.FlexVolumeResponse{
+		c.logger.Printf("Failed to mount volume %#v", err)
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount volume %#v", err),
 			Device:  "",
@@ -150,12 +151,12 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	}
 	dir := filepath.Dir(mountRequest.MountPath)
 
-	c.log.Printf("volume/ fileset mounted at %s", mountedPath)
+	c.logger.Printf("volume/ fileset mounted at %s", mountedPath)
 
-	c.log.Printf("creating volume directory %s", dir)
+	c.logger.Printf("creating volume directory %s", dir)
 	err = os.MkdirAll(dir, 0777)
 	if err != nil && !os.IsExist(err) {
-		return &models.FlexVolumeResponse{
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed creating volume directory %#v", err),
 			Device:  "",
@@ -168,8 +169,8 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 	cmd := exec.Command(symLinkCommand, args...)
 	_, err = cmd.Output()
 	if err != nil {
-		c.log.Printf("Controller: mount failed to symlink %#v", err)
-		return &models.FlexVolumeResponse{
+		c.logger.Printf("Controller: mount failed to symlink %#v", err)
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed running ln command %#v", err),
 			Device:  "",
@@ -177,7 +178,7 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 
 	}
 
-	return &models.FlexVolumeResponse{
+	return model.FlexVolumeResponse{
 		Status:  "Success",
 		Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
 		Device:  "",
@@ -185,38 +186,50 @@ func (c *Controller) Mount(mountRequest *models.FlexVolumeMountRequest) *models.
 }
 
 //Unmount methods unmounts the volume/ fileset from the pod
-func (c *Controller) Unmount(unmountRequest *models.GenericRequest) *models.FlexVolumeResponse {
-	c.log.Println("Controller: unmount start")
-	defer c.log.Println("Controller: unmount end")
+func (c *Controller) Unmount(unmountRequest model.FlexVolumeUnmountRequest) model.FlexVolumeResponse {
+	c.logger.Println("Controller: unmount start")
+	defer c.logger.Println("Controller: unmount end")
 
-	filesetName, err := c.Client.GetFileSetForMountPoint(unmountRequest.Name)
+	volumes, err := c.Client.ListVolumes()
 	if err != nil {
-		return &models.FlexVolumeResponse{
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Error finding the volume %#v", err),
 			Device:  "",
 		}
 	}
-	if filesetName == "" {
-		return &models.FlexVolumeResponse{
+
+	volume, err := getVolumeForMountpoint(unmountRequest.MountPath, volumes)
+	if err != nil {
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: "Volume not found",
+			Message: fmt.Sprintf("Error finding the volume %#v", err),
 			Device:  "",
 		}
 	}
-	c.log.Printf("Controller: unmount trying to unlink volume %s .", filesetName)
-	err = c.Client.Detach(filesetName)
+
+	err = c.Client.Detach(volume.Name)
 	if err != nil && err.Error() != "fileset not linked" {
-		return &models.FlexVolumeResponse{
+		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to unmount volume %#v", err),
 			Device:  "",
 		}
 	}
 
-	return &models.FlexVolumeResponse{
+	return model.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume unmounted successfully",
 		Device:  "",
 	}
+}
+
+func getVolumeForMountpoint(mountpoint string, volumes []model.VolumeMetadata) (model.VolumeMetadata, error) {
+
+	for _, volume := range volumes {
+		if volume.Mountpoint == mountpoint {
+			return volume, nil
+		}
+	}
+	return model.VolumeMetadata{}, fmt.Errorf("Volume not found")
 }

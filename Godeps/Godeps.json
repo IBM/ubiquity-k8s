@@ -1,25 +1,72 @@
 {
 	"ImportPath": "github.ibm.com/almaden-containers/spectrum-flexvolume-cli.git",
-	"GoVersion": "go1.7",
+	"GoVersion": "go1.6",
 	"GodepVersion": "v74",
 	"Deps": [
 		{
+			"ImportPath": "git.openstack.org/openstack/golang-client.git/util",
+			"Rev": "784256a8237c568ce9505f392cf8c9e4932aa95c"
+		},
+		{
+			"ImportPath": "github.com/djherbis/times",
+			"Comment": "v1.0.1",
+			"Rev": "95292e44976d1217cf3611dc7c8d9466877d3ed5"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Comment": "v1.1-4-gaed02d1",
+			"Rev": "aed02d124ae4a0e94fea4541c8effd05bf0c8296"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Comment": "v1.1-13-g9fa818a",
+			"Rev": "9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e"
+		},
+		{
 			"ImportPath": "github.com/jessevdk/go-flags",
-			"Comment": "v1-347-gf2785f5",
-			"Rev": "f2785f5820ec967043de79c8be97edfc464ca745"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/core",
-			"Rev": "381ca8c234fbf0eb1627de79417cff0e59236b2f"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/spectrum-common.git/models",
-			"Rev": "381ca8c234fbf0eb1627de79417cff0e59236b2f"
+			"Comment": "v1-372-g4cc2832",
+			"Rev": "4cc2832a6e6d1d3b815e2b9d544b2a4dfb3ce8fa"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-sqlite3",
-			"Comment": "v1.1.0-78-gb5c99a7",
-			"Rev": "b5c99a720374818b629fd1fbf6d2cbb4fb9a5644"
+			"Comment": "v1.1.0-96-ge5a3c16",
+			"Rev": "e5a3c16c5c1d80b24f633e68aecd6b0702786d3d"
+		},
+		{
+			"ImportPath": "github.com/openstack/golang-client/openstack",
+			"Rev": "784256a8237c568ce9505f392cf8c9e4932aa95c"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/backends",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/clients",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/model",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/utils",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/vendor/github.com/openstack/golang-client/openstack",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/vendor/git.openstack.org/openstack/golang-client.git/util",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/vendor/github.com/gorilla/mux",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ibm-storage-broker.git/vendor/github.com/mattn/go-sqlite3",
+			"Rev": "d96a40176127649a660d61979b9bffe2950890f3"
 		}
 	]
 }

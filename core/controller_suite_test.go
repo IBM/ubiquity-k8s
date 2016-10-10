@@ -21,7 +21,7 @@ func TestController(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	var err error
-	logFile, err = os.OpenFile("/tmp/test-spectrum-scale-flexvolume-cli.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err = os.OpenFile("/tmp/test-ubiquity-flexvolume.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Printf("Failed to setup logger: %s\n", err.Error())
 		return
