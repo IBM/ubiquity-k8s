@@ -7,24 +7,27 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/backends"
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/clients"
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/model"
+	"github.ibm.com/almaden-containers/ubiquity.git/model"
+	"github.ibm.com/almaden-containers/ubiquity.git/remote"
 )
 
 //Controller this is a structure that controls volume management
 type Controller struct {
-	Client backends.StorageBackend
+	Client model.StorageClient
 	logger *log.Logger
 }
 
 //NewController allows to instantiate a controller
-func NewController(logger *log.Logger, filesystem, mountpath, storageApiURL string) *Controller {
-	return &Controller{logger: logger, Client: clients.NewSpectrumRemoteClient(logger, filesystem, mountpath, storageApiURL)}
+func NewController(logger *log.Logger, filesystem, mountpath, storageApiURL, backendName string) (*Controller, error) {
+	remoteClient, err := remote.NewRemoteClient(logger, filesystem, mountpath, storageApiURL, backendName)
+	if err != nil {
+		return nil, err
+	}
+	return &Controller{logger: logger, Client: remoteClient}, nil
 }
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, client backends.StorageBackend) *Controller {
+func NewControllerWithClient(logger *log.Logger, client model.StorageClient) *Controller {
 	return &Controller{logger: logger, Client: client}
 }
 

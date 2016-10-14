@@ -35,8 +35,6 @@ Additional features specific to Windows:
     Options with long names (/verbose)
     Windows-style options with arguments use a colon as the delimiter
     Modify generated help message with Windows-style / options
-    Windows style options can be disabled at build time using the "forceposix"
-    build tag
 
 
 Basic usage

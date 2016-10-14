@@ -7,19 +7,19 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/fakes"
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/model"
 	"github.ibm.com/almaden-containers/ubiquity-flexvolume.git/core"
+	"github.ibm.com/almaden-containers/ubiquity.git/fakes"
+	"github.ibm.com/almaden-containers/ubiquity.git/model"
 )
 
 var _ = Describe("Controller", func() {
 	Context(".Init", func() {
 		var (
-			fakeClient *fakes.FakeStorageBackend
+			fakeClient *fakes.FakeStorageClient
 			controller *core.Controller
 		)
 		BeforeEach(func() {
-			fakeClient = new(fakes.FakeStorageBackend)
+			fakeClient = new(fakes.FakeStorageClient)
 			controller = core.NewControllerWithClient(testLogger, fakeClient)
 		})
 		It("does not error when init is successful", func() {

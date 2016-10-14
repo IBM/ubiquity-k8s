@@ -11,8 +11,9 @@ import (
 
 	flags "github.com/jessevdk/go-flags"
 
-	"github.ibm.com/almaden-containers/ibm-storage-broker.git/model"
 	"github.ibm.com/almaden-containers/ubiquity-flexvolume.git/core"
+	"github.ibm.com/almaden-containers/ubiquity.git/model"
+	"github.ibm.com/almaden-containers/ubiquity.git/utils"
 )
 
 var filesystemName = flag.String(
@@ -27,13 +28,19 @@ var defaultMountPath = flag.String(
 )
 var defaultStorageApiURL = flag.String(
 	"storage-url",
-	"http://localhost:9999",
+	"http://localhost:8999/ubiquity-storage",
 	"storage api url",
 )
 var logPath = flag.String(
 	"logPath",
 	"/tmp/spectrum-flex/log",
 	"log path",
+)
+
+var backendName = flag.String(
+	"backend",
+	"spectrum-native",
+	"Storage backend name",
 )
 
 type InitCommand struct {
@@ -46,7 +53,7 @@ func (i *InitCommand) Execute(args []string) error {
 		Message: "FlexVolume Init success",
 		Device:  "",
 	}
-	return response.PrintResponse()
+	return utils.PrintResponse(response)
 }
 
 type AttachCommand struct {
@@ -64,12 +71,15 @@ func (a *AttachCommand) Execute(args []string) error {
 			Message: fmt.Sprintf("Failed to attach volume %#v", err),
 			Device:  "",
 		}
-		return response.PrintResponse()
+		return utils.PrintResponse(response)
 	}
 
-	controller := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL)
+	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	if err != nil {
+		panic("backend not found")
+	}
 	attachResponse := controller.Attach(attachRequest)
-	return attachResponse.PrintResponse()
+	return utils.PrintResponse(attachResponse)
 }
 
 type DetachCommand struct {
@@ -82,10 +92,14 @@ func (d *DetachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
-	controller := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL)
-	detachRequest := model.DetachRequest{Name: mountDevice}
+	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	if err != nil {
+		panic("backend not found")
+	}
+
+	detachRequest := model.FlexVolumeDetachRequest{Name: mountDevice}
 	detachResponse := controller.Detach(detachRequest)
-	return removeResponse.PrintResponse()
+	return utils.PrintResponse(detachResponse)
 }
 
 type MountCommand struct {
@@ -107,18 +121,21 @@ func (m *MountCommand) Execute(args []string) error {
 			Message: fmt.Sprintf("Failed to mount device %s to %s due to: %#v", mountDevice, targetMountDir, err),
 			Device:  mountDevice,
 		}
-		return mountResponse.PrintResponse()
+		return utils.PrintResponse(mountResponse)
 	}
 
-	controller := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL)
+	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	if err != nil {
+		panic("backend not found")
+	}
 
 	mountRequest := model.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
 		MountDevice: mountDevice,
 		Opts:        mountOpts,
 	}
-	mountResponse := controller.Mount(&mountRequest)
-	return mountResponse.PrintResponse()
+	mountResponse := controller.Mount(mountRequest)
+	return utils.PrintResponse(mountResponse)
 }
 
 type UnmountCommand struct {
@@ -134,13 +151,16 @@ func (u *UnmountCommand) Execute(args []string) error {
 	// the spectrum client will get the right mapping from the mountDir
 	logger.Printf("CLI: unmount arg0 (mountDir)", mountDir)
 
-	controller := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL)
-
-	unmountRequest := model.GenericRequest{
-		Name: mountDir,
+	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	if err != nil {
+		panic("backend not found")
 	}
-	unmountResponse := controller.Unmount(&unmountRequest)
-	return unmountResponse.PrintResponse()
+
+	unmountRequest := model.FlexVolumeUnmountRequest{
+		MountPath: mountDir,
+	}
+	unmountResponse := controller.Unmount(unmountRequest)
+	return utils.PrintResponse(unmountResponse)
 }
 
 type Options struct{}
