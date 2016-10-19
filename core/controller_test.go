@@ -54,102 +54,47 @@ var _ = Describe("Controller", func() {
 
 		Context(".Detach", func() {
 			It("does not error when existing volume name is given", func() {
-				volume := model.VolumeMetadata{Name: "vol1"}
-				fakeClient.GetVolumeReturns(volume, model.SpectrumConfig{}, nil)
 				fakeClient.RemoveVolumeReturns(nil)
 				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Success"))
 				Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
 				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
-			})
-			It("error when volume not found", func() {
-				fakeClient.GetVolumeReturns(model.VolumeMetadata{}, model.SpectrumConfig{}, nil)
-				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
-				detachResponse := controller.Detach(detachRequest)
-				Expect(detachResponse.Status).To(Equal("Failure"))
-				Expect(detachResponse.Message).To(Equal("Volume not found"))
-				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
-				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(0))
-			})
-
-			It("error when client fails to retrieve volume info", func() {
-				err := fmt.Errorf("Client error")
-				fakeClient.GetVolumeReturns(model.VolumeMetadata{}, model.SpectrumConfig{}, err)
-				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
-				detachResponse := controller.Detach(detachRequest)
-				Expect(detachResponse.Status).To(Equal("Failure"))
-				Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
-				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
-				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(0))
 			})
 
 			It("error when client fails to detach volume", func() {
 				err := fmt.Errorf("error detaching volume")
-				volume := model.VolumeMetadata{Name: "vol1"}
-				fakeClient.GetVolumeReturns(volume, model.SpectrumConfig{}, nil)
 				fakeClient.RemoveVolumeReturns(err)
 				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Failure"))
 				Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
 				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
 			})
 		})
 		Context(".Mount", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
-				volume := model.VolumeMetadata{Name: "vol1"}
-				fakeClient.GetVolumeReturns(volume, model.SpectrumConfig{}, nil)
 				fakeClient.AttachReturns("/tmp/mnt1", nil)
 				mountRequest := model.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Success"))
 				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
 				Expect(mountResponse.Device).To(Equal(""))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 				Expect(fakeClient.AttachCallCount()).To(Equal(1))
 			})
 			AfterEach(func() {
 				os.RemoveAll("/tmp/mnt2")
 			})
-			It("errors when volume get returns error", func() {
-				err := fmt.Errorf("error listing volume")
-				fakeClient.GetVolumeReturns(model.VolumeMetadata{}, model.SpectrumConfig{}, err)
-				mountRequest := model.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
-				mountResponse := controller.Mount(mountRequest)
-				Expect(mountResponse.Status).To(Equal("Failure"))
-				Expect(mountResponse.Message).To(Equal(fmt.Sprintf("Failed to mount volume %#v", err)))
-				Expect(mountResponse.Device).To(Equal(""))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
-				Expect(fakeClient.AttachCallCount()).To(Equal(0))
-			})
-			It("errors when volume does not exist", func() {
-				fakeClient.GetVolumeReturns(model.VolumeMetadata{}, model.SpectrumConfig{}, nil)
-				mountRequest := model.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
-				mountResponse := controller.Mount(mountRequest)
-				Expect(mountResponse.Status).To(Equal("Failure"))
-				Expect(mountResponse.Message).To(Equal("Failed to mount volume: volume not found"))
-				Expect(mountResponse.Device).To(Equal(""))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
-				Expect(fakeClient.AttachCallCount()).To(Equal(0))
-			})
 			It("errors when volume exists and client fails to mount it", func() {
 				err := fmt.Errorf("failed to mount volume")
-				volume := model.VolumeMetadata{Name: "vol1"}
-				fakeClient.GetVolumeReturns(volume, model.SpectrumConfig{}, nil)
 				fakeClient.AttachReturns("", err)
 				mountRequest := model.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Failure"))
 				Expect(mountResponse.Message).To(Equal(fmt.Sprintf("Failed to mount volume %#v", err)))
 				Expect(mountResponse.Device).To(Equal(""))
-				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 				Expect(fakeClient.AttachCallCount()).To(Equal(1))
 			})
 		})

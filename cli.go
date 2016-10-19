@@ -16,16 +16,6 @@ import (
 	"github.ibm.com/almaden-containers/ubiquity.git/utils"
 )
 
-var filesystemName = flag.String(
-	"filesystem",
-	"gpfs1",
-	"gpfs filesystem name for this plugin",
-)
-var defaultMountPath = flag.String(
-	"mountpath",
-	"/gpfs/gpfs1",
-	"gpfs mount path",
-)
 var defaultStorageApiURL = flag.String(
 	"storage-url",
 	"http://localhost:8999/ubiquity-storage",
@@ -74,7 +64,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		return utils.PrintResponse(response)
 	}
 
-	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	controller, err := core.NewController(logger, *defaultStorageApiURL, *backendName)
 	if err != nil {
 		panic("backend not found")
 	}
@@ -92,7 +82,7 @@ func (d *DetachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(*logPath)
 	defer closeLogs(logFile)
 
-	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	controller, err := core.NewController(logger, *defaultStorageApiURL, *backendName)
 	if err != nil {
 		panic("backend not found")
 	}
@@ -124,7 +114,7 @@ func (m *MountCommand) Execute(args []string) error {
 		return utils.PrintResponse(mountResponse)
 	}
 
-	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	controller, err := core.NewController(logger, *defaultStorageApiURL, *backendName)
 	if err != nil {
 		panic("backend not found")
 	}
@@ -151,7 +141,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 	// the spectrum client will get the right mapping from the mountDir
 	logger.Printf("CLI: unmount arg0 (mountDir)", mountDir)
 
-	controller, err := core.NewController(logger, *filesystemName, *defaultMountPath, *defaultStorageApiURL, *backendName)
+	controller, err := core.NewController(logger, *defaultStorageApiURL, *backendName)
 	if err != nil {
 		panic("backend not found")
 	}

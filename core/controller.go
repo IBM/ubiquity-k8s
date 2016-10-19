@@ -18,8 +18,8 @@ type Controller struct {
 }
 
 //NewController allows to instantiate a controller
-func NewController(logger *log.Logger, filesystem, mountpath, storageApiURL, backendName string) (*Controller, error) {
-	remoteClient, err := remote.NewRemoteClient(logger, filesystem, mountpath, storageApiURL, backendName)
+func NewController(logger *log.Logger, storageApiURL, backendName string) (*Controller, error) {
+	remoteClient, err := remote.NewRemoteClient(logger, storageApiURL, backendName)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (c *Controller) Attach(attachRequest model.FlexVolumeAttachRequest) model.F
 	defer c.logger.Println("controller-attach-end")
 	c.logger.Printf("attach-details %#v\n", attachRequest)
 	var opts map[string]interface{}
-	opts = map[string]interface{}{"fileset": attachRequest.VolumeId}
+	opts = map[string]interface{}{"fileset": attachRequest.VolumeId, "filesystem": attachRequest.Filesystem}
 
 	var attachResponse model.FlexVolumeResponse
 	err := c.Client.CreateVolume(attachRequest.VolumeId, opts)
@@ -84,36 +84,18 @@ func (c *Controller) Detach(detachRequest model.FlexVolumeDetachRequest) model.F
 
 	c.logger.Printf("detach-details %#v\n", detachRequest)
 
-	existingVolume, _, err := c.Client.GetVolume(detachRequest.Name)
-
-	if err != nil && err.Error() != "Cannot find info" {
+	err := c.Client.RemoveVolume(detachRequest.Name, false)
+	if err != nil {
 		return model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to detach volume %#v", err),
 			Device:  detachRequest.Name,
 		}
 	}
-	v := model.VolumeMetadata{}
-	if existingVolume != v {
-		err = c.Client.RemoveVolume(detachRequest.Name, false)
-		if err != nil {
-			return model.FlexVolumeResponse{
-				Status:  "Failure",
-				Message: fmt.Sprintf("Failed to detach volume %#v", err),
-				Device:  detachRequest.Name,
-			}
-		}
-
-		return model.FlexVolumeResponse{
-			Status:  "Success",
-			Message: "Volume detached successfully",
-			Device:  detachRequest.Name,
-		}
-	}
 
 	return model.FlexVolumeResponse{
-		Status:  "Failure",
-		Message: "Volume not found",
+		Status:  "Success",
+		Message: "Volume detached successfully",
 		Device:  detachRequest.Name,
 	}
 }
@@ -122,25 +104,6 @@ func (c *Controller) Detach(detachRequest model.FlexVolumeDetachRequest) model.F
 func (c *Controller) Mount(mountRequest model.FlexVolumeMountRequest) model.FlexVolumeResponse {
 	c.logger.Println("controller-mount-start")
 	defer c.logger.Println("controller-mount-end")
-
-	existingVolume, _, err := c.Client.GetVolume(mountRequest.MountDevice)
-	if err != nil && err.Error() != "Cannot find info" {
-		c.logger.Printf("Error getting volume info %#v", err)
-		return model.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to mount volume %#v", err),
-			Device:  "",
-		}
-	}
-	v := model.VolumeMetadata{}
-	if existingVolume == v {
-		c.logger.Printf("Volume %s could not be found", mountRequest.MountDevice)
-		return model.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: "Failed to mount volume: volume not found",
-			Device:  "",
-		}
-	}
 
 	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
 
