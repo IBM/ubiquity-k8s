@@ -18,7 +18,7 @@ import (
 
 var defaultStorageApiURL = flag.String(
 	"storage-url",
-	"http://localhost:8999/ubiquity-storage",
+	"http://localhost:8999/ubiquity_storage",
 	"storage api url",
 )
 var logPath = flag.String(
@@ -29,7 +29,7 @@ var logPath = flag.String(
 
 var backendName = flag.String(
 	"backend",
-	"spectrum-native",
+	"spectrum-scale",
 	"Storage backend name",
 )
 
