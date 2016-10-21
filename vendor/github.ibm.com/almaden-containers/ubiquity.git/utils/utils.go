@@ -15,6 +15,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func ExtractErrorResponse(response *http.Response) error {
+	errorResponse := model.GenericResponse{}
+	err := UnmarshalResponse(response, &errorResponse)
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("%s", errorResponse.Err)
+}
+
 func FormatURL(url string, entries ...string) string {
 	base := url
 	if !strings.HasSuffix(url, "/") {

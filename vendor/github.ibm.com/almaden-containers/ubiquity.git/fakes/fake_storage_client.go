@@ -39,14 +39,14 @@ type FakeStorageClient struct {
 		result1 []model.VolumeMetadata
 		result2 error
 	}
-	GetVolumeStub        func(name string) (volumeMetadata model.VolumeMetadata, volumeConfigDetails model.SpectrumConfig, err error)
+	GetVolumeStub        func(name string) (volumeMetadata model.VolumeMetadata, volumeConfigDetails map[string]interface{}, err error)
 	getVolumeMutex       sync.RWMutex
 	getVolumeArgsForCall []struct {
 		name string
 	}
 	getVolumeReturns struct {
 		result1 model.VolumeMetadata
-		result2 model.SpectrumConfig
+		result2 map[string]interface{}
 		result3 error
 	}
 	AttachStub        func(name string) (string, error)
@@ -195,7 +195,7 @@ func (fake *FakeStorageClient) ListVolumesReturns(result1 []model.VolumeMetadata
 	}{result1, result2}
 }
 
-func (fake *FakeStorageClient) GetVolume(name string) (volumeMetadata model.VolumeMetadata, volumeConfigDetails model.SpectrumConfig, err error) {
+func (fake *FakeStorageClient) GetVolume(name string) (volumeMetadata model.VolumeMetadata, volumeConfigDetails map[string]interface{}, err error) {
 	fake.getVolumeMutex.Lock()
 	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
 		name string
@@ -221,11 +221,11 @@ func (fake *FakeStorageClient) GetVolumeArgsForCall(i int) string {
 	return fake.getVolumeArgsForCall[i].name
 }
 
-func (fake *FakeStorageClient) GetVolumeReturns(result1 model.VolumeMetadata, result2 model.SpectrumConfig, result3 error) {
+func (fake *FakeStorageClient) GetVolumeReturns(result1 model.VolumeMetadata, result2 map[string]interface{}, result3 error) {
 	fake.GetVolumeStub = nil
 	fake.getVolumeReturns = struct {
 		result1 model.VolumeMetadata
-		result2 model.SpectrumConfig
+		result2 map[string]interface{}
 		result3 error
 	}{result1, result2, result3}
 }
