@@ -8,7 +8,7 @@ Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](ht
 * Functional [kubernetes]() environment 
 * GPFS client must be installed in the nodes
 * Ubiquity service must be running
-* Install [golang](https://golang.org/)
+* Install [golang](https://golang.org/) and setup your go path
 * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
 # Creating the executable
@@ -16,22 +16,16 @@ In order to create the ubiquity flexvolume binary we need to start by getting th
 Clone the repository and build the binary using these commands.
 
 ```bash
+mkdir -p $GOPATH/src/github.ibm.com/almaden-containers
+cd $GOPATH/src/github.ibm.com/almaden-containers
 git clone git@github.ibm.com:almaden-containers/ubiquity-flexvolume.git
-cd ubiquity-flexvolume
+cd ubiquity-flexvolume.git
 ./bin/build
 ```
 
-Another alternative is to use `go get`. For this alternative you need your gopath to be correctly setup.
-The code will be downloaded to your `gopath/src/github.ibm.com/almaden-containers/ubiquity-flexvolume.git`
-
-```bash
-go get github.ibm.com/almaden-containers/ubiquity-flexvolume.git
-cd $GOPATH/src/github.ibm.com/almaden-containers/ubiquity-flexvolume.git
-./bin/build
-```
 The build command will create a new folder `out`. It will also build the binary in this folder.
 
-# Testing the plugin
+# Using the plugin
 Install the ubiquity binary on all nodes in the kubelet plugin path.
 
 Path for installing the plugin is:
