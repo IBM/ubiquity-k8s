@@ -5,7 +5,7 @@ Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](ht
 # Prerequesites
 
 
-* Functional [kubernetes]() environment 
+* Functional [kubernetes]() environment (v1.4.0 is required for flexvolume support)
 * GPFS client must be installed in the nodes
 * Ubiquity service must be running
 * Install [golang](https://golang.org/) and setup your go path
