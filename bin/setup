@@ -1,8 +1,0 @@
-#!/bin/bash
-
-set -e
-
-bin=$(dirname $0)
-mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/
-
-cp $bin/../out/spectrum /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity

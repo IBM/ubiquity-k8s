@@ -7,9 +7,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.ibm.com/almaden-containers/ubiquity-flexvolume.git/core"
-	"github.ibm.com/almaden-containers/ubiquity.git/fakes"
-	"github.ibm.com/almaden-containers/ubiquity.git/model"
+	"github.ibm.com/almaden-containers/ubiquity-flexvolume/core"
+	"github.ibm.com/almaden-containers/ubiquity/fakes"
+	"github.ibm.com/almaden-containers/ubiquity/model"
 )
 
 var _ = Describe("Controller", func() {

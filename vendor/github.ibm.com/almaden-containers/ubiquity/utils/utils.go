@@ -7,22 +7,13 @@ import (
 	"net/http"
 	"os"
 
-	"github.ibm.com/almaden-containers/ubiquity.git/model"
+	"github.ibm.com/almaden-containers/ubiquity/model"
 
 	"path"
 	"strings"
 
 	"github.com/gorilla/mux"
 )
-
-func ExtractErrorResponse(response *http.Response) error {
-	errorResponse := model.GenericResponse{}
-	err := UnmarshalResponse(response, &errorResponse)
-	if err != nil {
-		return err
-	}
-	return fmt.Errorf("%s", errorResponse.Err)
-}
 
 func FormatURL(url string, entries ...string) string {
 	base := url

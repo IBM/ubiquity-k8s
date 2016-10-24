@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+scripts=$(dirname $0)
+mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/
+
+cp $scripts/../bin/ubiquity /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity

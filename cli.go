@@ -11,9 +11,9 @@ import (
 
 	flags "github.com/jessevdk/go-flags"
 
-	"github.ibm.com/almaden-containers/ubiquity-flexvolume.git/core"
-	"github.ibm.com/almaden-containers/ubiquity.git/model"
-	"github.ibm.com/almaden-containers/ubiquity.git/utils"
+	"github.ibm.com/almaden-containers/ubiquity-flexvolume/core"
+	"github.ibm.com/almaden-containers/ubiquity/model"
+	"github.ibm.com/almaden-containers/ubiquity/utils"
 )
 
 var defaultStorageApiURL = flag.String(

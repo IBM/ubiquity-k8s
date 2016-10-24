@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.ibm.com/almaden-containers/ubiquity.git/model"
-	"github.ibm.com/almaden-containers/ubiquity.git/remote"
+	"github.ibm.com/almaden-containers/ubiquity/model"
+	"github.ibm.com/almaden-containers/ubiquity/remote"
 )
 
 //Controller this is a structure that controls volume management

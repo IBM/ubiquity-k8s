@@ -12,8 +12,7 @@ type StorageClient interface {
 	CreateVolume(name string, opts map[string]interface{}) error
 	RemoveVolume(name string, forceDelete bool) error
 	ListVolumes() ([]VolumeMetadata, error)
-	GetVolume(name string) (volumeMetadata VolumeMetadata, volumeConfigDetails map[string]interface{}, err error)
-	//TODO fixme: attach should return just an error
+	GetVolume(name string) (volumeMetadata VolumeMetadata, volumeConfigDetails SpectrumConfig, err error)
 	Attach(name string) (string, error)
 	Detach(name string) error
 	GetPluginName() string
@@ -77,11 +76,6 @@ type MountResponse struct {
 	Err        string
 }
 
-type NfsAttachResponse struct {
-	NfsShare string
-	Err      string
-}
-
 func (r *MountResponse) WriteResponse(w http.ResponseWriter) {
 	if r.Err != "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -100,14 +94,14 @@ type VolumeMetadata struct {
 	Mountpoint string
 }
 
-// type VolumeConfig struct {
-// 	FilesetId  string `json:"fileset"`
-// 	Filesystem string `json:"filesystem"`
-// }
+type SpectrumConfig struct {
+	FilesetId  string `json:"fileset"`
+	Filesystem string `json:"filesystem"`
+}
 type GetResponse struct {
 	Volume VolumeMetadata
 	Err    string
-	Config map[string]interface{}
+	Config SpectrumConfig
 }
 
 func (r *GetResponse) WriteResponse(w http.ResponseWriter) {
