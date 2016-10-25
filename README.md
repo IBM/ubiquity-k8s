@@ -36,13 +36,13 @@ Install the ubiquity binary on all nodes in the kubelet plugin path.
 
 Path for installing the plugin is:
 ```bash
-/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
+/usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~ubiquity/ubiquity
 ```
 
 You can use the following command to create and install the binary in the right location.
 
 ```bash
-./scripts/install
+./scripts/setup
 ```
 
 # Driver invocation model
@@ -90,19 +90,19 @@ metadata:
   name: nginx
 spec:
   containers:
-  - name: nginx
-    image: nginx
+  - name: ubiquity
+    image: midoblgsm/kubenode
     volumeMounts:
     - name: ubiquity
       mountPath: /data
     ports:
-    - containerPort: 80
+    - containerPort: 8787
   volumes:
   - name: ubiquity
     flexVolume:
-      driver: "ibm/ubiquity"
+      driver: "kubernetes.io/ubiquity"
       options:
-        volumeID: "test1"
-        size: "1000m"
+        volumeID: "vol1"
+        size: "100m"
         filesystem: "gold"
  ```

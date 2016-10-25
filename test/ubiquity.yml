@@ -4,20 +4,20 @@ metadata:
   name: ubiquity
 spec:
   containers:
-  - name: nginx
-    image: nginx
+  - name: ubiquity 
+    image: midoblgsm/kubenode
     volumeMounts:
     - name: ubiquity
       mountPath: /data
     ports:
-    - containerPort: 80
+    - containerPort: 8787
   volumes:
   - name: ubiquity
     flexVolume:
       driver: "kubernetes.io/ubiquity"
       options:
-        volumeID: "myvolume"
-        filesystem: "gpfs1"
+        volumeID: "vol1"
+        filesystem: "gold"
         size: "100m"
-        fileset: ""
-        path: "/gpfs/gpfs1"
+        fileset: "vol1"
+        path: "/gpfs/gold"

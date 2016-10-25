@@ -36,6 +36,16 @@ func (c *Controller) Init() model.FlexVolumeResponse {
 	c.logger.Println("controller-activate-start")
 	defer c.logger.Println("controller-activate-end")
 
+	err := c.Client.Activate()
+	if err != nil {
+		return model.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Plugin init failed %#v ", err),
+			Device:  "",
+		}
+
+	}
+
 	return model.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Plugin init successfully",

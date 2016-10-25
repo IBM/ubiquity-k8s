@@ -23,7 +23,7 @@ var defaultStorageApiURL = flag.String(
 )
 var logPath = flag.String(
 	"logPath",
-	"/tmp/spectrum-flex/log",
+	"/tmp",
 	"log path",
 )
 
@@ -38,11 +38,19 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	response := model.FlexVolumeResponse{
-		Status:  "Success",
-		Message: "FlexVolume Init success",
-		Device:  "",
+	logger, logFile := setupLogger(*logPath)
+	defer closeLogs(logFile)
+
+	controller, err := core.NewController(logger, *defaultStorageApiURL, *backendName)
+	if err != nil {
+		response := model.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed tocreate controller %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
 	}
+	response := controller.Init()
 	return utils.PrintResponse(response)
 }
 
@@ -192,14 +200,14 @@ func main() {
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, "spectrum-scale-cli.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
+	logFile, err := os.OpenFile(path.Join(logPath, "ubiquity-flexvolume.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
 	if err != nil {
 		fmt.Printf("Failed to setup logger: %s\n", err.Error())
 		return nil, nil
 	}
 	log.SetOutput(logFile)
 	// logger := log.New(io.MultiWriter(logFile, os.Stdout), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
-	logger := log.New(io.MultiWriter(logFile), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
+	logger := log.New(io.MultiWriter(logFile), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
 	return logger, logFile
 }
 

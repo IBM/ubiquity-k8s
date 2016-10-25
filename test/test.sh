@@ -2,20 +2,22 @@
 
 set -e
 
-bin=$(dirname $0)
+scripts=$(dirname $0)
 
-go build -o $bin/../out/ubiquity $bin/../cli.go
-
-cd $bin/../out
+cd $scripts/../bin
 mmcrfileset gold testvolume
-# printf "\n calling spectrum attach \n "
+
+printf "\n calling ubiquity init \n"
+./ubiquity init
+
+printf "\n calling ubiquity mount \n"
 ./ubiquity attach \{\"volumeID\"\:\"testvolume\",\"filesystem\"\:\"gold\",\"path\"\:\"/gpfs/gold\"\}
-printf "\n calling spectrum mount \n"
+printf "\n calling ubiquity mount \n"
 mkdir -p /tmp/dir1
 ./ubiquity mount /tmp/dir1/testvolume  testvolume \{\}
 rm -rf /tmp/dir1
-printf "\n calling spectrum unmount \n "
+printf "\n calling ubiquity unmount \n "
 ./ubiquity unmount /gpfs/gold/testvolume
-printf "\n calling spectrum detach \n "
+printf "\n calling ubiquity detach \n "
 ./ubiquity detach testvolume
 mmdelfileset gold testvolume
