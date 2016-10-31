@@ -30,27 +30,27 @@
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/model",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/remote",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/utils",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/djherbis/times",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/gorilla/mux",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/mattn/go-sqlite3",
-			"Rev": "b43bb3a53e267bb8eede5ab6a56dc325a637bfed"
+			"Rev": "56f8fe054aeeca59d42bbf5c7ae0eecb02e50170"
 		}
 	]
 }

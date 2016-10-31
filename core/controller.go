@@ -1,6 +1,7 @@
 package core
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -19,7 +20,14 @@ type Controller struct {
 
 //NewController allows to instantiate a controller
 func NewController(logger *log.Logger, storageApiURL, backendName string) (*Controller, error) {
-	remoteClient, err := remote.NewRemoteClient(logger, storageApiURL, backendName)
+	remoteClientParams := make(map[string]interface{})
+	for _, param := range remote.GetParams() {
+		if _, paramAlreadyExists := remoteClientParams[param.Name]; !paramAlreadyExists {
+			remoteClientParams[param.Name] = flag.String(param.Name, param.Default, param.Description)
+		}
+	}
+
+	remoteClient, err := remote.NewRemoteClient(logger, storageApiURL, backendName, remoteClientParams)
 	if err != nil {
 		return nil, err
 	}
