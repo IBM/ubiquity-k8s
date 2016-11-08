@@ -5,11 +5,12 @@ import (
 	"log"
 
 	"net/http"
-	"github.ibm.com/almaden-containers/ubiquity/model"
-	"github.ibm.com/almaden-containers/ubiquity/utils"
 	"os/exec"
 	"path"
 	"strings"
+
+	"github.ibm.com/almaden-containers/ubiquity/model"
+	"github.ibm.com/almaden-containers/ubiquity/utils"
 )
 
 type nfsRemoteClient struct {
@@ -18,33 +19,14 @@ type nfsRemoteClient struct {
 	httpClient    *http.Client
 	storageApiURL string
 	backendName   string
-	nfsClientCIDR string
+	config        model.SpectrumNfsRemoteConfig
 }
 
-var NfsRemoteClient model.StorageClientDescriptor = model.StorageClientDescriptor{
-	New: newNfsRemoteClient,
-	Name: "nfs",
-	Remote: true,
-	Params: []model.Parameter{
-		{
-			Name: "nfsClientCIDR",
-			Default: "192.168.1.0/24",
-			Description: "The subnet CIDR to allow access from for exported NFS shares",
-			Required: true,
-		},
-	},
-}
-
-func newNfsRemoteClient(logger *log.Logger, backendName, storageApiURL string, params map[string]interface{}) (model.StorageClient, error) {
-	nfsClientCIDR, ok := params["nfsClientCIDR"].(*string)
-	if !ok {
-		return nil, fmt.Errorf("newNFSRemoteClient: Missing required parameter 'nfsClientCIDR'")
+func NewNfsRemoteClient(logger *log.Logger, backendName, storageApiURL string, config model.SpectrumNfsRemoteConfig) (model.StorageClient, error) {
+	if config.CIDR == "" {
+		return nil, fmt.Errorf("newNFSRemoteClient: Missing required parameter 'CIDR'")
 	}
-	return &nfsRemoteClient{logger: logger, storageApiURL: storageApiURL, httpClient: &http.Client{}, backendName: backendName, nfsClientCIDR: *nfsClientCIDR}, nil
-}
-
-func (s *nfsRemoteClient) Info() model.StorageInfo {
-	panic("Info() is not for remote client use")
+	return &nfsRemoteClient{logger: logger, storageApiURL: storageApiURL, httpClient: &http.Client{}, backendName: backendName, config: config}, nil
 }
 
 func (s *nfsRemoteClient) Activate() error {
@@ -79,10 +61,10 @@ func (s *nfsRemoteClient) CreateVolume(name string, opts map[string]interface{})
 	createRemoteURL := utils.FormatURL(s.storageApiURL, s.backendName, "volumes")
 
 	extendedOpts := make(map[string]interface{})
-	for k,v := range opts{
+	for k, v := range opts {
 		extendedOpts[k] = v
 	}
-	extendedOpts["nfsClientCIDR"] = s.nfsClientCIDR
+	extendedOpts["nfsClientCIDR"] = s.config.CIDR
 	createVolumeRequest := model.CreateRequest{Name: name, Opts: extendedOpts}
 
 	response, err := utils.HttpExecute(s.httpClient, s.logger, "POST", createRemoteURL, createVolumeRequest)

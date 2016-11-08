@@ -19,19 +19,8 @@ type spectrumRemoteClient struct {
 	backendName   string
 }
 
-var SpectrumRemoteClient model.StorageClientDescriptor = model.StorageClientDescriptor{
-	New: newSpectrumRemoteClient,
-	Name: "spectrum-scale",
-	Remote: true,
-	Params: []model.Parameter{},
-}
-
-func newSpectrumRemoteClient(logger *log.Logger, backendName, storageApiURL string, params map[string]interface{}) (model.StorageClient, error) {
+func NewSpectrumRemoteClient(logger *log.Logger, backendName, storageApiURL string) (model.StorageClient, error) {
 	return &spectrumRemoteClient{logger: logger, storageApiURL: storageApiURL, httpClient: &http.Client{}, backendName: backendName}, nil
-}
-
-func (s *spectrumRemoteClient) Info() model.StorageInfo {
-	panic("Info() is not for remote client use")
 }
 
 func (s *spectrumRemoteClient) Activate() (err error) {
@@ -101,7 +90,6 @@ func (s *spectrumRemoteClient) RemoveVolume(name string, forceDelete bool) (err 
 	return nil
 }
 
-//GetVolume(string) (*model.VolumeMetadata, *string, *map[string]interface {}, error)
 func (s *spectrumRemoteClient) GetVolume(name string) (model.VolumeMetadata, map[string]interface{}, error) {
 	s.logger.Println("spectrumRemoteClient: get start")
 	defer s.logger.Println("spectrumRemoteClient: get finish")

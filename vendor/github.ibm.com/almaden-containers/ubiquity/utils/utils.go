@@ -12,9 +12,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gorilla/mux"
-	"log"
 	"bytes"
+	"log"
+
+	"github.com/gorilla/mux"
 )
 
 func ExtractErrorResponse(response *http.Response) error {

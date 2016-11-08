@@ -6,3 +6,4 @@ scripts=$(dirname $0)
 mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~ubiquity/
 
 cp $scripts/../bin/ubiquity /usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~ubiquity/ubiquity
+cp $scripts/../ubiquity-client.conf /usr/libexec/kubernetes/kubelet-plugins/volume/exec/kubernetes.io~ubiquity/ubiquity-client.conf

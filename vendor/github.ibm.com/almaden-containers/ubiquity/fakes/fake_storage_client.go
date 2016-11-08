@@ -66,12 +66,6 @@ type FakeStorageClient struct {
 	detachReturns struct {
 		result1 error
 	}
-	InfoStub        func() model.StorageInfo
-	infoMutex       sync.RWMutex
-	infoArgsForCall []struct{}
-	infoReturns     struct {
-		result1 model.StorageInfo
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -297,31 +291,6 @@ func (fake *FakeStorageClient) DetachReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeStorageClient) Info() model.StorageInfo {
-	fake.infoMutex.Lock()
-	fake.infoArgsForCall = append(fake.infoArgsForCall, struct{}{})
-	fake.recordInvocation("Info", []interface{}{})
-	fake.infoMutex.Unlock()
-	if fake.InfoStub != nil {
-		return fake.InfoStub()
-	} else {
-		return fake.infoReturns.result1
-	}
-}
-
-func (fake *FakeStorageClient) InfoCallCount() int {
-	fake.infoMutex.RLock()
-	defer fake.infoMutex.RUnlock()
-	return len(fake.infoArgsForCall)
-}
-
-func (fake *FakeStorageClient) InfoReturns(result1 model.StorageInfo) {
-	fake.InfoStub = nil
-	fake.infoReturns = struct {
-		result1 model.StorageInfo
-	}{result1}
-}
-
 func (fake *FakeStorageClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -339,8 +308,6 @@ func (fake *FakeStorageClient) Invocations() map[string][][]interface{} {
 	defer fake.attachMutex.RUnlock()
 	fake.detachMutex.RLock()
 	defer fake.detachMutex.RUnlock()
-	fake.infoMutex.RLock()
-	defer fake.infoMutex.RUnlock()
 	return fake.invocations
 }
 

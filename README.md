@@ -32,7 +32,7 @@ cd ubiquity-flexvolume
  Newly built binary (ubiquity) will be in bin directory. 
 
 # Using the plugin
-Install the ubiquity binary on all nodes in the kubelet plugin path.
+Install the ubiquity binary on all nodes in the kubelet plugin path along with its configuration file.
 
 Path for installing the plugin is:
 ```bash

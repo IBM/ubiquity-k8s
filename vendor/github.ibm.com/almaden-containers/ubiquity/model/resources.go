@@ -11,26 +11,57 @@ import (
 
 type StorageClientFactory func(logger *log.Logger, backendName string, storageApiURL string, params map[string]interface{}) (StorageClient, error)
 
-type StorageClientDescriptor struct {
-	New            StorageClientFactory
-	Name           string
-	Remote         bool
-	Params	       []Parameter
+type UbiquityServerConfig struct {
+	Port              int
+	LogPath           string
+	SpectrumConfig    SpectrumConfig
+	SpectrumNfsConfig SpectrumNfsConfig
+	BrokerConfig      BrokerConfig
 }
 
-type Parameter struct {
-	Name        string
-	Default     string
-	Description string
-	Required    bool
+type SpectrumConfig struct {
+	DefaultFilesystem string
+	ConfigPath        string
 }
 
-type StorageInfo struct {
-	Name                       string
-	RemoteClient               string
-	CreateVolumeRequiredParams []Parameter
-	Properties                 map[string]interface{}
+type SpectrumNfsConfig struct {
+	DefaultFilesystem string
+	ConfigPath        string
+	NfsServerAddr     string
 }
+
+type SpectrumNfsRemoteConfig struct {
+	CIDR string
+}
+
+type BrokerConfig struct {
+	ConfigPath string
+}
+
+type UbiquityPluginConfig struct {
+	DockerPlugin            UbiquityDockerPluginConfig
+	LogPath                 string
+	Backend                 string
+	UbiquityServer          UbiquityServerConnectionInfo
+	SpectrumNfsRemoteConfig SpectrumNfsRemoteConfig
+}
+type UbiquityDockerPluginConfig struct {
+	Address          string
+	Port             int
+	PluginsDirectory string
+}
+
+type UbiquityServerConnectionInfo struct {
+	Address string
+	Port    int
+}
+
+//type Parameter struct {
+//	Name        string
+//	Default     string
+//	Description string
+//	Required    bool
+//}
 
 type StorageClient interface {
 	Activate() error
@@ -41,7 +72,6 @@ type StorageClient interface {
 	//TODO fixme: attach should return just an error
 	Attach(name string) (string, error)
 	Detach(name string) error
-	Info() StorageInfo
 }
 
 type CreateRequest struct {
@@ -97,9 +127,9 @@ type GenericRequest struct {
 	Name string
 }
 
-type InfoResponse struct {
-	Info StorageInfo
-}
+//type InfoResponse struct {
+//	Info StorageInfo
+//}
 
 type MountResponse struct {
 	Mountpoint string
