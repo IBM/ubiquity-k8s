@@ -7,26 +7,19 @@ import (
 	"net/http"
 )
 
-//go:generate counterfeiter -o ../fakes/fake_storage_client.go . StorageClient
-
 type StorageClientFactory func(logger *log.Logger, backendName string, storageApiURL string, params map[string]interface{}) (StorageClient, error)
 
 type UbiquityServerConfig struct {
-	Port              int
-	LogPath           string
-	SpectrumConfig    SpectrumConfig
-	SpectrumNfsConfig SpectrumNfsConfig
-	BrokerConfig      BrokerConfig
+	Port                int
+	LogPath             string
+	SpectrumScaleConfig SpectrumScaleConfig
+	BrokerConfig        BrokerConfig
 }
 
-type SpectrumConfig struct {
+type SpectrumScaleConfig struct {
 	DefaultFilesystem string
 	ConfigPath        string
-}
-
-type SpectrumNfsConfig struct {
-	DefaultFilesystem string
-	ConfigPath        string
+	Connector         string
 	NfsServerAddr     string
 }
 
@@ -56,12 +49,7 @@ type UbiquityServerConnectionInfo struct {
 	Port    int
 }
 
-//type Parameter struct {
-//	Name        string
-//	Default     string
-//	Description string
-//	Required    bool
-//}
+//go:generate counterfeiter -o ../fakes/fake_storage_client.go . StorageClient
 
 type StorageClient interface {
 	Activate() error
@@ -127,10 +115,6 @@ type GenericRequest struct {
 	Name string
 }
 
-//type InfoResponse struct {
-//	Info StorageInfo
-//}
-
 type MountResponse struct {
 	Mountpoint string
 	Err        string
@@ -154,10 +138,6 @@ type VolumeMetadata struct {
 	Mountpoint string
 }
 
-// type VolumeConfig struct {
-// 	FilesetId  string `json:"fileset"`
-// 	Filesystem string `json:"filesystem"`
-// }
 type GetResponse struct {
 	Volume VolumeMetadata
 	Err    string
