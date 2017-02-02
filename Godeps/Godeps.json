@@ -39,18 +39,6 @@
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/utils",
 			"Rev": "c076e47919c008333c6092d2c3706f09dcaf031e"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/djherbis/times",
-			"Rev": "c076e47919c008333c6092d2c3706f09dcaf031e"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/gorilla/mux",
-			"Rev": "c076e47919c008333c6092d2c3706f09dcaf031e"
-		},
-		{
-			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/mattn/go-sqlite3",
-			"Rev": "c076e47919c008333c6092d2c3706f09dcaf031e"
 		}
 	]
 }
