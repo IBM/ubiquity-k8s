@@ -19,7 +19,7 @@ import (
 
 var configFile = flag.String(
 	"configFile",
-	"ubiquity-client.conf",
+	"/tmp/ubiquity-client.conf",
 	"config file with ubiquity client configuration params",
 )
 
