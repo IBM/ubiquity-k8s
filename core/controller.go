@@ -62,7 +62,9 @@ func (c *Controller) Attach(attachRequest map[string]string) model.FlexVolumeRes
 
 	volumeName := attachRequest["Name"]
 	var opts map[string]interface{}
-	opts = map[string]interface{}{"fileset": volumeName, "filesystem": attachRequest["Filesystem"]}
+	for key, value := range attachRequest {
+		opts[key] = value
+	}
 
 	var attachResponse model.FlexVolumeResponse
 	err := c.Client.CreateVolume(volumeName, opts)
