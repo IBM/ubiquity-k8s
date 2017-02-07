@@ -55,34 +55,34 @@ func (c *Controller) Init() model.FlexVolumeResponse {
 }
 
 //Attach method attaches a volume/ fileset to a pod
-func (c *Controller) Attach(attachRequest model.FlexVolumeAttachRequest) model.FlexVolumeResponse {
+func (c *Controller) Attach(attachRequest map[string]string) model.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
 	c.logger.Printf("attach-details %#v\n", attachRequest)
-	var opts map[string]interface{}
-	opts = map[string]interface{}{"fileset": attachRequest.VolumeId, "filesystem": attachRequest.Filesystem}
-
+	//var opts map[string]interface{}
+	//opts = map[string]interface{}{"fileset": attachRequest.VolumeId, "filesystem": attachRequest.Filesystem}
+	volumeName := attachRequest["Name"]
 	var attachResponse model.FlexVolumeResponse
-	err := c.Client.CreateVolume(attachRequest.VolumeId, opts)
+	err := c.Client.CreateVolume(volumeName, attachRequest)
 	if err != nil && err.Error() != "Volume already exists" {
 		attachResponse = model.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
-			Device:  attachRequest.VolumeId,
+			Device:  volumeName,
 		}
 		c.logger.Printf("Failed-to-attach-volume %#v ", err)
 	} else if err != nil && err.Error() == "Volume already exists" {
 		attachResponse = model.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume already attached",
-			Device:  attachRequest.VolumeId,
+			Device:  volumeName,
 		}
 
 	} else {
 		attachResponse = model.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume attached successfully",
-			Device:  attachRequest.VolumeId,
+			Device:  volumeName,
 		}
 	}
 	return attachResponse

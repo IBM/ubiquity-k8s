@@ -65,7 +65,7 @@ func (a *AttachCommand) Execute(args []string) error {
 	logger, logFile := setupLogger(config.LogPath)
 	defer closeLogs(logFile)
 
-	attachRequest := model.FlexVolumeAttachRequest{}
+	attachRequest := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
 		response := model.FlexVolumeResponse{
