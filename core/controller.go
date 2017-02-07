@@ -59,11 +59,13 @@ func (c *Controller) Attach(attachRequest map[string]string) model.FlexVolumeRes
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
 	c.logger.Printf("attach-details %#v\n", attachRequest)
-	//var opts map[string]interface{}
-	//opts = map[string]interface{}{"fileset": attachRequest.VolumeId, "filesystem": attachRequest.Filesystem}
+
 	volumeName := attachRequest["Name"]
+	var opts map[string]interface{}
+	opts = map[string]interface{}{"fileset": volumeName, "filesystem": attachRequest["Filesystem"]}
+
 	var attachResponse model.FlexVolumeResponse
-	err := c.Client.CreateVolume(volumeName, attachRequest)
+	err := c.Client.CreateVolume(volumeName, opts)
 	if err != nil && err.Error() != "Volume already exists" {
 		attachResponse = model.FlexVolumeResponse{
 			Status:  "Failure",
