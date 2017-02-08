@@ -218,7 +218,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
+			"Rev": "4971afdc2f162e82d185353533d3cf16188a9f4e"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context/ctxhttp",

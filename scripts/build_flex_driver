@@ -4,4 +4,4 @@ set -e
 
 scripts=$(dirname $0)
 
-go build -o $scripts/../bin/ubiquity $scripts/../flex-driver/main/cli.go
+go build -o $scripts/../bin/ubiquity $scripts/../cli.go
