@@ -9,7 +9,7 @@ import (
 
 	"github.ibm.com/almaden-containers/ubiquity-flexvolume/core"
 	"github.ibm.com/almaden-containers/ubiquity/fakes"
-	"github.ibm.com/almaden-containers/ubiquity/model"
+	"github.ibm.com/almaden-containers/ubiquity/resources"
 )
 
 var _ = Describe("Controller", func() {
@@ -32,7 +32,7 @@ var _ = Describe("Controller", func() {
 		Context(".Attach", func() {
 			It("does not error on create with valid opts", func() {
 				fakeClient.CreateVolumeReturns(nil)
-				attachRequest := model.FlexVolumeAttachRequest{VolumeId: "vol1", Filesystem: "gpfs1", Size: "200m", Fileset: "fs1", Path: "myPath"}
+				attachRequest := map[string]string{"VolumeId": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Success"))
 				Expect(attachResponse.Message).To(Equal("Volume attached successfully"))
@@ -42,7 +42,7 @@ var _ = Describe("Controller", func() {
 			It("does error on create when client fails to attach", func() {
 				err := fmt.Errorf("Spectrum internal error on attach")
 				fakeClient.CreateVolumeReturns(err)
-				attachRequest := model.FlexVolumeAttachRequest{VolumeId: "vol", Size: "200m", Filesystem: "gpfs1", Fileset: "fs1", Path: "myPath"}
+				attachRequest := map[string]string{"VolumeId": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Failure"))
 				Expect(attachResponse.Message).To(Equal(fmt.Sprintf("Failed to attach volume: %#v", err)))
@@ -55,7 +55,7 @@ var _ = Describe("Controller", func() {
 		Context(".Detach", func() {
 			It("does not error when existing volume name is given", func() {
 				fakeClient.RemoveVolumeReturns(nil)
-				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
+				detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Success"))
 				Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
@@ -66,7 +66,7 @@ var _ = Describe("Controller", func() {
 			It("error when client fails to detach volume", func() {
 				err := fmt.Errorf("error detaching volume")
 				fakeClient.RemoveVolumeReturns(err)
-				detachRequest := model.FlexVolumeDetachRequest{Name: "vol1"}
+				detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
 				detachResponse := controller.Detach(detachRequest)
 				Expect(detachResponse.Status).To(Equal("Failure"))
 				Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
@@ -77,7 +77,7 @@ var _ = Describe("Controller", func() {
 		Context(".Mount", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
 				fakeClient.AttachReturns("/tmp/mnt1", nil)
-				mountRequest := model.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := resources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Success"))
 				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
@@ -90,7 +90,7 @@ var _ = Describe("Controller", func() {
 			It("errors when volume exists and client fails to mount it", func() {
 				err := fmt.Errorf("failed to mount volume")
 				fakeClient.AttachReturns("", err)
-				mountRequest := model.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := resources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Failure"))
 				Expect(mountResponse.Message).To(Equal(fmt.Sprintf("Failed to mount volume %#v", err)))
@@ -99,13 +99,13 @@ var _ = Describe("Controller", func() {
 			})
 		})
 		Context(".Unmount", func() {
-			var volumes []model.VolumeMetadata
+			var volumes []resources.VolumeMetadata
 			It("succeeds when volume exists and is currently mounted", func() {
 				fakeClient.DetachReturns(nil)
-				volume := model.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
-				volumes = []model.VolumeMetadata{volume}
+				volume := resources.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.VolumeMetadata{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
-				unmountRequest := model.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Success"))
 				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
@@ -116,7 +116,7 @@ var _ = Describe("Controller", func() {
 			It("errors when client fails to get volume related to the mountpoint", func() {
 				err := fmt.Errorf("failed to get fileset")
 				fakeClient.ListVolumesReturns(volumes, err)
-				unmountRequest := model.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -126,9 +126,9 @@ var _ = Describe("Controller", func() {
 				Expect(fakeClient.DetachCallCount()).To(Equal(0))
 			})
 			It("errors when volume does not exist", func() {
-				volumes = []model.VolumeMetadata{}
+				volumes = []resources.VolumeMetadata{}
 				fakeClient.ListVolumesReturns(volumes, nil)
-				unmountRequest := model.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -139,11 +139,11 @@ var _ = Describe("Controller", func() {
 			})
 			It("errors when volume exists and client fails to unmount it", func() {
 				err := fmt.Errorf("error detaching the volume")
-				volume := model.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
-				volumes = []model.VolumeMetadata{volume}
+				volume := resources.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.VolumeMetadata{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
 				fakeClient.DetachReturns(err)
-				unmountRequest := model.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))

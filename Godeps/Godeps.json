@@ -30,22 +30,62 @@
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/model",
-			"Comment": "v0.2-44-gb025332",
-			"Rev": "b025332837d91d3c1ccd9b82682395d7782cc562"
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/remote",
-			"Comment": "v0.2-44-gb025332",
-			"Rev": "b025332837d91d3c1ccd9b82682395d7782cc562"
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
 		},
 		{
 			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/utils",
-			"Comment": "v0.2-44-gb025332",
-			"Rev": "b025332837d91d3c1ccd9b82682395d7782cc562"
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "f2499483f923065a842d38eb4c7f1927e6fc6e6d"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/jinzhu/gorm",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/jinzhu/gorm/dialects/sqlite",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/resources",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/jinzhu/inflection",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/mattn/go-sqlite3",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/golang.org/x/net/context",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/djherbis/times",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
+		},
+		{
+			"ImportPath": "github.ibm.com/almaden-containers/ubiquity/vendor/github.com/gorilla/mux",
+			"Comment": "v0.2-59-gaef5f83",
+			"Rev": "aef5f83c0296d289c68a28de4a776d8542381b19"
 		}
 	]
 }

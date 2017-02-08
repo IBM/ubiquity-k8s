@@ -13,7 +13,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 
 	"github.ibm.com/almaden-containers/ubiquity-flexvolume/core"
-	"github.ibm.com/almaden-containers/ubiquity/model"
+	"github.ibm.com/almaden-containers/ubiquity/resources"
 	"github.ibm.com/almaden-containers/ubiquity/utils"
 )
 
@@ -28,7 +28,7 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	var config model.UbiquityPluginConfig
+	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
 		return err
@@ -40,7 +40,7 @@ func (i *InitCommand) Execute(args []string) error {
 	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
 	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
 	if err != nil {
-		response := model.FlexVolumeResponse{
+		response := resources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed tocreate controller %#v", err),
 			Device:  "",
@@ -56,7 +56,7 @@ type AttachCommand struct {
 }
 
 func (a *AttachCommand) Execute(args []string) error {
-	var config model.UbiquityPluginConfig
+	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
 		return err
@@ -68,7 +68,7 @@ func (a *AttachCommand) Execute(args []string) error {
 	attachRequest := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
-		response := model.FlexVolumeResponse{
+		response := resources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume %#v", err),
 			Device:  "",
@@ -91,7 +91,7 @@ type DetachCommand struct {
 
 func (d *DetachCommand) Execute(args []string) error {
 	mountDevice := args[0]
-	var config model.UbiquityPluginConfig
+	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
 		return err
@@ -108,7 +108,7 @@ func (d *DetachCommand) Execute(args []string) error {
 		panic("backend not found")
 	}
 
-	detachRequest := model.FlexVolumeDetachRequest{Name: mountDevice}
+	detachRequest := resources.FlexVolumeDetachRequest{Name: mountDevice}
 	detachResponse := controller.Detach(detachRequest)
 	return utils.PrintResponse(detachResponse)
 }
@@ -121,7 +121,7 @@ func (m *MountCommand) Execute(args []string) error {
 	targetMountDir := args[0]
 	mountDevice := args[1]
 	var mountOpts map[string]interface{}
-	var config model.UbiquityPluginConfig
+	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
 		return err
@@ -136,7 +136,7 @@ func (m *MountCommand) Execute(args []string) error {
 	logger.Printf("mount-args %#v\n", args[2])
 	err = json.Unmarshal([]byte(args[2]), &mountOpts)
 	if err != nil {
-		mountResponse := model.FlexVolumeResponse{
+		mountResponse := resources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to mount device %s to %s due to: %#v", mountDevice, targetMountDir, err),
 			Device:  mountDevice,
@@ -148,7 +148,7 @@ func (m *MountCommand) Execute(args []string) error {
 		panic("backend not found")
 	}
 
-	mountRequest := model.FlexVolumeMountRequest{
+	mountRequest := resources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
 		MountDevice: mountDevice,
 		Opts:        mountOpts,
@@ -163,7 +163,7 @@ type UnmountCommand struct {
 
 func (u *UnmountCommand) Execute(args []string) error {
 	mountDir := args[0]
-	var config model.UbiquityPluginConfig
+	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
 		return err
@@ -179,7 +179,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 		panic("backend not found")
 	}
 
-	unmountRequest := model.FlexVolumeUnmountRequest{
+	unmountRequest := resources.FlexVolumeUnmountRequest{
 		MountPath: mountDir,
 	}
 	unmountResponse := controller.Unmount(unmountRequest)
