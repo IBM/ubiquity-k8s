@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.ibm.com/almaden-containers/ubiquity-flexvolume/core"
+	"github.ibm.com/almaden-containers/ubiquity-k8s/core"
 	"github.ibm.com/almaden-containers/ubiquity/fakes"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
 )
