@@ -4,4 +4,5 @@ set -e
 
 scripts=$(dirname $0)
 
+echo "Building flex driver"
 go build -o $scripts/../bin/ubiquity $scripts/../cli.go
