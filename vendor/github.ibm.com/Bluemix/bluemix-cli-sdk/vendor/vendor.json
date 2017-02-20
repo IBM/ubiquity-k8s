@@ -1,0 +1,139 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "Oae/AzW8+W/lPdL6smTcgyhncrc=",
+			"path": "github.com/blang/semver",
+			"revision": "60ec3488bfea7cca02b021d106d9911120d25fe9",
+			"revisionTime": "2016-07-01T05:46:53Z"
+		},
+		{
+			"checksumSHA1": "FU2KisULZbZ/KYtZ4c29xh9eO+U=",
+			"path": "github.com/cloudfoundry/cli/cf/configuration",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "8v+bWvkhw0KEqq12t/quykOyR6Q=",
+			"path": "github.com/cloudfoundry/cli/cf/configuration/confighelpers",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "rZ1PX+SCXAlOKb5V4eFxfiMTzak=",
+			"path": "github.com/cloudfoundry/cli/cf/configuration/coreconfig",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "Fl/rxvZl8anblFSDN82Js4lAtz4=",
+			"path": "github.com/cloudfoundry/cli/cf/formatters",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "ZNaDRcBtl5Z8AtntJY8nEOlMxbw=",
+			"path": "github.com/cloudfoundry/cli/cf/i18n",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "l8gf38qgDTrPtiTmS9apYG/Ou4k=",
+			"path": "github.com/cloudfoundry/cli/cf/models",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "PXaZ78Z199Bv+8r6bRYpgwUBKTc=",
+			"path": "github.com/cloudfoundry/cli/cf/resources",
+			"revision": "6fd3c9fe6b36da867f48561bd07bbdd9d2650325",
+			"revisionTime": "2016-08-10T23:13:08Z"
+		},
+		{
+			"checksumSHA1": "5rPfda8jFccr3A6heL+JAmi9K9g=",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d",
+			"revisionTime": "2015-11-05T21:09:06Z"
+		},
+		{
+			"checksumSHA1": "7x2UfEAwyq5ouD4/noloWuIR/YI=",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "9fdad7c47650b7d2e1da50644c1f4ba7f172f252",
+			"revisionTime": "2016-02-10T00:18:57Z"
+		},
+		{
+			"checksumSHA1": "NkbetqlpWBi3gP08JDneC+axTKw=",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "56b76bdf51f7708750eac80fa38b952bb9f32639",
+			"revisionTime": "2015-12-11T00:06:21Z"
+		},
+		{
+			"checksumSHA1": "Jz2tqIo/dZrtMZNUPpCcLh/D9OY=",
+			"path": "github.com/nicksnyder/go-i18n/i18n",
+			"revision": "e89b669dd6cf08115d1eaee6c127bb13081fb20f",
+			"revisionTime": "2015-10-09T00:07:18Z"
+		},
+		{
+			"checksumSHA1": "z6eTWA9FaZsUJwaj5CtpbwDQjCU=",
+			"path": "github.com/nicksnyder/go-i18n/i18n/bundle",
+			"revision": "e89b669dd6cf08115d1eaee6c127bb13081fb20f",
+			"revisionTime": "2015-10-09T00:07:18Z"
+		},
+		{
+			"checksumSHA1": "+XOg99I1zdmBRUb04ZswvzQ2WS0=",
+			"path": "github.com/nicksnyder/go-i18n/i18n/language",
+			"revision": "e89b669dd6cf08115d1eaee6c127bb13081fb20f",
+			"revisionTime": "2015-10-09T00:07:18Z"
+		},
+		{
+			"checksumSHA1": "XtRJ0s6EblL2Uf2MEO3CtBo0NZk=",
+			"path": "github.com/nicksnyder/go-i18n/i18n/translation",
+			"revision": "e89b669dd6cf08115d1eaee6c127bb13081fb20f",
+			"revisionTime": "2015-10-09T00:07:18Z"
+		},
+		{
+			"checksumSHA1": "u62GoEI9HBTtKT7JoTI+JxRPN/s=",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": "e8554b8641db39598be7f6342874b958f12ae1d4",
+			"revisionTime": "2015-12-07T18:24:34Z"
+		},
+		{
+			"checksumSHA1": "5XAzjZrdlLh1mgd7xEvoK6LeLCA=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "e3a8ff8ce36581f87a15341206f205b1da467059",
+			"revisionTime": "2015-12-08T00:24:04Z"
+		},
+		{
+			"checksumSHA1": "zcUwvLEKfua/Q6oMm4oRd8h784k=",
+			"path": "github.com/stretchr/testify/require",
+			"revision": "e3a8ff8ce36581f87a15341206f205b1da467059",
+			"revisionTime": "2015-12-08T00:24:04Z"
+		},
+		{
+			"checksumSHA1": "GQZeZgjJPmPqbS7a2FNVycoX20U=",
+			"path": "github.com/stretchr/testify/suite",
+			"revision": "e3a8ff8ce36581f87a15341206f205b1da467059",
+			"revisionTime": "2015-12-08T00:24:04Z"
+		},
+		{
+			"checksumSHA1": "rEIS5EfbhPRBasakArGCeOWwY8c=",
+			"path": "github.com/urfave/cli",
+			"revision": "55f715e28c46073d0e217e2ce8eb46b0b45e3db6",
+			"revisionTime": "2016-10-06T03:53:53Z"
+		},
+		{
+			"checksumSHA1": "9C4Av3ypK5pi173F76ogJT/d8x4=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd",
+			"revisionTime": "2016-10-31T15:37:30Z"
+		},
+		{
+			"checksumSHA1": "15doxxBfOxOhWExkxjPNo6Y7fEw=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "833a04a10549a95dc34458c195cbad61bbb6cb4d",
+			"revisionTime": "2015-12-11T01:34:15Z"
+		}
+	],
+	"rootPath": "github.ibm.com/Bluemix/bluemix-cli-sdk"
+}
