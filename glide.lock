@@ -1,5 +1,5 @@
-hash: f67cd3351fb74759514d2012886fbefe9496dfa318f2aa93cba8f35b0899028e
-updated: 2017-02-20T14:34:09.336192971-08:00
+hash: 8a7bc54a2721d4a437360a5f4991bcacd30f0937ab5d32c516441b47e96778c2
+updated: 2017-02-21T09:26:35.959934201-08:00
 imports:
 - name: cloud.google.com/go
   version: 2c3878eb121ed42f23fd78e7209e3755006117cc
@@ -110,7 +110,7 @@ imports:
   subpackages:
   - codec
 - name: github.ibm.com/alchemy-containers/armada-slclient-lib
-  version: 9e3eed0fe7473023db56c40275fa7c34c0d26f5f
+  version: 1ffb1706035d2f48bcfb708104e3db1a344c5289
   subpackages:
   - auth
   - client
@@ -119,7 +119,7 @@ imports:
   - interfaces
   - services
 - name: github.ibm.com/almaden-containers/ubiquity
-  version: 30a0dbf90c31216d134d090e27cd1a7176ac71fe
+  version: f405696b4b3c70b981342555fb209a19cecf2896
   subpackages:
   - fakes
   - local/softlayer

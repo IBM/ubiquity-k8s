@@ -1,19 +1,16 @@
-package: github.ibm.com/almaden-containers/ubiquity-k8s
-import:
-- package: cloud.google.com/go
+hash: db7989e9762c9da34914aad902854ffe73876995eb29703ead5136df3045da2f
+updated: 2017-02-20T16:30:00.791934544-08:00
+imports:
+- name: cloud.google.com/go
   version: 2c3878eb121ed42f23fd78e7209e3755006117cc
   subpackages:
   - compute/metadata
   - internal
-- package: github.com/BurntSushi/toml
+- name: github.com/blang/semver
+  version: b38d23b8782a487059e8fc8773e9a5b228a77cb6
+- name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
-- package: github.com/PuerkitoBio/purell
-  version: ^1.1.0
-- package: github.com/PuerkitoBio/urlesc
-  version: 5bd2802
-- package: github.com/blang/semver
-  version: ^3.5.0
-- package: github.com/coreos/go-oidc
+- name: github.com/coreos/go-oidc
   version: 5a7f09ab5787e846efa7f56f4a08b6d6926d08c4
   subpackages:
   - http
@@ -21,90 +18,98 @@ import:
   - key
   - oauth2
   - oidc
-- package: github.com/coreos/pkg
+- name: github.com/coreos/pkg
   version: 447b7ec906e523386d9c53be15b55a8ae86ea944
   subpackages:
   - health
   - httputil
   - timeutil
-- package: github.com/davecgh/go-spew
-  version: ^1.1.0
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
-- package: github.com/djherbis/times
+- name: github.com/djherbis/times
   version: e00ff80b205836b5748cfbcc51a2c8154269b5ae
-- package: github.com/docker/distribution
+- name: github.com/docker/distribution
   version: 7694c31658cfc0f9db97cd7ffaef9008b620a4d2
   subpackages:
   - digest
   - reference
-- package: github.com/emicklei/go-restful
+- name: github.com/emicklei/go-restful
   version: 858e58f98abd32bc4d164a08e8d7ac169ae876e2
   subpackages:
   - log
   - swagger
-- package: github.com/ghodss/yaml
-  version: bea76d6
-- package: github.com/go-openapi/jsonpointer
-  version: 8d96a2d
-- package: github.com/go-openapi/jsonreference
-  version: 36d33bf
-- package: github.com/go-openapi/spec
-  version: 3a04341
-- package: github.com/go-openapi/swag
-  version: 3b6d86c
-- package: github.com/gogo/protobuf
+- name: github.com/ghodss/yaml
+  version: bea76d6a4713e18b7f5321a2b020738552def3ea
+- name: github.com/go-openapi/jsonpointer
+  version: 8d96a2dc61536b690bd36b2e9df0b3c0b62825b2
+- name: github.com/go-openapi/jsonreference
+  version: 36d33bfe519efae5632669801b180bf1a245da3b
+- name: github.com/go-openapi/spec
+  version: 3a0434164aa36744c7ba29b822d36894a1e5ec96
+- name: github.com/go-openapi/swag
+  version: 3b6d86cd965820f968760d5d419cb4add096bdd7
+- name: github.com/gogo/protobuf
   version: 9c5b7bafbfccf2b40d274e0496f3a09418a87af4
   subpackages:
   - proto
   - sortkeys
-- package: github.com/golang/glog
-  version: 23def4e
-- package: github.com/golang/groupcache
+- name: github.com/golang/glog
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
+- name: github.com/golang/groupcache
   version: a6b377e3400b08991b80d6805d627f347f983866
   subpackages:
   - lru
-- package: github.com/golang/protobuf
+- name: github.com/golang/protobuf
   version: 8ee79997227bf9b34611aee7946ae64735e6fd93
   subpackages:
   - proto
-- package: github.com/google/gofuzz
-  version: fd52762
-- package: github.com/gorilla/mux
-  version: ^1.3.0
-- package: github.com/howeyc/gopass
-  version: f5387c4
-- package: github.com/imdario/mergo
-  version: 50d4dbd
-- package: github.com/jessevdk/go-flags
+- name: github.com/google/gofuzz
+  version: fd52762d25a41827db7ef64c43756fd4b9f7e382
+- name: github.com/gorilla/mux
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+- name: github.com/howeyc/gopass
+  version: f5387c492211eb133053880d23dfae62aa14123d
+- name: github.com/imdario/mergo
+  version: 50d4dbd4eb0e84778abe37cefef140271d96fade
+- name: github.com/jessevdk/go-flags
   version: 4e64e4a4e2552194cf594243e23aa9baf3b4297e
-- package: github.com/jonboulle/clockwork
-  version: bcac988
-- package: github.com/mailru/easyjson
+- name: github.com/jonboulle/clockwork
+  version: bcac9884e7502bb2b474c0339d889cb981a2f27f
+- name: github.com/mailru/easyjson
   version: 159cdb893c982e3d1bc6450322fedd514f9c9de3
   subpackages:
   - buffer
   - jlexer
   - jwriter
-- package: github.com/pborman/uuid
-  version: 3d4f2ba
-- package: github.com/spf13/pflag
-  version: 5ccb023
-- package: github.com/ugorji/go
+- name: github.com/onsi/ginkgo
+  version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
+  subpackages:
+  - ginkgo
+- name: github.com/pborman/uuid
+  version: 3d4f2ba23642d3cfd06bd4b54cf03d99d95c0f1b
+- name: github.com/PuerkitoBio/purell
+  version: 0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4
+- name: github.com/PuerkitoBio/urlesc
+  version: 5bd2802263f21d8788851d5305584c82a5c75d7e
+- name: github.com/spf13/pflag
+  version: 5ccb023bc27df288a957c5e994cd44fd19619465
+- name: github.com/ugorji/go
   version: faddd6128c66c4708f45fdc007f575f75e592a3c
   subpackages:
   - codec
-- package: github.ibm.com/almaden-containers/ubiquity
-  version: dev
+- name: github.ibm.com/almaden-containers/ubiquity
+  version: 30a0dbf90c31216d134d090e27cd1a7176ac71fe
   subpackages:
   - remote
   - resources
   - utils
-- package: golang.org/x/crypto
+- name: golang.org/x/crypto
   version: 9477e0b78b9ac3d0b03822fd95422e2fe07627cd
   subpackages:
   - ssh/terminal
-- package: golang.org/x/net
+- name: golang.org/x/net
   version: 4971afdc2f162e82d185353533d3cf16188a9f4e
   subpackages:
   - context
@@ -113,24 +118,24 @@ import:
   - http2/hpack
   - idna
   - lex/httplex
-- package: golang.org/x/oauth2
+- name: golang.org/x/oauth2
   version: d5040cddfc0da40b408c9a1da4728662435176a9
   subpackages:
   - google
   - internal
   - jws
   - jwt
-- package: golang.org/x/sys
+- name: golang.org/x/sys
   version: b699b7032584f0953262cb2788a0ca19bb494703
   subpackages:
   - unix
-- package: golang.org/x/text
+- name: golang.org/x/text
   version: a263ba8db058568bb9beba166777d9c9dbe75d68
   subpackages:
   - transform
   - unicode/norm
   - width
-- package: google.golang.org/appengine
+- name: google.golang.org/appengine
   version: ca59ef35f409df61fa4a5f8290ff289b37eccfb8
   subpackages:
   - internal
@@ -140,15 +145,17 @@ import:
   - internal/log
   - internal/modules
   - internal/remote_api
-- package: gopkg.in/inf.v0
-  version: ^0.9.0
-- package: gopkg.in/yaml.v2
-  version: a5b47d3
-- package: k8s.io/apimachinery
+  - internal/urlfetch
+  - urlfetch
+- name: gopkg.in/inf.v0
+  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+- name: k8s.io/apimachinery
   version: bb0944e83985eee62505a0386e7df9014cc55263
   subpackages:
   - pkg/util/runtime
-- package: k8s.io/client-go
+- name: k8s.io/client-go
   version: 89c60099837a47cfce19bd14e2d1f16c4670fd58
   subpackages:
   - discovery
@@ -267,13 +274,11 @@ import:
   - tools/metrics
   - tools/record
   - transport
-- package: k8s.io/kubernetes
+- name: k8s.io/kubernetes
   version: 1be74e39faf5ae1ee2116472cc07670fd7ce5ec5
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
-testImport:
-- package: github.com/onsi/ginkgo
-  version: ^1.2.0
-- package: github.com/onsi/gomega
-  version: ^1.0.0
+testImports:
+- name: github.com/onsi/gomega
+  version: a78ae492d53aad5a7a232d0d0462c14c400e3ee7

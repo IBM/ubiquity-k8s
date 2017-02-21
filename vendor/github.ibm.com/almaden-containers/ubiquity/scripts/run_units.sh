@@ -3,6 +3,6 @@ echo "Setting up ginkgo and gomega"
 go get github.com/onsi/ginkgo/ginkgo
 go get github.com/onsi/gomega
 
-echo "Starting unit tests...."
-cd core/
+cd local/spectrumscale
+echo "Starting unit tests for local/spectrumscale"
 ginkgo
