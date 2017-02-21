@@ -140,7 +140,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	}
 
 	flexVolumeConfig := make(map[string]string)
-	flexVolumeConfig["VolumeName"] = options.PVName
+	flexVolumeConfig["volumeName"] = options.PVName
 	for key, value := range volumeConfig {
 		flexVolumeConfig[key] = value.(string)
 	}

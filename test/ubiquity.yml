@@ -16,8 +16,7 @@ spec:
     flexVolume:
       driver: "kubernetes.io/ubiquity"
       options:
-        volumeID: "vol1"
+        volumeName: "vol1"
         filesystem: "gold"
-        size: "100m"
-        fileset: "vol1"
+        size: "1G"
         path: "/gpfs/gold"

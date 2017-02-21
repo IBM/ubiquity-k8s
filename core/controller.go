@@ -60,7 +60,7 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 	defer c.logger.Println("controller-attach-end")
 	c.logger.Printf("attach-details %#v\n", attachRequest)
 	var attachResponse resources.FlexVolumeResponse
-	volumeName, exists := attachRequest["VolumeName"]
+	volumeName, exists := attachRequest["volumeName"]
 	if !exists {
 		volumeName, exists = attachRequest["FilesetId"] // hack/fail safe for spectrum // CHANGE ME
 		if !exists {
@@ -77,6 +77,11 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 	opts := make(map[string]interface{})
 	for key, value := range attachRequest {
 		opts[key] = value
+	}
+
+	size, exists := attachRequest["size"]
+	if exists {
+		opts["quota"] = size
 	}
 
 	c.logger.Printf("Found opts: #%v\n", opts)
