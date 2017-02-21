@@ -32,7 +32,7 @@ var _ = Describe("Controller", func() {
 		Context(".Attach", func() {
 			It("does not error on create with valid opts", func() {
 				fakeClient.CreateVolumeReturns(nil)
-				attachRequest := map[string]string{"VolumeId": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+				attachRequest := map[string]string{"VolumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Success"))
 				Expect(attachResponse.Message).To(Equal("Volume attached successfully"))
@@ -42,11 +42,11 @@ var _ = Describe("Controller", func() {
 			It("does error on create when client fails to attach", func() {
 				err := fmt.Errorf("Spectrum internal error on attach")
 				fakeClient.CreateVolumeReturns(err)
-				attachRequest := map[string]string{"VolumeId": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+				attachRequest := map[string]string{"VolumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
 				Expect(attachResponse.Status).To(Equal("Failure"))
 				Expect(attachResponse.Message).To(Equal(fmt.Sprintf("Failed to attach volume: %#v", err)))
-				Expect(attachResponse.Device).To(Equal("vol"))
+				Expect(attachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(1))
 			})
 

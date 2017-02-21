@@ -28,17 +28,7 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return err
-	}
-
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
-
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	controller, err := createController(*configFile)
 	if err != nil {
 		response := resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -56,15 +46,6 @@ type AttachCommand struct {
 }
 
 func (a *AttachCommand) Execute(args []string) error {
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return err
-	}
-
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
-
 	attachRequest := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &attachRequest)
 	if err != nil {
@@ -75,8 +56,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	controller, err := createController(*configFile)
 
 	if err != nil {
 		panic("backend not found")
@@ -91,18 +71,7 @@ type DetachCommand struct {
 
 func (d *DetachCommand) Execute(args []string) error {
 	mountDevice := args[0]
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return err
-
-	}
-
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
-
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	controller, err := createController(*configFile)
 
 	if err != nil {
 		panic("backend not found")
@@ -121,20 +90,8 @@ func (m *MountCommand) Execute(args []string) error {
 	targetMountDir := args[0]
 	mountDevice := args[1]
 	var mountOpts map[string]interface{}
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return err
-	}
 
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
-
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
-
-	logger.Printf("mount-args %#v\n", args[2])
-	err = json.Unmarshal([]byte(args[2]), &mountOpts)
+	err := json.Unmarshal([]byte(args[2]), &mountOpts)
 	if err != nil {
 		mountResponse := resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -144,14 +101,16 @@ func (m *MountCommand) Execute(args []string) error {
 		return utils.PrintResponse(mountResponse)
 	}
 
-	if err != nil {
-		panic("backend not found")
-	}
-
 	mountRequest := resources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
 		MountDevice: mountDevice,
 		Opts:        mountOpts,
+	}
+
+	controller, err := createController(*configFile)
+
+	if err != nil {
+		panic("backend not found")
 	}
 	mountResponse := controller.Mount(mountRequest)
 	return utils.PrintResponse(mountResponse)
@@ -163,17 +122,7 @@ type UnmountCommand struct {
 
 func (u *UnmountCommand) Execute(args []string) error {
 	mountDir := args[0]
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(*configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return err
-	}
-
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
-
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	controller, err := createController(*configFile)
 
 	if err != nil {
 		panic("backend not found")
@@ -222,6 +171,22 @@ func main() {
 		panic(err)
 		os.Exit(1)
 	}
+}
+
+func createController(configFile string) (*core.Controller, error) {
+	var config resources.UbiquityPluginConfig
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		fmt.Printf("error decoding config file", err)
+		return nil, err
+
+	}
+
+	logger, logFile := setupLogger(config.LogPath)
+	defer closeLogs(logFile)
+
+	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
+	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	return controller, err
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {
