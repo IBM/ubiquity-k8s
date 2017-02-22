@@ -4,7 +4,7 @@ metadata:
   name: ubiquity
 spec:
   containers:
-  - name: ubiquity 
+  - name: ubiquity
     image: midoblgsm/kubenode
     volumeMounts:
     - name: ubiquity
@@ -18,5 +18,5 @@ spec:
       options:
         volumeName: "vol1"
         filesystem: "gold"
-        size: "1G"
+        size: "1Gi"
         path: "/gpfs/gold"

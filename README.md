@@ -31,23 +31,23 @@ Clone the repository and build the binary using these commands.
 ```bash
 mkdir -p $GOPATH/src/github.ibm.com/almaden-containers
 cd $GOPATH/src/github.ibm.com/almaden-containers
-git clone git@github.ibm.com:almaden-containers/ubiquity-provisioner.git
-cd ubiquity-provisioner
-./scripts/build
+git clone git@github.ibm.com:almaden-containers/ubiquity-k8s.git
+cd ubiquity-k8s
+./scripts/build_provisioner
 ```
-Newly built binary (ubiquity) will be in bin directory. 
+Newly built binary (provisioner) will be in bin directory. 
 
 ### Running the Ubiquity dynamic provisioner
 ```bash
-./bin/ubiquity -config <configFile> -kubeconfig <kubeConfigDir> -provisioner <provisionerName>
+./bin/provisioner -config <configFile> -kubeconfig <kubeConfigDir> -provisioner <provisionerName>
 ```
 where:
-* configFile: Configuration file to use (defaults to `./ubiquity.conf`)
+* configFile: Configuration file to use (defaults to `./ubiquity-client.conf`)
 
 ### Configuring the Ubiquity details
 
 Unless otherwise specified by the `configFile` command line parameter, the Ubiquity service will
-look for a file named `ubiquity.conf` for its configuration.
+look for a file named `ubiquity-client.conf` for its configuration.
 
 The following snippet shows a sample configuration file:
 
@@ -120,9 +120,9 @@ mkdir -p $GOPATH/src/github.ibm.com/almaden-containers
 cd $GOPATH/src/github.ibm.com/almaden-containers
 git clone git@github.ibm.com:almaden-containers/ubiquity-k8s.git
 cd ubiquity-k8s
-./scripts/build_provisioner
+./scripts/build_flex_driver
 ```
- Newly built binary (provisioner) will be in bin directory. 
+ Newly built binary (ubiquity) will be in bin directory. 
 
 # Using the plugin
 Install the ubiquity binary on all nodes in the kubelet plugin path along with its configuration file.
@@ -196,7 +196,7 @@ spec:
     flexVolume:
       driver: "kubernetes.io/ubiquity"
       options:
-        volumeID: "vol1"
-        size: "100m"
+        volumeNsmr: "vol1"
+        size: "1Gi"
         filesystem: "gold"
  ```

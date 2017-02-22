@@ -16,6 +16,6 @@ spec:
         mountPath: "/mnt"
   restartPolicy: "Never"
   volumes:
-    - name: nfs-pvc
+    - name: ubiquity-pvc
       persistentVolumeClaim:
         claimName: ubiquity-claim
