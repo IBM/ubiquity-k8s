@@ -62,7 +62,7 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 	var attachResponse resources.FlexVolumeResponse
 	volumeName, exists := attachRequest["volumeName"]
 	if !exists {
-		volumeName, exists = attachRequest["FilesetId"] // hack/fail safe for spectrum // CHANGE ME
+		volumeName, exists = attachRequest["fileset"] // hack/fail safe for spectrum // CHANGE ME
 		if !exists {
 			attachResponse = resources.FlexVolumeResponse{
 				Status:  "Failure",
@@ -73,8 +73,11 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 			return attachResponse
 		}
 	}
+
 	c.logger.Printf("Found VolumeName: %s\n", volumeName)
 	opts := make(map[string]interface{})
+
+	opts["fileset"] = volumeName
 	for key, value := range attachRequest {
 		opts[key] = value
 	}
