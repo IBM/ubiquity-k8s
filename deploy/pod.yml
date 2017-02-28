@@ -12,7 +12,7 @@ spec:
       - "-c"
       - "touch /mnt/SUCCESS && exit 0 || exit 1"
     volumeMounts:
-      - name: nfs-pvc
+      - name: ubiquity-pvc 
         mountPath: "/mnt"
   restartPolicy: "Never"
   volumes:
