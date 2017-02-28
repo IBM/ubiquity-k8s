@@ -23,14 +23,13 @@ api-server-advertise-address
 api-server-service-type
 api-token
 api-version
+apiserver-arg-overrides
 apiserver-count
 apiserver-count
 audit-log-maxage
 audit-log-maxbackup
 audit-log-maxsize
 audit-log-path
-auth-path
-auth-path
 auth-provider
 auth-provider
 auth-provider-arg
@@ -116,7 +115,9 @@ container-runtime
 container-runtime-endpoint
 contain-pod-resources
 contention-profiling
+controllermanager-arg-overrides
 controller-start-interval
+core-kubeconfig
 cors-allowed-origins
 cpu-cfs-quota
 cpu-percent
@@ -160,7 +161,10 @@ dump-logs-on-failure
 duration-sec
 e2e-output-dir
 e2e-verify-service-account
+etcd-metrics-scrape-uri
+etcd-version-scrape-uri
 enable-controller-attach-detach
+enable-cri
 enable-custom-metrics
 enable-debugging-handlers
 enable-dynamic-provisioning
@@ -170,6 +174,7 @@ enable-garbage-collector
 enable-hostpath-provisioner
 enable-server
 enable-swagger-ui
+enable-taint-manager
 etcd-address
 etcd-cafile
 etcd-certfile
@@ -366,6 +371,7 @@ leader-elect-retry-period
 lease-duration
 leave-stdin-open
 limit-bytes
+listen-address
 listers-package
 load-balancer-ip
 lock-file
@@ -405,6 +411,7 @@ mesos-launch-grace-period
 mesos-master
 mesos-sandbox-overlay
 mesos-user
+metrics-path
 min-available
 min-pr-number
 min-request-timeout
@@ -518,7 +525,9 @@ requestheader-username-headers
 require-kubeconfig
 required-contexts
 resolv-conf
+resource
 resource-container
+resource-name
 resource-quota-sync-period
 resource-version
 results-dir
@@ -541,6 +550,7 @@ scheduler-config
 scheduler-name
 schema-cache-dir
 scopes
+scrape-timeout
 seccomp-profile-root
 secondary-node-eviction-rate
 secret-name
@@ -593,7 +603,6 @@ streaming-connection-idle-timeout
 suicide-timeout
 sync-frequency
 system-cgroups
-system-container
 system-pods-startup-timeout
 system-reserved
 system-validate-mode
@@ -623,6 +632,7 @@ use-service-account-credentials
 use-kubernetes-cluster-service
 use-kubernetes-version
 user-whitelist
+verb
 verify-only
 versioned-clientset-package
 viper-config

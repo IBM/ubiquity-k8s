@@ -3,7 +3,7 @@ package volume
 import (
 	"fmt"
 
-	"github.ibm.com/almaden-containers/ubiquity-k8s/controller"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"

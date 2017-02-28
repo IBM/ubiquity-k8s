@@ -27,31 +27,17 @@ import (
 type Value interface{}
 
 // ValueLoader stores a slice of Values representing a result row from a Read operation.
-// See RowIterator.Next for more information.
+// See Iterator.Get for more information.
 type ValueLoader interface {
-	Load(v []Value, s Schema) error
+	Load(v []Value) error
 }
 
 // ValueList converts a []Value to implement ValueLoader.
 type ValueList []Value
 
 // Load stores a sequence of values in a ValueList.
-func (vs *ValueList) Load(v []Value, _ Schema) error {
+func (vs *ValueList) Load(v []Value) error {
 	*vs = append(*vs, v...)
-	return nil
-}
-
-// valueMap converts a map[string]Value to implement ValueLoader.
-type valueMap map[string]Value
-
-// Load stores a sequence of values in a valueMap.
-func (vm *valueMap) Load(v []Value, s Schema) error {
-	if *vm == nil {
-		*vm = map[string]Value{}
-	}
-	for i, f := range s {
-		(*vm)[f.Name] = v[i]
-	}
 	return nil
 }
 
@@ -195,7 +181,7 @@ func convertBasicType(val string, typ FieldType) (Value, error) {
 	case StringFieldType:
 		return val, nil
 	case IntegerFieldType:
-		return strconv.ParseInt(val, 10, 64)
+		return strconv.Atoi(val)
 	case FloatFieldType:
 		return strconv.ParseFloat(val, 64)
 	case BooleanFieldType:

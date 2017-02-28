@@ -91,6 +91,9 @@ func main() {
 
 	flag.Usage = func() { usage(os.Stderr) }
 	flag.Parse()
+	if err := config.CheckFlags(); err != nil {
+		log.Fatal(err)
+	}
 	if config.Creds != "" {
 		os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", config.Creds)
 	}
@@ -115,9 +118,6 @@ func main() {
 	ctx := context.Background()
 	for _, cmd := range commands {
 		if cmd.Name == flag.Arg(0) {
-			if err := config.CheckFlags(cmd.Required); err != nil {
-				log.Fatal(err)
-			}
 			cmd.do(ctx, flag.Args()[1:]...)
 			return
 		}
@@ -158,77 +158,66 @@ var commands = []struct {
 	Name, Desc string
 	do         func(context.Context, ...string)
 	Usage      string
-	Required   cbtrc.RequiredFlags
 }{
 	{
-		Name:     "count",
-		Desc:     "Count rows in a table",
-		do:       doCount,
-		Usage:    "cbt count <table>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "count",
+		Desc:  "Count rows in a table",
+		do:    doCount,
+		Usage: "cbt count <table>",
 	},
 	{
-		Name:     "createfamily",
-		Desc:     "Create a column family",
-		do:       doCreateFamily,
-		Usage:    "cbt createfamily <table> <family>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "createfamily",
+		Desc:  "Create a column family",
+		do:    doCreateFamily,
+		Usage: "cbt createfamily <table> <family>",
 	},
 	{
-		Name:     "createtable",
-		Desc:     "Create a table",
-		do:       doCreateTable,
-		Usage:    "cbt createtable <table>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "createtable",
+		Desc:  "Create a table",
+		do:    doCreateTable,
+		Usage: "cbt createtable <table>",
 	},
 	{
-		Name:     "deletefamily",
-		Desc:     "Delete a column family",
-		do:       doDeleteFamily,
-		Usage:    "cbt deletefamily <table> <family>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "deletefamily",
+		Desc:  "Delete a column family",
+		do:    doDeleteFamily,
+		Usage: "cbt deletefamily <table> <family>",
 	},
 	{
-		Name:     "deleterow",
-		Desc:     "Delete a row",
-		do:       doDeleteRow,
-		Usage:    "cbt deleterow <table> <row>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "deleterow",
+		Desc:  "Delete a row",
+		do:    doDeleteRow,
+		Usage: "cbt deleterow <table> <row>",
 	},
 	{
-		Name:     "deletetable",
-		Desc:     "Delete a table",
-		do:       doDeleteTable,
-		Usage:    "cbt deletetable <table>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "deletetable",
+		Desc:  "Delete a table",
+		do:    doDeleteTable,
+		Usage: "cbt deletetable <table>",
 	},
 	{
-		Name:     "doc",
-		Desc:     "Print godoc-suitable documentation for cbt",
-		do:       doDoc,
-		Usage:    "cbt doc",
-		Required: cbtrc.NoneRequired,
+		Name:  "doc",
+		Desc:  "Print godoc-suitable documentation for cbt",
+		do:    doDoc,
+		Usage: "cbt doc",
 	},
 	{
-		Name:     "help",
-		Desc:     "Print help text",
-		do:       doHelp,
-		Usage:    "cbt help [command]",
-		Required: cbtrc.NoneRequired,
+		Name:  "help",
+		Desc:  "Print help text",
+		do:    doHelp,
+		Usage: "cbt help [command]",
 	},
 	{
-		Name:     "listinstances",
-		Desc:     "List instances in a project",
-		do:       doListInstances,
-		Usage:    "cbt listinstances",
-		Required: cbtrc.ProjectRequired,
+		Name:  "listinstances",
+		Desc:  "List instances in a project",
+		do:    doListInstances,
+		Usage: "cbt listinstances",
 	},
 	{
-		Name:     "lookup",
-		Desc:     "Read from a single row",
-		do:       doLookup,
-		Usage:    "cbt lookup <table> <row>",
-		Required: cbtrc.ProjectAndInstanceRequired,
+		Name:  "lookup",
+		Desc:  "Read from a single row",
+		do:    doLookup,
+		Usage: "cbt lookup <table> <row>",
 	},
 	{
 		Name: "ls",
@@ -236,14 +225,12 @@ var commands = []struct {
 		do:   doLS,
 		Usage: "cbt ls			List tables\n" +
 			"cbt ls <table>		List column families in <table>",
-		Required: cbtrc.ProjectAndInstanceRequired,
 	},
 	{
-		Name:     "mddoc",
-		Desc:     "Print documentation for cbt in Markdown format",
-		do:       doMDDoc,
-		Usage:    "cbt mddoc",
-		Required: cbtrc.NoneRequired,
+		Name:  "mddoc",
+		Desc:  "Print documentation for cbt in Markdown format",
+		do:    doMDDoc,
+		Usage: "cbt mddoc",
 	},
 	{
 		Name: "read",
@@ -254,7 +241,6 @@ var commands = []struct {
 			"  end=<row>		Stop reading before this row\n" +
 			"  prefix=<prefix>	Read rows with this prefix\n" +
 			"  count=<n>		Read only this many rows\n",
-		Required: cbtrc.ProjectAndInstanceRequired,
 	},
 	{
 		Name: "set",
@@ -266,7 +252,6 @@ var commands = []struct {
 			"  ts is an optional integer timestamp.\n" +
 			"  If it cannot be parsed, the `@ts` part will be\n" +
 			"  interpreted as part of the value.",
-		Required: cbtrc.ProjectAndInstanceRequired,
 	},
 	{
 		Name: "setgcpolicy",
@@ -276,7 +261,6 @@ var commands = []struct {
 			"\n" +
 			`  maxage=<d>		Maximum timestamp age to preserve (e.g. "1h", "4d")` + "\n" +
 			"  maxversions=<n>	Maximum number of versions to preserve",
-		Required: cbtrc.ProjectAndInstanceRequired,
 	},
 }
 

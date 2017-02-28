@@ -74,7 +74,7 @@ func (ac *AdminClient) instancePrefix() string {
 
 // Tables returns a list of the tables in the instance.
 func (ac *AdminClient) Tables(ctx context.Context) ([]string, error) {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.ListTablesRequest{
 		Parent: prefix,
@@ -93,7 +93,7 @@ func (ac *AdminClient) Tables(ctx context.Context) ([]string, error) {
 // CreateTable creates a new table in the instance.
 // This method may return before the table's creation is complete.
 func (ac *AdminClient) CreateTable(ctx context.Context, table string) error {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.CreateTableRequest{
 		Parent:  prefix,
@@ -109,14 +109,16 @@ func (ac *AdminClient) CreateTable(ctx context.Context, table string) error {
 // CreateColumnFamily creates a new column family in a table.
 func (ac *AdminClient) CreateColumnFamily(ctx context.Context, table, family string) error {
 	// TODO(dsymonds): Permit specifying gcexpr and any other family settings.
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.ModifyColumnFamiliesRequest{
 		Name: prefix + "/tables/" + table,
-		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{{
-			Id:  family,
-			Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Create{&btapb.ColumnFamily{}},
-		}},
+		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{
+			{
+				Id:  family,
+				Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Create{Create: &btapb.ColumnFamily{}},
+			},
+		},
 	}
 	_, err := ac.tClient.ModifyColumnFamilies(ctx, req)
 	return err
@@ -124,7 +126,7 @@ func (ac *AdminClient) CreateColumnFamily(ctx context.Context, table, family str
 
 // DeleteTable deletes a table and all of its data.
 func (ac *AdminClient) DeleteTable(ctx context.Context, table string) error {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.DeleteTableRequest{
 		Name: prefix + "/tables/" + table,
@@ -135,14 +137,16 @@ func (ac *AdminClient) DeleteTable(ctx context.Context, table string) error {
 
 // DeleteColumnFamily deletes a column family in a table and all of its data.
 func (ac *AdminClient) DeleteColumnFamily(ctx context.Context, table, family string) error {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.ModifyColumnFamiliesRequest{
 		Name: prefix + "/tables/" + table,
-		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{{
-			Id:  family,
-			Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Drop{true},
-		}},
+		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{
+			{
+				Id:  family,
+				Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Drop{Drop: true},
+			},
+		},
 	}
 	_, err := ac.tClient.ModifyColumnFamilies(ctx, req)
 	return err
@@ -155,7 +159,7 @@ type TableInfo struct {
 
 // TableInfo retrieves information about a table.
 func (ac *AdminClient) TableInfo(ctx context.Context, table string) (*TableInfo, error) {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.GetTableRequest{
 		Name: prefix + "/tables/" + table,
@@ -175,14 +179,16 @@ func (ac *AdminClient) TableInfo(ctx context.Context, table string) (*TableInfo,
 // GC executes opportunistically in the background; table reads may return data
 // matching the GC policy.
 func (ac *AdminClient) SetGCPolicy(ctx context.Context, table, family string, policy GCPolicy) error {
-	ctx = mergeMetadata(ctx, ac.md)
+	ctx = metadata.NewContext(ctx, ac.md)
 	prefix := ac.instancePrefix()
 	req := &btapb.ModifyColumnFamiliesRequest{
 		Name: prefix + "/tables/" + table,
-		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{{
-			Id:  family,
-			Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Update{&btapb.ColumnFamily{GcRule: policy.proto()}},
-		}},
+		Modifications: []*btapb.ModifyColumnFamiliesRequest_Modification{
+			{
+				Id:  family,
+				Mod: &btapb.ModifyColumnFamiliesRequest_Modification_Update{Update: &btapb.ColumnFamily{GcRule: policy.proto()}},
+			},
+		},
 	}
 	_, err := ac.tClient.ModifyColumnFamilies(ctx, req)
 	return err
@@ -237,7 +243,7 @@ var instanceNameRegexp = regexp.MustCompile(`^projects/([^/]+)/instances/([a-z][
 
 // Instances returns a list of instances in the project.
 func (cac *InstanceAdminClient) Instances(ctx context.Context) ([]*InstanceInfo, error) {
-	ctx = mergeMetadata(ctx, cac.md)
+	ctx = metadata.NewContext(ctx, cac.md)
 	req := &btapb.ListInstancesRequest{
 		Parent: "projects/" + cac.project,
 	}

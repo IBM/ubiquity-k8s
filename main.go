@@ -12,13 +12,16 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/golang/glog"
-	"github.ibm.com/almaden-containers/ubiquity-k8s/controller"
+
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
 	"github.ibm.com/almaden-containers/ubiquity-k8s/volume"
 	"github.ibm.com/almaden-containers/ubiquity/remote"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"k8s.io/client-go/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -28,6 +31,13 @@ var (
 	kubeconfig           = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
 	configFile           = flag.String("config", "ubiquity-client.conf", "config file with ubiquity client configuration params")
 	failedRetryThreshold = flag.Int("retries", 3, "number of retries on failure of provisioner")
+)
+
+const (
+	leasePeriod   = leaderelection.DefaultLeaseDuration
+	retryPeriod   = leaderelection.DefaultRetryPeriod
+	renewDeadline = leaderelection.DefaultRenewDeadline
+	termLimit     = leaderelection.DefaultTermLimit
 )
 
 func main() {
@@ -53,18 +63,18 @@ func main() {
 		config, err = rest.InClusterConfig()
 	}
 	if err != nil {
-		glog.Fatalf("Failed to create config: %v", err)
+		panic(fmt.Sprintf("Failed to create config: %v", err))
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("Failed to create client: %v", err)
+		panic(fmt.Sprintf("Failed to create client: %v", err))
 	}
 
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
-		glog.Fatalf("Error getting server version: %v", err)
+		panic(fmt.Sprintf("Error getting server version: %v", err))
 	}
 	ubiquityEndpoint := fmt.Sprintf("http://%s:%d/ubiquity_storage", ubiquityConfig.UbiquityServer.Address, ubiquityConfig.UbiquityServer.Port)
 	logger.Printf("ubiquity endpoint")
@@ -81,9 +91,9 @@ func main() {
 		panic("Error starting ubiquity client")
 	}
 	// Start the provision controller which will dynamically provision NFS PVs
-	pc := controller.NewProvisionController(clientset, 15*time.Second, *provisioner, flexProvisioner, serverVersion.GitVersion, true, *failedRetryThreshold)
-	var neverStop <-chan struct{} = make(chan struct{})
-	pc.Run(neverStop)
+
+	pc := controller.NewProvisionController(clientset, 15*time.Second, *provisioner, flexProvisioner, serverVersion.GitVersion, true, *failedRetryThreshold, leasePeriod, renewDeadline, retryPeriod, termLimit)
+	pc.Run(wait.NeverStop)
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {

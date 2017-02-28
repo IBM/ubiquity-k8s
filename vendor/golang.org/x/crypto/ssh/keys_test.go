@@ -17,7 +17,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/ssh/testdata"
 )
 
@@ -29,8 +28,6 @@ func rawKey(pub PublicKey) interface{} {
 		return (*dsa.PublicKey)(k)
 	case *ecdsaPublicKey:
 		return (*ecdsa.PublicKey)(k)
-	case ed25519PublicKey:
-		return (ed25519.PublicKey)(k)
 	case *Certificate:
 		return k
 	}
@@ -129,22 +126,6 @@ func TestParseECPrivateKey(t *testing.T) {
 
 	if !validateECPublicKey(ecKey.Curve, ecKey.X, ecKey.Y) {
 		t.Fatalf("public key does not validate.")
-	}
-}
-
-// See Issue https://github.com/golang/go/issues/6650.
-func TestParseEncryptedPrivateKeysFails(t *testing.T) {
-	const wantSubstring = "encrypted"
-	for i, tt := range testdata.PEMEncryptedKeys {
-		_, err := ParsePrivateKey(tt.PEMBytes)
-		if err == nil {
-			t.Errorf("#%d key %s: ParsePrivateKey successfully parsed, expected an error", i, tt.Name)
-			continue
-		}
-
-		if !strings.Contains(err.Error(), wantSubstring) {
-			t.Errorf("#%d key %s: got error %q, want substring %q", i, tt.Name, err, wantSubstring)
-		}
 	}
 }
 
@@ -325,14 +306,14 @@ func TestInvalidEntry(t *testing.T) {
 }
 
 var knownHostsParseTests = []struct {
-	input string
-	err   string
+	input     string
+	err       string
 
-	marker  string
-	comment string
-	hosts   []string
-	rest    string
-}{
+	marker   string
+	comment  string
+	hosts    []string
+	rest     string
+} {
 	{
 		"",
 		"EOF",
@@ -391,13 +372,13 @@ var knownHostsParseTests = []struct {
 		"localhost,[host2:123]\tssh-rsa {RSAPUB}\tcomment comment",
 		"",
 
-		"", "comment comment", []string{"localhost", "[host2:123]"}, "",
+		"", "comment comment", []string{"localhost","[host2:123]"}, "",
 	},
 	{
 		"@marker \tlocalhost,[host2:123]\tssh-rsa {RSAPUB}",
 		"",
 
-		"marker", "", []string{"localhost", "[host2:123]"}, "",
+		"marker", "", []string{"localhost","[host2:123]"}, "",
 	},
 	{
 		"@marker \tlocalhost,[host2:123]\tssh-rsa aabbccdd",

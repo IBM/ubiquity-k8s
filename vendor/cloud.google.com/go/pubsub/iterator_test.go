@@ -21,47 +21,45 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-
-	"google.golang.org/api/iterator"
 )
 
 func TestReturnsDoneOnStop(t *testing.T) {
 	type testCase struct {
-		abort func(*MessageIterator, context.CancelFunc)
+		abort func(*Iterator, context.CancelFunc)
 		want  error
 	}
 
 	for _, tc := range []testCase{
 		{
-			abort: func(it *MessageIterator, cancel context.CancelFunc) {
+			abort: func(it *Iterator, cancel context.CancelFunc) {
 				it.Stop()
 			},
-			want: iterator.Done,
+			want: Done,
 		},
 		{
-			abort: func(it *MessageIterator, cancel context.CancelFunc) {
+			abort: func(it *Iterator, cancel context.CancelFunc) {
 				cancel()
 			},
 			want: context.Canceled,
 		},
 		{
-			abort: func(it *MessageIterator, cancel context.CancelFunc) {
+			abort: func(it *Iterator, cancel context.CancelFunc) {
 				it.Stop()
 				cancel()
 			},
-			want: iterator.Done,
+			want: Done,
 		},
 		{
-			abort: func(it *MessageIterator, cancel context.CancelFunc) {
+			abort: func(it *Iterator, cancel context.CancelFunc) {
 				cancel()
 				it.Stop()
 			},
-			want: iterator.Done,
+			want: Done,
 		},
 	} {
 		s := &blockingFetch{}
 		ctx, cancel := context.WithCancel(context.Background())
-		it := newMessageIterator(ctx, s, "subname", &pullOptions{ackDeadline: time.Second * 10, maxExtension: time.Hour})
+		it := newIterator(ctx, s, "subname", &pullOptions{ackDeadline: time.Second * 10, maxExtension: time.Hour})
 		defer it.Stop()
 		tc.abort(it, cancel)
 
@@ -77,7 +75,7 @@ type blockingFetch struct {
 	service
 }
 
-func (s *blockingFetch) fetchMessages(ctx context.Context, subName string, maxMessages int32) ([]*Message, error) {
+func (s *blockingFetch) fetchMessages(ctx context.Context, subName string, maxMessages int64) ([]*Message, error) {
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
@@ -88,7 +86,7 @@ type justInTimeFetch struct {
 	service
 }
 
-func (s *justInTimeFetch) fetchMessages(ctx context.Context, subName string, maxMessages int32) ([]*Message, error) {
+func (s *justInTimeFetch) fetchMessages(ctx context.Context, subName string, maxMessages int64) ([]*Message, error) {
 	<-ctx.Done()
 	// The context was cancelled, but let's pretend that this happend just after our RPC returned.
 
@@ -109,41 +107,41 @@ func (s *justInTimeFetch) modifyAckDeadline(ctx context.Context, subName string,
 }
 
 func TestAfterAbortReturnsNoMoreThanOneMessage(t *testing.T) {
-	// Each test case is excercised by making two concurrent blocking calls on a
-	// MessageIterator, and then aborting the iterator.
+	// Each test case is excercised by making two concurrent blocking calls on an
+	// Iterator, and then aborting the iterator.
 	// The result should be one call to Next returning a message, and the other returning an error.
 	type testCase struct {
-		abort func(*MessageIterator, context.CancelFunc)
+		abort func(*Iterator, context.CancelFunc)
 		// want is the error that should be returned from one Next invocation.
 		want error
 	}
 	for n := 1; n < 3; n++ {
 		for _, tc := range []testCase{
 			{
-				abort: func(it *MessageIterator, cancel context.CancelFunc) {
+				abort: func(it *Iterator, cancel context.CancelFunc) {
 					it.Stop()
 				},
-				want: iterator.Done,
+				want: Done,
 			},
 			{
-				abort: func(it *MessageIterator, cancel context.CancelFunc) {
+				abort: func(it *Iterator, cancel context.CancelFunc) {
 					cancel()
 				},
 				want: context.Canceled,
 			},
 			{
-				abort: func(it *MessageIterator, cancel context.CancelFunc) {
+				abort: func(it *Iterator, cancel context.CancelFunc) {
 					it.Stop()
 					cancel()
 				},
-				want: iterator.Done,
+				want: Done,
 			},
 			{
-				abort: func(it *MessageIterator, cancel context.CancelFunc) {
+				abort: func(it *Iterator, cancel context.CancelFunc) {
 					cancel()
 					it.Stop()
 				},
-				want: iterator.Done,
+				want: Done,
 			},
 		} {
 			s := &justInTimeFetch{}
@@ -154,9 +152,9 @@ func TestAfterAbortReturnsNoMoreThanOneMessage(t *testing.T) {
 			po := &pullOptions{
 				ackDeadline:  time.Second * 10,
 				maxExtension: time.Hour,
-				maxPrefetch:  int32(n),
+				maxPrefetch:  n,
 			}
-			it := newMessageIterator(ctx, s, "subname", po)
+			it := newIterator(ctx, s, "subname", po)
 			defer it.Stop()
 
 			type result struct {
@@ -213,7 +211,7 @@ func TestMultipleStopCallsBlockUntilMessageDone(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	it := newMessageIterator(ctx, s, "subname", &pullOptions{ackDeadline: time.Second * 10, maxExtension: 0})
+	it := newIterator(ctx, s, "subname", &pullOptions{ackDeadline: time.Second * 10, maxExtension: 0})
 
 	m, err := it.Next()
 	if err != nil {
@@ -243,7 +241,7 @@ func TestMultipleStopCallsBlockUntilMessageDone(t *testing.T) {
 	if m != nil {
 		t.Errorf("message got: %v ; want: nil", m)
 	}
-	if err != iterator.Done {
-		t.Errorf("err got: %v ; want: %v", err, iterator.Done)
+	if err != Done {
+		t.Errorf("err got: %v ; want: %v", err, Done)
 	}
 }
