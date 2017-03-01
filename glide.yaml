@@ -7,7 +7,7 @@ import:
 - package: github.com/jessevdk/go-flags
   version: 4e64e4a4e2552194cf594243e23aa9baf3b4297e
 - package: github.ibm.com/almaden-containers/ubiquity
-  version: dev
+  version: d3593cb012f6ec975849f5e9cbcb7608fb2435de
   subpackages:
   - remote
   - resources

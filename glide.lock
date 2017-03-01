@@ -1,5 +1,5 @@
-hash: e7bd1febed2742ecf35da324b7543ace65a8253a67898b8330f57c27ec8dd31c
-updated: 2017-02-28T11:33:45.667877039-08:00
+hash: c089edd9bc249188e5a8a4360423317148a9b368a3ab8ddfbddf605152bfd2d5
+updated: 2017-03-01T12:36:03.39819815-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -107,20 +107,14 @@ imports:
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/spf13/pflag
   version: 5ccb023bc27df288a957c5e994cd44fd19619465
-- name: github.com/uber-go/atomic
-  version: 3b8db5e93c4c02efbc313e17b2e796b0914a01fb
-- name: github.com/uber-go/zap
-  version: a5783ee4b216a927da8f839c45cfbf9d694e1467
 - name: github.com/ugorji/go
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
 - name: github.ibm.com/alchemy-containers/armada-slclient-lib
-  version: 0de736fa50df176e3242733737c90b68ab6cf3b3
+  version: 683a1654bf32f888fbf24efb0dfec12647b665e2
   subpackages:
-  - auth
   - client
-  - config
   - datatypes
   - interfaces
   - services
@@ -136,11 +130,6 @@ imports:
   - resources
   - service_broker
   - utils
-- name: github.ibm.com/Bluemix/bluemix-cli-sdk
-  version: 764d0716894319ed05fb78f456c0f5ace47b8d3d
-  repo: git@github.ibm.com:Bluemix/bluemix-cli-sdk.git
-  subpackages:
-  - common/rest
 - name: golang.org/x/crypto
   version: 1f22c0103821b9390939b6776727195525381532
   subpackages:
