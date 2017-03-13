@@ -8,7 +8,7 @@ echo "Creating Storage class...."
 kubectl create -f $scripts/../deploy/class.yml
 
 echo "Listing Storage classes"
-kubectl get storageclasse
+kubectl get storageclass
 
 
 echo "Creating Persistent Volume Claim..."
@@ -25,6 +25,7 @@ kubectl get pv
 
 echo "Creating Test Pod"
 kubectl create -f $scripts/../deploy/pod.yml
+sleep 10
 
 echo "Listing pods"
 kubectl get pods
@@ -52,3 +53,6 @@ kubectl get pv
 
 echo "Deleting Storage Class"
 kubectl delete -f $scripts/../deploy/class.yml
+
+echo "Listing Storage Classes"
+kubectl get storageclass
