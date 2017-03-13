@@ -2,6 +2,7 @@ package volume
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
@@ -28,13 +29,14 @@ const (
 	nodeEnv      = "NODE_NAME"
 )
 
-func NewFlexProvisioner(client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
-	return newFlexProvisionerInternal(client, flexClient)
+func NewFlexProvisioner(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
+	return newFlexProvisionerInternal(logger, client, flexClient)
 }
 
-func newFlexProvisionerInternal(client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
+func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
 
 	provisioner := &flexProvisioner{
+		logger:         logger,
 		client:         client,
 		ubiquityClient: flexClient,
 		podIPEnv:       podIPEnv,
@@ -48,7 +50,7 @@ func newFlexProvisionerInternal(client kubernetes.Interface, flexClient resource
 }
 
 type flexProvisioner struct {
-
+	logger *log.Logger
 	// Client, needed for getting a service cluster IP to put as the NFS server of
 	// provisioned PVs
 	client kubernetes.Interface
@@ -142,7 +144,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	flexVolumeConfig := make(map[string]string)
 	flexVolumeConfig["volumeName"] = options.PVName
 	for key, value := range volumeConfig {
-		flexVolumeConfig[key] = fmt.Sprintf("%v",value)
+		flexVolumeConfig[key] = fmt.Sprintf("%v", value)
 	}
 
 	return flexVolumeConfig, nil

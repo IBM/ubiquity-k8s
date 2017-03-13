@@ -86,7 +86,7 @@ func main() {
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
 	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
-	flexProvisioner, err := volume.NewFlexProvisioner(clientset, remoteClient)
+	flexProvisioner, err := volume.NewFlexProvisioner(logger, clientset, remoteClient)
 	if err != nil {
 		panic("Error starting ubiquity client")
 	}
