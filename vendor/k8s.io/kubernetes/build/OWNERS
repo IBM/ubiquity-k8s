@@ -1,11 +1,6 @@
-reviewers:
+assignees:
+  - ihmccreery
   - ixdy
   - jbeda
   - lavalamp
   - zmerlynn
-approvers:
-  - ixdy
-  - jbeda
-  - lavalamp
-  - zmerlynn
-  - mikedanese

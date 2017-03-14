@@ -17,11 +17,10 @@ limitations under the License.
 package e2e
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	"fmt"
@@ -53,13 +52,13 @@ const (
 var _ = framework.KubeDescribe("EmptyDir wrapper volumes", func() {
 	f := framework.NewDefaultFramework("emptydir-wrapper")
 
-	It("should not conflict [Volume]", func() {
+	It("should not conflict", func() {
 		name := "emptydir-wrapper-test-" + string(uuid.NewUUID())
 		volumeName := "secret-volume"
 		volumeMountPath := "/etc/secret-volume"
 
-		secret := &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+		secret := &api.Secret{
+			ObjectMeta: api.ObjectMeta{
 				Namespace: f.Namespace.Name,
 				Name:      name,
 			},
@@ -78,35 +77,35 @@ var _ = framework.KubeDescribe("EmptyDir wrapper volumes", func() {
 		gitURL, gitRepo, gitCleanup := createGitServer(f)
 		defer gitCleanup()
 
-		pod := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		pod := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name: "pod-secrets-" + string(uuid.NewUUID()),
 			},
-			Spec: v1.PodSpec{
-				Volumes: []v1.Volume{
+			Spec: api.PodSpec{
+				Volumes: []api.Volume{
 					{
 						Name: volumeName,
-						VolumeSource: v1.VolumeSource{
-							Secret: &v1.SecretVolumeSource{
+						VolumeSource: api.VolumeSource{
+							Secret: &api.SecretVolumeSource{
 								SecretName: name,
 							},
 						},
 					},
 					{
 						Name: gitVolumeName,
-						VolumeSource: v1.VolumeSource{
-							GitRepo: &v1.GitRepoVolumeSource{
+						VolumeSource: api.VolumeSource{
+							GitRepo: &api.GitRepoVolumeSource{
 								Repository: gitURL,
 								Directory:  gitRepo,
 							},
 						},
 					},
 				},
-				Containers: []v1.Container{
+				Containers: []api.Container{
 					{
 						Name:  "secret-test",
 						Image: "gcr.io/google_containers/test-webserver:e2e",
-						VolumeMounts: []v1.VolumeMount{
+						VolumeMounts: []api.VolumeMount{
 							{
 								Name:      volumeName,
 								MountPath: volumeMountPath,
@@ -129,7 +128,7 @@ var _ = framework.KubeDescribe("EmptyDir wrapper volumes", func() {
 				framework.Failf("unable to delete secret %v: %v", secret.Name, err)
 			}
 			By("Cleaning up the git vol pod")
-			if err = f.ClientSet.Core().Pods(f.Namespace.Name).Delete(pod.Name, metav1.NewDeleteOptions(0)); err != nil {
+			if err = f.ClientSet.Core().Pods(f.Namespace.Name).Delete(pod.Name, api.NewDeleteOptions(0)); err != nil {
 				framework.Failf("unable to delete git vol pod %v: %v", pod.Name, err)
 			}
 		}()
@@ -152,7 +151,7 @@ var _ = framework.KubeDescribe("EmptyDir wrapper volumes", func() {
 	// but these cases are harder because tmpfs-based emptyDir
 	// appears to be less prone to the race problem.
 
-	It("should not cause race condition when used for configmaps [Serial] [Slow] [Volume]", func() {
+	It("should not cause race condition when used for configmaps [Serial] [Slow]", func() {
 		configMapNames := createConfigmapsForRace(f)
 		defer deleteConfigMaps(f, configMapNames)
 		volumes, volumeMounts := makeConfigMapVolumes(configMapNames)
@@ -161,7 +160,7 @@ var _ = framework.KubeDescribe("EmptyDir wrapper volumes", func() {
 		}
 	})
 
-	It("should not cause race condition when used for git_repo [Serial] [Slow] [Volume]", func() {
+	It("should not cause race condition when used for git_repo [Serial] [Slow]", func() {
 		gitURL, gitRepo, cleanup := createGitServer(f)
 		defer cleanup()
 		volumes, volumeMounts := makeGitRepoVolumes(gitURL, gitRepo)
@@ -178,18 +177,18 @@ func createGitServer(f *framework.Framework) (gitURL string, gitRepo string, cle
 
 	labels := map[string]string{"name": gitServerPodName}
 
-	gitServerPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	gitServerPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:   gitServerPodName,
 			Labels: labels,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:            "git-repo",
 					Image:           "gcr.io/google_containers/fakegitserver:0.1",
 					ImagePullPolicy: "IfNotPresent",
-					Ports: []v1.ContainerPort{
+					Ports: []api.ContainerPort{
 						{ContainerPort: int32(containerPort)},
 					},
 				},
@@ -201,13 +200,13 @@ func createGitServer(f *framework.Framework) (gitURL string, gitRepo string, cle
 	// Portal IP and port
 	httpPort := 2345
 
-	gitServerSvc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
+	gitServerSvc := &api.Service{
+		ObjectMeta: api.ObjectMeta{
 			Name: "git-server-svc",
 		},
-		Spec: v1.ServiceSpec{
+		Spec: api.ServiceSpec{
 			Selector: labels,
-			Ports: []v1.ServicePort{
+			Ports: []api.ServicePort{
 				{
 					Name:       "http-portal",
 					Port:       int32(httpPort),
@@ -223,7 +222,7 @@ func createGitServer(f *framework.Framework) (gitURL string, gitRepo string, cle
 
 	return "http://" + gitServerSvc.Spec.ClusterIP + ":" + strconv.Itoa(httpPort), "test", func() {
 		By("Cleaning up the git server pod")
-		if err := f.ClientSet.Core().Pods(f.Namespace.Name).Delete(gitServerPod.Name, metav1.NewDeleteOptions(0)); err != nil {
+		if err := f.ClientSet.Core().Pods(f.Namespace.Name).Delete(gitServerPod.Name, api.NewDeleteOptions(0)); err != nil {
 			framework.Failf("unable to delete git server pod %v: %v", gitServerPod.Name, err)
 		}
 		By("Cleaning up the git server svc")
@@ -233,19 +232,19 @@ func createGitServer(f *framework.Framework) (gitURL string, gitRepo string, cle
 	}
 }
 
-func makeGitRepoVolumes(gitURL, gitRepo string) (volumes []v1.Volume, volumeMounts []v1.VolumeMount) {
+func makeGitRepoVolumes(gitURL, gitRepo string) (volumes []api.Volume, volumeMounts []api.VolumeMount) {
 	for i := 0; i < wrappedVolumeRaceGitRepoVolumeCount; i++ {
 		volumeName := fmt.Sprintf("racey-git-repo-%d", i)
-		volumes = append(volumes, v1.Volume{
+		volumes = append(volumes, api.Volume{
 			Name: volumeName,
-			VolumeSource: v1.VolumeSource{
-				GitRepo: &v1.GitRepoVolumeSource{
+			VolumeSource: api.VolumeSource{
+				GitRepo: &api.GitRepoVolumeSource{
 					Repository: gitURL,
 					Directory:  gitRepo,
 				},
 			},
 		})
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
+		volumeMounts = append(volumeMounts, api.VolumeMount{
 			Name:      volumeName,
 			MountPath: fmt.Sprintf("/etc/git-volume-%d", i),
 		})
@@ -258,8 +257,8 @@ func createConfigmapsForRace(f *framework.Framework) (configMapNames []string) {
 	for i := 0; i < wrappedVolumeRaceConfigMapVolumeCount; i++ {
 		configMapName := fmt.Sprintf("racey-configmap-%d", i)
 		configMapNames = append(configMapNames, configMapName)
-		configMap := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
+		configMap := &api.ConfigMap{
+			ObjectMeta: api.ObjectMeta{
 				Namespace: f.Namespace.Name,
 				Name:      configMapName,
 			},
@@ -281,17 +280,17 @@ func deleteConfigMaps(f *framework.Framework, configMapNames []string) {
 	}
 }
 
-func makeConfigMapVolumes(configMapNames []string) (volumes []v1.Volume, volumeMounts []v1.VolumeMount) {
+func makeConfigMapVolumes(configMapNames []string) (volumes []api.Volume, volumeMounts []api.VolumeMount) {
 	for i, configMapName := range configMapNames {
 		volumeName := fmt.Sprintf("racey-configmap-%d", i)
-		volumes = append(volumes, v1.Volume{
+		volumes = append(volumes, api.Volume{
 			Name: volumeName,
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: api.VolumeSource{
+				ConfigMap: &api.ConfigMapVolumeSource{
+					LocalObjectReference: api.LocalObjectReference{
 						Name: configMapName,
 					},
-					Items: []v1.KeyToPath{
+					Items: []api.KeyToPath{
 						{
 							Key:  "data-1",
 							Path: "data-1",
@@ -300,7 +299,7 @@ func makeConfigMapVolumes(configMapNames []string) (volumes []v1.Volume, volumeM
 				},
 			},
 		})
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
+		volumeMounts = append(volumeMounts, api.VolumeMount{
 			Name:      volumeName,
 			MountPath: fmt.Sprintf("/etc/config-%d", i),
 		})
@@ -308,60 +307,55 @@ func makeConfigMapVolumes(configMapNames []string) (volumes []v1.Volume, volumeM
 	return
 }
 
-func testNoWrappedVolumeRace(f *framework.Framework, volumes []v1.Volume, volumeMounts []v1.VolumeMount, podCount int32) {
+func testNoWrappedVolumeRace(f *framework.Framework, volumes []api.Volume, volumeMounts []api.VolumeMount, podCount int32) {
 	rcName := wrappedVolumeRaceRCNamePrefix + string(uuid.NewUUID())
 	nodeList := framework.GetReadySchedulableNodesOrDie(f.ClientSet)
 	Expect(len(nodeList.Items)).To(BeNumerically(">", 0))
 	targetNode := nodeList.Items[0]
 
 	By("Creating RC which spawns configmap-volume pods")
-	affinity := &v1.Affinity{
-		NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					{
-						MatchExpressions: []v1.NodeSelectorRequirement{
-							{
-								Key:      "kubernetes.io/hostname",
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{targetNode.Name},
-							},
-						},
-					},
-				},
-			},
-		},
+	affinity := map[string]string{
+		api.AffinityAnnotationKey: fmt.Sprintf(`
+				{"nodeAffinity": { "requiredDuringSchedulingIgnoredDuringExecution": {
+					"nodeSelectorTerms": [{
+						"matchExpressions": [{
+							"key": "kubernetes.io/hostname",
+							"operator": "In",
+							"values": ["%s"]
+					}]
+				}]
+			}}}`, targetNode.Name),
 	}
 
-	rc := &v1.ReplicationController{
-		ObjectMeta: metav1.ObjectMeta{
+	rc := &api.ReplicationController{
+		ObjectMeta: api.ObjectMeta{
 			Name: rcName,
 		},
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: &podCount,
+		Spec: api.ReplicationControllerSpec{
+			Replicas: podCount,
 			Selector: map[string]string{
 				"name": rcName,
 			},
-			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"name": rcName},
+			Template: &api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
+					Annotations: affinity,
+					Labels:      map[string]string{"name": rcName},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Name:    "test-container",
 							Image:   "gcr.io/google_containers/busybox:1.24",
 							Command: []string{"sleep", "10000"},
-							Resources: v1.ResourceRequirements{
-								Requests: v1.ResourceList{
-									v1.ResourceCPU: resource.MustParse("10m"),
+							Resources: api.ResourceRequirements{
+								Requests: api.ResourceList{
+									api.ResourceCPU: resource.MustParse("10m"),
 								},
 							},
 							VolumeMounts: volumeMounts,
 						},
 					},
-					Affinity:  affinity,
-					DNSPolicy: v1.DNSDefault,
+					DNSPolicy: api.DNSDefault,
 					Volumes:   volumes,
 				},
 			},
@@ -371,7 +365,7 @@ func testNoWrappedVolumeRace(f *framework.Framework, volumes []v1.Volume, volume
 	Expect(err).NotTo(HaveOccurred(), "error creating replication controller")
 
 	defer func() {
-		err := framework.DeleteRCAndPods(f.ClientSet, f.InternalClientset, f.Namespace.Name, rcName)
+		err := framework.DeleteRCAndPods(f.ClientSet, f.Namespace.Name, rcName)
 		framework.ExpectNoError(err)
 	}()
 

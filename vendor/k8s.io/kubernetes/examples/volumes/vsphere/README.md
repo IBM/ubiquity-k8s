@@ -176,7 +176,7 @@
           - name: test-volume
             mountPath: /test-vmdk
         volumes:
-        - name: test-volume
+        - name: vmdk-storage
           persistentVolumeClaim:
             claimName: pvc0001
       ```
@@ -315,7 +315,7 @@
           - name: test-volume
             mountPath: /test-vmdk
         volumes:
-        - name: test-volume
+        - name: vmdk-storage
           persistentVolumeClaim:
             claimName: pvcsc001
       ```

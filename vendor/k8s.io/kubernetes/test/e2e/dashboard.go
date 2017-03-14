@@ -17,13 +17,12 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"net/http"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 	testutils "k8s.io/kubernetes/test/utils"
 
@@ -35,7 +34,7 @@ var _ = framework.KubeDescribe("Kubernetes Dashboard", func() {
 	const (
 		uiServiceName = "kubernetes-dashboard"
 		uiAppName     = uiServiceName
-		uiNamespace   = metav1.NamespaceSystem
+		uiNamespace   = api.NamespaceSystem
 
 		serverStartTimeout = 1 * time.Minute
 	)
@@ -59,26 +58,17 @@ var _ = framework.KubeDescribe("Kubernetes Dashboard", func() {
 			if errProxy != nil {
 				framework.Logf("Get services proxy request failed: %v", errProxy)
 			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-			defer cancel()
-
 			// Query against the proxy URL for the kube-ui service.
 			err := proxyRequest.Namespace(uiNamespace).
-				Context(ctx).
 				Name(uiServiceName).
 				Timeout(framework.SingleCallTimeout).
 				Do().
 				StatusCode(&status).
 				Error()
-			if err != nil {
-				if ctx.Err() != nil {
-					framework.Failf("Request to kube-ui failed: %v", err)
-					return true, err
-				}
-				framework.Logf("Request to kube-ui failed: %v", err)
-			} else if status != http.StatusOK {
+			if status != http.StatusOK {
 				framework.Logf("Unexpected status from kubernetes-dashboard: %v", status)
+			} else if err != nil {
+				framework.Logf("Request to kube-ui failed: %v", err)
 			}
 			// Don't return err here as it aborts polling.
 			return status == http.StatusOK, nil

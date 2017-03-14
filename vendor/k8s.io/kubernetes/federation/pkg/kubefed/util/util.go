@@ -17,14 +17,10 @@ limitations under the License.
 package util
 
 import (
-	"github.com/spf13/pflag"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	fedclient "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
 	"k8s.io/kubernetes/pkg/api"
 	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
+	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	kubectlcmd "k8s.io/kubernetes/pkg/kubectl/cmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 
@@ -43,16 +39,13 @@ const (
 
 // AdminConfig provides a filesystem based kubeconfig (via
 // `PathOptions()`) and a mechanism to talk to the federation
-// host cluster and the federation control plane api server.
+// host cluster.
 type AdminConfig interface {
 	// PathOptions provides filesystem based kubeconfig access.
 	PathOptions() *clientcmd.PathOptions
-	// FedClientSet provides a federation API compliant clientset
-	// to communicate with the federation control plane api server
-	FederationClientset(context, kubeconfigPath string) (*fedclient.Clientset, error)
 	// HostFactory provides a mechanism to communicate with the
 	// cluster where federation control plane is hosted.
-	HostFactory(hostcontext, kubeconfigPath string) cmdutil.Factory
+	HostFactory(host, kubeconfigPath string) cmdutil.Factory
 }
 
 // adminConfig implements the AdminConfig interface.
@@ -71,54 +64,49 @@ func (a *adminConfig) PathOptions() *clientcmd.PathOptions {
 	return a.pathOptions
 }
 
-func (a *adminConfig) FederationClientset(context, kubeconfigPath string) (*fedclient.Clientset, error) {
-	fedConfig := a.getClientConfig(context, kubeconfigPath)
-	fedClientConfig, err := fedConfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return fedclient.NewForConfigOrDie(fedClientConfig), nil
-}
-
-func (a *adminConfig) HostFactory(hostcontext, kubeconfigPath string) cmdutil.Factory {
-	hostClientConfig := a.getClientConfig(hostcontext, kubeconfigPath)
-	return cmdutil.NewFactory(hostClientConfig)
-}
-
-func (a *adminConfig) getClientConfig(context, kubeconfigPath string) clientcmd.ClientConfig {
+func (a *adminConfig) HostFactory(host, kubeconfigPath string) cmdutil.Factory {
 	loadingRules := *a.pathOptions.LoadingRules
 	loadingRules.Precedence = a.pathOptions.GetLoadingPrecedence()
 	loadingRules.ExplicitPath = kubeconfigPath
 	overrides := &clientcmd.ConfigOverrides{
-		CurrentContext: context,
+		CurrentContext: host,
 	}
 
-	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&loadingRules, overrides)
+	hostClientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&loadingRules, overrides)
+
+	return cmdutil.NewFactory(hostClientConfig)
 }
 
-// SubcommandOptions holds the configuration required by the subcommands of
+// SubcommandFlags holds the flags required by the subcommands of
 // `kubefed`.
-type SubcommandOptions struct {
+type SubcommandFlags struct {
 	Name                      string
 	Host                      string
 	FederationSystemNamespace string
 	Kubeconfig                string
 }
 
-func (o *SubcommandOptions) Bind(flags *pflag.FlagSet) {
-	flags.StringVar(&o.Kubeconfig, "kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
-	flags.StringVar(&o.Host, "host-cluster-context", "", "Host cluster context")
-	flags.StringVar(&o.FederationSystemNamespace, "federation-system-namespace", DefaultFederationSystemNamespace, "Namespace in the host cluster where the federation system components are installed")
+// AddSubcommandFlags adds the definition for `kubefed` subcommand
+// flags.
+func AddSubcommandFlags(cmd *cobra.Command) {
+	cmd.Flags().String("kubeconfig", "", "Path to the kubeconfig file to use for CLI requests.")
+	cmd.Flags().String("host-cluster-context", "", "Host cluster context")
+	cmd.Flags().String("federation-system-namespace", DefaultFederationSystemNamespace, "Namespace in the host cluster where the federation system components are installed")
 }
 
-func (o *SubcommandOptions) SetName(cmd *cobra.Command, args []string) error {
+// GetSubcommandFlags retrieves the command line flag values for the
+// `kubefed` subcommands.
+func GetSubcommandFlags(cmd *cobra.Command, args []string) (*SubcommandFlags, error) {
 	name, err := kubectlcmd.NameFromCommandArgs(cmd, args)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	o.Name = name
-	return nil
+	return &SubcommandFlags{
+		Name: name,
+		Host: cmdutil.GetFlagString(cmd, "host-cluster-context"),
+		FederationSystemNamespace: cmdutil.GetFlagString(cmd, "federation-system-namespace"),
+		Kubeconfig:                cmdutil.GetFlagString(cmd, "kubeconfig"),
+	}, nil
 }
 
 func CreateKubeconfigSecret(clientset *client.Clientset, kubeconfig *clientcmdapi.Config, namespace, name string, dryRun bool) (*api.Secret, error) {
@@ -130,7 +118,7 @@ func CreateKubeconfigSecret(clientset *client.Clientset, kubeconfig *clientcmdap
 	// Build the secret object with the minified and flattened
 	// kubeconfig content.
 	secret := &api.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},

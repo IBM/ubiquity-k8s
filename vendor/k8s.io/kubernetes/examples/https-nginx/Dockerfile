@@ -14,6 +14,7 @@
 
 FROM nginx
 
+MAINTAINER Mengqi Yu <mengqiy@google.com>
 
 COPY index2.html /usr/share/nginx/html/index2.html
 RUN chmod +r /usr/share/nginx/html/index2.html

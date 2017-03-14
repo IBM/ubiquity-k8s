@@ -4,8 +4,10 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
+    "go_binary",
     "go_library",
     "go_test",
+    "cgo_library",
 )
 
 go_library(
@@ -16,9 +18,9 @@ go_library(
         "//pkg/apis/abac:go_default_library",
         "//pkg/apis/abac/latest:go_default_library",
         "//pkg/apis/abac/v0:go_default_library",
+        "//pkg/auth/authorizer:go_default_library",
+        "//pkg/runtime:go_default_library",
         "//vendor:github.com/golang/glog",
-        "//vendor:k8s.io/apimachinery/pkg/runtime",
-        "//vendor:k8s.io/apiserver/pkg/authorization/authorizer",
     ],
 )
 
@@ -36,27 +38,14 @@ go_test(
     data = [
         ":example_policy",
     ],
-    library = ":go_default_library",
+    library = "go_default_library",
     tags = ["automanaged"],
     deps = [
         "//pkg/apis/abac:go_default_library",
         "//pkg/apis/abac/v0:go_default_library",
         "//pkg/apis/abac/v1beta1:go_default_library",
-        "//vendor:k8s.io/apimachinery/pkg/runtime",
-        "//vendor:k8s.io/apiserver/pkg/authentication/user",
-        "//vendor:k8s.io/apiserver/pkg/authorization/authorizer",
+        "//pkg/auth/authorizer:go_default_library",
+        "//pkg/auth/user:go_default_library",
+        "//pkg/runtime:go_default_library",
     ],
-)
-
-filegroup(
-    name = "package-srcs",
-    srcs = glob(["**"]),
-    tags = ["automanaged"],
-    visibility = ["//visibility:private"],
-)
-
-filegroup(
-    name = "all-srcs",
-    srcs = [":package-srcs"],
-    tags = ["automanaged"],
 )

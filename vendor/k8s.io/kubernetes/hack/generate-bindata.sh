@@ -38,17 +38,13 @@ if ! which go-bindata &>/dev/null ; then
 	exit 5
 fi
 
-# run the generation from the root directory for stable output
-pushd "${KUBE_ROOT}"
-
-# These are files for e2e tests.
-BINDATA_OUTPUT="test/e2e/generated/bindata.go"
-go-bindata -nometadata -o "${BINDATA_OUTPUT}.tmp" -pkg generated \
+BINDATA_OUTPUT="${KUBE_ROOT}/test/e2e/generated/bindata.go"
+go-bindata -nometadata -prefix "${KUBE_ROOT}" -o "${BINDATA_OUTPUT}.tmp" -pkg generated \
 	-ignore .jpg -ignore .png -ignore .md \
-	"examples/..." \
-	"test/e2e/testing-manifests/..." \
-	"test/images/..." \
-	"test/fixtures/..."
+	"${KUBE_ROOT}/examples/..." \
+	"${KUBE_ROOT}/test/e2e/testing-manifests/..." \
+	"${KUBE_ROOT}/test/images/..." \
+	"${KUBE_ROOT}/test/fixtures/..."
 
 gofmt -s -w "${BINDATA_OUTPUT}.tmp"
 
@@ -63,25 +59,3 @@ else
 fi
 
 rm -f "${BINDATA_OUTPUT}.tmp"
-
-# These are files for runtime code
-BINDATA_OUTPUT="pkg/generated/bindata.go"
-go-bindata -nometadata -nocompress -o "${BINDATA_OUTPUT}.tmp" -pkg generated \
-	-ignore .jpg -ignore .png -ignore .md \
-	"translations/..."
-
-gofmt -s -w "${BINDATA_OUTPUT}.tmp"
-
-# Here we compare and overwrite only if different to avoid updating the
-# timestamp and triggering a rebuild. The 'cat' redirect trick to preserve file
-# permissions of the target file.
-if ! cmp -s "${BINDATA_OUTPUT}.tmp" "${BINDATA_OUTPUT}" ; then
-	cat "${BINDATA_OUTPUT}.tmp" > "${BINDATA_OUTPUT}"
-	V=2 kube::log::info "Generated bindata file : ${BINDATA_OUTPUT} has $(wc -l ${BINDATA_OUTPUT}) lines of lovely automated artifacts"
-else
-	V=2 kube::log::info "No changes in generated bindata file: ${BINDATA_OUTPUT}"
-fi
-
-rm -f "${BINDATA_OUTPUT}.tmp"
-
-popd

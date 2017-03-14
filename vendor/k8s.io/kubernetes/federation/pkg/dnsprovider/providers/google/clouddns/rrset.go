@@ -24,7 +24,7 @@ import (
 	"k8s.io/kubernetes/federation/pkg/dnsprovider/rrstype"
 )
 
-// Compile time check for interface adherence
+// Compile time check for interface adeherence
 var _ dnsprovider.ResourceRecordSet = ResourceRecordSet{}
 
 type ResourceRecordSet struct {

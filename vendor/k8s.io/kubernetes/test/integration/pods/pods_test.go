@@ -22,11 +22,10 @@ import (
 	"fmt"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/test/integration"
 	"k8s.io/kubernetes/test/integration/framework"
 )
@@ -38,7 +37,7 @@ func TestPodUpdateActiveDeadlineSeconds(t *testing.T) {
 	ns := framework.CreateTestingNamespace("pod-activedeadline-update", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	var (
 		iZero = int64(0)
@@ -47,13 +46,13 @@ func TestPodUpdateActiveDeadlineSeconds(t *testing.T) {
 		iNeg  = int64(-1)
 	)
 
-	prototypePod := func() *v1.Pod {
-		return &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+	prototypePod := func() *api.Pod {
+		return &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name: "xxx",
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{
+			Spec: api.PodSpec{
+				Containers: []api.Container{
 					{
 						Name:  "fake-name",
 						Image: "fakeimage",
@@ -156,18 +155,18 @@ func TestPodReadOnlyFilesystem(t *testing.T) {
 	ns := framework.CreateTestingNamespace("pod-readonly-root", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "xxx",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  "fake-name",
 					Image: "fakeimage",
-					SecurityContext: &v1.SecurityContext{
+					SecurityContext: &api.SecurityContext{
 						ReadOnlyRootFilesystem: &isReadOnly,
 					},
 				},

@@ -19,27 +19,25 @@ package cronjob
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/apiserver/pkg/registry/generic"
-	"k8s.io/apiserver/pkg/storage"
-	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/batch"
 	"k8s.io/kubernetes/pkg/apis/batch/validation"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/registry/generic"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/storage"
+	"k8s.io/kubernetes/pkg/util/validation/field"
 )
 
 // scheduledJobStrategy implements verification logic for Replication Controllers.
 type scheduledJobStrategy struct {
 	runtime.ObjectTyper
-	names.NameGenerator
+	api.NameGenerator
 }
 
 // Strategy is the default logic that applies when creating and updating CronJob objects.
-var Strategy = scheduledJobStrategy{api.Scheme, names.SimpleNameGenerator}
+var Strategy = scheduledJobStrategy{api.Scheme, api.SimpleNameGenerator}
 
 // NamespaceScoped returns true because all scheduled jobs need to be within a namespace.
 func (scheduledJobStrategy) NamespaceScoped() bool {
@@ -47,20 +45,20 @@ func (scheduledJobStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate clears the status of a scheduled job before creation.
-func (scheduledJobStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
+func (scheduledJobStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
 	scheduledJob := obj.(*batch.CronJob)
 	scheduledJob.Status = batch.CronJobStatus{}
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (scheduledJobStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
+func (scheduledJobStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
 	newCronJob := obj.(*batch.CronJob)
 	oldCronJob := old.(*batch.CronJob)
 	newCronJob.Status = oldCronJob.Status
 }
 
 // Validate validates a new scheduled job.
-func (scheduledJobStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
+func (scheduledJobStrategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
 	scheduledJob := obj.(*batch.CronJob)
 	return validation.ValidateCronJob(scheduledJob)
 }
@@ -79,7 +77,7 @@ func (scheduledJobStrategy) AllowCreateOnUpdate() bool {
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (scheduledJobStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
+func (scheduledJobStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
 	return validation.ValidateCronJob(obj.(*batch.CronJob))
 }
 
@@ -89,13 +87,13 @@ type scheduledJobStatusStrategy struct {
 
 var StatusStrategy = scheduledJobStatusStrategy{Strategy}
 
-func (scheduledJobStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
+func (scheduledJobStatusStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
 	newJob := obj.(*batch.CronJob)
 	oldJob := old.(*batch.CronJob)
 	newJob.Spec = oldJob.Spec
 }
 
-func (scheduledJobStatusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
+func (scheduledJobStatusStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
 	return field.ErrorList{}
 }
 
@@ -104,22 +102,19 @@ func CronJobToSelectableFields(scheduledJob *batch.CronJob) fields.Set {
 	return generic.ObjectMetaFieldsSet(&scheduledJob.ObjectMeta, true)
 }
 
-// GetAttrs returns labels and fields of a given object for filtering purposes.
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
-	scheduledJob, ok := obj.(*batch.CronJob)
-	if !ok {
-		return nil, nil, fmt.Errorf("Given object is not a scheduled job.")
-	}
-	return labels.Set(scheduledJob.ObjectMeta.Labels), CronJobToSelectableFields(scheduledJob), nil
-}
-
 // MatchCronJob is the filter used by the generic etcd backend to route
 // watch events from etcd to clients of the apiserver only interested in specific
 // labels/fields.
 func MatchCronJob(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
 	return storage.SelectionPredicate{
-		Label:    label,
-		Field:    field,
-		GetAttrs: GetAttrs,
+		Label: label,
+		Field: field,
+		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
+			scheduledJob, ok := obj.(*batch.CronJob)
+			if !ok {
+				return nil, nil, fmt.Errorf("Given object is not a scheduled job.")
+			}
+			return labels.Set(scheduledJob.ObjectMeta.Labels), CronJobToSelectableFields(scheduledJob), nil
+		},
 	}
 }

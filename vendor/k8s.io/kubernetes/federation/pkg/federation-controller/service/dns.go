@@ -22,10 +22,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"strings"
-
 	"k8s.io/kubernetes/federation/pkg/dnsprovider"
 	"k8s.io/kubernetes/federation/pkg/dnsprovider/rrstype"
+	"strings"
 )
 
 const (
@@ -141,15 +140,28 @@ func getDnsZone(dnsZoneName string, dnsZoneID string, dnsZonesInterface dnsprovi
 	}
 
 	if len(dnsZones) == 0 {
-		return nil, fmt.Errorf("DNS zone %s not found", name)
+		return nil, fmt.Errorf("DNS zone %s not found.", name)
 	} else {
-		return nil, fmt.Errorf("DNS zone %s is ambiguous (please specify zoneID)", name)
+		return nil, fmt.Errorf("DNS zone %s is ambiguous (please specify zoneID).", name)
 	}
 }
 
-//   Note that if the named resource record set does not exist, but no error occurred, the returned set, and error, are both nil
+/* getRrset is a hack around the fact that dnsprovider.ResourceRecordSets interface does not yet include a Get() method, only a List() method.  TODO:  Fix that.
+   Note that if the named resource record set does not exist, but no error occurred, the returned set, and error, are both nil
+*/
 func getRrset(dnsName string, rrsetsInterface dnsprovider.ResourceRecordSets) (dnsprovider.ResourceRecordSet, error) {
-	return rrsetsInterface.Get(dnsName)
+	var returnVal dnsprovider.ResourceRecordSet
+	rrsets, err := rrsetsInterface.List()
+	if err != nil {
+		return nil, err
+	}
+	for _, rrset := range rrsets {
+		if rrset.Name() == dnsName {
+			returnVal = rrset
+			break
+		}
+	}
+	return returnVal, nil
 }
 
 /* getResolvedEndpoints performs DNS resolution on the provided slice of endpoints (which might be DNS names or IPv4 addresses)

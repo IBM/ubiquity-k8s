@@ -2,7 +2,7 @@
 "kind" : "Policy",
 "apiVersion" : "v1",
 "predicates" : [
-	{"name" : "PodFitsHostPorts"},
+	{"name" : "PodFitsPorts"},
 	{"name" : "PodFitsResources"},
 	{"name" : "NoDiskConflict"},
 	{"name" : "NoVolumeZoneConflict"},

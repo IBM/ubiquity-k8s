@@ -1,34 +1,24 @@
 package: github.ibm.com/almaden-containers/ubiquity-k8s
 import:
 - package: github.com/BurntSushi/toml
-  version: 99064174e013895bbd9b025c31100bd1d9b590ca
-- package: github.com/gorilla/mux
-  version: ^1.3.0
 - package: github.com/jessevdk/go-flags
-  version: 4e64e4a4e2552194cf594243e23aa9baf3b4297e
+- package: github.com/kubernetes-incubator/external-storage
+  subpackages:
+  - lib/controller
+  - lib/leaderelection
 - package: github.ibm.com/almaden-containers/ubiquity
-  version: d3593cb012f6ec975849f5e9cbcb7608fb2435de
+  version: 744bc9a2f864f7fca7d8c0a531a3b937f5c3fe0b
   subpackages:
   - remote
   - resources
   - utils
 - package: k8s.io/client-go
-  version: 89c60099837a47cfce19bd14e2d1f16c4670fd58
   subpackages:
   - kubernetes
-  - rest
   - pkg/api/v1
   - pkg/util/wait
+  - rest
   - tools/clientcmd
-  - tools/clientcmd/api
-  - tools/clientcmd/api/latest
-  - tools/clientcmd/api/v1
-  - tools/metrics
-  - tools/record
-  - transport
-- package: github.com/kubernetes-incubator/external-storage
 testImport:
 - package: github.com/onsi/ginkgo
-  version: ^1.2.0
 - package: github.com/onsi/gomega
-  version: ^1.0.0

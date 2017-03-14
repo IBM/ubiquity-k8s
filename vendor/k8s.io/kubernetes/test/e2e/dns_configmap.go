@@ -21,13 +21,14 @@ import (
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	fed "k8s.io/kubernetes/pkg/dns/federation"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -41,13 +42,12 @@ type dnsConfigMapTest struct {
 	name   string
 	labels []string
 
-	cm      *v1.ConfigMap
-	fedMap  map[string]string
+	cm      *api.ConfigMap
 	isValid bool
 
-	dnsPod      *v1.Pod
-	utilPod     *v1.Pod
-	utilService *v1.Service
+	dnsPod      *api.Pod
+	utilPod     *api.Pod
+	utilService *api.Service
 }
 
 var _ = framework.KubeDescribe("DNS config map", func() {
@@ -69,7 +69,7 @@ var _ = framework.KubeDescribe("DNS config map", func() {
 func (t *dnsConfigMapTest) init() {
 	By("Finding a DNS pod")
 	label := labels.SelectorFromSet(labels.Set(map[string]string{"k8s-app": "kube-dns"}))
-	options := metav1.ListOptions{LabelSelector: label.String()}
+	options := api.ListOptions{LabelSelector: label}
 
 	pods, err := t.f.ClientSet.Core().Pods("kube-system").List(options)
 	Expect(err).NotTo(HaveOccurred())
@@ -90,25 +90,23 @@ func (t *dnsConfigMapTest) run() {
 
 	t.labels = []string{"abc", "ghi"}
 	valid1 := map[string]string{"federations": t.labels[0] + "=def"}
-	valid1m := map[string]string{t.labels[0]: "def"}
 	valid2 := map[string]string{"federations": t.labels[1] + "=xyz"}
-	valid2m := map[string]string{t.labels[1]: "xyz"}
 	invalid := map[string]string{"federations": "invalid.map=xyz"}
 
 	By("empty -> valid1")
-	t.setConfigMap(&v1.ConfigMap{Data: valid1}, valid1m, true)
+	t.setConfigMap(&api.ConfigMap{Data: valid1}, true)
 	t.validate()
 
 	By("valid1 -> valid2")
-	t.setConfigMap(&v1.ConfigMap{Data: valid2}, valid2m, true)
+	t.setConfigMap(&api.ConfigMap{Data: valid2}, true)
 	t.validate()
 
 	By("valid2 -> invalid")
-	t.setConfigMap(&v1.ConfigMap{Data: invalid}, nil, false)
+	t.setConfigMap(&api.ConfigMap{Data: invalid}, false)
 	t.validate()
 
 	By("invalid -> valid1")
-	t.setConfigMap(&v1.ConfigMap{Data: valid1}, valid1m, true)
+	t.setConfigMap(&api.ConfigMap{Data: valid1}, true)
 	t.validate()
 
 	By("valid1 -> deleted")
@@ -116,7 +114,7 @@ func (t *dnsConfigMapTest) run() {
 	t.validate()
 
 	By("deleted -> invalid")
-	t.setConfigMap(&v1.ConfigMap{Data: invalid}, nil, false)
+	t.setConfigMap(&api.ConfigMap{Data: invalid}, false)
 	t.validate()
 }
 
@@ -125,7 +123,11 @@ func (t *dnsConfigMapTest) validate() {
 }
 
 func (t *dnsConfigMapTest) validateFederation() {
-	federations := t.fedMap
+	federations := make(map[string]string)
+	if t.cm != nil {
+		err := fed.ParseFederationsFlag(t.cm.Data["federations"], federations)
+		Expect(err).NotTo(HaveOccurred())
+	}
 
 	if len(federations) == 0 {
 		By(fmt.Sprintf("Validating federation labels %v do not exist", t.labels))
@@ -208,21 +210,20 @@ func (t *dnsConfigMapTest) runDig(dnsName string) []string {
 	}
 }
 
-func (t *dnsConfigMapTest) setConfigMap(cm *v1.ConfigMap, fedMap map[string]string, isValid bool) {
+func (t *dnsConfigMapTest) setConfigMap(cm *api.ConfigMap, isValid bool) {
 	if isValid {
 		t.cm = cm
-		t.fedMap = fedMap
 	}
 	t.isValid = isValid
 
 	cm.ObjectMeta.Namespace = t.ns
 	cm.ObjectMeta.Name = t.name
 
-	options := metav1.ListOptions{
+	options := api.ListOptions{
 		FieldSelector: fields.Set{
 			"metadata.namespace": t.ns,
 			"metadata.name":      t.name,
-		}.AsSelector().String(),
+		}.AsSelector(),
 	}
 	cmList, err := t.c.Core().ConfigMaps(t.ns).List(options)
 	Expect(err).NotTo(HaveOccurred())
@@ -252,22 +253,22 @@ func (t *dnsConfigMapTest) createUtilPod() {
 	// Actual port # doesn't matter, just need to exist.
 	const servicePort = 10101
 
-	t.utilPod = &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+	t.utilPod = &api.Pod{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "Pod",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Namespace:    t.f.Namespace.Name,
 			Labels:       map[string]string{"app": "e2e-dns-configmap"},
 			GenerateName: "e2e-dns-configmap-",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:    "util",
 					Image:   "gcr.io/google_containers/dnsutils:e2e",
 					Command: []string{"sleep", "10000"},
-					Ports: []v1.ContainerPort{
+					Ports: []api.ContainerPort{
 						{ContainerPort: servicePort, Protocol: "TCP"},
 					},
 				},
@@ -281,17 +282,17 @@ func (t *dnsConfigMapTest) createUtilPod() {
 	framework.Logf("Created pod %v", t.utilPod)
 	Expect(t.f.WaitForPodRunning(t.utilPod.Name)).NotTo(HaveOccurred())
 
-	t.utilService = &v1.Service{
-		TypeMeta: metav1.TypeMeta{
+	t.utilService = &api.Service{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "Service",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Namespace: t.f.Namespace.Name,
 			Name:      "e2e-dns-configmap",
 		},
-		Spec: v1.ServiceSpec{
+		Spec: api.ServiceSpec{
 			Selector: map[string]string{"app": "e2e-dns-configmap"},
-			Ports: []v1.ServicePort{
+			Ports: []api.ServicePort{
 				{
 					Protocol:   "TCP",
 					Port:       servicePort,
@@ -308,7 +309,7 @@ func (t *dnsConfigMapTest) createUtilPod() {
 
 func (t *dnsConfigMapTest) deleteUtilPod() {
 	podClient := t.c.Core().Pods(t.f.Namespace.Name)
-	if err := podClient.Delete(t.utilPod.Name, metav1.NewDeleteOptions(0)); err != nil {
+	if err := podClient.Delete(t.utilPod.Name, api.NewDeleteOptions(0)); err != nil {
 		framework.Logf("Delete of pod %v:%v failed: %v",
 			t.utilPod.Namespace, t.utilPod.Name, err)
 	}

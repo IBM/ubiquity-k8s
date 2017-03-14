@@ -141,7 +141,7 @@ func TestTeardownCallsShaper(t *testing.T) {
 	kubenet.cniConfig = mockcni
 	kubenet.iptables = ipttest.NewFake()
 	kubenet.bandwidthShaper = fshaper
-	kubenet.hostportSyncer = hostporttest.NewFakeHostportSyncer()
+	kubenet.hostportHandler = hostporttest.NewFakeHostportHandler()
 
 	mockcni.On("DelNetwork", mock.AnythingOfType("*libcni.NetworkConfig"), mock.AnythingOfType("*libcni.RuntimeConf")).Return(nil)
 

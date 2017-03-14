@@ -17,13 +17,11 @@ limitations under the License.
 package fake
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
 	api "k8s.io/kubernetes/pkg/api"
+	unversioned "k8s.io/kubernetes/pkg/api/unversioned"
+	core "k8s.io/kubernetes/pkg/client/testing/core"
+	labels "k8s.io/kubernetes/pkg/labels"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // FakePersistentVolumes implements PersistentVolumeInterface
@@ -31,11 +29,11 @@ type FakePersistentVolumes struct {
 	Fake *FakeCore
 }
 
-var persistentvolumesResource = schema.GroupVersionResource{Group: "", Version: "", Resource: "persistentvolumes"}
+var persistentvolumesResource = unversioned.GroupVersionResource{Group: "", Version: "", Resource: "persistentvolumes"}
 
 func (c *FakePersistentVolumes) Create(persistentVolume *api.PersistentVolume) (result *api.PersistentVolume, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(persistentvolumesResource, persistentVolume), &api.PersistentVolume{})
+		Invokes(core.NewRootCreateAction(persistentvolumesResource, persistentVolume), &api.PersistentVolume{})
 	if obj == nil {
 		return nil, err
 	}
@@ -44,7 +42,7 @@ func (c *FakePersistentVolumes) Create(persistentVolume *api.PersistentVolume) (
 
 func (c *FakePersistentVolumes) Update(persistentVolume *api.PersistentVolume) (result *api.PersistentVolume, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(persistentvolumesResource, persistentVolume), &api.PersistentVolume{})
+		Invokes(core.NewRootUpdateAction(persistentvolumesResource, persistentVolume), &api.PersistentVolume{})
 	if obj == nil {
 		return nil, err
 	}
@@ -53,43 +51,43 @@ func (c *FakePersistentVolumes) Update(persistentVolume *api.PersistentVolume) (
 
 func (c *FakePersistentVolumes) UpdateStatus(persistentVolume *api.PersistentVolume) (*api.PersistentVolume, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(persistentvolumesResource, "status", persistentVolume), &api.PersistentVolume{})
+		Invokes(core.NewRootUpdateSubresourceAction(persistentvolumesResource, "status", persistentVolume), &api.PersistentVolume{})
 	if obj == nil {
 		return nil, err
 	}
 	return obj.(*api.PersistentVolume), err
 }
 
-func (c *FakePersistentVolumes) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakePersistentVolumes) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(persistentvolumesResource, name), &api.PersistentVolume{})
+		Invokes(core.NewRootDeleteAction(persistentvolumesResource, name), &api.PersistentVolume{})
 	return err
 }
 
-func (c *FakePersistentVolumes) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(persistentvolumesResource, listOptions)
+func (c *FakePersistentVolumes) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
+	action := core.NewRootDeleteCollectionAction(persistentvolumesResource, listOptions)
 
 	_, err := c.Fake.Invokes(action, &api.PersistentVolumeList{})
 	return err
 }
 
-func (c *FakePersistentVolumes) Get(name string, options v1.GetOptions) (result *api.PersistentVolume, err error) {
+func (c *FakePersistentVolumes) Get(name string) (result *api.PersistentVolume, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(persistentvolumesResource, name), &api.PersistentVolume{})
+		Invokes(core.NewRootGetAction(persistentvolumesResource, name), &api.PersistentVolume{})
 	if obj == nil {
 		return nil, err
 	}
 	return obj.(*api.PersistentVolume), err
 }
 
-func (c *FakePersistentVolumes) List(opts v1.ListOptions) (result *api.PersistentVolumeList, err error) {
+func (c *FakePersistentVolumes) List(opts api.ListOptions) (result *api.PersistentVolumeList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(persistentvolumesResource, opts), &api.PersistentVolumeList{})
+		Invokes(core.NewRootListAction(persistentvolumesResource, opts), &api.PersistentVolumeList{})
 	if obj == nil {
 		return nil, err
 	}
 
-	label, _, _ := testing.ExtractFromListOptions(opts)
+	label, _, _ := core.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
@@ -103,15 +101,15 @@ func (c *FakePersistentVolumes) List(opts v1.ListOptions) (result *api.Persisten
 }
 
 // Watch returns a watch.Interface that watches the requested persistentVolumes.
-func (c *FakePersistentVolumes) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakePersistentVolumes) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(persistentvolumesResource, opts))
+		InvokesWatch(core.NewRootWatchAction(persistentvolumesResource, opts))
 }
 
 // Patch applies the patch and returns the patched persistentVolume.
-func (c *FakePersistentVolumes) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.PersistentVolume, err error) {
+func (c *FakePersistentVolumes) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.PersistentVolume, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(persistentvolumesResource, name, data, subresources...), &api.PersistentVolume{})
+		Invokes(core.NewRootPatchSubresourceAction(persistentvolumesResource, name, data, subresources...), &api.PersistentVolume{})
 	if obj == nil {
 		return nil, err
 	}

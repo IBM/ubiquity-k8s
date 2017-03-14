@@ -30,12 +30,11 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
 	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 var (
@@ -73,7 +72,7 @@ func main() {
 
 	var nodes *api.NodeList
 	for start := time.Now(); time.Since(start) < nodeListTimeout; time.Sleep(2 * time.Second) {
-		nodes, err = client.Core().Nodes().List(metav1.ListOptions{})
+		nodes, err = client.Core().Nodes().List(api.ListOptions{})
 		if err == nil {
 			break
 		}
@@ -95,7 +94,7 @@ func main() {
 	queries := *queriesAverage * len(nodes.Items) * *podsPerNode
 
 	// Create a uniquely named namespace.
-	got, err := client.Core().Namespaces().Create(&api.Namespace{ObjectMeta: metav1.ObjectMeta{GenerateName: "serve-hostnames-"}})
+	got, err := client.Core().Namespaces().Create(&api.Namespace{ObjectMeta: api.ObjectMeta{GenerateName: "serve-hostnames-"}})
 	if err != nil {
 		glog.Fatalf("Failed to create namespace: %v", err)
 	}
@@ -106,7 +105,7 @@ func main() {
 		} else {
 			// wait until the namespace disappears
 			for i := 0; i < int(namespaceDeleteTimeout/time.Second); i++ {
-				if _, err := client.Core().Namespaces().Get(ns, metav1.GetOptions{}); err != nil {
+				if _, err := client.Core().Namespaces().Get(ns); err != nil {
 					if errors.IsNotFound(err) {
 						return
 					}
@@ -124,7 +123,7 @@ func main() {
 	for start := time.Now(); time.Since(start) < serviceCreateTimeout; time.Sleep(2 * time.Second) {
 		t := time.Now()
 		svc, err = client.Core().Services(ns).Create(&api.Service{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "serve-hostnames",
 				Labels: map[string]string{
 					"name": "serve-hostname",
@@ -174,7 +173,7 @@ func main() {
 				glog.Infof("Creating pod %s/%s on node %s", ns, podName, node.Name)
 				t := time.Now()
 				_, err = client.Core().Pods(ns).Create(&api.Pod{
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name: podName,
 						Labels: map[string]string{
 							"name": "serve-hostname",
@@ -221,7 +220,7 @@ func main() {
 	for _, podName := range podNames {
 		var pod *api.Pod
 		for start := time.Now(); time.Since(start) < podStartTimeout; time.Sleep(5 * time.Second) {
-			pod, err = client.Core().Pods(ns).Get(podName, metav1.GetOptions{})
+			pod, err = client.Core().Pods(ns).Get(podName)
 			if err != nil {
 				glog.Warningf("Get pod %s/%s failed, ignoring for %v: %v", ns, podName, err, podStartTimeout)
 				continue

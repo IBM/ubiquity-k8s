@@ -17,11 +17,9 @@ limitations under the License.
 package internalversion
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
 	api "k8s.io/kubernetes/pkg/api"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // ServicesGetter has a method to return a ServiceInterface.
@@ -35,18 +33,18 @@ type ServiceInterface interface {
 	Create(*api.Service) (*api.Service, error)
 	Update(*api.Service) (*api.Service, error)
 	UpdateStatus(*api.Service) (*api.Service, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*api.Service, error)
-	List(opts v1.ListOptions) (*api.ServiceList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.Service, err error)
+	Delete(name string, options *api.DeleteOptions) error
+	DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error
+	Get(name string) (*api.Service, error)
+	List(opts api.ListOptions) (*api.ServiceList, error)
+	Watch(opts api.ListOptions) (watch.Interface, error)
+	Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.Service, err error)
 	ServiceExpansion
 }
 
 // services implements ServiceInterface
 type services struct {
-	client rest.Interface
+	client restclient.Interface
 	ns     string
 }
 
@@ -83,9 +81,6 @@ func (c *services) Update(service *api.Service) (result *api.Service, err error)
 	return
 }
 
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclientstatus=false comment above the type to avoid generating UpdateStatus().
-
 func (c *services) UpdateStatus(service *api.Service) (result *api.Service, err error) {
 	result = &api.Service{}
 	err = c.client.Put().
@@ -100,7 +95,7 @@ func (c *services) UpdateStatus(service *api.Service) (result *api.Service, err 
 }
 
 // Delete takes name of the service and deletes it. Returns an error if one occurs.
-func (c *services) Delete(name string, options *v1.DeleteOptions) error {
+func (c *services) Delete(name string, options *api.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("services").
@@ -111,7 +106,7 @@ func (c *services) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *services) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *services) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("services").
@@ -122,20 +117,19 @@ func (c *services) DeleteCollection(options *v1.DeleteOptions, listOptions v1.Li
 }
 
 // Get takes name of the service, and returns the corresponding service object, and an error if there is any.
-func (c *services) Get(name string, options v1.GetOptions) (result *api.Service, err error) {
+func (c *services) Get(name string) (result *api.Service, err error) {
 	result = &api.Service{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("services").
 		Name(name).
-		VersionedParams(&options, api.ParameterCodec).
 		Do().
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of Services that match those selectors.
-func (c *services) List(opts v1.ListOptions) (result *api.ServiceList, err error) {
+func (c *services) List(opts api.ListOptions) (result *api.ServiceList, err error) {
 	result = &api.ServiceList{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -147,7 +141,7 @@ func (c *services) List(opts v1.ListOptions) (result *api.ServiceList, err error
 }
 
 // Watch returns a watch.Interface that watches the requested services.
-func (c *services) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *services) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.ns).
@@ -157,7 +151,7 @@ func (c *services) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Patch applies the patch and returns the patched service.
-func (c *services) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.Service, err error) {
+func (c *services) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.Service, err error) {
 	result = &api.Service{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).

@@ -18,20 +18,20 @@ package informers
 
 import (
 	"reflect"
+	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-	"k8s.io/kubernetes/pkg/client/legacylisters"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/cache"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 // DaemonSetInformer is type of SharedIndexInformer which watches and lists all pods.
 // Interface provides constructor for informer and lister for pods
 type DaemonSetInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() *listers.StoreToDaemonSetLister
+	Lister() *cache.StoreToDaemonSetLister
 }
 
 type daemonSetInformer struct {
@@ -49,11 +49,11 @@ func (f *daemonSetInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.client.Extensions().DaemonSets(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Extensions().DaemonSets(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.client.Extensions().DaemonSets(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Extensions().DaemonSets(api.NamespaceAll).Watch(options)
 			},
 		},
 		&extensions.DaemonSet{},
@@ -65,15 +65,15 @@ func (f *daemonSetInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *daemonSetInformer) Lister() *listers.StoreToDaemonSetLister {
+func (f *daemonSetInformer) Lister() *cache.StoreToDaemonSetLister {
 	informer := f.Informer()
-	return &listers.StoreToDaemonSetLister{Store: informer.GetIndexer()}
+	return &cache.StoreToDaemonSetLister{Store: informer.GetIndexer()}
 }
 
 // DeploymentInformer is a type of SharedIndexInformer which watches and lists all deployments.
 type DeploymentInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() *listers.StoreToDeploymentLister
+	Lister() *cache.StoreToDeploymentLister
 }
 
 type deploymentInformer struct {
@@ -91,15 +91,17 @@ func (f *deploymentInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.client.Extensions().Deployments(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Extensions().Deployments(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.client.Extensions().Deployments(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Extensions().Deployments(api.NamespaceAll).Watch(options)
 			},
 		},
 		&extensions.Deployment{},
-		f.defaultResync,
+		// TODO remove this.  It is hardcoded so that "Waiting for the second deployment to clear overlapping annotation" in
+		// "overlapping deployment should not fight with each other" will work since it requires a full resync to work properly.
+		30*time.Second,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 	)
 	f.informers[informerType] = informer
@@ -107,15 +109,15 @@ func (f *deploymentInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *deploymentInformer) Lister() *listers.StoreToDeploymentLister {
+func (f *deploymentInformer) Lister() *cache.StoreToDeploymentLister {
 	informer := f.Informer()
-	return &listers.StoreToDeploymentLister{Indexer: informer.GetIndexer()}
+	return &cache.StoreToDeploymentLister{Indexer: informer.GetIndexer()}
 }
 
 // ReplicaSetInformer is a type of SharedIndexInformer which watches and lists all replicasets.
 type ReplicaSetInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() *listers.StoreToReplicaSetLister
+	Lister() *cache.StoreToReplicaSetLister
 }
 
 type replicaSetInformer struct {
@@ -133,11 +135,11 @@ func (f *replicaSetInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.client.Extensions().ReplicaSets(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Extensions().ReplicaSets(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.client.Extensions().ReplicaSets(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Extensions().ReplicaSets(api.NamespaceAll).Watch(options)
 			},
 		},
 		&extensions.ReplicaSet{},
@@ -149,7 +151,7 @@ func (f *replicaSetInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *replicaSetInformer) Lister() *listers.StoreToReplicaSetLister {
+func (f *replicaSetInformer) Lister() *cache.StoreToReplicaSetLister {
 	informer := f.Informer()
-	return &listers.StoreToReplicaSetLister{Indexer: informer.GetIndexer()}
+	return &cache.StoreToReplicaSetLister{Indexer: informer.GetIndexer()}
 }

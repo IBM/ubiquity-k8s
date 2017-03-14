@@ -18,11 +18,10 @@ package ebtables
 
 import (
 	"fmt"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	"regexp"
 	"strings"
 	"sync"
-
-	utilexec "k8s.io/kubernetes/pkg/util/exec"
 )
 
 const (

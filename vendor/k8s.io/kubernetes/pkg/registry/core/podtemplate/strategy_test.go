@@ -21,11 +21,12 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 )
 
 func TestSelectableFieldLabelConversions(t *testing.T) {
 	apitesting.TestSelectableFieldLabelConversionsOfKind(t,
-		api.Registry.GroupOrDie(api.GroupName).GroupVersion.String(),
+		registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 		"PodTemplate",
 		PodTemplateToSelectableFields(&api.PodTemplate{}),
 		nil,

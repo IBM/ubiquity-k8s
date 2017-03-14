@@ -19,14 +19,13 @@ package configmap
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/kubernetes/pkg/api"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 )
 
 func TestConfigMapStrategy(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("ConfigMap must be namespace scoped")
 	}
@@ -35,9 +34,9 @@ func TestConfigMapStrategy(t *testing.T) {
 	}
 
 	cfg := &api.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "valid-config-data",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: api.NamespaceDefault,
 		},
 		Data: map[string]string{
 			"foo": "bar",
@@ -52,9 +51,9 @@ func TestConfigMapStrategy(t *testing.T) {
 	}
 
 	newCfg := &api.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "valid-config-data-2",
-			Namespace:       metav1.NamespaceDefault,
+			Namespace:       api.NamespaceDefault,
 			ResourceVersion: "4",
 		},
 		Data: map[string]string{
@@ -72,7 +71,7 @@ func TestConfigMapStrategy(t *testing.T) {
 
 func TestSelectableFieldLabelConversions(t *testing.T) {
 	apitesting.TestSelectableFieldLabelConversionsOfKind(t,
-		api.Registry.GroupOrDie(api.GroupName).GroupVersion.String(),
+		registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 		"ConfigMap",
 		ConfigMapToSelectableFields(&api.ConfigMap{}),
 		nil,

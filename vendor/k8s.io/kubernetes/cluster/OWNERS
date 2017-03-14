@@ -1,10 +1,4 @@
-reviewers:
-  - eparis
-  - jbeda
-  - mikedanese
-  - roberthbailey
-  - zmerlynn
-approvers:
+assignees:
   - eparis
   - jbeda
   - mikedanese

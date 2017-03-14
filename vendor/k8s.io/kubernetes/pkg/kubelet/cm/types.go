@@ -17,8 +17,8 @@ limitations under the License.
 package cm
 
 import (
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 // ResourceConfig holds information about all the supported cgroup resource parameters.
@@ -86,15 +86,15 @@ type QOSContainersInfo struct {
 // containers for the pod.
 type PodContainerManager interface {
 	// GetPodContainerName returns the CgroupName identifer, and its literal cgroupfs form on the host.
-	GetPodContainerName(*v1.Pod) (CgroupName, string)
+	GetPodContainerName(*api.Pod) (CgroupName, string)
 
 	// EnsureExists takes a pod as argument and makes sure that
 	// pod cgroup exists if qos cgroup hierarchy flag is enabled.
 	// If the pod cgroup doesen't already exist this method creates it.
-	EnsureExists(*v1.Pod) error
+	EnsureExists(*api.Pod) error
 
 	// Exists returns true if the pod cgroup exists.
-	Exists(*v1.Pod) bool
+	Exists(*api.Pod) bool
 
 	// Destroy takes a pod Cgroup name as argument and destroys the pod's container.
 	Destroy(name CgroupName) error

@@ -19,18 +19,16 @@ package informers
 import (
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/rbac"
-	"k8s.io/kubernetes/pkg/client/legacylisters"
+	"k8s.io/kubernetes/pkg/client/cache"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 type ClusterRoleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() listers.ClusterRoleLister
+	Lister() cache.ClusterRoleLister
 }
 
 type clusterRoleInformer struct {
@@ -48,11 +46,11 @@ func (f *clusterRoleInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.internalclient.Rbac().ClusterRoles().List(convertListOptionsOrDie(options))
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Rbac().ClusterRoles().List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.internalclient.Rbac().ClusterRoles().Watch(convertListOptionsOrDie(options))
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Rbac().ClusterRoles().Watch(options)
 			},
 		},
 		&rbac.ClusterRole{},
@@ -64,13 +62,13 @@ func (f *clusterRoleInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *clusterRoleInformer) Lister() listers.ClusterRoleLister {
-	return listers.NewClusterRoleLister(f.Informer().GetIndexer())
+func (f *clusterRoleInformer) Lister() cache.ClusterRoleLister {
+	return cache.NewClusterRoleLister(f.Informer().GetIndexer())
 }
 
 type ClusterRoleBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() listers.ClusterRoleBindingLister
+	Lister() cache.ClusterRoleBindingLister
 }
 
 type clusterRoleBindingInformer struct {
@@ -88,11 +86,11 @@ func (f *clusterRoleBindingInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.internalclient.Rbac().ClusterRoleBindings().List(convertListOptionsOrDie(options))
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Rbac().ClusterRoleBindings().List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.internalclient.Rbac().ClusterRoleBindings().Watch(convertListOptionsOrDie(options))
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Rbac().ClusterRoleBindings().Watch(options)
 			},
 		},
 		&rbac.ClusterRoleBinding{},
@@ -104,13 +102,13 @@ func (f *clusterRoleBindingInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *clusterRoleBindingInformer) Lister() listers.ClusterRoleBindingLister {
-	return listers.NewClusterRoleBindingLister(f.Informer().GetIndexer())
+func (f *clusterRoleBindingInformer) Lister() cache.ClusterRoleBindingLister {
+	return cache.NewClusterRoleBindingLister(f.Informer().GetIndexer())
 }
 
 type RoleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() listers.RoleLister
+	Lister() cache.RoleLister
 }
 
 type roleInformer struct {
@@ -128,11 +126,11 @@ func (f *roleInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.internalclient.Rbac().Roles(metav1.NamespaceAll).List(convertListOptionsOrDie(options))
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Rbac().Roles(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.internalclient.Rbac().Roles(metav1.NamespaceAll).Watch(convertListOptionsOrDie(options))
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Rbac().Roles(api.NamespaceAll).Watch(options)
 			},
 		},
 		&rbac.Role{},
@@ -144,13 +142,13 @@ func (f *roleInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *roleInformer) Lister() listers.RoleLister {
-	return listers.NewRoleLister(f.Informer().GetIndexer())
+func (f *roleInformer) Lister() cache.RoleLister {
+	return cache.NewRoleLister(f.Informer().GetIndexer())
 }
 
 type RoleBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() listers.RoleBindingLister
+	Lister() cache.RoleBindingLister
 }
 
 type roleBindingInformer struct {
@@ -168,11 +166,11 @@ func (f *roleBindingInformer) Informer() cache.SharedIndexInformer {
 	}
 	informer = cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return f.internalclient.Rbac().RoleBindings(metav1.NamespaceAll).List(convertListOptionsOrDie(options))
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return f.client.Rbac().RoleBindings(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return f.internalclient.Rbac().RoleBindings(metav1.NamespaceAll).Watch(convertListOptionsOrDie(options))
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return f.client.Rbac().RoleBindings(api.NamespaceAll).Watch(options)
 			},
 		},
 		&rbac.RoleBinding{},
@@ -184,14 +182,6 @@ func (f *roleBindingInformer) Informer() cache.SharedIndexInformer {
 	return informer
 }
 
-func (f *roleBindingInformer) Lister() listers.RoleBindingLister {
-	return listers.NewRoleBindingLister(f.Informer().GetIndexer())
-}
-
-func convertListOptionsOrDie(in metav1.ListOptions) metav1.ListOptions {
-	out := metav1.ListOptions{}
-	if err := api.Scheme.Convert(&in, &out, nil); err != nil {
-		panic(err)
-	}
-	return out
+func (f *roleBindingInformer) Lister() cache.RoleBindingLister {
+	return cache.NewRoleBindingLister(f.Informer().GetIndexer())
 }

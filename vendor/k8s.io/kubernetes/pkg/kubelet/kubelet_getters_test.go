@@ -19,68 +19,67 @@ package kubelet
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 )
 
 func TestKubeletDirs(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	root := kubelet.rootDirectory
 
 	var exp, got string
 
 	got = kubelet.getPodsDir()
-	exp = filepath.Join(root, "pods")
+	exp = path.Join(root, "pods")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPluginsDir()
-	exp = filepath.Join(root, "plugins")
+	exp = path.Join(root, "plugins")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPluginDir("foobar")
-	exp = filepath.Join(root, "plugins/foobar")
+	exp = path.Join(root, "plugins/foobar")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodDir("abc123")
-	exp = filepath.Join(root, "pods/abc123")
+	exp = path.Join(root, "pods/abc123")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodVolumesDir("abc123")
-	exp = filepath.Join(root, "pods/abc123/volumes")
+	exp = path.Join(root, "pods/abc123/volumes")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodVolumeDir("abc123", "plugin", "foobar")
-	exp = filepath.Join(root, "pods/abc123/volumes/plugin/foobar")
+	exp = path.Join(root, "pods/abc123/volumes/plugin/foobar")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodPluginsDir("abc123")
-	exp = filepath.Join(root, "pods/abc123/plugins")
+	exp = path.Join(root, "pods/abc123/plugins")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodPluginDir("abc123", "foobar")
-	exp = filepath.Join(root, "pods/abc123/plugins/foobar")
+	exp = path.Join(root, "pods/abc123/plugins/foobar")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodContainerDir("abc123", "def456")
-	exp = filepath.Join(root, "pods/abc123/containers/def456")
+	exp = path.Join(root, "pods/abc123/containers/def456")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
@@ -88,7 +87,6 @@ func TestKubeletDirs(t *testing.T) {
 
 func TestKubeletDirsCompat(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	root := kubelet.rootDirectory
 	if err := os.MkdirAll(root, 0750); err != nil {
@@ -114,25 +112,25 @@ func TestKubeletDirsCompat(t *testing.T) {
 	}
 
 	got = kubelet.getPodDir("oldpod")
-	exp = filepath.Join(root, "oldpod")
+	exp = path.Join(root, "oldpod")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodDir("newpod")
-	exp = filepath.Join(root, "pods/newpod")
+	exp = path.Join(root, "pods/newpod")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodDir("bothpod")
-	exp = filepath.Join(root, "pods/bothpod")
+	exp = path.Join(root, "pods/bothpod")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodDir("neitherpod")
-	exp = filepath.Join(root, "pods/neitherpod")
+	exp = path.Join(root, "pods/neitherpod")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
@@ -156,25 +154,25 @@ func TestKubeletDirsCompat(t *testing.T) {
 	}
 
 	got = kubelet.getPodContainerDir("newpod", "oldctr")
-	exp = filepath.Join(root, "oldctr")
+	exp = path.Join(root, "oldctr")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodContainerDir("newpod", "newctr")
-	exp = filepath.Join(root, "containers/newctr")
+	exp = path.Join(root, "containers/newctr")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodContainerDir("newpod", "bothctr")
-	exp = filepath.Join(root, "containers/bothctr")
+	exp = path.Join(root, "containers/bothctr")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}
 
 	got = kubelet.getPodContainerDir("newpod", "neitherctr")
-	exp = filepath.Join(root, "containers/neitherctr")
+	exp = path.Join(root, "containers/neitherctr")
 	if got != exp {
 		t.Errorf("expected %q', got %q", exp, got)
 	}

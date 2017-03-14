@@ -13,6 +13,7 @@
 # limitations under the License.
 
 FROM scratch
+MAINTAINER Daniel Smith <dbsmith@google.com>
 ADD localhost.crt localhost.crt
 ADD localhost.key localhost.key
 ADD porter porter

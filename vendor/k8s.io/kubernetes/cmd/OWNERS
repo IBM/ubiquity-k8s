@@ -1,9 +1,4 @@
-reviewers:
-  - dchen1107
-  - lavalamp
-  - mikedanese
-  - thockin
-approvers:
+assignees:
   - dchen1107
   - lavalamp
   - mikedanese

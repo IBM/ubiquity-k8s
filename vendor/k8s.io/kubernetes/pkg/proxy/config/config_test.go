@@ -22,10 +22,9 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/api"
 	. "k8s.io/kubernetes/pkg/proxy/config"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 const TomcatPort int = 8080
@@ -154,7 +153,7 @@ func TestNewServiceAddedAndNotified(t *testing.T) {
 	handler := NewServiceHandlerMock()
 	config.RegisterHandler(handler)
 	serviceUpdate := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 10}}},
 	})
 	channel <- serviceUpdate
@@ -168,14 +167,14 @@ func TestServiceAddedRemovedSetAndNotified(t *testing.T) {
 	handler := NewServiceHandlerMock()
 	config.RegisterHandler(handler)
 	serviceUpdate := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 10}}},
 	})
 	channel <- serviceUpdate
 	handler.ValidateServices(t, serviceUpdate.Services)
 
 	serviceUpdate2 := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 20}}},
 	})
 	channel <- serviceUpdate2
@@ -183,14 +182,14 @@ func TestServiceAddedRemovedSetAndNotified(t *testing.T) {
 	handler.ValidateServices(t, services)
 
 	serviceUpdate3 := CreateServiceUpdate(REMOVE, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 	})
 	channel <- serviceUpdate3
 	services = []api.Service{serviceUpdate2.Services[0]}
 	handler.ValidateServices(t, services)
 
 	serviceUpdate4 := CreateServiceUpdate(SET, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foobar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foobar"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 99}}},
 	})
 	channel <- serviceUpdate4
@@ -208,11 +207,11 @@ func TestNewMultipleSourcesServicesAddedAndNotified(t *testing.T) {
 	handler := NewServiceHandlerMock()
 	config.RegisterHandler(handler)
 	serviceUpdate1 := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 10}}},
 	})
 	serviceUpdate2 := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 20}}},
 	})
 	channelOne <- serviceUpdate1
@@ -230,11 +229,11 @@ func TestNewMultipleSourcesServicesMultipleHandlersAddedAndNotified(t *testing.T
 	config.RegisterHandler(handler)
 	config.RegisterHandler(handler2)
 	serviceUpdate1 := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 10}}},
 	})
 	serviceUpdate2 := CreateServiceUpdate(ADD, api.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
 		Spec:       api.ServiceSpec{Ports: []api.ServicePort{{Protocol: "TCP", Port: 20}}},
 	})
 	channelOne <- serviceUpdate1
@@ -253,14 +252,14 @@ func TestNewMultipleSourcesEndpointsMultipleHandlersAddedAndNotified(t *testing.
 	config.RegisterHandler(handler)
 	config.RegisterHandler(handler2)
 	endpointsUpdate1 := CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "1.1.1.1"}, {IP: "2.2.2.2"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
 		}},
 	})
 	endpointsUpdate2 := CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "3.3.3.3"}, {IP: "4.4.4.4"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
@@ -283,14 +282,14 @@ func TestNewMultipleSourcesEndpointsMultipleHandlersAddRemoveSetAndNotified(t *t
 	config.RegisterHandler(handler)
 	config.RegisterHandler(handler2)
 	endpointsUpdate1 := CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "1.1.1.1"}, {IP: "2.2.2.2"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
 		}},
 	})
 	endpointsUpdate2 := CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "3.3.3.3"}, {IP: "4.4.4.4"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
@@ -305,7 +304,7 @@ func TestNewMultipleSourcesEndpointsMultipleHandlersAddRemoveSetAndNotified(t *t
 
 	// Add one more
 	endpointsUpdate3 := CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foobar"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foobar"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "5.5.5.5"}, {IP: "6.6.6.6"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
@@ -318,7 +317,7 @@ func TestNewMultipleSourcesEndpointsMultipleHandlersAddRemoveSetAndNotified(t *t
 
 	// Update the "foo" service with new endpoints
 	endpointsUpdate1 = CreateEndpointsUpdate(ADD, api.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
+		ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "foo"},
 		Subsets: []api.EndpointSubset{{
 			Addresses: []api.EndpointAddress{{IP: "7.7.7.7"}},
 			Ports:     []api.EndpointPort{{Port: 80}},
@@ -330,7 +329,7 @@ func TestNewMultipleSourcesEndpointsMultipleHandlersAddRemoveSetAndNotified(t *t
 	handler2.ValidateEndpoints(t, endpoints)
 
 	// Remove "bar" service
-	endpointsUpdate2 = CreateEndpointsUpdate(REMOVE, api.Endpoints{ObjectMeta: metav1.ObjectMeta{Namespace: "testnamespace", Name: "bar"}})
+	endpointsUpdate2 = CreateEndpointsUpdate(REMOVE, api.Endpoints{ObjectMeta: api.ObjectMeta{Namespace: "testnamespace", Name: "bar"}})
 	channelTwo <- endpointsUpdate2
 
 	endpoints = []api.Endpoints{endpointsUpdate1.Endpoints[0], endpointsUpdate3.Endpoints[0]}

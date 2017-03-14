@@ -20,13 +20,12 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubernetes/pkg/api"
 	_ "k8s.io/kubernetes/pkg/api/install"
 	"k8s.io/kubernetes/pkg/api/v1"
 	_ "k8s.io/kubernetes/pkg/apis/batch/install"
 	. "k8s.io/kubernetes/pkg/apis/batch/v1"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 func TestSetDefaultJob(t *testing.T) {
@@ -40,7 +39,7 @@ func TestSetDefaultJob(t *testing.T) {
 			original: &Job{
 				Spec: JobSpec{
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -54,12 +53,12 @@ func TestSetDefaultJob(t *testing.T) {
 		},
 		"both unspecified -> sets both to 1 and no default labels": {
 			original: &Job{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: v1.ObjectMeta{
 					Labels: map[string]string{"mylabel": "myvalue"},
 				},
 				Spec: JobSpec{
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -75,7 +74,7 @@ func TestSetDefaultJob(t *testing.T) {
 				Spec: JobSpec{
 					Parallelism: newInt32(0),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -91,7 +90,7 @@ func TestSetDefaultJob(t *testing.T) {
 				Spec: JobSpec{
 					Parallelism: newInt32(2),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -107,7 +106,7 @@ func TestSetDefaultJob(t *testing.T) {
 				Spec: JobSpec{
 					Completions: newInt32(2),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -125,7 +124,7 @@ func TestSetDefaultJob(t *testing.T) {
 					Completions: newInt32(10),
 					Parallelism: newInt32(11),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -134,7 +133,7 @@ func TestSetDefaultJob(t *testing.T) {
 					Completions: newInt32(10),
 					Parallelism: newInt32(11),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},
@@ -146,7 +145,7 @@ func TestSetDefaultJob(t *testing.T) {
 					Completions: newInt32(11),
 					Parallelism: newInt32(10),
 					Template: v1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{Labels: defaultLabels},
+						ObjectMeta: v1.ObjectMeta{Labels: defaultLabels},
 					},
 				},
 			},

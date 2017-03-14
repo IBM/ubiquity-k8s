@@ -27,19 +27,18 @@ import (
 	"testing"
 	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/version"
+	"k8s.io/kubernetes/pkg/watch"
 	e2e "k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/integration/framework"
 )
@@ -48,7 +47,7 @@ func TestClient(t *testing.T) {
 	_, s := framework.RunAMaster(nil)
 	defer s.Close()
 
-	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	ns := framework.CreateTestingNamespace("client", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
@@ -61,7 +60,7 @@ func TestClient(t *testing.T) {
 		t.Errorf("expected %#v, got %#v", e, a)
 	}
 
-	pods, err := client.Core().Pods(ns.Name).List(metav1.ListOptions{})
+	pods, err := client.Core().Pods(ns.Name).List(api.ListOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -70,13 +69,13 @@ func TestClient(t *testing.T) {
 	}
 
 	// get a validation error
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			GenerateName: "test",
 			Namespace:    ns.Name,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name: "test",
 				},
@@ -100,7 +99,7 @@ func TestClient(t *testing.T) {
 	}
 
 	// pod is shown, but not scheduled
-	pods, err = client.Core().Pods(ns.Name).List(metav1.ListOptions{})
+	pods, err = client.Core().Pods(ns.Name).List(api.ListOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -120,35 +119,35 @@ func TestAtomicPut(t *testing.T) {
 	_, s := framework.RunAMaster(nil)
 	defer s.Close()
 
-	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	ns := framework.CreateTestingNamespace("atomic-put", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	rcBody := v1.ReplicationController{
-		TypeMeta: metav1.TypeMeta{
+	rcBody := api.ReplicationController{
+		TypeMeta: unversioned.TypeMeta{
 			APIVersion: c.Core().RESTClient().APIVersion().String(),
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "atomicrc",
 			Namespace: ns.Name,
 			Labels: map[string]string{
 				"name": "atomicrc",
 			},
 		},
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: func(i int32) *int32 { return &i }(0),
+		Spec: api.ReplicationControllerSpec{
+			Replicas: 0,
 			Selector: map[string]string{
 				"foo": "bar",
 			},
-			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Template: &api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{
 						"foo": "bar",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{Name: "name", Image: "image"},
 					},
 				},
@@ -173,7 +172,7 @@ func TestAtomicPut(t *testing.T) {
 		go func(l, v string) {
 			defer wg.Done()
 			for {
-				tmpRC, err := rcs.Get(rc.Name, metav1.GetOptions{})
+				tmpRC, err := rcs.Get(rc.Name)
 				if err != nil {
 					t.Errorf("Error getting atomicRC: %v", err)
 					continue
@@ -199,7 +198,7 @@ func TestAtomicPut(t *testing.T) {
 		}(label, value)
 	}
 	wg.Wait()
-	rc, err = rcs.Get(rc.Name, metav1.GetOptions{})
+	rc, err = rcs.Get(rc.Name)
 	if err != nil {
 		t.Fatalf("Failed getting atomicRC after writers are complete: %v", err)
 	}
@@ -212,24 +211,24 @@ func TestPatch(t *testing.T) {
 	_, s := framework.RunAMaster(nil)
 	defer s.Close()
 
-	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	ns := framework.CreateTestingNamespace("patch", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
 	name := "patchpod"
 	resource := "pods"
-	podBody := v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+	podBody := api.Pod{
+		TypeMeta: unversioned.TypeMeta{
 			APIVersion: c.Core().RESTClient().APIVersion().String(),
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      name,
 			Namespace: ns.Name,
 			Labels:    map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{Name: "name", Image: "image"},
 			},
 		},
@@ -240,23 +239,23 @@ func TestPatch(t *testing.T) {
 		t.Fatalf("Failed creating patchpods: %v", err)
 	}
 
-	patchBodies := map[schema.GroupVersion]map[types.PatchType]struct {
+	patchBodies := map[unversioned.GroupVersion]map[api.PatchType]struct {
 		AddLabelBody        []byte
 		RemoveLabelBody     []byte
 		RemoveAllLabelsBody []byte
 	}{
 		v1.SchemeGroupVersion: {
-			types.JSONPatchType: {
+			api.JSONPatchType: {
 				[]byte(`[{"op":"add","path":"/metadata/labels","value":{"foo":"bar","baz":"qux"}}]`),
 				[]byte(`[{"op":"remove","path":"/metadata/labels/foo"}]`),
 				[]byte(`[{"op":"remove","path":"/metadata/labels"}]`),
 			},
-			types.MergePatchType: {
+			api.MergePatchType: {
 				[]byte(`{"metadata":{"labels":{"foo":"bar","baz":"qux"}}}`),
 				[]byte(`{"metadata":{"labels":{"foo":null}}}`),
 				[]byte(`{"metadata":{"labels":null}}`),
 			},
-			types.StrategicMergePatchType: {
+			api.StrategicMergePatchType: {
 				[]byte(`{"metadata":{"labels":{"foo":"bar","baz":"qux"}}}`),
 				[]byte(`{"metadata":{"labels":{"foo":null}}}`),
 				[]byte(`{"metadata":{"labels":{"$patch":"replace"}}}`),
@@ -266,7 +265,7 @@ func TestPatch(t *testing.T) {
 
 	pb := patchBodies[c.Core().RESTClient().APIVersion()]
 
-	execPatch := func(pt types.PatchType, body []byte) error {
+	execPatch := func(pt api.PatchType, body []byte) error {
 		return c.Core().RESTClient().Patch(pt).
 			Resource(resource).
 			Namespace(ns.Name).
@@ -281,7 +280,7 @@ func TestPatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed updating patchpod with patch type %s: %v", k, err)
 		}
-		pod, err = pods.Get(name, metav1.GetOptions{})
+		pod, err = pods.Get(name)
 		if err != nil {
 			t.Fatalf("Failed getting patchpod: %v", err)
 		}
@@ -294,7 +293,7 @@ func TestPatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed updating patchpod with patch type %s: %v", k, err)
 		}
-		pod, err = pods.Get(name, metav1.GetOptions{})
+		pod, err = pods.Get(name)
 		if err != nil {
 			t.Fatalf("Failed getting patchpod: %v", err)
 		}
@@ -307,7 +306,7 @@ func TestPatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed updating patchpod with patch type %s: %v", k, err)
 		}
-		pod, err = pods.Get(name, metav1.GetOptions{})
+		pod, err = pods.Get(name)
 		if err != nil {
 			t.Fatalf("Failed getting patchpod: %v", err)
 		}
@@ -321,26 +320,26 @@ func TestPatchWithCreateOnUpdate(t *testing.T) {
 	_, s := framework.RunAMaster(nil)
 	defer s.Close()
 
-	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	ns := framework.CreateTestingNamespace("patch-with-create", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	endpointTemplate := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
+	endpointTemplate := &api.Endpoints{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "patchendpoint",
 			Namespace: ns.Name,
 		},
-		Subsets: []v1.EndpointSubset{
+		Subsets: []api.EndpointSubset{
 			{
-				Addresses: []v1.EndpointAddress{{IP: "1.2.3.4"}},
-				Ports:     []v1.EndpointPort{{Port: 80, Protocol: v1.ProtocolTCP}},
+				Addresses: []api.EndpointAddress{{IP: "1.2.3.4"}},
+				Ports:     []api.EndpointPort{{Port: 80, Protocol: api.ProtocolTCP}},
 			},
 		},
 	}
 
 	patchEndpoint := func(json []byte) (runtime.Object, error) {
-		return c.Core().RESTClient().Patch(types.MergePatchType).Resource("endpoints").Namespace(ns.Name).Name("patchendpoint").Body(json).Do().Get()
+		return c.Core().RESTClient().Patch(api.MergePatchType).Resource("endpoints").Namespace(ns.Name).Name("patchendpoint").Body(json).Do().Get()
 	}
 
 	// Make sure patch doesn't get to CreateOnUpdate
@@ -432,14 +431,14 @@ func TestAPIVersions(t *testing.T) {
 	_, s := framework.RunAMaster(nil)
 	defer s.Close()
 
-	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	clientVersion := c.Core().RESTClient().APIVersion().String()
 	g, err := c.Discovery().ServerGroups()
 	if err != nil {
 		t.Fatalf("Failed to get api versions: %v", err)
 	}
-	versions := metav1.ExtractGroupVersions(g)
+	versions := unversioned.ExtractGroupVersions(g)
 
 	// Verify that the server supports the API version used by the client.
 	for _, version := range versions {
@@ -457,16 +456,16 @@ func TestSingleWatch(t *testing.T) {
 	ns := framework.CreateTestingNamespace("single-watch", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
-	mkEvent := func(i int) *v1.Event {
+	mkEvent := func(i int) *api.Event {
 		name := fmt.Sprintf("event-%v", i)
-		return &v1.Event{
-			ObjectMeta: metav1.ObjectMeta{
+		return &api.Event{
+			ObjectMeta: api.ObjectMeta{
 				Namespace: ns.Name,
 				Name:      name,
 			},
-			InvolvedObject: v1.ObjectReference{
+			InvolvedObject: api.ObjectReference{
 				Namespace: ns.Name,
 				Name:      name,
 			},
@@ -518,7 +517,7 @@ func TestSingleWatch(t *testing.T) {
 			t.Errorf("Wanted %v, got %v", e, a)
 		}
 		switch o := got.Object.(type) {
-		case *v1.Event:
+		case *api.Event:
 			if e, a := "event-9", o.Name; e != a {
 				t.Errorf("Wanted %v, got %v", e, a)
 			}
@@ -542,16 +541,16 @@ func TestMultiWatch(t *testing.T) {
 	ns := framework.CreateTestingNamespace("multi-watch", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	client := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
-	dummyEvent := func(i int) *v1.Event {
+	dummyEvent := func(i int) *api.Event {
 		name := fmt.Sprintf("unrelated-%v", i)
-		return &v1.Event{
-			ObjectMeta: metav1.ObjectMeta{
+		return &api.Event{
+			ObjectMeta: api.ObjectMeta{
 				Name:      fmt.Sprintf("%v.%x", name, time.Now().UnixNano()),
 				Namespace: ns.Name,
 			},
-			InvolvedObject: v1.ObjectReference{
+			InvolvedObject: api.ObjectReference{
 				Name:      name,
 				Namespace: ns.Name,
 			},
@@ -571,13 +570,13 @@ func TestMultiWatch(t *testing.T) {
 	for i := 0; i < watcherCount; i++ {
 		watchesStarted.Add(1)
 		name := fmt.Sprintf("multi-watch-%v", i)
-		got, err := client.Core().Pods(ns.Name).Create(&v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		got, err := client.Core().Pods(ns.Name).Create(&api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:   name,
 				Labels: labels.Set{"watchlabel": name},
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{{
+			Spec: api.PodSpec{
+				Containers: []api.Container{{
 					Name:  "pause",
 					Image: e2e.GetPauseImageName(client),
 				}},
@@ -588,8 +587,8 @@ func TestMultiWatch(t *testing.T) {
 			t.Fatalf("Couldn't make %v: %v", name, err)
 		}
 		go func(name, rv string) {
-			options := metav1.ListOptions{
-				LabelSelector:   labels.Set{"watchlabel": name}.AsSelector().String(),
+			options := api.ListOptions{
+				LabelSelector:   labels.Set{"watchlabel": name}.AsSelector(),
 				ResourceVersion: rv,
 			}
 			w, err := client.Core().Pods(ns.Name).Watch(options)
@@ -678,12 +677,12 @@ func TestMultiWatch(t *testing.T) {
 						return
 					}
 					name := fmt.Sprintf("unrelated-%v", i)
-					_, err := client.Core().Pods(ns.Name).Create(&v1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
+					_, err := client.Core().Pods(ns.Name).Create(&api.Pod{
+						ObjectMeta: api.ObjectMeta{
 							Name: name,
 						},
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{{
+						Spec: api.PodSpec{
+							Containers: []api.Container{{
 								Name:  "nothing",
 								Image: e2e.GetPauseImageName(client),
 							}},
@@ -712,7 +711,7 @@ func TestMultiWatch(t *testing.T) {
 	for i := 0; i < watcherCount; i++ {
 		go func(i int) {
 			name := fmt.Sprintf("multi-watch-%v", i)
-			pod, err := client.Core().Pods(ns.Name).Get(name, metav1.GetOptions{})
+			pod, err := client.Core().Pods(ns.Name).Get(name)
 			if err != nil {
 				panic(fmt.Sprintf("Couldn't get %v: %v", name, err))
 			}
@@ -742,16 +741,16 @@ func TestMultiWatch(t *testing.T) {
 }
 
 func runSelfLinkTestOnNamespace(t *testing.T, c clientset.Interface, namespace string) {
-	podBody := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	podBody := api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "selflinktest",
 			Namespace: namespace,
 			Labels: map[string]string{
 				"name": "selflinktest",
 			},
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{Name: "name", Image: "image"},
 			},
 		},
@@ -764,7 +763,7 @@ func runSelfLinkTestOnNamespace(t *testing.T, c clientset.Interface, namespace s
 		t.Errorf("Failed listing pod with supplied self link '%v': %v", pod.SelfLink, err)
 	}
 
-	podList, err := c.Core().Pods(namespace).List(metav1.ListOptions{})
+	podList, err := c.Core().Pods(namespace).List(api.ListOptions{})
 	if err != nil {
 		t.Errorf("Failed listing pods: %v", err)
 	}
@@ -798,7 +797,7 @@ func TestSelfLinkOnNamespace(t *testing.T) {
 	ns := framework.CreateTestingNamespace("selflink", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
+	c := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
 
 	runSelfLinkTestOnNamespace(t, c, ns.Name)
 }

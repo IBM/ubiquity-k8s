@@ -19,17 +19,16 @@ package service
 import (
 	"sync"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	pkgruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
-	restclient "k8s.io/client-go/rest"
-	cache "k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 	v1beta1 "k8s.io/kubernetes/federation/apis/federation/v1beta1"
+	"k8s.io/kubernetes/pkg/api"
 	v1 "k8s.io/kubernetes/pkg/api/v1"
-	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	"k8s.io/kubernetes/pkg/client/legacylisters"
+	cache "k8s.io/kubernetes/pkg/client/cache"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/util/workqueue"
+	"k8s.io/kubernetes/pkg/watch"
 
 	"reflect"
 
@@ -41,13 +40,13 @@ type clusterCache struct {
 	clientset *kubeclientset.Clientset
 	cluster   *v1beta1.Cluster
 	// A store of services, populated by the serviceController
-	serviceStore listers.StoreToServiceLister
+	serviceStore cache.StoreToServiceLister
 	// Watches changes to all services
-	serviceController cache.Controller
+	serviceController *cache.Controller
 	// A store of endpoint, populated by the serviceController
-	endpointStore listers.StoreToEndpointsLister
+	endpointStore cache.StoreToEndpointsLister
 	// Watches changes to all endpoints
-	endpointController cache.Controller
+	endpointController *cache.Controller
 	// services that need to be synced
 	serviceQueue *workqueue.Type
 	// endpoints that need to be synced
@@ -93,11 +92,13 @@ func (cc *clusterClientCache) startClusterLW(cluster *v1beta1.Cluster, clusterNa
 		}
 		cachedClusterClient.endpointStore.Store, cachedClusterClient.endpointController = cache.NewInformer(
 			&cache.ListWatch{
-				ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-					return clientset.Core().Endpoints(metav1.NamespaceAll).List(options)
+				ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+					versionedOptions := util.VersionizeV1ListOptions(options)
+					return clientset.Core().Endpoints(v1.NamespaceAll).List(versionedOptions)
 				},
-				WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-					return clientset.Core().Endpoints(metav1.NamespaceAll).Watch(options)
+				WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+					versionedOptions := util.VersionizeV1ListOptions(options)
+					return clientset.Core().Endpoints(v1.NamespaceAll).Watch(versionedOptions)
 				},
 			},
 			&v1.Endpoints{},
@@ -117,11 +118,13 @@ func (cc *clusterClientCache) startClusterLW(cluster *v1beta1.Cluster, clusterNa
 
 		cachedClusterClient.serviceStore.Indexer, cachedClusterClient.serviceController = cache.NewIndexerInformer(
 			&cache.ListWatch{
-				ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-					return clientset.Core().Services(metav1.NamespaceAll).List(options)
+				ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+					versionedOptions := util.VersionizeV1ListOptions(options)
+					return clientset.Core().Services(v1.NamespaceAll).List(versionedOptions)
 				},
-				WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-					return clientset.Core().Services(metav1.NamespaceAll).Watch(options)
+				WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+					versionedOptions := util.VersionizeV1ListOptions(options)
+					return clientset.Core().Services(v1.NamespaceAll).Watch(versionedOptions)
 				},
 			},
 			&v1.Service{},
@@ -147,7 +150,7 @@ func (cc *clusterClientCache) startClusterLW(cluster *v1beta1.Cluster, clusterNa
 				DeleteFunc: func(obj interface{}) {
 					service, _ := obj.(*v1.Service)
 					cc.enqueueService(obj, clusterName)
-					glog.V(2).Infof("Service %s/%s deletion found and enqueue to service store %s", service.Namespace, service.Name, clusterName)
+					glog.V(2).Infof("Service %s/%s deletion found and enque to service store %s", service.Namespace, service.Name, clusterName)
 				},
 			},
 			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},

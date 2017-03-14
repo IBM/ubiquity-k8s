@@ -4,24 +4,26 @@ licenses(["notice"])
 
 load(
     "@io_bazel_rules_go//go:def.bzl",
+    "go_binary",
     "go_library",
+    "go_test",
+    "cgo_library",
 )
 
 go_library(
     name = "go_default_library",
-    srcs = ["doc.go"],
+    srcs = [
+        "doc.go",
+        "wait.go",
+    ],
     tags = ["automanaged"],
+    deps = ["//pkg/util/runtime:go_default_library"],
 )
 
-filegroup(
-    name = "package-srcs",
-    srcs = glob(["**"]),
+go_test(
+    name = "go_default_test",
+    srcs = ["wait_test.go"],
+    library = "go_default_library",
     tags = ["automanaged"],
-    visibility = ["//visibility:private"],
-)
-
-filegroup(
-    name = "all-srcs",
-    srcs = [":package-srcs"],
-    tags = ["automanaged"],
+    deps = ["//pkg/util/runtime:go_default_library"],
 )

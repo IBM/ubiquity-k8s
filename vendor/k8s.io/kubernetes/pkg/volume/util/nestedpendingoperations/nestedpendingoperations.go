@@ -29,18 +29,18 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	k8sRuntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/util/goroutinemap/exponentialbackoff"
+	k8sRuntime "k8s.io/kubernetes/pkg/util/runtime"
 	"k8s.io/kubernetes/pkg/volume/util/types"
 )
 
 const (
-	// EmptyUniquePodName is a UniquePodName for empty string.
-	EmptyUniquePodName types.UniquePodName = types.UniquePodName("")
+	// emptyUniquePodName is a UniquePodName for empty string.
+	emptyUniquePodName types.UniquePodName = types.UniquePodName("")
 
-	// EmptyUniqueVolumeName is a UniqueVolumeName for empty string
-	EmptyUniqueVolumeName v1.UniqueVolumeName = v1.UniqueVolumeName("")
+	// emptyUniqueVolumeName is a UniqueVolumeName for empty string
+	emptyUniqueVolumeName api.UniqueVolumeName = api.UniqueVolumeName("")
 )
 
 // NestedPendingOperations defines the supported set of operations.
@@ -55,7 +55,7 @@ type NestedPendingOperations interface {
 	// concatenation of volumeName and podName is removed from the list of
 	// executing operations allowing a new operation to be started with the
 	// volumeName without error.
-	Run(volumeName v1.UniqueVolumeName, podName types.UniquePodName, operationFunc func() error) error
+	Run(volumeName api.UniqueVolumeName, podName types.UniquePodName, operationFunc func() error) error
 
 	// Wait blocks until all operations are completed. This is typically
 	// necessary during tests - the test should wait until all operations finish
@@ -64,7 +64,7 @@ type NestedPendingOperations interface {
 
 	// IsOperationPending returns true if an operation for the given volumeName and podName is pending,
 	// otherwise it returns false
-	IsOperationPending(volumeName v1.UniqueVolumeName, podName types.UniquePodName) bool
+	IsOperationPending(volumeName api.UniqueVolumeName, podName types.UniquePodName) bool
 }
 
 // NewNestedPendingOperations returns a new instance of NestedPendingOperations.
@@ -85,14 +85,14 @@ type nestedPendingOperations struct {
 }
 
 type operation struct {
-	volumeName       v1.UniqueVolumeName
+	volumeName       api.UniqueVolumeName
 	podName          types.UniquePodName
 	operationPending bool
 	expBackoff       exponentialbackoff.ExponentialBackoff
 }
 
 func (grm *nestedPendingOperations) Run(
-	volumeName v1.UniqueVolumeName,
+	volumeName api.UniqueVolumeName,
 	podName types.UniquePodName,
 	operationFunc func() error) error {
 	grm.lock.Lock()
@@ -141,7 +141,7 @@ func (grm *nestedPendingOperations) Run(
 }
 
 func (grm *nestedPendingOperations) IsOperationPending(
-	volumeName v1.UniqueVolumeName,
+	volumeName api.UniqueVolumeName,
 	podName types.UniquePodName) bool {
 
 	grm.lock.RLock()
@@ -156,11 +156,11 @@ func (grm *nestedPendingOperations) IsOperationPending(
 
 // This is an internal function and caller should acquire and release the lock
 func (grm *nestedPendingOperations) isOperationExists(
-	volumeName v1.UniqueVolumeName,
+	volumeName api.UniqueVolumeName,
 	podName types.UniquePodName) (bool, int) {
 
 	// If volumeName is empty, operation can be executed concurrently
-	if volumeName == EmptyUniqueVolumeName {
+	if volumeName == emptyUniqueVolumeName {
 		return false, -1
 	}
 
@@ -170,8 +170,8 @@ func (grm *nestedPendingOperations) isOperationExists(
 			continue
 		}
 
-		if previousOp.podName != EmptyUniquePodName &&
-			podName != EmptyUniquePodName &&
+		if previousOp.podName != emptyUniquePodName &&
+			podName != emptyUniquePodName &&
 			previousOp.podName != podName {
 			// No match, keep searching
 			continue
@@ -184,7 +184,7 @@ func (grm *nestedPendingOperations) isOperationExists(
 }
 
 func (grm *nestedPendingOperations) getOperation(
-	volumeName v1.UniqueVolumeName,
+	volumeName api.UniqueVolumeName,
 	podName types.UniquePodName) (uint, error) {
 	// Assumes lock has been acquired by caller.
 
@@ -196,12 +196,12 @@ func (grm *nestedPendingOperations) getOperation(
 	}
 
 	logOperationName := getOperationName(volumeName, podName)
-	return 0, fmt.Errorf("Operation %q not found", logOperationName)
+	return 0, fmt.Errorf("Operation %q not found.", logOperationName)
 }
 
 func (grm *nestedPendingOperations) deleteOperation(
 	// Assumes lock has been acquired by caller.
-	volumeName v1.UniqueVolumeName,
+	volumeName api.UniqueVolumeName,
 	podName types.UniquePodName) {
 
 	opIndex := -1
@@ -219,7 +219,7 @@ func (grm *nestedPendingOperations) deleteOperation(
 }
 
 func (grm *nestedPendingOperations) operationComplete(
-	volumeName v1.UniqueVolumeName, podName types.UniquePodName, err *error) {
+	volumeName api.UniqueVolumeName, podName types.UniquePodName, err *error) {
 	// Defer operations are executed in Last-In is First-Out order. In this case
 	// the lock is acquired first when operationCompletes begins, and is
 	// released when the method finishes, after the lock is released cond is
@@ -272,9 +272,9 @@ func (grm *nestedPendingOperations) Wait() {
 }
 
 func getOperationName(
-	volumeName v1.UniqueVolumeName, podName types.UniquePodName) string {
+	volumeName api.UniqueVolumeName, podName types.UniquePodName) string {
 	podNameStr := ""
-	if podName != EmptyUniquePodName {
+	if podName != emptyUniquePodName {
 		podNameStr = fmt.Sprintf(" (%q)", podName)
 	}
 

@@ -19,15 +19,13 @@ package e2e
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
-	batchinternal "k8s.io/kubernetes/pkg/apis/batch"
-	batch "k8s.io/kubernetes/pkg/apis/batch/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/apis/batch"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/kubectl"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -46,11 +44,12 @@ var _ = framework.KubeDescribe("Job", func() {
 	f := framework.NewDefaultFramework("job")
 	parallelism := int32(2)
 	completions := int32(4)
+	lotsOfFailures := int32(5) // more than completions
 
 	// Simplest case: all pods succeed promptly
 	It("should run a job to completion when tasks succeed", func() {
 		By("Creating a job")
-		job := newTestJob("succeed", "all-succeed", v1.RestartPolicyNever, parallelism, completions)
+		job := newTestJob("succeed", "all-succeed", api.RestartPolicyNever, parallelism, completions)
 		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -69,7 +68,7 @@ var _ = framework.KubeDescribe("Job", func() {
 		// up to 5 minutes between restarts, making test timeouts
 		// due to successive failures too likely with a reasonable
 		// test timeout.
-		job := newTestJob("failOnce", "fail-once-local", v1.RestartPolicyOnFailure, parallelism, completions)
+		job := newTestJob("failOnce", "fail-once-local", api.RestartPolicyOnFailure, parallelism, completions)
 		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -87,7 +86,7 @@ var _ = framework.KubeDescribe("Job", func() {
 		// Worst case analysis: 15 failures, each taking 1 minute to
 		// run due to some slowness, 1 in 2^15 chance of happening,
 		// causing test flake.  Should be very rare.
-		job := newTestJob("randomlySucceedOrFail", "rand-non-local", v1.RestartPolicyNever, parallelism, completions)
+		job := newTestJob("randomlySucceedOrFail", "rand-non-local", api.RestartPolicyNever, parallelism, completions)
 		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -96,9 +95,75 @@ var _ = framework.KubeDescribe("Job", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
+	It("should keep restarting failed pods", func() {
+		By("Creating a job")
+		job := newTestJob("fail", "all-fail", api.RestartPolicyNever, parallelism, completions)
+		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring job shows many failures")
+		err = wait.Poll(framework.Poll, jobTimeout, func() (bool, error) {
+			curr, err := getJob(f.ClientSet, f.Namespace.Name, job.Name)
+			if err != nil {
+				return false, err
+			}
+			return curr.Status.Failed > lotsOfFailures, nil
+		})
+	})
+
+	It("should scale a job up", func() {
+		startParallelism := int32(1)
+		endParallelism := int32(2)
+		By("Creating a job")
+		job := newTestJob("notTerminate", "scale-up", api.RestartPolicyNever, startParallelism, completions)
+		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring active pods == startParallelism")
+		err = waitForAllPodsRunning(f.ClientSet, f.Namespace.Name, job.Name, startParallelism)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("scale job up")
+		scaler, err := kubectl.ScalerFor(batch.Kind("Job"), f.ClientSet)
+		Expect(err).NotTo(HaveOccurred())
+		waitForScale := kubectl.NewRetryParams(5*time.Second, 1*time.Minute)
+		waitForReplicas := kubectl.NewRetryParams(5*time.Second, 5*time.Minute)
+		scaler.Scale(f.Namespace.Name, job.Name, uint(endParallelism), nil, waitForScale, waitForReplicas)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring active pods == endParallelism")
+		err = waitForAllPodsRunning(f.ClientSet, f.Namespace.Name, job.Name, endParallelism)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should scale a job down", func() {
+		startParallelism := int32(2)
+		endParallelism := int32(1)
+		By("Creating a job")
+		job := newTestJob("notTerminate", "scale-down", api.RestartPolicyNever, startParallelism, completions)
+		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring active pods == startParallelism")
+		err = waitForAllPodsRunning(f.ClientSet, f.Namespace.Name, job.Name, startParallelism)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("scale job down")
+		scaler, err := kubectl.ScalerFor(batch.Kind("Job"), f.ClientSet)
+		Expect(err).NotTo(HaveOccurred())
+		waitForScale := kubectl.NewRetryParams(5*time.Second, 1*time.Minute)
+		waitForReplicas := kubectl.NewRetryParams(5*time.Second, 5*time.Minute)
+		err = scaler.Scale(f.Namespace.Name, job.Name, uint(endParallelism), nil, waitForScale, waitForReplicas)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring active pods == endParallelism")
+		err = waitForAllPodsRunning(f.ClientSet, f.Namespace.Name, job.Name, endParallelism)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	It("should delete a job", func() {
 		By("Creating a job")
-		job := newTestJob("notTerminate", "foo", v1.RestartPolicyNever, parallelism, completions)
+		job := newTestJob("notTerminate", "foo", api.RestartPolicyNever, parallelism, completions)
 		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -107,10 +172,10 @@ var _ = framework.KubeDescribe("Job", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("delete a job")
-		reaper, err := kubectl.ReaperFor(batchinternal.Kind("Job"), f.InternalClientset)
+		reaper, err := kubectl.ReaperFor(batch.Kind("Job"), f.ClientSet)
 		Expect(err).NotTo(HaveOccurred())
 		timeout := 1 * time.Minute
-		err = reaper.Stop(f.Namespace.Name, job.Name, timeout, metav1.NewDeleteOptions(0))
+		err = reaper.Stop(f.Namespace.Name, job.Name, timeout, api.NewDeleteOptions(0))
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Ensuring job was deleted")
@@ -118,38 +183,63 @@ var _ = framework.KubeDescribe("Job", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(errors.IsNotFound(err)).To(BeTrue())
 	})
+
+	It("should fail a job", func() {
+		By("Creating a job")
+		job := newTestJob("notTerminate", "foo", api.RestartPolicyNever, parallelism, completions)
+		activeDeadlineSeconds := int64(10)
+		job.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
+		job, err := createJob(f.ClientSet, f.Namespace.Name, job)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Ensuring job was failed")
+		err = waitForJobFail(f.ClientSet, f.Namespace.Name, job.Name, 20*time.Second)
+		if err == wait.ErrWaitTimeout {
+			job, err = getJob(f.ClientSet, f.Namespace.Name, job.Name)
+			Expect(err).NotTo(HaveOccurred())
+			// the job stabilized and won't be synced until modification or full
+			// resync happens, we don't want to wait for the latter so we force
+			// sync modifying it
+			_, err = framework.UpdateJobWithRetries(f.ClientSet, f.Namespace.Name, job.Name, func(update *batch.Job) {
+				update.Spec.Parallelism = &completions
+			})
+			Expect(err).NotTo(HaveOccurred())
+			err = waitForJobFail(f.ClientSet, f.Namespace.Name, job.Name, jobTimeout)
+		}
+		Expect(err).NotTo(HaveOccurred())
+	})
 })
 
 // newTestJob returns a job which does one of several testing behaviors.
-func newTestJob(behavior, name string, rPol v1.RestartPolicy, parallelism, completions int32) *batch.Job {
+func newTestJob(behavior, name string, rPol api.RestartPolicy, parallelism, completions int32) *batch.Job {
 	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
 		Spec: batch.JobSpec{
 			Parallelism:    &parallelism,
 			Completions:    &completions,
 			ManualSelector: newBool(false),
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Template: api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{jobSelectorKey: name},
 				},
-				Spec: v1.PodSpec{
+				Spec: api.PodSpec{
 					RestartPolicy: rPol,
-					Volumes: []v1.Volume{
+					Volumes: []api.Volume{
 						{
 							Name: "data",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
+							VolumeSource: api.VolumeSource{
+								EmptyDir: &api.EmptyDirVolumeSource{},
 							},
 						},
 					},
-					Containers: []v1.Container{
+					Containers: []api.Container{
 						{
 							Name:    "c",
 							Image:   "gcr.io/google_containers/busybox:1.24",
 							Command: []string{},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []api.VolumeMount{
 								{
 									MountPath: "/data",
 									Name:      "data",
@@ -184,7 +274,7 @@ func newTestJob(behavior, name string, rPol v1.RestartPolicy, parallelism, compl
 }
 
 func getJob(c clientset.Interface, ns, name string) (*batch.Job, error) {
-	return c.Batch().Jobs(ns).Get(name, metav1.GetOptions{})
+	return c.Batch().Jobs(ns).Get(name)
 }
 
 func createJob(c clientset.Interface, ns string, job *batch.Job) (*batch.Job, error) {
@@ -203,14 +293,14 @@ func deleteJob(c clientset.Interface, ns, name string) error {
 func waitForAllPodsRunning(c clientset.Interface, ns, jobName string, parallelism int32) error {
 	label := labels.SelectorFromSet(labels.Set(map[string]string{jobSelectorKey: jobName}))
 	return wait.Poll(framework.Poll, jobTimeout, func() (bool, error) {
-		options := metav1.ListOptions{LabelSelector: label.String()}
+		options := api.ListOptions{LabelSelector: label}
 		pods, err := c.Core().Pods(ns).List(options)
 		if err != nil {
 			return false, err
 		}
 		count := int32(0)
 		for _, p := range pods.Items {
-			if p.Status.Phase == v1.PodRunning {
+			if p.Status.Phase == api.PodRunning {
 				count++
 			}
 		}
@@ -221,7 +311,7 @@ func waitForAllPodsRunning(c clientset.Interface, ns, jobName string, parallelis
 // Wait for job to reach completions.
 func waitForJobFinish(c clientset.Interface, ns, jobName string, completions int32) error {
 	return wait.Poll(framework.Poll, jobTimeout, func() (bool, error) {
-		curr, err := c.Batch().Jobs(ns).Get(jobName, metav1.GetOptions{})
+		curr, err := c.Batch().Jobs(ns).Get(jobName)
 		if err != nil {
 			return false, err
 		}
@@ -232,12 +322,12 @@ func waitForJobFinish(c clientset.Interface, ns, jobName string, completions int
 // Wait for job fail.
 func waitForJobFail(c clientset.Interface, ns, jobName string, timeout time.Duration) error {
 	return wait.Poll(framework.Poll, timeout, func() (bool, error) {
-		curr, err := c.Batch().Jobs(ns).Get(jobName, metav1.GetOptions{})
+		curr, err := c.Batch().Jobs(ns).Get(jobName)
 		if err != nil {
 			return false, err
 		}
 		for _, c := range curr.Status.Conditions {
-			if c.Type == batch.JobFailed && c.Status == v1.ConditionTrue {
+			if c.Type == batch.JobFailed && c.Status == api.ConditionTrue {
 				return true, nil
 			}
 		}

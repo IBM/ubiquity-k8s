@@ -26,24 +26,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	core "k8s.io/client-go/testing"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/client/testing/core"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	containertest "k8s.io/kubernetes/pkg/kubelet/container/testing"
-	"k8s.io/kubernetes/pkg/kubelet/server/portforward"
 	"k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 func TestMakeMounts(t *testing.T) {
-	container := v1.Container{
-		VolumeMounts: []v1.VolumeMount{
+	container := api.Container{
+		VolumeMounts: []api.VolumeMount{
 			{
 				MountPath: "/etc/hosts",
 				Name:      "disk",
@@ -73,9 +70,11 @@ func TestMakeMounts(t *testing.T) {
 		"disk5": kubecontainer.VolumeInfo{Mounter: &stubVolume{path: "/var/lib/kubelet/podID/volumes/empty/disk5"}},
 	}
 
-	pod := v1.Pod{
-		Spec: v1.PodSpec{
-			HostNetwork: true,
+	pod := api.Pod{
+		Spec: api.PodSpec{
+			SecurityContext: &api.PodSecurityContext{
+				HostNetwork: true,
+			},
 		},
 	}
 
@@ -116,7 +115,6 @@ func TestMakeMounts(t *testing.T) {
 
 func TestRunInContainerNoSuchPod(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	fakeRuntime := testKubelet.fakeRuntime
 	fakeRuntime.PodList = []*containertest.FakePod{}
@@ -125,7 +123,7 @@ func TestRunInContainerNoSuchPod(t *testing.T) {
 	podNamespace := "nsFoo"
 	containerName := "containerFoo"
 	output, err := kubelet.RunInContainer(
-		kubecontainer.GetPodFullName(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: podName, Namespace: podNamespace}}),
+		kubecontainer.GetPodFullName(&api.Pod{ObjectMeta: api.ObjectMeta{Name: podName, Namespace: podNamespace}}),
 		"",
 		containerName,
 		[]string{"ls"})
@@ -136,7 +134,6 @@ func TestRunInContainerNoSuchPod(t *testing.T) {
 func TestRunInContainer(t *testing.T) {
 	for _, testError := range []error{nil, errors.New("bar")} {
 		testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-		defer testKubelet.Cleanup()
 		kubelet := testKubelet.kubelet
 		fakeRuntime := testKubelet.fakeRuntime
 		fakeCommandRunner := containertest.FakeContainerCommandRunner{
@@ -170,21 +167,20 @@ func TestRunInContainer(t *testing.T) {
 
 func TestGenerateRunContainerOptions_DNSConfigurationParams(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 
 	clusterNS := "203.0.113.1"
 	kubelet.clusterDomain = "kubernetes.io"
-	kubelet.clusterDNS = []net.IP{net.ParseIP(clusterNS)}
+	kubelet.clusterDNS = net.ParseIP(clusterNS)
 
 	pods := newTestPods(2)
-	pods[0].Spec.DNSPolicy = v1.DNSClusterFirst
-	pods[1].Spec.DNSPolicy = v1.DNSDefault
+	pods[0].Spec.DNSPolicy = api.DNSClusterFirst
+	pods[1].Spec.DNSPolicy = api.DNSDefault
 
 	options := make([]*kubecontainer.RunContainerOptions, 2)
 	for i, pod := range pods {
 		var err error
-		options[i], err = kubelet.GenerateRunContainerOptions(pod, &v1.Container{}, "")
+		options[i], err = kubelet.GenerateRunContainerOptions(pod, &api.Container{}, "")
 		if err != nil {
 			t.Fatalf("failed to generate container options: %v", err)
 		}
@@ -205,7 +201,7 @@ func TestGenerateRunContainerOptions_DNSConfigurationParams(t *testing.T) {
 	kubelet.resolverConfig = "/etc/resolv.conf"
 	for i, pod := range pods {
 		var err error
-		options[i], err = kubelet.GenerateRunContainerOptions(pod, &v1.Container{}, "")
+		options[i], err = kubelet.GenerateRunContainerOptions(pod, &api.Container{}, "")
 		if err != nil {
 			t.Fatalf("failed to generate container options: %v", err)
 		}
@@ -216,11 +212,7 @@ func TestGenerateRunContainerOptions_DNSConfigurationParams(t *testing.T) {
 	} else if options[0].DNS[0] != clusterNS {
 		t.Errorf("expected nameserver %s, got %v", clusterNS, options[0].DNS[0])
 	}
-	expLength := len(options[1].DNSSearch) + 3
-	if expLength > 6 {
-		expLength = 6
-	}
-	if len(options[0].DNSSearch) != expLength {
+	if len(options[0].DNSSearch) != len(options[1].DNSSearch)+3 {
 		t.Errorf("expected prepend of cluster domain, got %+v", options[0].DNSSearch)
 	} else if options[0].DNSSearch[0] != ".svc."+kubelet.clusterDomain {
 		t.Errorf("expected domain %s, got %s", ".svc."+kubelet.clusterDomain, options[0].DNSSearch)
@@ -228,10 +220,10 @@ func TestGenerateRunContainerOptions_DNSConfigurationParams(t *testing.T) {
 }
 
 type testServiceLister struct {
-	services []*v1.Service
+	services []*api.Service
 }
 
-func (ls testServiceLister) List(labels.Selector) ([]*v1.Service, error) {
+func (ls testServiceLister) List(labels.Selector) ([]*api.Service, error) {
 	return ls.services, nil
 }
 
@@ -245,12 +237,12 @@ func (e envs) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 
 func (e envs) Less(i, j int) bool { return e[i].Name < e[j].Name }
 
-func buildService(name, namespace, clusterIP, protocol string, port int) *v1.Service {
-	return &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{{
-				Protocol: v1.Protocol(protocol),
+func buildService(name, namespace, clusterIP, protocol string, port int) *api.Service {
+	return &api.Service{
+		ObjectMeta: api.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: api.ServiceSpec{
+			Ports: []api.ServicePort{{
+				Protocol: api.Protocol(protocol),
 				Port:     int32(port),
 			}},
 			ClusterIP: clusterIP,
@@ -259,9 +251,8 @@ func buildService(name, namespace, clusterIP, protocol string, port int) *v1.Ser
 }
 
 func TestMakeEnvironmentVariables(t *testing.T) {
-	trueVal := true
-	services := []*v1.Service{
-		buildService("kubernetes", metav1.NamespaceDefault, "1.2.3.1", "TCP", 8081),
+	services := []*api.Service{
+		buildService("kubernetes", api.NamespaceDefault, "1.2.3.1", "TCP", 8081),
 		buildService("test", "test1", "1.2.3.3", "TCP", 8083),
 		buildService("kubernetes", "test2", "1.2.3.4", "TCP", 8084),
 		buildService("test", "test2", "1.2.3.5", "TCP", 8085),
@@ -276,19 +267,16 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 	testCases := []struct {
 		name            string                 // the name of the test case
 		ns              string                 // the namespace to generate environment for
-		container       *v1.Container          // the container to use
+		container       *api.Container         // the container to use
 		masterServiceNs string                 // the namespace to read master service info from
 		nilLister       bool                   // whether the lister should be nil
-		configMap       *v1.ConfigMap          // an optional ConfigMap to pull from
-		secret          *v1.Secret             // an optional Secret to pull from
 		expectedEnvs    []kubecontainer.EnvVar // a set of expected environment vars
-		expectedError   bool                   // does the test fail
 	}{
 		{
 			name: "api server = Y, kubelet = Y",
 			ns:   "test1",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{Name: "FOO", Value: "BAR"},
 					{Name: "TEST_SERVICE_HOST", Value: "1.2.3.3"},
 					{Name: "TEST_SERVICE_PORT", Value: "8083"},
@@ -299,7 +287,7 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 					{Name: "TEST_PORT_8083_TCP_ADDR", Value: "1.2.3.3"},
 				},
 			},
-			masterServiceNs: metav1.NamespaceDefault,
+			masterServiceNs: api.NamespaceDefault,
 			nilLister:       false,
 			expectedEnvs: []kubecontainer.EnvVar{
 				{Name: "FOO", Value: "BAR"},
@@ -322,8 +310,8 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name: "api server = Y, kubelet = N",
 			ns:   "test1",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{Name: "FOO", Value: "BAR"},
 					{Name: "TEST_SERVICE_HOST", Value: "1.2.3.3"},
 					{Name: "TEST_SERVICE_PORT", Value: "8083"},
@@ -334,7 +322,7 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 					{Name: "TEST_PORT_8083_TCP_ADDR", Value: "1.2.3.3"},
 				},
 			},
-			masterServiceNs: metav1.NamespaceDefault,
+			masterServiceNs: api.NamespaceDefault,
 			nilLister:       true,
 			expectedEnvs: []kubecontainer.EnvVar{
 				{Name: "FOO", Value: "BAR"},
@@ -350,12 +338,12 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name: "api server = N; kubelet = Y",
 			ns:   "test1",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{Name: "FOO", Value: "BAZ"},
 				},
 			},
-			masterServiceNs: metav1.NamespaceDefault,
+			masterServiceNs: api.NamespaceDefault,
 			nilLister:       false,
 			expectedEnvs: []kubecontainer.EnvVar{
 				{Name: "FOO", Value: "BAZ"},
@@ -378,8 +366,8 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name: "master service in pod ns",
 			ns:   "test2",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{Name: "FOO", Value: "ZAP"},
 				},
 			},
@@ -406,7 +394,7 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name:            "pod in master service ns",
 			ns:              "kubernetes",
-			container:       &v1.Container{},
+			container:       &api.Container{},
 			masterServiceNs: "kubernetes",
 			nilLister:       false,
 			expectedEnvs: []kubecontainer.EnvVar{
@@ -429,49 +417,49 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name: "downward api pod",
 			ns:   "downward-api",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{
 						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "metadata.name",
 							},
 						},
 					},
 					{
 						Name: "POD_NAMESPACE",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "metadata.namespace",
 							},
 						},
 					},
 					{
 						Name: "POD_NODE_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "spec.nodeName",
 							},
 						},
 					},
 					{
 						Name: "POD_SERVICE_ACCOUNT_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "spec.serviceAccountName",
 							},
 						},
 					},
 					{
 						Name: "POD_IP",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "status.podIP",
 							},
 						},
@@ -491,17 +479,17 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		{
 			name: "env expansion",
 			ns:   "test1",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
+			container: &api.Container{
+				Env: []api.EnvVar{
 					{
 						Name:  "TEST_LITERAL",
 						Value: "test-test-test",
 					},
 					{
 						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							FieldRef: &v1.ObjectFieldSelector{
-								APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+						ValueFrom: &api.EnvVarSource{
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 								FieldPath:  "metadata.name",
 							},
 						},
@@ -619,445 +607,10 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "configmapkeyref_missing_optional",
-			ns:   "test",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							ConfigMapKeyRef: &v1.ConfigMapKeySelector{
-								LocalObjectReference: v1.LocalObjectReference{Name: "missing-config-map"},
-								Key:                  "key",
-								Optional:             &trueVal,
-							},
-						},
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedEnvs:    nil,
-		},
-		{
-			name: "configmapkeyref_missing_key_optional",
-			ns:   "test",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							ConfigMapKeyRef: &v1.ConfigMapKeySelector{
-								LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"},
-								Key:                  "key",
-								Optional:             &trueVal,
-							},
-						},
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			nilLister:       true,
-			configMap: &v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-configmap",
-				},
-				Data: map[string]string{
-					"a": "b",
-				},
-			},
-			expectedEnvs: nil,
-		},
-		{
-			name: "secretkeyref_missing_optional",
-			ns:   "test",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							SecretKeyRef: &v1.SecretKeySelector{
-								LocalObjectReference: v1.LocalObjectReference{Name: "missing-secret"},
-								Key:                  "key",
-								Optional:             &trueVal,
-							},
-						},
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedEnvs:    nil,
-		},
-		{
-			name: "secretkeyref_missing_key_optional",
-			ns:   "test",
-			container: &v1.Container{
-				Env: []v1.EnvVar{
-					{
-						Name: "POD_NAME",
-						ValueFrom: &v1.EnvVarSource{
-							SecretKeyRef: &v1.SecretKeySelector{
-								LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"},
-								Key:                  "key",
-								Optional:             &trueVal,
-							},
-						},
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			nilLister:       true,
-			secret: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-secret",
-				},
-				Data: map[string][]byte{
-					"a": []byte("b"),
-				},
-			},
-			expectedEnvs: nil,
-		},
-		{
-			name: "configmap",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{
-						ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"}},
-					},
-					{
-						Prefix:       "p_",
-						ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"}},
-					},
-				},
-				Env: []v1.EnvVar{
-					{
-						Name:  "TEST_LITERAL",
-						Value: "test-test-test",
-					},
-					{
-						Name:  "EXPANSION_TEST",
-						Value: "$(REPLACE_ME)",
-					},
-					{
-						Name:  "DUPE_TEST",
-						Value: "ENV_VAR",
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			nilLister:       false,
-			configMap: &v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-configmap",
-				},
-				Data: map[string]string{
-					"REPLACE_ME": "FROM_CONFIG_MAP",
-					"DUPE_TEST":  "CONFIG_MAP",
-				},
-			},
-			expectedEnvs: []kubecontainer.EnvVar{
-				{
-					Name:  "TEST_LITERAL",
-					Value: "test-test-test",
-				},
-				{
-					Name:  "TEST_SERVICE_HOST",
-					Value: "1.2.3.3",
-				},
-				{
-					Name:  "TEST_SERVICE_PORT",
-					Value: "8083",
-				},
-				{
-					Name:  "TEST_PORT",
-					Value: "tcp://1.2.3.3:8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP",
-					Value: "tcp://1.2.3.3:8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_PROTO",
-					Value: "tcp",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_PORT",
-					Value: "8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_ADDR",
-					Value: "1.2.3.3",
-				},
-				{
-					Name:  "REPLACE_ME",
-					Value: "FROM_CONFIG_MAP",
-				},
-				{
-					Name:  "EXPANSION_TEST",
-					Value: "FROM_CONFIG_MAP",
-				},
-				{
-					Name:  "DUPE_TEST",
-					Value: "ENV_VAR",
-				},
-				{
-					Name:  "p_REPLACE_ME",
-					Value: "FROM_CONFIG_MAP",
-				},
-				{
-					Name:  "p_DUPE_TEST",
-					Value: "CONFIG_MAP",
-				},
-			},
-		},
-		{
-			name: "configmap_missing",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"}}},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedError:   true,
-		},
-		{
-			name: "configmap_missing_optional",
-			ns:   "test",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{ConfigMapRef: &v1.ConfigMapEnvSource{
-						Optional:             &trueVal,
-						LocalObjectReference: v1.LocalObjectReference{Name: "missing-config-map"}}},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedEnvs:    nil,
-		},
-		{
-			name: "configmap_invalid_keys",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"}}},
-				},
-			},
-			masterServiceNs: "nothing",
-			configMap: &v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-configmap",
-				},
-				Data: map[string]string{
-					"1234": "abc",
-				},
-			},
-			expectedError: true,
-		},
-		{
-			name: "configmap_invalid_keys_valid",
-			ns:   "test",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{
-						Prefix:       "p_",
-						ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-config-map"}},
-					},
-				},
-			},
-			masterServiceNs: "",
-			configMap: &v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-configmap",
-				},
-				Data: map[string]string{
-					"1234": "abc",
-				},
-			},
-			expectedEnvs: []kubecontainer.EnvVar{
-				{
-					Name:  "p_1234",
-					Value: "abc",
-				},
-			},
-		},
-		{
-			name: "secret",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{
-						SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"}},
-					},
-					{
-						Prefix:    "p_",
-						SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"}},
-					},
-				},
-				Env: []v1.EnvVar{
-					{
-						Name:  "TEST_LITERAL",
-						Value: "test-test-test",
-					},
-					{
-						Name:  "EXPANSION_TEST",
-						Value: "$(REPLACE_ME)",
-					},
-					{
-						Name:  "DUPE_TEST",
-						Value: "ENV_VAR",
-					},
-				},
-			},
-			masterServiceNs: "nothing",
-			nilLister:       false,
-			secret: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-secret",
-				},
-				Data: map[string][]byte{
-					"REPLACE_ME": []byte("FROM_SECRET"),
-					"DUPE_TEST":  []byte("SECRET"),
-				},
-			},
-			expectedEnvs: []kubecontainer.EnvVar{
-				{
-					Name:  "TEST_LITERAL",
-					Value: "test-test-test",
-				},
-				{
-					Name:  "TEST_SERVICE_HOST",
-					Value: "1.2.3.3",
-				},
-				{
-					Name:  "TEST_SERVICE_PORT",
-					Value: "8083",
-				},
-				{
-					Name:  "TEST_PORT",
-					Value: "tcp://1.2.3.3:8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP",
-					Value: "tcp://1.2.3.3:8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_PROTO",
-					Value: "tcp",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_PORT",
-					Value: "8083",
-				},
-				{
-					Name:  "TEST_PORT_8083_TCP_ADDR",
-					Value: "1.2.3.3",
-				},
-				{
-					Name:  "REPLACE_ME",
-					Value: "FROM_SECRET",
-				},
-				{
-					Name:  "EXPANSION_TEST",
-					Value: "FROM_SECRET",
-				},
-				{
-					Name:  "DUPE_TEST",
-					Value: "ENV_VAR",
-				},
-				{
-					Name:  "p_REPLACE_ME",
-					Value: "FROM_SECRET",
-				},
-				{
-					Name:  "p_DUPE_TEST",
-					Value: "SECRET",
-				},
-			},
-		},
-		{
-			name: "secret_missing",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"}}},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedError:   true,
-		},
-		{
-			name: "secret_missing_optional",
-			ns:   "test",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{SecretRef: &v1.SecretEnvSource{
-						LocalObjectReference: v1.LocalObjectReference{Name: "missing-secret"},
-						Optional:             &trueVal}},
-				},
-			},
-			masterServiceNs: "nothing",
-			expectedEnvs:    nil,
-		},
-		{
-			name: "secret_invalid_keys",
-			ns:   "test1",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"}}},
-				},
-			},
-			masterServiceNs: "nothing",
-			secret: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-secret",
-				},
-				Data: map[string][]byte{
-					"1234": []byte("abc"),
-				},
-			},
-			expectedError: true,
-		},
-		{
-			name: "secret_invalid_keys_valid",
-			ns:   "test",
-			container: &v1.Container{
-				EnvFrom: []v1.EnvFromSource{
-					{
-						Prefix:    "p_",
-						SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-secret"}},
-					},
-				},
-			},
-			masterServiceNs: "",
-			secret: &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "test1",
-					Name:      "test-secret",
-				},
-				Data: map[string][]byte{
-					"1234": []byte("abc"),
-				},
-			},
-			expectedEnvs: []kubecontainer.EnvVar{
-				{
-					Name:  "p_1234",
-					Value: "abc",
-				},
-			},
-		},
 	}
 
 	for _, tc := range testCases {
 		testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-		defer testKubelet.Cleanup()
 		kl := testKubelet.kubelet
 		kl.masterServiceNamespace = tc.masterServiceNs
 		if tc.nilLister {
@@ -1066,35 +619,12 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 			kl.serviceLister = testServiceLister{services}
 		}
 
-		testKubelet.fakeKubeClient.AddReactor("get", "configmaps", func(action core.Action) (bool, runtime.Object, error) {
-			var err error
-			if tc.configMap == nil {
-				err = apierrors.NewNotFound(action.GetResource().GroupResource(), "configmap-name")
-			}
-			return true, tc.configMap, err
-		})
-		testKubelet.fakeKubeClient.AddReactor("get", "secrets", func(action core.Action) (bool, runtime.Object, error) {
-			var err error
-			if tc.secret == nil {
-				err = apierrors.NewNotFound(action.GetResource().GroupResource(), "secret-name")
-			}
-			return true, tc.secret, err
-		})
-
-		testKubelet.fakeKubeClient.AddReactor("get", "secrets", func(action core.Action) (bool, runtime.Object, error) {
-			var err error
-			if tc.secret == nil {
-				err = errors.New("no secret defined")
-			}
-			return true, tc.secret, err
-		})
-
-		testPod := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		testPod := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Namespace: tc.ns,
 				Name:      "dapi-test-pod-name",
 			},
-			Spec: v1.PodSpec{
+			Spec: api.PodSpec{
 				ServiceAccountName: "special",
 				NodeName:           "node-name",
 			},
@@ -1102,70 +632,66 @@ func TestMakeEnvironmentVariables(t *testing.T) {
 		podIP := "1.2.3.4"
 
 		result, err := kl.makeEnvironmentVariables(testPod, tc.container, podIP)
-		if tc.expectedError {
-			assert.Error(t, err, tc.name)
-		} else {
-			assert.NoError(t, err, "[%s]", tc.name)
+		assert.NoError(t, err, "[%s]", tc.name)
 
-			sort.Sort(envs(result))
-			sort.Sort(envs(tc.expectedEnvs))
-			assert.Equal(t, tc.expectedEnvs, result, "[%s] env entries", tc.name)
-		}
+		sort.Sort(envs(result))
+		sort.Sort(envs(tc.expectedEnvs))
+		assert.Equal(t, tc.expectedEnvs, result, "[%s] env entries", tc.name)
 	}
 }
 
-func waitingState(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func waitingState(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Waiting: &v1.ContainerStateWaiting{},
+		State: api.ContainerState{
+			Waiting: &api.ContainerStateWaiting{},
 		},
 	}
 }
-func waitingStateWithLastTermination(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func waitingStateWithLastTermination(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Waiting: &v1.ContainerStateWaiting{},
+		State: api.ContainerState{
+			Waiting: &api.ContainerStateWaiting{},
 		},
-		LastTerminationState: v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{
+		LastTerminationState: api.ContainerState{
+			Terminated: &api.ContainerStateTerminated{
 				ExitCode: 0,
 			},
 		},
 	}
 }
-func runningState(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func runningState(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{},
+		State: api.ContainerState{
+			Running: &api.ContainerStateRunning{},
 		},
 	}
 }
-func stoppedState(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func stoppedState(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{},
+		State: api.ContainerState{
+			Terminated: &api.ContainerStateTerminated{},
 		},
 	}
 }
-func succeededState(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func succeededState(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{
+		State: api.ContainerState{
+			Terminated: &api.ContainerStateTerminated{
 				ExitCode: 0,
 			},
 		},
 	}
 }
-func failedState(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func failedState(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name: cName,
-		State: v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{
+		State: api.ContainerState{
+			Terminated: &api.ContainerStateTerminated{
 				ExitCode: -1,
 			},
 		},
@@ -1173,96 +699,96 @@ func failedState(cName string) v1.ContainerStatus {
 }
 
 func TestPodPhaseWithRestartAlways(t *testing.T) {
-	desiredState := v1.PodSpec{
+	desiredState := api.PodSpec{
 		NodeName: "machine",
-		Containers: []v1.Container{
+		Containers: []api.Container{
 			{Name: "containerA"},
 			{Name: "containerB"},
 		},
-		RestartPolicy: v1.RestartPolicyAlways,
+		RestartPolicy: api.RestartPolicyAlways,
 	}
 
 	tests := []struct {
-		pod    *v1.Pod
-		status v1.PodPhase
+		pod    *api.Pod
+		status api.PodPhase
 		test   string
 	}{
-		{&v1.Pod{Spec: desiredState, Status: v1.PodStatus{}}, v1.PodPending, "waiting"},
+		{&api.Pod{Spec: desiredState, Status: api.PodStatus{}}, api.PodPending, "waiting"},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						runningState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"all running",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						stoppedState("containerA"),
 						stoppedState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"all stopped with restart always",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						stoppedState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"mixed state #1 with restart always",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #2 with restart always",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						waitingState("containerB"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #3 with restart always",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						waitingStateWithLastTermination("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"backoff crashloop container with restart always",
 		},
 	}
@@ -1273,96 +799,96 @@ func TestPodPhaseWithRestartAlways(t *testing.T) {
 }
 
 func TestPodPhaseWithRestartNever(t *testing.T) {
-	desiredState := v1.PodSpec{
+	desiredState := api.PodSpec{
 		NodeName: "machine",
-		Containers: []v1.Container{
+		Containers: []api.Container{
 			{Name: "containerA"},
 			{Name: "containerB"},
 		},
-		RestartPolicy: v1.RestartPolicyNever,
+		RestartPolicy: api.RestartPolicyNever,
 	}
 
 	tests := []struct {
-		pod    *v1.Pod
-		status v1.PodPhase
+		pod    *api.Pod
+		status api.PodPhase
 		test   string
 	}{
-		{&v1.Pod{Spec: desiredState, Status: v1.PodStatus{}}, v1.PodPending, "waiting"},
+		{&api.Pod{Spec: desiredState, Status: api.PodStatus{}}, api.PodPending, "waiting"},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						runningState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"all running with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						succeededState("containerA"),
 						succeededState("containerB"),
 					},
 				},
 			},
-			v1.PodSucceeded,
+			api.PodSucceeded,
 			"all succeeded with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						failedState("containerA"),
 						failedState("containerB"),
 					},
 				},
 			},
-			v1.PodFailed,
+			api.PodFailed,
 			"all failed with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						succeededState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"mixed state #1 with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #2 with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						waitingState("containerB"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #3 with restart never",
 		},
 	}
@@ -1373,109 +899,109 @@ func TestPodPhaseWithRestartNever(t *testing.T) {
 }
 
 func TestPodPhaseWithRestartOnFailure(t *testing.T) {
-	desiredState := v1.PodSpec{
+	desiredState := api.PodSpec{
 		NodeName: "machine",
-		Containers: []v1.Container{
+		Containers: []api.Container{
 			{Name: "containerA"},
 			{Name: "containerB"},
 		},
-		RestartPolicy: v1.RestartPolicyOnFailure,
+		RestartPolicy: api.RestartPolicyOnFailure,
 	}
 
 	tests := []struct {
-		pod    *v1.Pod
-		status v1.PodPhase
+		pod    *api.Pod
+		status api.PodPhase
 		test   string
 	}{
-		{&v1.Pod{Spec: desiredState, Status: v1.PodStatus{}}, v1.PodPending, "waiting"},
+		{&api.Pod{Spec: desiredState, Status: api.PodStatus{}}, api.PodPending, "waiting"},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						runningState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"all running with restart onfailure",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						succeededState("containerA"),
 						succeededState("containerB"),
 					},
 				},
 			},
-			v1.PodSucceeded,
+			api.PodSucceeded,
 			"all succeeded with restart onfailure",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						failedState("containerA"),
 						failedState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"all failed with restart never",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						succeededState("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"mixed state #1 with restart onfailure",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #2 with restart onfailure",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						waitingState("containerB"),
 					},
 				},
 			},
-			v1.PodPending,
+			api.PodPending,
 			"mixed state #3 with restart onfailure",
 		},
 		{
-			&v1.Pod{
+			&api.Pod{
 				Spec: desiredState,
-				Status: v1.PodStatus{
-					ContainerStatuses: []v1.ContainerStatus{
+				Status: api.PodStatus{
+					ContainerStatuses: []api.ContainerStatus{
 						runningState("containerA"),
 						waitingStateWithLastTermination("containerB"),
 					},
 				},
 			},
-			v1.PodRunning,
+			api.PodRunning,
 			"backoff crashloop container with restart onfailure",
 		},
 	}
@@ -1538,7 +1064,6 @@ func TestExec(t *testing.T) {
 
 	for _, tc := range testcases {
 		testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-		defer testKubelet.Cleanup()
 		kubelet := testKubelet.kubelet
 		testKubelet.fakeRuntime.PodList = []*containertest.FakePod{
 			{Pod: &kubecontainer.Pod{
@@ -1608,7 +1133,7 @@ func TestPortForward(t *testing.T) {
 		podName                = "podFoo"
 		podNamespace           = "nsFoo"
 		podUID       types.UID = "12345678"
-		port         int32     = 5000
+		port         uint16    = 5000
 	)
 	var (
 		stream = &fakeReadWriteCloser{}
@@ -1629,7 +1154,6 @@ func TestPortForward(t *testing.T) {
 
 	for _, tc := range testcases {
 		testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-		defer testKubelet.Cleanup()
 		kubelet := testKubelet.kubelet
 		testKubelet.fakeRuntime.PodList = []*containertest.FakePod{
 			{Pod: &kubecontainer.Pod{
@@ -1647,7 +1171,7 @@ func TestPortForward(t *testing.T) {
 		podFullName := kubecontainer.GetPodFullName(podWithUidNameNs(podUID, tc.podName, podNamespace))
 		{ // No streaming case
 			description := "no streaming - " + tc.description
-			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID, portforward.V4Options{})
+			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID)
 			assert.Error(t, err, description)
 			assert.Nil(t, redirect, description)
 
@@ -1659,7 +1183,7 @@ func TestPortForward(t *testing.T) {
 			fakeRuntime := &containertest.FakeDirectStreamingRuntime{FakeRuntime: testKubelet.fakeRuntime}
 			kubelet.containerRuntime = fakeRuntime
 
-			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID, portforward.V4Options{})
+			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID)
 			assert.NoError(t, err, description)
 			assert.Nil(t, redirect, description)
 
@@ -1678,7 +1202,7 @@ func TestPortForward(t *testing.T) {
 			fakeRuntime := &containertest.FakeIndirectStreamingRuntime{FakeRuntime: testKubelet.fakeRuntime}
 			kubelet.containerRuntime = fakeRuntime
 
-			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID, portforward.V4Options{})
+			redirect, err := kubelet.GetPortForward(tc.podName, podNamespace, podUID)
 			if tc.expectError {
 				assert.Error(t, err, description)
 			} else {
@@ -1694,17 +1218,17 @@ func TestPortForward(t *testing.T) {
 
 // Tests that identify the host port conflicts are detected correctly.
 func TestGetHostPortConflicts(t *testing.T) {
-	pods := []*v1.Pod{
-		{Spec: v1.PodSpec{Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 80}}}}}},
-		{Spec: v1.PodSpec{Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 81}}}}}},
-		{Spec: v1.PodSpec{Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 82}}}}}},
-		{Spec: v1.PodSpec{Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 83}}}}}},
+	pods := []*api.Pod{
+		{Spec: api.PodSpec{Containers: []api.Container{{Ports: []api.ContainerPort{{HostPort: 80}}}}}},
+		{Spec: api.PodSpec{Containers: []api.Container{{Ports: []api.ContainerPort{{HostPort: 81}}}}}},
+		{Spec: api.PodSpec{Containers: []api.Container{{Ports: []api.ContainerPort{{HostPort: 82}}}}}},
+		{Spec: api.PodSpec{Containers: []api.Container{{Ports: []api.ContainerPort{{HostPort: 83}}}}}},
 	}
 	// Pods should not cause any conflict.
 	assert.False(t, hasHostPortConflicts(pods), "Should not have port conflicts")
 
-	expected := &v1.Pod{
-		Spec: v1.PodSpec{Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 81}}}}},
+	expected := &api.Pod{
+		Spec: api.PodSpec{Containers: []api.Container{{Ports: []api.ContainerPort{{HostPort: 81}}}}},
 	}
 	// The new pod should cause conflict and be reported.
 	pods = append(pods, expected)
@@ -1713,21 +1237,21 @@ func TestGetHostPortConflicts(t *testing.T) {
 
 func TestMakeDevices(t *testing.T) {
 	testCases := []struct {
-		container *v1.Container
+		container *api.Container
 		devices   []kubecontainer.DeviceInfo
 		test      string
 	}{
 		{
 			test:      "no device",
-			container: &v1.Container{},
+			container: &api.Container{},
 			devices:   nil,
 		},
 		{
 			test: "gpu",
-			container: &v1.Container{
-				Resources: v1.ResourceRequirements{
-					Limits: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceNvidiaGPU: resource.MustParse("1000"),
+			container: &api.Container{
+				Resources: api.ResourceRequirements{
+					Limits: map[api.ResourceName]resource.Quantity{
+						api.ResourceNvidiaGPU: resource.MustParse("1000"),
 					},
 				},
 			},
@@ -1741,6 +1265,47 @@ func TestMakeDevices(t *testing.T) {
 
 	for _, test := range testCases {
 		assert.Equal(t, test.devices, makeDevices(test.container), "[test %q]", test.test)
+	}
+}
+
+func TestHasPrivilegedContainer(t *testing.T) {
+	newBoolPtr := func(b bool) *bool {
+		return &b
+	}
+	tests := map[string]struct {
+		securityContext *api.SecurityContext
+		expected        bool
+	}{
+		"nil sc": {
+			securityContext: nil,
+			expected:        false,
+		},
+		"nil privleged": {
+			securityContext: &api.SecurityContext{},
+			expected:        false,
+		},
+		"false privleged": {
+			securityContext: &api.SecurityContext{Privileged: newBoolPtr(false)},
+			expected:        false,
+		},
+		"true privleged": {
+			securityContext: &api.SecurityContext{Privileged: newBoolPtr(true)},
+			expected:        true,
+		},
+	}
+
+	for k, v := range tests {
+		pod := &api.Pod{
+			Spec: api.PodSpec{
+				Containers: []api.Container{
+					{SecurityContext: v.securityContext},
+				},
+			},
+		}
+		actual := hasPrivilegedContainer(pod)
+		if actual != v.expected {
+			t.Errorf("%s expected %t but got %t", k, v.expected, actual)
+		}
 	}
 }
 
@@ -1777,35 +1342,34 @@ func TestHasHostMountPVC(t *testing.T) {
 
 	for k, v := range tests {
 		testKubelet := newTestKubelet(t, false)
-		defer testKubelet.Cleanup()
-		pod := &v1.Pod{
-			Spec: v1.PodSpec{},
+		pod := &api.Pod{
+			Spec: api.PodSpec{},
 		}
 
-		volumeToReturn := &v1.PersistentVolume{
-			Spec: v1.PersistentVolumeSpec{},
+		volumeToReturn := &api.PersistentVolume{
+			Spec: api.PersistentVolumeSpec{},
 		}
 
 		if v.podHasPVC {
-			pod.Spec.Volumes = []v1.Volume{
+			pod.Spec.Volumes = []api.Volume{
 				{
-					VolumeSource: v1.VolumeSource{
-						PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{},
+					VolumeSource: api.VolumeSource{
+						PersistentVolumeClaim: &api.PersistentVolumeClaimVolumeSource{},
 					},
 				},
 			}
 
 			if v.pvcIsHostPath {
-				volumeToReturn.Spec.PersistentVolumeSource = v1.PersistentVolumeSource{
-					HostPath: &v1.HostPathVolumeSource{},
+				volumeToReturn.Spec.PersistentVolumeSource = api.PersistentVolumeSource{
+					HostPath: &api.HostPathVolumeSource{},
 				}
 			}
 
 		}
 
 		testKubelet.fakeKubeClient.AddReactor("get", "persistentvolumeclaims", func(action core.Action) (bool, runtime.Object, error) {
-			return true, &v1.PersistentVolumeClaim{
-				Spec: v1.PersistentVolumeClaimSpec{
+			return true, &api.PersistentVolumeClaim{
+				Spec: api.PersistentVolumeClaimSpec{
 					VolumeName: "foo",
 				},
 			}, v.pvcError
@@ -1823,16 +1387,16 @@ func TestHasHostMountPVC(t *testing.T) {
 }
 
 func TestHasNonNamespacedCapability(t *testing.T) {
-	createPodWithCap := func(caps []v1.Capability) *v1.Pod {
-		pod := &v1.Pod{
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{{}},
+	createPodWithCap := func(caps []api.Capability) *api.Pod {
+		pod := &api.Pod{
+			Spec: api.PodSpec{
+				Containers: []api.Container{{}},
 			},
 		}
 
 		if len(caps) > 0 {
-			pod.Spec.Containers[0].SecurityContext = &v1.SecurityContext{
-				Capabilities: &v1.Capabilities{
+			pod.Spec.Containers[0].SecurityContext = &api.SecurityContext{
+				Capabilities: &api.Capabilities{
 					Add: caps,
 				},
 			}
@@ -1840,19 +1404,19 @@ func TestHasNonNamespacedCapability(t *testing.T) {
 		return pod
 	}
 
-	nilCaps := createPodWithCap([]v1.Capability{v1.Capability("foo")})
+	nilCaps := createPodWithCap([]api.Capability{api.Capability("foo")})
 	nilCaps.Spec.Containers[0].SecurityContext = nil
 
 	tests := map[string]struct {
-		pod      *v1.Pod
+		pod      *api.Pod
 		expected bool
 	}{
 		"nil security contxt":           {createPodWithCap(nil), false},
 		"nil caps":                      {nilCaps, false},
-		"namespaced cap":                {createPodWithCap([]v1.Capability{v1.Capability("foo")}), false},
-		"non-namespaced cap MKNOD":      {createPodWithCap([]v1.Capability{v1.Capability("MKNOD")}), true},
-		"non-namespaced cap SYS_TIME":   {createPodWithCap([]v1.Capability{v1.Capability("SYS_TIME")}), true},
-		"non-namespaced cap SYS_MODULE": {createPodWithCap([]v1.Capability{v1.Capability("SYS_MODULE")}), true},
+		"namespaced cap":                {createPodWithCap([]api.Capability{api.Capability("foo")}), false},
+		"non-namespaced cap MKNOD":      {createPodWithCap([]api.Capability{api.Capability("MKNOD")}), true},
+		"non-namespaced cap SYS_TIME":   {createPodWithCap([]api.Capability{api.Capability("SYS_TIME")}), true},
+		"non-namespaced cap SYS_MODULE": {createPodWithCap([]api.Capability{api.Capability("SYS_MODULE")}), true},
 	}
 
 	for k, v := range tests {
@@ -1864,12 +1428,12 @@ func TestHasNonNamespacedCapability(t *testing.T) {
 }
 
 func TestHasHostVolume(t *testing.T) {
-	pod := &v1.Pod{
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+	pod := &api.Pod{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
-					VolumeSource: v1.VolumeSource{
-						HostPath: &v1.HostPathVolumeSource{},
+					VolumeSource: api.VolumeSource{
+						HostPath: &api.HostPathVolumeSource{},
 					},
 				},
 			},
@@ -1890,45 +1454,39 @@ func TestHasHostVolume(t *testing.T) {
 
 func TestHasHostNamespace(t *testing.T) {
 	tests := map[string]struct {
-		ps       v1.PodSpec
+		psc      *api.PodSecurityContext
 		expected bool
 	}{
-		"nil psc": {
-			ps:       v1.PodSpec{},
-			expected: false},
-
+		"nil psc": {psc: nil, expected: false},
 		"host pid true": {
-			ps: v1.PodSpec{
-				HostPID:         true,
-				SecurityContext: &v1.PodSecurityContext{},
+			psc: &api.PodSecurityContext{
+				HostPID: true,
 			},
 			expected: true,
 		},
 		"host ipc true": {
-			ps: v1.PodSpec{
-				HostIPC:         true,
-				SecurityContext: &v1.PodSecurityContext{},
+			psc: &api.PodSecurityContext{
+				HostIPC: true,
 			},
 			expected: true,
 		},
 		"host net true": {
-			ps: v1.PodSpec{
-				HostNetwork:     true,
-				SecurityContext: &v1.PodSecurityContext{},
+			psc: &api.PodSecurityContext{
+				HostNetwork: true,
 			},
 			expected: true,
 		},
 		"no host ns": {
-			ps: v1.PodSpec{
-				SecurityContext: &v1.PodSecurityContext{},
-			},
+			psc:      &api.PodSecurityContext{},
 			expected: false,
 		},
 	}
 
 	for k, v := range tests {
-		pod := &v1.Pod{
-			Spec: v.ps,
+		pod := &api.Pod{
+			Spec: api.PodSpec{
+				SecurityContext: v.psc,
+			},
 		}
 		actual := hasHostNamespace(pod)
 		if actual != v.expected {

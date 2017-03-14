@@ -20,10 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/watch"
 )
 
 // ensure the watch delivers the requested and only the requested items.
@@ -35,7 +33,7 @@ func consume(t *testing.T, w watch.Interface, rvs []string, done *sync.WaitGroup
 			t.Errorf("%#v: unexpected channel close, wanted %v", rvs, rv)
 			return
 		}
-		gotRV := got.Object.(*v1.Pod).ObjectMeta.ResourceVersion
+		gotRV := got.Object.(*api.Pod).ObjectMeta.ResourceVersion
 		if e, a := rv, gotRV; e != a {
 			t.Errorf("wanted %v, got %v", e, a)
 		} else {
@@ -50,9 +48,9 @@ func consume(t *testing.T, w watch.Interface, rvs []string, done *sync.WaitGroup
 }
 
 func TestRCNumber(t *testing.T) {
-	pod := func(name string) *v1.Pod {
-		return &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+	pod := func(name string) *api.Pod {
+		return &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name: name,
 			},
 		}
@@ -66,13 +64,13 @@ func TestRCNumber(t *testing.T) {
 	source.Modify(pod("foo"))
 	source.Modify(pod("foo"))
 
-	w, err := source.Watch(metav1.ListOptions{ResourceVersion: "1"})
+	w, err := source.Watch(api.ListOptions{ResourceVersion: "1"})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	go consume(t, w, []string{"2", "3"}, wg)
 
-	list, err := source.List(metav1.ListOptions{})
+	list, err := source.List(api.ListOptions{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -80,13 +78,13 @@ func TestRCNumber(t *testing.T) {
 		t.Errorf("wanted %v, got %v", e, a)
 	}
 
-	w2, err := source.Watch(metav1.ListOptions{ResourceVersion: "2"})
+	w2, err := source.Watch(api.ListOptions{ResourceVersion: "2"})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	go consume(t, w2, []string{"3"}, wg)
 
-	w3, err := source.Watch(metav1.ListOptions{ResourceVersion: "3"})
+	w3, err := source.Watch(api.ListOptions{ResourceVersion: "3"})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

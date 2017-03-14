@@ -17,23 +17,23 @@ limitations under the License.
 package controller
 
 import (
-	"hash/fnv"
+	"hash/adler32"
 	"sync"
 
 	"github.com/golang/groupcache/lru"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/api/meta"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 
 type objectWithMeta interface {
-	metav1.Object
+	meta.Object
 }
 
 // keyFunc returns the key of an object, which is used to look up in the cache for it's matching object.
 // Since we match objects by namespace and Labels/Selector, so if two objects have the same namespace and labels,
 // they will have the same key.
 func keyFunc(obj objectWithMeta) uint64 {
-	hash := fnv.New32a()
+	hash := adler32.New()
 	hashutil.DeepHashObject(hash, &equivalenceLabelObj{
 		namespace: obj.GetNamespace(),
 		labels:    obj.GetLabels(),

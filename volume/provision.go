@@ -116,7 +116,6 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // Delete removes the directory that was created by Provision backing the given
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
-	//remote.NewRemoteClient(log,backendName,url,config)
 	err := p.ubiquityClient.RemoveVolume(volume.Name, true)
 
 	if err != nil {
@@ -136,7 +135,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 		return nil, fmt.Errorf("error creating volume: %v", err)
 	}
 
-	_, volumeConfig, err := p.ubiquityClient.GetVolume(options.PVName)
+	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(options.PVName)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
 	}

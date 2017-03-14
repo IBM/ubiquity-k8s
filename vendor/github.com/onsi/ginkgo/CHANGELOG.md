@@ -1,3 +1,14 @@
+## HEAD
+
+Improvements:
+
+- `Skip(message)` can be used to skip the current test.
+- Added `extensions/table` - a Ginkgo DSL for [Table Driven Tests](http://onsi.github.io/ginkgo/#table-driven-tests)
+
+Bug Fixes:
+
+- Ginkgo tests now fail when you `panic(nil)` (#167)
+
 ## 1.2.0 5/31/2015
 
 Improvements

@@ -20,7 +20,6 @@ package cm
 
 import (
 	"fmt"
-
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 )
 

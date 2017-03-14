@@ -23,10 +23,10 @@ import (
 
 	"reflect"
 
-	"k8s.io/apiserver/pkg/authentication/user"
-	"k8s.io/apiserver/pkg/authorization/authorizer"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
+	genericapirequest "k8s.io/kubernetes/pkg/api"
 	authorizationapi "k8s.io/kubernetes/pkg/apis/authorization"
+	"k8s.io/kubernetes/pkg/auth/authorizer"
+	"k8s.io/kubernetes/pkg/auth/user"
 )
 
 type fakeAuthorizer struct {

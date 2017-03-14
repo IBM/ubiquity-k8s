@@ -20,24 +20,23 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	pkgruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/flowcontrol"
-	federationapi "k8s.io/kubernetes/federation/apis/federation/v1beta1"
-	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
+	federation_api "k8s.io/kubernetes/federation/apis/federation/v1beta1"
+	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_release_1_5"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/deletionhelper"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/eventsink"
 	"k8s.io/kubernetes/pkg/api"
-	apiv1 "k8s.io/kubernetes/pkg/api/v1"
-	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api/errors"
+	api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/cache"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/conversion"
+	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/golang/glog"
 )
@@ -63,7 +62,7 @@ type SecretController struct {
 	// Definitions of secrets that should be federated.
 	secretInformerStore cache.Store
 	// Informer controller for secrets that should be federated.
-	secretInformerController cache.Controller
+	secretInformerController cache.ControllerInterface
 
 	// Client to federated api server.
 	federatedApiClient federationclientset.Interface
@@ -86,7 +85,7 @@ type SecretController struct {
 func NewSecretController(client federationclientset.Interface) *SecretController {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(eventsink.NewFederatedEventSink(client))
-	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "federated-secrets-controller"})
+	recorder := broadcaster.NewRecorder(api.EventSource{Component: "federated-secrets-controller"})
 
 	secretcontroller := &SecretController{
 		federatedApiClient:    client,
@@ -105,43 +104,47 @@ func NewSecretController(client federationclientset.Interface) *SecretController
 	// Start informer in federated API servers on secrets that should be federated.
 	secretcontroller.secretInformerStore, secretcontroller.secretInformerController = cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-				return client.Core().Secrets(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Core().Secrets(api_v1.NamespaceAll).List(versionedOptions)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return client.Core().Secrets(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Core().Secrets(api_v1.NamespaceAll).Watch(versionedOptions)
 			},
 		},
-		&apiv1.Secret{},
+		&api_v1.Secret{},
 		controller.NoResyncPeriodFunc(),
-		util.NewTriggerOnAllChanges(func(obj pkgruntime.Object) { secretcontroller.deliverSecretObj(obj, 0, false) }))
+		util.NewTriggerOnAllChanges(func(obj pkg_runtime.Object) { secretcontroller.deliverSecretObj(obj, 0, false) }))
 
 	// Federated informer on secrets in members of federation.
 	secretcontroller.secretFederatedInformer = util.NewFederatedInformer(
 		client,
-		func(cluster *federationapi.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.Controller) {
+		func(cluster *federation_api.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.ControllerInterface) {
 			return cache.NewInformer(
 				&cache.ListWatch{
-					ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-						return targetClient.Core().Secrets(metav1.NamespaceAll).List(options)
+					ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Core().Secrets(api_v1.NamespaceAll).List(versionedOptions)
 					},
-					WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-						return targetClient.Core().Secrets(metav1.NamespaceAll).Watch(options)
+					WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Core().Secrets(api_v1.NamespaceAll).Watch(versionedOptions)
 					},
 				},
-				&apiv1.Secret{},
+				&api_v1.Secret{},
 				controller.NoResyncPeriodFunc(),
 				// Trigger reconciliation whenever something in federated cluster is changed. In most cases it
-				// would be just confirmation that some secret operation succeeded.
+				// would be just confirmation that some secret opration succeeded.
 				util.NewTriggerOnAllChanges(
-					func(obj pkgruntime.Object) {
+					func(obj pkg_runtime.Object) {
 						secretcontroller.deliverSecretObj(obj, secretcontroller.secretReviewDelay, false)
 					},
 				))
 		},
 
 		&util.ClusterLifecycleHandlerFuncs{
-			ClusterAvailable: func(cluster *federationapi.Cluster) {
+			ClusterAvailable: func(cluster *federation_api.Cluster) {
 				// When new cluster becomes available process all the secrets again.
 				secretcontroller.clusterDeliverer.DeliverAt(allClustersKey, nil, time.Now().Add(secretcontroller.clusterAvailableDelay))
 			},
@@ -150,19 +153,19 @@ func NewSecretController(client federationclientset.Interface) *SecretController
 
 	// Federated updeater along with Create/Update/Delete operations.
 	secretcontroller.federatedUpdater = util.NewFederatedUpdater(secretcontroller.secretFederatedInformer,
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
-			secret := obj.(*apiv1.Secret)
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
+			secret := obj.(*api_v1.Secret)
 			_, err := client.Core().Secrets(secret.Namespace).Create(secret)
 			return err
 		},
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
-			secret := obj.(*apiv1.Secret)
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
+			secret := obj.(*api_v1.Secret)
 			_, err := client.Core().Secrets(secret.Namespace).Update(secret)
 			return err
 		},
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
-			secret := obj.(*apiv1.Secret)
-			err := client.Core().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
+			secret := obj.(*api_v1.Secret)
+			err := client.Core().Secrets(secret.Namespace).Delete(secret.Name, &api_v1.DeleteOptions{})
 			return err
 		})
 
@@ -171,8 +174,8 @@ func NewSecretController(client federationclientset.Interface) *SecretController
 		secretcontroller.removeFinalizerFunc,
 		secretcontroller.addFinalizerFunc,
 		// objNameFunc
-		func(obj pkgruntime.Object) string {
-			secret := obj.(*apiv1.Secret)
+		func(obj pkg_runtime.Object) string {
+			secret := obj.(*api_v1.Secret)
 			return secret.Name
 		},
 		secretcontroller.updateTimeout,
@@ -185,8 +188,8 @@ func NewSecretController(client federationclientset.Interface) *SecretController
 }
 
 // Returns true if the given object has the given finalizer in its ObjectMeta.
-func (secretcontroller *SecretController) hasFinalizerFunc(obj pkgruntime.Object, finalizer string) bool {
-	secret := obj.(*apiv1.Secret)
+func (secretcontroller *SecretController) hasFinalizerFunc(obj pkg_runtime.Object, finalizer string) bool {
+	secret := obj.(*api_v1.Secret)
 	for i := range secret.ObjectMeta.Finalizers {
 		if string(secret.ObjectMeta.Finalizers[i]) == finalizer {
 			return true
@@ -197,8 +200,8 @@ func (secretcontroller *SecretController) hasFinalizerFunc(obj pkgruntime.Object
 
 // Removes the finalizer from the given objects ObjectMeta.
 // Assumes that the given object is a secret.
-func (secretcontroller *SecretController) removeFinalizerFunc(obj pkgruntime.Object, finalizer string) (pkgruntime.Object, error) {
-	secret := obj.(*apiv1.Secret)
+func (secretcontroller *SecretController) removeFinalizerFunc(obj pkg_runtime.Object, finalizer string) (pkg_runtime.Object, error) {
+	secret := obj.(*api_v1.Secret)
 	newFinalizers := []string{}
 	hasFinalizer := false
 	for i := range secret.ObjectMeta.Finalizers {
@@ -220,14 +223,14 @@ func (secretcontroller *SecretController) removeFinalizerFunc(obj pkgruntime.Obj
 	return secret, nil
 }
 
-// Adds the given finalizers to the given objects ObjectMeta.
+// Adds the given finalizer to the given objects ObjectMeta.
 // Assumes that the given object is a secret.
-func (secretcontroller *SecretController) addFinalizerFunc(obj pkgruntime.Object, finalizers []string) (pkgruntime.Object, error) {
-	secret := obj.(*apiv1.Secret)
-	secret.ObjectMeta.Finalizers = append(secret.ObjectMeta.Finalizers, finalizers...)
+func (secretcontroller *SecretController) addFinalizerFunc(obj pkg_runtime.Object, finalizer string) (pkg_runtime.Object, error) {
+	secret := obj.(*api_v1.Secret)
+	secret.ObjectMeta.Finalizers = append(secret.ObjectMeta.Finalizers, finalizer)
 	secret, err := secretcontroller.federatedApiClient.Core().Secrets(secret.Namespace).Update(secret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add finalizers %v to secret %s: %v", finalizers, secret.Name, err)
+		return nil, fmt.Errorf("failed to add finalizer %s to secret %s: %v", finalizer, secret.Name, err)
 	}
 	return secret, nil
 }
@@ -250,7 +253,7 @@ func (secretcontroller *SecretController) Run(stopChan <-chan struct{}) {
 }
 
 func (secretcontroller *SecretController) deliverSecretObj(obj interface{}, delay time.Duration, failed bool) {
-	secret := obj.(*apiv1.Secret)
+	secret := obj.(*api_v1.Secret)
 	secretcontroller.deliverSecret(types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, delay, failed)
 }
 
@@ -290,7 +293,7 @@ func (secretcontroller *SecretController) reconcileSecretsOnClusterChange() {
 		secretcontroller.clusterDeliverer.DeliverAt(allClustersKey, nil, time.Now().Add(secretcontroller.clusterAvailableDelay))
 	}
 	for _, obj := range secretcontroller.secretInformerStore.List() {
-		secret := obj.(*apiv1.Secret)
+		secret := obj.(*api_v1.Secret)
 		secretcontroller.deliverSecret(types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, secretcontroller.smallDelay, false)
 	}
 }
@@ -316,8 +319,8 @@ func (secretcontroller *SecretController) reconcileSecret(secret types.Namespace
 
 	// Create a copy before modifying the obj to prevent race condition with
 	// other readers of obj from store.
-	baseSecretObj, err := api.Scheme.DeepCopy(baseSecretObjFromStore)
-	baseSecret, ok := baseSecretObj.(*apiv1.Secret)
+	baseSecretObj, err := conversion.NewCloner().DeepCopy(baseSecretObjFromStore)
+	baseSecret, ok := baseSecretObj.(*api_v1.Secret)
 	if err != nil || !ok {
 		glog.Errorf("Error in retrieving obj from store: %v, %v", ok, err)
 		secretcontroller.deliverSecret(secret, 0, true)
@@ -343,7 +346,7 @@ func (secretcontroller *SecretController) reconcileSecret(secret types.Namespace
 		secretcontroller.deliverSecret(secret, 0, false)
 		return
 	}
-	baseSecret = updatedSecretObj.(*apiv1.Secret)
+	baseSecret = updatedSecretObj.(*api_v1.Secret)
 
 	glog.V(3).Infof("Syncing secret %s in underlying clusters", baseSecret.Name)
 
@@ -364,7 +367,7 @@ func (secretcontroller *SecretController) reconcileSecret(secret types.Namespace
 		}
 
 		// The data should not be modified.
-		desiredSecret := &apiv1.Secret{
+		desiredSecret := &api_v1.Secret{
 			ObjectMeta: util.DeepCopyRelevantObjectMeta(baseSecret.ObjectMeta),
 			Data:       baseSecret.Data,
 			Type:       baseSecret.Type,
@@ -380,7 +383,7 @@ func (secretcontroller *SecretController) reconcileSecret(secret types.Namespace
 				ClusterName: cluster.Name,
 			})
 		} else {
-			clusterSecret := clusterSecretObj.(*apiv1.Secret)
+			clusterSecret := clusterSecretObj.(*api_v1.Secret)
 
 			// Update existing secret, if needed.
 			if !util.SecretEquivalent(*desiredSecret, *clusterSecret) {
@@ -417,7 +420,7 @@ func (secretcontroller *SecretController) reconcileSecret(secret types.Namespace
 }
 
 // delete deletes the given secret or returns error if the deletion was not complete.
-func (secretcontroller *SecretController) delete(secret *apiv1.Secret) error {
+func (secretcontroller *SecretController) delete(secret *api_v1.Secret) error {
 	glog.V(3).Infof("Handling deletion of secret: %v", *secret)
 	_, err := secretcontroller.deletionHelper.HandleObjectInUnderlyingClusters(secret)
 	if err != nil {

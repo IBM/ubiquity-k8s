@@ -17,18 +17,18 @@ limitations under the License.
 package testing
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 )
 
 type TestStruct struct {
-	metav1.TypeMeta `json:",inline"`
+	unversioned.TypeMeta `json:",inline"`
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Key               string         `json:"Key"`
-	Map               map[string]int `json:"Map"`
-	StringList        []string       `json:"StringList"`
-	IntList           []int          `json:"IntList"`
+	api.ObjectMeta `json:"metadata,omitempty"`
+	Key            string         `json:"Key"`
+	Map            map[string]int `json:"Map"`
+	StringList     []string       `json:"StringList"`
+	IntList        []int          `json:"IntList"`
 }
 
-func (obj *TestStruct) GetObjectKind() schema.ObjectKind { return &obj.TypeMeta }
+func (obj *TestStruct) GetObjectKind() unversioned.ObjectKind { return &obj.TypeMeta }

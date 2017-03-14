@@ -20,10 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apiserver/pkg/admission"
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 type fakeSource struct {
@@ -58,7 +57,7 @@ func addContainer(pod *api.Pod, name, image string, request api.ResourceList) {
 
 func createPod(name string, image string, request api.ResourceList) *api.Pod {
 	pod := &api.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test-ns"},
+		ObjectMeta: api.ObjectMeta{Name: name, Namespace: "test-ns"},
 		Spec:       api.PodSpec{},
 	}
 	pod.Spec.Containers = []api.Container{}

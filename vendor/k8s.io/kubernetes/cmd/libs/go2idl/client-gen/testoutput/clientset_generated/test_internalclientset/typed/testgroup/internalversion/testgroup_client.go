@@ -17,18 +17,19 @@ limitations under the License.
 package internalversion
 
 import (
-	rest "k8s.io/client-go/rest"
 	api "k8s.io/kubernetes/pkg/api"
+	registered "k8s.io/kubernetes/pkg/apimachinery/registered"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
 )
 
 type TestgroupInterface interface {
-	RESTClient() rest.Interface
+	RESTClient() restclient.Interface
 	TestTypesGetter
 }
 
-// TestgroupClient is used to interact with features provided by the testgroup.k8s.io group.
+// TestgroupClient is used to interact with features provided by the k8s.io/kubernetes/pkg/apimachinery/registered.Group group.
 type TestgroupClient struct {
-	restClient rest.Interface
+	restClient restclient.Interface
 }
 
 func (c *TestgroupClient) TestTypes(namespace string) TestTypeInterface {
@@ -36,12 +37,12 @@ func (c *TestgroupClient) TestTypes(namespace string) TestTypeInterface {
 }
 
 // NewForConfig creates a new TestgroupClient for the given config.
-func NewForConfig(c *rest.Config) (*TestgroupClient, error) {
+func NewForConfig(c *restclient.Config) (*TestgroupClient, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	client, err := rest.RESTClientFor(&config)
+	client, err := restclient.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func NewForConfig(c *rest.Config) (*TestgroupClient, error) {
 
 // NewForConfigOrDie creates a new TestgroupClient for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *TestgroupClient {
+func NewForConfigOrDie(c *restclient.Config) *TestgroupClient {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -59,19 +60,19 @@ func NewForConfigOrDie(c *rest.Config) *TestgroupClient {
 }
 
 // New creates a new TestgroupClient for the given RESTClient.
-func New(c rest.Interface) *TestgroupClient {
+func New(c restclient.Interface) *TestgroupClient {
 	return &TestgroupClient{c}
 }
 
-func setConfigDefaults(config *rest.Config) error {
+func setConfigDefaults(config *restclient.Config) error {
 	// if testgroup group is not registered, return an error
-	g, err := api.Registry.Group("testgroup.k8s.io")
+	g, err := registered.Group("testgroup.k8s.io")
 	if err != nil {
 		return err
 	}
 	config.APIPath = "/apis"
 	if config.UserAgent == "" {
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
+		config.UserAgent = restclient.DefaultKubernetesUserAgent()
 	}
 	if config.GroupVersion == nil || config.GroupVersion.Group != g.GroupVersion.Group {
 		copyGroupVersion := g.GroupVersion
@@ -90,7 +91,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *TestgroupClient) RESTClient() rest.Interface {
+func (c *TestgroupClient) RESTClient() restclient.Interface {
 	if c == nil {
 		return nil
 	}

@@ -17,18 +17,19 @@ limitations under the License.
 package internalversion
 
 import (
-	rest "k8s.io/client-go/rest"
 	api "k8s.io/kubernetes/pkg/api"
+	registered "k8s.io/kubernetes/pkg/apimachinery/registered"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
 )
 
 type CertificatesInterface interface {
-	RESTClient() rest.Interface
+	RESTClient() restclient.Interface
 	CertificateSigningRequestsGetter
 }
 
-// CertificatesClient is used to interact with features provided by the certificates.k8s.io group.
+// CertificatesClient is used to interact with features provided by the k8s.io/kubernetes/pkg/apimachinery/registered.Group group.
 type CertificatesClient struct {
-	restClient rest.Interface
+	restClient restclient.Interface
 }
 
 func (c *CertificatesClient) CertificateSigningRequests() CertificateSigningRequestInterface {
@@ -36,12 +37,12 @@ func (c *CertificatesClient) CertificateSigningRequests() CertificateSigningRequ
 }
 
 // NewForConfig creates a new CertificatesClient for the given config.
-func NewForConfig(c *rest.Config) (*CertificatesClient, error) {
+func NewForConfig(c *restclient.Config) (*CertificatesClient, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	client, err := rest.RESTClientFor(&config)
+	client, err := restclient.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func NewForConfig(c *rest.Config) (*CertificatesClient, error) {
 
 // NewForConfigOrDie creates a new CertificatesClient for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *CertificatesClient {
+func NewForConfigOrDie(c *restclient.Config) *CertificatesClient {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -59,19 +60,19 @@ func NewForConfigOrDie(c *rest.Config) *CertificatesClient {
 }
 
 // New creates a new CertificatesClient for the given RESTClient.
-func New(c rest.Interface) *CertificatesClient {
+func New(c restclient.Interface) *CertificatesClient {
 	return &CertificatesClient{c}
 }
 
-func setConfigDefaults(config *rest.Config) error {
+func setConfigDefaults(config *restclient.Config) error {
 	// if certificates group is not registered, return an error
-	g, err := api.Registry.Group("certificates.k8s.io")
+	g, err := registered.Group("certificates.k8s.io")
 	if err != nil {
 		return err
 	}
 	config.APIPath = "/apis"
 	if config.UserAgent == "" {
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
+		config.UserAgent = restclient.DefaultKubernetesUserAgent()
 	}
 	if config.GroupVersion == nil || config.GroupVersion.Group != g.GroupVersion.Group {
 		copyGroupVersion := g.GroupVersion
@@ -90,7 +91,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *CertificatesClient) RESTClient() rest.Interface {
+func (c *CertificatesClient) RESTClient() restclient.Interface {
 	if c == nil {
 		return nil
 	}

@@ -23,14 +23,14 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest/fake"
 	federationapi "k8s.io/kubernetes/federation/apis/federation"
 	kubefedtesting "k8s.io/kubernetes/federation/pkg/kubefed/testing"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/client/restclient/fake"
+	"k8s.io/kubernetes/pkg/client/typed/dynamic"
 	cmdtesting "k8s.io/kubernetes/pkg/kubectl/cmd/testing"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 )
@@ -169,7 +169,6 @@ func testUnjoinFederationFactory(name, server, secret string) cmdutil.Factory {
 	tf.ClientConfig = kubefedtesting.DefaultClientConfig()
 	ns := testapi.Federation.NegotiatedSerializer()
 	tf.Client = &fake.RESTClient{
-		APIRegistry:          api.Registry,
 		NegotiatedSerializer: ns,
 		GroupName:            "federation",
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
@@ -184,7 +183,7 @@ func testUnjoinFederationFactory(name, server, secret string) cmdutil.Factory {
 				case http.MethodGet:
 					return &http.Response{StatusCode: http.StatusOK, Header: kubefedtesting.DefaultHeader(), Body: kubefedtesting.ObjBody(codec, &cluster)}, nil
 				case http.MethodDelete:
-					status := metav1.Status{
+					status := unversioned.Status{
 						Status: "Success",
 					}
 					return &http.Response{StatusCode: http.StatusOK, Header: kubefedtesting.DefaultHeader(), Body: kubefedtesting.ObjBody(codec, &status)}, nil
@@ -206,7 +205,6 @@ func fakeUnjoinHostFactory(name string) cmdutil.Factory {
 	ns := dynamic.ContentConfig().NegotiatedSerializer
 	tf.ClientConfig = kubefedtesting.DefaultClientConfig()
 	tf.Client = &fake.RESTClient{
-		APIRegistry:          api.Registry,
 		NegotiatedSerializer: ns,
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 			switch p, m := req.URL.Path, req.Method; {
@@ -215,7 +213,7 @@ func fakeUnjoinHostFactory(name string) cmdutil.Factory {
 				if got != name {
 					return nil, errors.NewNotFound(api.Resource("secrets"), got)
 				}
-				status := metav1.Status{
+				status := unversioned.Status{
 					Status: "Success",
 				}
 				return &http.Response{StatusCode: http.StatusOK, Header: kubefedtesting.DefaultHeader(), Body: kubefedtesting.ObjBody(codec, &status)}, nil

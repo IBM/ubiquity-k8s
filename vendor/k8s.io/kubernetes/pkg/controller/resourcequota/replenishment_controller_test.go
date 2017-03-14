@@ -19,23 +19,21 @@ package resourcequota
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 // testReplenishment lets us test replenishment functions are invoked
 type testReplenishment struct {
-	groupKind schema.GroupKind
+	groupKind unversioned.GroupKind
 	namespace string
 }
 
 // mock function that holds onto the last kind that was replenished
-func (t *testReplenishment) Replenish(groupKind schema.GroupKind, namespace string, object runtime.Object) {
+func (t *testReplenishment) Replenish(groupKind unversioned.GroupKind, namespace string, object runtime.Object) {
 	t.groupKind = groupKind
 	t.namespace = namespace
 }
@@ -47,13 +45,13 @@ func TestPodReplenishmentUpdateFunc(t *testing.T) {
 		ReplenishmentFunc: mockReplenish.Replenish,
 		ResyncPeriod:      controller.NoResyncPeriodFunc,
 	}
-	oldPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "pod"},
-		Status:     v1.PodStatus{Phase: v1.PodRunning},
+	oldPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "pod"},
+		Status:     api.PodStatus{Phase: api.PodRunning},
 	}
-	newPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "pod"},
-		Status:     v1.PodStatus{Phase: v1.PodFailed},
+	newPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "pod"},
+		Status:     api.PodStatus{Phase: api.PodFailed},
 	}
 	updateFunc := PodReplenishmentUpdateFunc(&options)
 	updateFunc(oldPod, newPod)
@@ -72,9 +70,9 @@ func TestObjectReplenishmentDeleteFunc(t *testing.T) {
 		ReplenishmentFunc: mockReplenish.Replenish,
 		ResyncPeriod:      controller.NoResyncPeriodFunc,
 	}
-	oldPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "pod"},
-		Status:     v1.PodStatus{Phase: v1.PodRunning},
+	oldPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "pod"},
+		Status:     api.PodStatus{Phase: api.PodRunning},
 	}
 	deleteFunc := ObjectReplenishmentDeleteFunc(&options)
 	deleteFunc(oldPod)
@@ -93,21 +91,21 @@ func TestServiceReplenishmentUpdateFunc(t *testing.T) {
 		ReplenishmentFunc: mockReplenish.Replenish,
 		ResyncPeriod:      controller.NoResyncPeriodFunc,
 	}
-	oldService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mysvc"},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeNodePort,
-			Ports: []v1.ServicePort{{
+	oldService := &api.Service{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "mysvc"},
+		Spec: api.ServiceSpec{
+			Type: api.ServiceTypeNodePort,
+			Ports: []api.ServicePort{{
 				Port:       80,
 				TargetPort: intstr.FromInt(80),
 			}},
 		},
 	}
-	newService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mysvc"},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{{
+	newService := &api.Service{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "mysvc"},
+		Spec: api.ServiceSpec{
+			Type: api.ServiceTypeClusterIP,
+			Ports: []api.ServicePort{{
 				Port:       80,
 				TargetPort: intstr.FromInt(80),
 			}}},
@@ -127,21 +125,21 @@ func TestServiceReplenishmentUpdateFunc(t *testing.T) {
 		ReplenishmentFunc: mockReplenish.Replenish,
 		ResyncPeriod:      controller.NoResyncPeriodFunc,
 	}
-	oldService = &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mysvc"},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeNodePort,
-			Ports: []v1.ServicePort{{
+	oldService = &api.Service{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "mysvc"},
+		Spec: api.ServiceSpec{
+			Type: api.ServiceTypeNodePort,
+			Ports: []api.ServicePort{{
 				Port:       80,
 				TargetPort: intstr.FromInt(80),
 			}},
 		},
 	}
-	newService = &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mysvc"},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeNodePort,
-			Ports: []v1.ServicePort{{
+	newService = &api.Service{
+		ObjectMeta: api.ObjectMeta{Namespace: "test", Name: "mysvc"},
+		Spec: api.ServiceSpec{
+			Type: api.ServiceTypeNodePort,
+			Ports: []api.ServicePort{{
 				Port:       81,
 				TargetPort: intstr.FromInt(81),
 			}}},

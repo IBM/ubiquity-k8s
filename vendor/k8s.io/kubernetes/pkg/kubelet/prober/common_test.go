@@ -20,15 +20,14 @@ import (
 	"reflect"
 	"sync"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/record"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubepod "k8s.io/kubernetes/pkg/kubelet/pod"
 	"k8s.io/kubernetes/pkg/kubelet/prober/results"
 	"k8s.io/kubernetes/pkg/kubelet/status"
-	statustest "k8s.io/kubernetes/pkg/kubelet/status/testing"
 	"k8s.io/kubernetes/pkg/probe"
 	"k8s.io/kubernetes/pkg/util/exec"
 )
@@ -40,27 +39,27 @@ const (
 
 var testContainerID = kubecontainer.ContainerID{Type: "test", ID: "cOnTaInEr_Id"}
 
-func getTestRunningStatus() v1.PodStatus {
-	containerStatus := v1.ContainerStatus{
+func getTestRunningStatus() api.PodStatus {
+	containerStatus := api.ContainerStatus{
 		Name:        testContainerName,
 		ContainerID: testContainerID.String(),
 	}
-	containerStatus.State.Running = &v1.ContainerStateRunning{StartedAt: metav1.Now()}
-	podStatus := v1.PodStatus{
-		Phase:             v1.PodRunning,
-		ContainerStatuses: []v1.ContainerStatus{containerStatus},
+	containerStatus.State.Running = &api.ContainerStateRunning{StartedAt: unversioned.Now()}
+	podStatus := api.PodStatus{
+		Phase:             api.PodRunning,
+		ContainerStatuses: []api.ContainerStatus{containerStatus},
 	}
 	return podStatus
 }
 
-func getTestPod() *v1.Pod {
-	container := v1.Container{
+func getTestPod() *api.Pod {
+	container := api.Container{
 		Name: testContainerName,
 	}
-	pod := v1.Pod{
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{container},
-			RestartPolicy: v1.RestartPolicyNever,
+	pod := api.Pod{
+		Spec: api.PodSpec{
+			Containers:    []api.Container{container},
+			RestartPolicy: api.RestartPolicyNever,
 		},
 	}
 	pod.Name = "testPod"
@@ -68,10 +67,10 @@ func getTestPod() *v1.Pod {
 	return &pod
 }
 
-func setTestProbe(pod *v1.Pod, probeType probeType, probeSpec v1.Probe) {
+func setTestProbe(pod *api.Pod, probeType probeType, probeSpec api.Probe) {
 	// All tests rely on the fake exec prober.
-	probeSpec.Handler = v1.Handler{
-		Exec: &v1.ExecAction{},
+	probeSpec.Handler = api.Handler{
+		Exec: &api.ExecAction{},
 	}
 
 	// Apply test defaults, overwridden for test speed.
@@ -98,12 +97,12 @@ func setTestProbe(pod *v1.Pod, probeType probeType, probeSpec v1.Probe) {
 
 func newTestManager() *manager {
 	refManager := kubecontainer.NewRefManager()
-	refManager.SetRef(testContainerID, &v1.ObjectReference{}) // Suppress prober warnings.
-	podManager := kubepod.NewBasicPodManager(nil, nil)
+	refManager.SetRef(testContainerID, &api.ObjectReference{}) // Suppress prober warnings.
+	podManager := kubepod.NewBasicPodManager(nil)
 	// Add test pod to pod manager, so that status manager can get the pod from pod manager if needed.
 	podManager.AddPod(getTestPod())
 	m := NewManager(
-		status.NewManager(&fake.Clientset{}, podManager, &statustest.FakePodDeletionSafetyProvider{}),
+		status.NewManager(&fake.Clientset{}, podManager),
 		results.NewManager(),
 		nil, // runner
 		refManager,
@@ -114,7 +113,7 @@ func newTestManager() *manager {
 	return m
 }
 
-func newTestWorker(m *manager, probeType probeType, probeSpec v1.Probe) *worker {
+func newTestWorker(m *manager, probeType probeType, probeSpec api.Probe) *worker {
 	pod := getTestPod()
 	setTestProbe(pod, probeType, probeSpec)
 	return newWorker(m, probeType, pod, pod.Spec.Containers[0])

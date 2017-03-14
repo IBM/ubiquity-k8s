@@ -21,19 +21,20 @@ import (
 
 	"github.com/golang/glog"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apiserver/pkg/admission"
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/storage"
 	storageutil "k8s.io/kubernetes/pkg/apis/storage/util"
+	"k8s.io/kubernetes/pkg/conversion"
 )
 
 func TestAdmission(t *testing.T) {
 	defaultClass1 := &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "StorageClass",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "default1",
 			Annotations: map[string]string{
 				storageutil.IsDefaultStorageClassAnnotation: "true",
@@ -42,10 +43,10 @@ func TestAdmission(t *testing.T) {
 		Provisioner: "default1",
 	}
 	defaultClass2 := &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "StorageClass",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "default2",
 			Annotations: map[string]string{
 				storageutil.IsDefaultStorageClassAnnotation: "true",
@@ -55,10 +56,10 @@ func TestAdmission(t *testing.T) {
 	}
 	// Class that has explicit default = false
 	classWithFalseDefault := &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "StorageClass",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "nondefault1",
 			Annotations: map[string]string{
 				storageutil.IsDefaultStorageClassAnnotation: "false",
@@ -68,20 +69,20 @@ func TestAdmission(t *testing.T) {
 	}
 	// Class with missing default annotation (=non-default)
 	classWithNoDefault := &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "StorageClass",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "nondefault2",
 		},
 		Provisioner: "nondefault1",
 	}
 	// Class with empty default annotation (=non-default)
 	classWithEmptyDefault := &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "StorageClass",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "nondefault2",
 			Annotations: map[string]string{
 				storageutil.IsDefaultStorageClassAnnotation: "",
@@ -91,10 +92,10 @@ func TestAdmission(t *testing.T) {
 	}
 
 	claimWithClass := &api.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "PersistentVolumeClaim",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "claimWithClass",
 			Namespace: "ns",
 			Annotations: map[string]string{
@@ -103,10 +104,10 @@ func TestAdmission(t *testing.T) {
 		},
 	}
 	claimWithEmptyClass := &api.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "PersistentVolumeClaim",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "claimWithEmptyClass",
 			Namespace: "ns",
 			Annotations: map[string]string{
@@ -115,10 +116,10 @@ func TestAdmission(t *testing.T) {
 		},
 	}
 	claimWithNoClass := &api.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind: "PersistentVolumeClaim",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "claimWithNoClass",
 			Namespace: "ns",
 		},
@@ -186,14 +187,13 @@ func TestAdmission(t *testing.T) {
 		glog.V(4).Infof("starting test %q", test.name)
 
 		// clone the claim, it's going to be modified
-		clone, err := api.Scheme.DeepCopy(test.claim)
+		clone, err := conversion.NewCloner().DeepCopy(test.claim)
 		if err != nil {
 			t.Fatalf("Cannot clone claim: %v", err)
 		}
 		claim := clone.(*api.PersistentVolumeClaim)
 
-		ctrl := newPlugin()
-		ctrl.SetInternalClientSet(nil)
+		ctrl := newPlugin(nil)
 		for _, c := range test.classes {
 			ctrl.store.Add(c)
 		}

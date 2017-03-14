@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"io"
 
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 
 	"github.com/spf13/cobra"
 )
@@ -53,7 +52,7 @@ func NewCmdAutoscale(f cmdutil.Factory, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "autoscale (-f FILENAME | TYPE NAME | TYPE/NAME) [--min=MINPODS] --max=MAXPODS [--cpu-percent=CPU] [flags]",
-		Short:   i18n.T("Auto-scale a Deployment, ReplicaSet, or ReplicationController"),
+		Short:   "Auto-scale a Deployment, ReplicaSet, or ReplicationController",
 		Long:    autoscaleLong,
 		Example: autoscaleExample,
 		Run: func(cmd *cobra.Command, args []string) {

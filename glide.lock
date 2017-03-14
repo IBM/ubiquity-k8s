@@ -1,5 +1,5 @@
-hash: c089edd9bc249188e5a8a4360423317148a9b368a3ab8ddfbddf605152bfd2d5
-updated: 2017-03-01T12:36:03.39819815-08:00
+hash: 2ca09eb9645a908e9b88e9368c6fbf37e9f40b7b1efe39a008b80150c872747a
+updated: 2017-03-14T08:46:58.328540808-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -56,7 +56,7 @@ imports:
   - proto
   - sortkeys
 - name: github.com/golang/glog
-  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
 - name: github.com/golang/groupcache
   version: 02826c3e79038b59d737d3b1c0a1d937f71a4433
   subpackages:
@@ -85,8 +85,10 @@ imports:
   version: 1c35d901db3da928c72a72d8458480cc9ade058f
 - name: github.com/jonboulle/clockwork
   version: 72f9bd7c4e0c2a40055ab3d0f09654f730cce982
+- name: github.com/juju/ratelimit
+  version: 77ed1c8a01217656d2080ad51981f6e99adaa177
 - name: github.com/kubernetes-incubator/external-storage
-  version: f3ca1d571757ab91779c12b6bcf97c933684f037
+  version: ffcf7d7b3212438ec58fd61e529cd738caf97e8e
   subpackages:
   - lib/controller
   - lib/leaderelection
@@ -119,7 +121,7 @@ imports:
   - interfaces
   - services
 - name: github.ibm.com/almaden-containers/ubiquity
-  version: d3593cb012f6ec975849f5e9cbcb7608fb2435de
+  version: 744bc9a2f864f7fca7d8c0a531a3b937f5c3fe0b
   subpackages:
   - fakes
   - local/softlayer
@@ -127,6 +129,7 @@ imports:
   - local/spectrumscale/connectors
   - model
   - remote
+  - remote/mounter
   - resources
   - service_broker
   - utils
@@ -183,12 +186,8 @@ imports:
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
-- name: k8s.io/apimachinery
-  version: bb0944e83985eee62505a0386e7df9014cc55263
-  subpackages:
-  - pkg/util/runtime
 - name: k8s.io/client-go
-  version: 89c60099837a47cfce19bd14e2d1f16c4670fd58
+  version: e121606b0d09b2e1c467183ee46217fa85a6b672
   subpackages:
   - discovery
   - kubernetes
@@ -281,7 +280,6 @@ imports:
   - pkg/util/net
   - pkg/util/parsers
   - pkg/util/rand
-  - pkg/util/ratelimit
   - pkg/util/runtime
   - pkg/util/sets
   - pkg/util/strategicpatch
@@ -307,14 +305,16 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 98d693e9d24f585cb4e6615efdb3d07ec3a1616b
+  version: 7243c69eb523aa4377bce883e7c0dd76b84709a1
   subpackages:
+  - pkg/cloudprovider
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
+  - pkg/util/runtime
   - staging/src/k8s.io/client-go/_vendor/github.com/golang/glog
 testImports:
 - name: github.com/onsi/ginkgo
-  version: 462326b1628e124b23f42e87a8f2750e3c4e2d24
+  version: 74c678d97c305753605c338c6c78c49ec104b5e7
   subpackages:
   - config
   - internal/codelocation
@@ -331,11 +331,12 @@ testImports:
   - reporters/stenographer
   - types
 - name: github.com/onsi/gomega
-  version: a78ae492d53aad5a7a232d0d0462c14c400e3ee7
+  version: d59fa0ac68bb5dd932ee8d24eed631cdd519efc3
   subpackages:
   - format
   - internal/assertion
   - internal/asyncassertion
+  - internal/oraclematcher
   - internal/testingtsupport
   - matchers
   - matchers/support/goraph/bipartitegraph

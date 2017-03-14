@@ -21,65 +21,64 @@ import (
 	"strconv"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
-	"k8s.io/kubernetes/pkg/api/v1"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 func TestLabels(t *testing.T) {
 	restartCount := 5
 	deletionGracePeriod := int64(10)
 	terminationGracePeriod := int64(10)
-	lifecycle := &v1.Lifecycle{
+	lifecycle := &api.Lifecycle{
 		// Left PostStart as nil
-		PreStop: &v1.Handler{
-			Exec: &v1.ExecAction{
+		PreStop: &api.Handler{
+			Exec: &api.ExecAction{
 				Command: []string{"action1", "action2"},
 			},
-			HTTPGet: &v1.HTTPGetAction{
+			HTTPGet: &api.HTTPGetAction{
 				Path:   "path",
 				Host:   "host",
 				Port:   intstr.FromInt(8080),
 				Scheme: "scheme",
 			},
-			TCPSocket: &v1.TCPSocketAction{
+			TCPSocket: &api.TCPSocketAction{
 				Port: intstr.FromString("80"),
 			},
 		},
 	}
-	containerPorts := []v1.ContainerPort{
+	containerPorts := []api.ContainerPort{
 		{
 			Name:          "http",
 			HostPort:      80,
 			ContainerPort: 8080,
-			Protocol:      v1.ProtocolTCP,
+			Protocol:      api.ProtocolTCP,
 		},
 		{
 			Name:          "https",
 			HostPort:      443,
 			ContainerPort: 6443,
-			Protocol:      v1.ProtocolTCP,
+			Protocol:      api.ProtocolTCP,
 		},
 	}
-	container := &v1.Container{
+	container := &api.Container{
 		Name:  "test_container",
 		Ports: containerPorts,
 		TerminationMessagePath: "/somepath",
 		Lifecycle:              lifecycle,
 	}
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "test_pod",
 			Namespace: "test_pod_namespace",
 			UID:       "test_pod_uid",
 			DeletionGracePeriodSeconds: &deletionGracePeriod,
 		},
-		Spec: v1.PodSpec{
-			Containers:                    []v1.Container{*container},
+		Spec: api.PodSpec{
+			Containers:                    []api.Container{*container},
 			TerminationGracePeriodSeconds: &terminationGracePeriod,
 		},
 	}
@@ -90,7 +89,7 @@ func TestLabels(t *testing.T) {
 		PodDeletionGracePeriod:    pod.DeletionGracePeriodSeconds,
 		PodTerminationGracePeriod: pod.Spec.TerminationGracePeriodSeconds,
 		Name:                   container.Name,
-		Hash:                   strconv.FormatUint(kubecontainer.HashContainerLegacy(container), 16),
+		Hash:                   strconv.FormatUint(kubecontainer.HashContainer(container), 16),
 		RestartCount:           restartCount,
 		TerminationMessagePath: container.TerminationMessagePath,
 		PreStopHandler:         container.Lifecycle.PreStop,
@@ -113,7 +112,7 @@ func TestLabels(t *testing.T) {
 	expected.PodTerminationGracePeriod = nil
 	expected.PreStopHandler = nil
 	// Because container is changed, the Hash should be updated
-	expected.Hash = strconv.FormatUint(kubecontainer.HashContainerLegacy(container), 16)
+	expected.Hash = strconv.FormatUint(kubecontainer.HashContainer(container), 16)
 	labels = newLabels(container, pod, restartCount, false)
 	containerInfo = getContainerInfoFromLabel(labels)
 	if !reflect.DeepEqual(containerInfo, expected) {

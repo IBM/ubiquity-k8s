@@ -24,27 +24,25 @@ import (
 
 var _ Validator = &OSValidator{}
 
-type OSValidator struct {
-	Reporter Reporter
-}
+type OSValidator struct{}
 
-func (o *OSValidator) Name() string {
+func (c *OSValidator) Name() string {
 	return "os"
 }
 
-func (o *OSValidator) Validate(spec SysSpec) error {
-	os, err := exec.Command("uname").CombinedOutput()
+func (c *OSValidator) Validate(spec SysSpec) error {
+	out, err := exec.Command("uname").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get os name: %v", err)
 	}
-	return o.validateOS(strings.TrimSpace(string(os)), spec.OS)
+	return c.validateOS(strings.TrimSpace(string(out)), spec.OS)
 }
 
-func (o *OSValidator) validateOS(os, specOS string) error {
+func (c *OSValidator) validateOS(os, specOS string) error {
 	if os != specOS {
-		o.Reporter.Report("OS", os, bad)
+		report("OS", os, bad)
 		return fmt.Errorf("unsupported operating system: %s", os)
 	}
-	o.Reporter.Report("OS", os, good)
+	report("OS", os, good)
 	return nil
 }

@@ -23,9 +23,8 @@ import (
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
@@ -33,7 +32,6 @@ func TestPodResourceLimitsDefaulting(t *testing.T) {
 	cpuCores := resource.MustParse("10")
 	memoryCapacity := resource.MustParse("10Gi")
 	tk := newTestKubelet(t, true)
-	defer tk.Cleanup()
 	tk.fakeCadvisor.On("VersionInfo").Return(&cadvisorapi.VersionInfo{}, nil)
 	tk.fakeCadvisor.On("MachineInfo").Return(&cadvisorapi.MachineInfo{
 		NumCores:       int(cpuCores.Value()),
@@ -43,19 +41,19 @@ func TestPodResourceLimitsDefaulting(t *testing.T) {
 	tk.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 
 	tk.kubelet.reservation = kubetypes.Reservation{
-		Kubernetes: v1.ResourceList{
-			v1.ResourceCPU:    resource.MustParse("3"),
-			v1.ResourceMemory: resource.MustParse("4Gi"),
+		Kubernetes: api.ResourceList{
+			api.ResourceCPU:    resource.MustParse("3"),
+			api.ResourceMemory: resource.MustParse("4Gi"),
 		},
-		System: v1.ResourceList{
-			v1.ResourceCPU:    resource.MustParse("1"),
-			v1.ResourceMemory: resource.MustParse("2Gi"),
+		System: api.ResourceList{
+			api.ResourceCPU:    resource.MustParse("1"),
+			api.ResourceMemory: resource.MustParse("2Gi"),
 		},
 	}
 
 	cases := []struct {
-		pod      *v1.Pod
-		expected *v1.Pod
+		pod      *api.Pod
+		expected *api.Pod
 	}{
 		{
 			pod:      getPod("0", "0"),
@@ -78,26 +76,26 @@ func TestPodResourceLimitsDefaulting(t *testing.T) {
 	for idx, tc := range cases {
 		actual, _, err := tk.kubelet.defaultPodLimitsForDownwardApi(tc.pod, nil)
 		as.Nil(err, "failed to default pod limits: %v", err)
-		if !apiequality.Semantic.DeepEqual(tc.expected, actual) {
+		if !api.Semantic.DeepEqual(tc.expected, actual) {
 			as.Fail("test case [%d] failed.  Expected: %+v, Got: %+v", idx, tc.expected, actual)
 		}
 	}
 }
 
-func getPod(cpuLimit, memoryLimit string) *v1.Pod {
-	resources := v1.ResourceRequirements{}
+func getPod(cpuLimit, memoryLimit string) *api.Pod {
+	resources := api.ResourceRequirements{}
 	if cpuLimit != "" || memoryLimit != "" {
-		resources.Limits = make(v1.ResourceList)
+		resources.Limits = make(api.ResourceList)
 	}
 	if cpuLimit != "" {
-		resources.Limits[v1.ResourceCPU] = resource.MustParse(cpuLimit)
+		resources.Limits[api.ResourceCPU] = resource.MustParse(cpuLimit)
 	}
 	if memoryLimit != "" {
-		resources.Limits[v1.ResourceMemory] = resource.MustParse(memoryLimit)
+		resources.Limits[api.ResourceMemory] = resource.MustParse(memoryLimit)
 	}
-	return &v1.Pod{
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+	return &api.Pod{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:      "foo",
 					Resources: resources,

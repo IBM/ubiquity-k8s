@@ -17,10 +17,9 @@ limitations under the License.
 package kubelet
 
 import (
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
-	"k8s.io/kubernetes/pkg/kubelet/network"
 )
 
 // This just exports required functions from kubelet proper, for use by network
@@ -34,7 +33,7 @@ type networkHost struct {
 	kubelet *Kubelet
 }
 
-func (nh *networkHost) GetPodByName(name, namespace string) (*v1.Pod, bool) {
+func (nh *networkHost) GetPodByName(name, namespace string) (*api.Pod, bool) {
 	return nh.kubelet.GetPodByName(name, namespace)
 }
 
@@ -55,8 +54,6 @@ func (nh *networkHost) SupportsLegacyFeatures() bool {
 // methods, because networkHost is slated for deletion.
 type criNetworkHost struct {
 	*networkHost
-	// criNetworkHost currently support legacy features. Hence no need to support PortMappingGetter
-	*network.NoopPortMappingGetter
 }
 
 // GetNetNS returns the network namespace of the given containerID.
@@ -74,7 +71,7 @@ func (c *criNetworkHost) GetNetNS(containerID string) (string, error) {
 // like host port and bandwidth shaping.
 type noOpLegacyHost struct{}
 
-func (n *noOpLegacyHost) GetPodByName(namespace, name string) (*v1.Pod, bool) {
+func (n *noOpLegacyHost) GetPodByName(namespace, name string) (*api.Pod, bool) {
 	return nil, true
 }
 

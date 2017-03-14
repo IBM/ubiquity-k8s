@@ -19,12 +19,12 @@ package informers
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/batch"
-	extensionsinternal "k8s.io/kubernetes/pkg/apis/extensions"
-	rbacinternal "k8s.io/kubernetes/pkg/apis/rbac"
+	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/apis/rbac"
+	"k8s.io/kubernetes/pkg/client/cache"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -36,7 +36,7 @@ type GenericInformer interface {
 
 // ForResource gives generic access to a shared informer of the matching type
 // TODO extend this to unknown resources with a client pool
-func (f *sharedInformerFactory) ForResource(resource schema.GroupResource) (GenericInformer, error) {
+func (f *sharedInformerFactory) ForResource(resource unversioned.GroupResource) (GenericInformer, error) {
 	switch resource {
 	case api.Resource("pods"):
 		return &genericInformer{resource: resource, informer: f.Pods().Informer()}, nil
@@ -53,20 +53,20 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupResource) (Gene
 	case api.Resource("serviceaccounts"):
 		return &genericInformer{resource: resource, informer: f.ServiceAccounts().Informer()}, nil
 
-	case extensionsinternal.Resource("daemonsets"):
+	case extensions.Resource("daemonsets"):
 		return &genericInformer{resource: resource, informer: f.DaemonSets().Informer()}, nil
-	case extensionsinternal.Resource("deployments"):
+	case extensions.Resource("deployments"):
 		return &genericInformer{resource: resource, informer: f.Deployments().Informer()}, nil
-	case extensionsinternal.Resource("replicasets"):
+	case extensions.Resource("replicasets"):
 		return &genericInformer{resource: resource, informer: f.ReplicaSets().Informer()}, nil
 
-	case rbacinternal.Resource("clusterrolebindings"):
+	case rbac.Resource("clusterrolebindings"):
 		return &genericInformer{resource: resource, informer: f.ClusterRoleBindings().Informer()}, nil
-	case rbacinternal.Resource("clusterroles"):
+	case rbac.Resource("clusterroles"):
 		return &genericInformer{resource: resource, informer: f.ClusterRoles().Informer()}, nil
-	case rbacinternal.Resource("rolebindings"):
+	case rbac.Resource("rolebindings"):
 		return &genericInformer{resource: resource, informer: f.RoleBindings().Informer()}, nil
-	case rbacinternal.Resource("roles"):
+	case rbac.Resource("roles"):
 		return &genericInformer{resource: resource, informer: f.Roles().Informer()}, nil
 
 	case batch.Resource("jobs"):
@@ -78,7 +78,7 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupResource) (Gene
 
 type genericInformer struct {
 	informer cache.SharedIndexInformer
-	resource schema.GroupResource
+	resource unversioned.GroupResource
 }
 
 func (f *genericInformer) Informer() cache.SharedIndexInformer {

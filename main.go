@@ -2,14 +2,10 @@ package main
 
 import (
 	"flag"
-	"io"
-	"log"
-	"path"
 
 	"time"
 
 	"fmt"
-	"os"
 
 	"github.com/BurntSushi/toml"
 
@@ -18,6 +14,7 @@ import (
 	"github.ibm.com/almaden-containers/ubiquity-k8s/volume"
 	"github.ibm.com/almaden-containers/ubiquity/remote"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
+	"github.ibm.com/almaden-containers/ubiquity/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -43,8 +40,8 @@ const (
 func main() {
 
 	flag.Parse()
-	logger, logFile := setupLogger("/tmp")
-	defer closeLogs(logFile)
+	logger, logFile := utils.SetupLogger("/tmp", "ubiquity-provisioner")
+	defer utils.CloseLogs(logFile)
 	var ubiquityConfig resources.UbiquityPluginConfig
 	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
 	if _, err := toml.DecodeFile(*configFile, &ubiquityConfig); err != nil {
@@ -78,7 +75,7 @@ func main() {
 	}
 	ubiquityEndpoint := fmt.Sprintf("http://%s:%d/ubiquity_storage", ubiquityConfig.UbiquityServer.Address, ubiquityConfig.UbiquityServer.Port)
 	logger.Printf("ubiquity endpoint")
-	remoteClient, err := remote.NewRemoteClient(logger, "spectrum-scale", ubiquityEndpoint, ubiquityConfig)
+	remoteClient, err := remote.NewRemoteClient(logger, ubiquityEndpoint, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error getting server version: %v", err)
 	}
@@ -94,21 +91,4 @@ func main() {
 
 	pc := controller.NewProvisionController(clientset, 15*time.Second, *provisioner, flexProvisioner, serverVersion.GitVersion, true, *failedRetryThreshold, leasePeriod, renewDeadline, retryPeriod, termLimit)
 	pc.Run(wait.NeverStop)
-}
-
-func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, "flexvolume-provisioner.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
-	if err != nil {
-		fmt.Printf("Failed to setup logger: %s\n", err.Error())
-		return nil, nil
-	}
-	log.SetOutput(logFile)
-	// logger := log.New(io.MultiWriter(logFile, os.Stdout), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
-	logger := log.New(io.MultiWriter(logFile), "flexvolume-provisioner: ", log.Lshortfile|log.LstdFlags)
-	return logger, logFile
-}
-
-func closeLogs(logFile *os.File) {
-	logFile.Sync()
-	logFile.Close()
 }

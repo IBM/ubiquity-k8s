@@ -17,13 +17,11 @@ limitations under the License.
 package fake
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
 	api "k8s.io/kubernetes/pkg/api"
+	unversioned "k8s.io/kubernetes/pkg/api/unversioned"
+	core "k8s.io/kubernetes/pkg/client/testing/core"
+	labels "k8s.io/kubernetes/pkg/labels"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // FakeEndpoints implements EndpointsInterface
@@ -32,11 +30,11 @@ type FakeEndpoints struct {
 	ns   string
 }
 
-var endpointsResource = schema.GroupVersionResource{Group: "", Version: "", Resource: "endpoints"}
+var endpointsResource = unversioned.GroupVersionResource{Group: "", Version: "", Resource: "endpoints"}
 
 func (c *FakeEndpoints) Create(endpoints *api.Endpoints) (result *api.Endpoints, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(endpointsResource, c.ns, endpoints), &api.Endpoints{})
+		Invokes(core.NewCreateAction(endpointsResource, c.ns, endpoints), &api.Endpoints{})
 
 	if obj == nil {
 		return nil, err
@@ -46,7 +44,7 @@ func (c *FakeEndpoints) Create(endpoints *api.Endpoints) (result *api.Endpoints,
 
 func (c *FakeEndpoints) Update(endpoints *api.Endpoints) (result *api.Endpoints, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(endpointsResource, c.ns, endpoints), &api.Endpoints{})
+		Invokes(core.NewUpdateAction(endpointsResource, c.ns, endpoints), &api.Endpoints{})
 
 	if obj == nil {
 		return nil, err
@@ -54,23 +52,23 @@ func (c *FakeEndpoints) Update(endpoints *api.Endpoints) (result *api.Endpoints,
 	return obj.(*api.Endpoints), err
 }
 
-func (c *FakeEndpoints) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeEndpoints) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(endpointsResource, c.ns, name), &api.Endpoints{})
+		Invokes(core.NewDeleteAction(endpointsResource, c.ns, name), &api.Endpoints{})
 
 	return err
 }
 
-func (c *FakeEndpoints) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(endpointsResource, c.ns, listOptions)
+func (c *FakeEndpoints) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
+	action := core.NewDeleteCollectionAction(endpointsResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &api.EndpointsList{})
 	return err
 }
 
-func (c *FakeEndpoints) Get(name string, options v1.GetOptions) (result *api.Endpoints, err error) {
+func (c *FakeEndpoints) Get(name string) (result *api.Endpoints, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(endpointsResource, c.ns, name), &api.Endpoints{})
+		Invokes(core.NewGetAction(endpointsResource, c.ns, name), &api.Endpoints{})
 
 	if obj == nil {
 		return nil, err
@@ -78,15 +76,15 @@ func (c *FakeEndpoints) Get(name string, options v1.GetOptions) (result *api.End
 	return obj.(*api.Endpoints), err
 }
 
-func (c *FakeEndpoints) List(opts v1.ListOptions) (result *api.EndpointsList, err error) {
+func (c *FakeEndpoints) List(opts api.ListOptions) (result *api.EndpointsList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(endpointsResource, c.ns, opts), &api.EndpointsList{})
+		Invokes(core.NewListAction(endpointsResource, c.ns, opts), &api.EndpointsList{})
 
 	if obj == nil {
 		return nil, err
 	}
 
-	label, _, _ := testing.ExtractFromListOptions(opts)
+	label, _, _ := core.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
@@ -100,16 +98,16 @@ func (c *FakeEndpoints) List(opts v1.ListOptions) (result *api.EndpointsList, er
 }
 
 // Watch returns a watch.Interface that watches the requested endpoints.
-func (c *FakeEndpoints) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeEndpoints) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(endpointsResource, c.ns, opts))
+		InvokesWatch(core.NewWatchAction(endpointsResource, c.ns, opts))
 
 }
 
 // Patch applies the patch and returns the patched endpoints.
-func (c *FakeEndpoints) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.Endpoints, err error) {
+func (c *FakeEndpoints) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.Endpoints, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(endpointsResource, c.ns, name, data, subresources...), &api.Endpoints{})
+		Invokes(core.NewPatchSubresourceAction(endpointsResource, c.ns, name, data, subresources...), &api.Endpoints{})
 
 	if obj == nil {
 		return nil, err

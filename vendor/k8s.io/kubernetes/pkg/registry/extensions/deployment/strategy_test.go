@@ -20,13 +20,11 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 func TestSelectableFieldLabelConversions(t *testing.T) {
@@ -57,7 +55,7 @@ func TestStatusUpdates(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		deploymentStatusStrategy{}.PrepareForUpdate(genericapirequest.NewContext(), test.obj, test.old)
+		deploymentStatusStrategy{}.PrepareForUpdate(api.NewContext(), test.obj, test.old)
 		if !reflect.DeepEqual(test.expected, test.obj) {
 			t.Errorf("Unexpected object mismatch! Expected:\n%#v\ngot:\n%#v", test.expected, test.obj)
 		}
@@ -66,7 +64,7 @@ func TestStatusUpdates(t *testing.T) {
 
 func newDeployment(labels, annotations map[string]string) *extensions.Deployment {
 	return &extensions.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:        "test",
 			Labels:      labels,
 			Annotations: annotations,

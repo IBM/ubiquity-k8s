@@ -20,27 +20,25 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/apiserver/pkg/registry/generic"
-	"k8s.io/apiserver/pkg/storage"
-	"k8s.io/apiserver/pkg/storage/names"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/apps/validation"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/registry/generic"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/storage"
+	"k8s.io/kubernetes/pkg/util/validation/field"
 )
 
 // statefulSetStrategy implements verification logic for Replication StatefulSets.
 type statefulSetStrategy struct {
 	runtime.ObjectTyper
-	names.NameGenerator
+	api.NameGenerator
 }
 
 // Strategy is the default logic that applies when creating and updating Replication StatefulSet objects.
-var Strategy = statefulSetStrategy{api.Scheme, names.SimpleNameGenerator}
+var Strategy = statefulSetStrategy{api.Scheme, api.SimpleNameGenerator}
 
 // NamespaceScoped returns true because all StatefulSet' need to be within a namespace.
 func (statefulSetStrategy) NamespaceScoped() bool {
@@ -48,7 +46,7 @@ func (statefulSetStrategy) NamespaceScoped() bool {
 }
 
 // PrepareForCreate clears the status of an StatefulSet before creation.
-func (statefulSetStrategy) PrepareForCreate(ctx genericapirequest.Context, obj runtime.Object) {
+func (statefulSetStrategy) PrepareForCreate(ctx api.Context, obj runtime.Object) {
 	statefulSet := obj.(*apps.StatefulSet)
 	// create cannot set status
 	statefulSet.Status = apps.StatefulSetStatus{}
@@ -57,7 +55,7 @@ func (statefulSetStrategy) PrepareForCreate(ctx genericapirequest.Context, obj r
 }
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update.
-func (statefulSetStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
+func (statefulSetStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
 	newStatefulSet := obj.(*apps.StatefulSet)
 	oldStatefulSet := old.(*apps.StatefulSet)
 	// Update is not allowed to set status
@@ -65,7 +63,7 @@ func (statefulSetStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, 
 
 	// Any changes to the spec increment the generation number, any changes to the
 	// status should reflect the generation number of the corresponding object.
-	// See metav1.ObjectMeta description for more information on Generation.
+	// See api.ObjectMeta description for more information on Generation.
 	if !reflect.DeepEqual(oldStatefulSet.Spec, newStatefulSet.Spec) {
 		newStatefulSet.Generation = oldStatefulSet.Generation + 1
 	}
@@ -73,7 +71,7 @@ func (statefulSetStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, 
 }
 
 // Validate validates a new StatefulSet.
-func (statefulSetStrategy) Validate(ctx genericapirequest.Context, obj runtime.Object) field.ErrorList {
+func (statefulSetStrategy) Validate(ctx api.Context, obj runtime.Object) field.ErrorList {
 	statefulSet := obj.(*apps.StatefulSet)
 	return validation.ValidateStatefulSet(statefulSet)
 }
@@ -88,7 +86,7 @@ func (statefulSetStrategy) AllowCreateOnUpdate() bool {
 }
 
 // ValidateUpdate is the default update validation for an end user.
-func (statefulSetStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
+func (statefulSetStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
 	validationErrorList := validation.ValidateStatefulSet(obj.(*apps.StatefulSet))
 	updateErrorList := validation.ValidateStatefulSetUpdate(obj.(*apps.StatefulSet), old.(*apps.StatefulSet))
 	return append(validationErrorList, updateErrorList...)
@@ -104,22 +102,19 @@ func StatefulSetToSelectableFields(statefulSet *apps.StatefulSet) fields.Set {
 	return generic.ObjectMetaFieldsSet(&statefulSet.ObjectMeta, true)
 }
 
-// GetAttrs returns labels and fields of a given object for filtering purposes.
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
-	statefulSet, ok := obj.(*apps.StatefulSet)
-	if !ok {
-		return nil, nil, fmt.Errorf("given object is not an StatefulSet.")
-	}
-	return labels.Set(statefulSet.ObjectMeta.Labels), StatefulSetToSelectableFields(statefulSet), nil
-}
-
 // MatchStatefulSet is the filter used by the generic etcd backend to watch events
 // from etcd to clients of the apiserver only interested in specific labels/fields.
 func MatchStatefulSet(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
 	return storage.SelectionPredicate{
-		Label:    label,
-		Field:    field,
-		GetAttrs: GetAttrs,
+		Label: label,
+		Field: field,
+		GetAttrs: func(obj runtime.Object) (labels.Set, fields.Set, error) {
+			statefulSet, ok := obj.(*apps.StatefulSet)
+			if !ok {
+				return nil, nil, fmt.Errorf("given object is not an StatefulSet.")
+			}
+			return labels.Set(statefulSet.ObjectMeta.Labels), StatefulSetToSelectableFields(statefulSet), nil
+		},
 	}
 }
 
@@ -130,7 +125,7 @@ type statefulSetStatusStrategy struct {
 var StatusStrategy = statefulSetStatusStrategy{Strategy}
 
 // PrepareForUpdate clears fields that are not allowed to be set by end users on update of status
-func (statefulSetStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context, obj, old runtime.Object) {
+func (statefulSetStatusStrategy) PrepareForUpdate(ctx api.Context, obj, old runtime.Object) {
 	newStatefulSet := obj.(*apps.StatefulSet)
 	oldStatefulSet := old.(*apps.StatefulSet)
 	// status changes are not allowed to update spec
@@ -138,7 +133,7 @@ func (statefulSetStatusStrategy) PrepareForUpdate(ctx genericapirequest.Context,
 }
 
 // ValidateUpdate is the default update validation for an end user updating status
-func (statefulSetStatusStrategy) ValidateUpdate(ctx genericapirequest.Context, obj, old runtime.Object) field.ErrorList {
+func (statefulSetStatusStrategy) ValidateUpdate(ctx api.Context, obj, old runtime.Object) field.ErrorList {
 	// TODO: Validate status updates.
 	return validation.ValidateStatefulSetStatusUpdate(obj.(*apps.StatefulSet), old.(*apps.StatefulSet))
 }

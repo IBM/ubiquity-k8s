@@ -28,29 +28,27 @@ import (
 
 	"github.com/golang/glog"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	kubeschema "k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/apiserver/pkg/util/cache"
-	"k8s.io/apiserver/pkg/util/webhook"
-	"k8s.io/client-go/rest"
-
 	"k8s.io/kubernetes/pkg/api"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/imagepolicy/v1alpha1"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/util/yaml"
 
-	// install the clientgo image policy API for use with api registry
-	_ "k8s.io/kubernetes/pkg/apis/imagepolicy/install"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/util/cache"
+	"k8s.io/kubernetes/plugin/pkg/webhook"
+
+	"k8s.io/kubernetes/pkg/admission"
 )
 
 var (
-	groupVersions = []schema.GroupVersion{v1alpha1.SchemeGroupVersion}
+	groupVersions = []unversioned.GroupVersion{v1alpha1.SchemeGroupVersion}
 )
 
 func init() {
-	admission.RegisterPlugin("ImagePolicyWebhook", func(config io.Reader) (admission.Interface, error) {
-		newImagePolicyWebhook, err := NewImagePolicyWebhook(config)
+	admission.RegisterPlugin("ImagePolicyWebhook", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
+		newImagePolicyWebhook, err := NewImagePolicyWebhook(client, config)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +101,7 @@ func (a *imagePolicyWebhook) webhookError(attributes admission.Attributes, err e
 
 func (a *imagePolicyWebhook) Admit(attributes admission.Attributes) (err error) {
 	// Ignore all calls to subresources or resources other than pods.
-	allowedResources := map[kubeschema.GroupResource]bool{
+	allowedResources := map[unversioned.GroupResource]bool{
 		api.Resource("pods"): true,
 	}
 
@@ -147,7 +145,7 @@ func (a *imagePolicyWebhook) admitPod(attributes admission.Attributes, review *v
 	if entry, ok := a.responseCache.Get(string(cacheKey)); ok {
 		review.Status = entry.(v1alpha1.ImageReviewStatus)
 	} else {
-		result := a.webhook.WithExponentialBackoff(func() rest.Result {
+		result := a.webhook.WithExponentialBackoff(func() restclient.Result {
 			return a.webhook.RestClient.Post().Body(review).Do()
 		})
 
@@ -213,8 +211,7 @@ func (a *imagePolicyWebhook) admitPod(attributes admission.Attributes, review *v
 //
 // For additional HTTP configuration, refer to the kubeconfig documentation
 // http://kubernetes.io/v1.1/docs/user-guide/kubeconfig-file.html.
-func NewImagePolicyWebhook(configFile io.Reader) (admission.Interface, error) {
-	// TODO: move this to a versioned configuration file format
+func NewImagePolicyWebhook(client clientset.Interface, configFile io.Reader) (admission.Interface, error) {
 	var config AdmissionConfig
 	d := yaml.NewYAMLOrJSONDecoder(configFile, 4096)
 	err := d.Decode(&config)
@@ -227,7 +224,7 @@ func NewImagePolicyWebhook(configFile io.Reader) (admission.Interface, error) {
 		return nil, err
 	}
 
-	gw, err := webhook.NewGenericWebhook(api.Registry, api.Codecs, whConfig.KubeConfigFile, groupVersions, whConfig.RetryBackoff)
+	gw, err := webhook.NewGenericWebhook(whConfig.KubeConfigFile, groupVersions, whConfig.RetryBackoff)
 	if err != nil {
 		return nil, err
 	}

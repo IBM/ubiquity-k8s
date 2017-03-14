@@ -23,10 +23,9 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
 	utilstrings "k8s.io/kubernetes/pkg/util/strings"
@@ -80,7 +79,7 @@ func (plugin *vsphereVolumePlugin) RequiresRemount() bool {
 	return false
 }
 
-func (plugin *vsphereVolumePlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
+func (plugin *vsphereVolumePlugin) NewMounter(spec *volume.Spec, pod *api.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
 	return plugin.newMounterInternal(spec, pod.UID, &VsphereDiskUtil{}, plugin.host.GetMounter())
 }
 
@@ -130,10 +129,10 @@ func (plugin *vsphereVolumePlugin) ConstructVolumeSpec(volumeName, mountPath str
 	}
 	volumePath = strings.Replace(volumePath, "\\040", " ", -1)
 	glog.V(5).Infof("vSphere volume path is %q", volumePath)
-	vsphereVolume := &v1.Volume{
+	vsphereVolume := &api.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			VsphereVolume: &v1.VsphereVirtualDiskVolumeSource{
+		VolumeSource: api.VolumeSource{
+			VsphereVolume: &api.VsphereVirtualDiskVolumeSource{
 				VolumePath: volumePath,
 			},
 		},
@@ -278,9 +277,9 @@ func (vv *vsphereVolume) GetPath() string {
 }
 
 // vSphere Persistent Volume Plugin
-func (plugin *vsphereVolumePlugin) GetAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{
-		v1.ReadWriteOnce,
+func (plugin *vsphereVolumePlugin) GetAccessModes() []api.PersistentVolumeAccessMode {
+	return []api.PersistentVolumeAccessMode{
+		api.ReadWriteOnce,
 	}
 }
 
@@ -334,28 +333,28 @@ func (plugin *vsphereVolumePlugin) newProvisionerInternal(options volume.VolumeO
 	}, nil
 }
 
-func (v *vsphereVolumeProvisioner) Provision() (*v1.PersistentVolume, error) {
+func (v *vsphereVolumeProvisioner) Provision() (*api.PersistentVolume, error) {
 	vmDiskPath, sizeKB, err := v.manager.CreateVolume(v)
 	if err != nil {
 		return nil, err
 	}
 
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	pv := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name:   v.options.PVName,
 			Labels: map[string]string{},
 			Annotations: map[string]string{
 				"kubernetes.io/createdby": "vsphere-volume-dynamic-provisioner",
 			},
 		},
-		Spec: v1.PersistentVolumeSpec{
+		Spec: api.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: v.options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   v.options.PVC.Spec.AccessModes,
-			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): resource.MustParse(fmt.Sprintf("%dKi", sizeKB)),
+			Capacity: api.ResourceList{
+				api.ResourceName(api.ResourceStorage): resource.MustParse(fmt.Sprintf("%dKi", sizeKB)),
 			},
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				VsphereVolume: &v1.VsphereVirtualDiskVolumeSource{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				VsphereVolume: &api.VsphereVirtualDiskVolumeSource{
 					VolumePath: vmDiskPath,
 					FSType:     "ext4",
 				},
@@ -370,7 +369,7 @@ func (v *vsphereVolumeProvisioner) Provision() (*v1.PersistentVolume, error) {
 }
 
 func getVolumeSource(
-	spec *volume.Spec) (*v1.VsphereVirtualDiskVolumeSource, bool, error) {
+	spec *volume.Spec) (*api.VsphereVirtualDiskVolumeSource, bool, error) {
 	if spec.Volume != nil && spec.Volume.VsphereVolume != nil {
 		return spec.Volume.VsphereVolume, spec.ReadOnly, nil
 	} else if spec.PersistentVolume != nil &&

@@ -20,27 +20,23 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	podtest "k8s.io/kubernetes/pkg/kubelet/pod/testing"
-	"k8s.io/kubernetes/pkg/kubelet/secret"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 )
 
 // Stub out mirror client for testing purpose.
 func newTestManager() (*basicManager, *podtest.FakeMirrorClient) {
 	fakeMirrorClient := podtest.NewFakeMirrorClient()
-	secretManager := secret.NewFakeManager()
-	manager := NewBasicPodManager(fakeMirrorClient, secretManager).(*basicManager)
+	manager := NewBasicPodManager(fakeMirrorClient).(*basicManager)
 	return manager, fakeMirrorClient
 }
 
 // Tests that pods/maps are properly set after the pod update, and the basic
 // methods work correctly.
 func TestGetSetPods(t *testing.T) {
-	mirrorPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	mirrorPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "987654321",
 			Name:      "bar",
 			Namespace: "default",
@@ -50,8 +46,8 @@ func TestGetSetPods(t *testing.T) {
 			},
 		},
 	}
-	staticPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	staticPod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:         "123456789",
 			Name:        "bar",
 			Namespace:   "default",
@@ -59,9 +55,9 @@ func TestGetSetPods(t *testing.T) {
 		},
 	}
 
-	expectedPods := []*v1.Pod{
+	expectedPods := []*api.Pod{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				UID:         "999999999",
 				Name:        "taco",
 				Namespace:   "default",
@@ -111,59 +107,4 @@ func TestGetSetPods(t *testing.T) {
 		t.Errorf("unable to get pod by name; expected: %#v, got: %#v", staticPod, actualPod)
 	}
 
-}
-
-func TestDeletePods(t *testing.T) {
-	mirrorPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			UID:       types.UID("mirror-pod-uid"),
-			Name:      "mirror-static-pod-name",
-			Namespace: metav1.NamespaceDefault,
-			Annotations: map[string]string{
-				kubetypes.ConfigSourceAnnotationKey: "api",
-				kubetypes.ConfigMirrorAnnotationKey: "mirror",
-			},
-		},
-	}
-	staticPod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			UID:         types.UID("static-pod-uid"),
-			Name:        "mirror-static-pod-name",
-			Namespace:   metav1.NamespaceDefault,
-			Annotations: map[string]string{kubetypes.ConfigSourceAnnotationKey: "file"},
-		},
-	}
-
-	expectedPods := []*v1.Pod{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				UID:         types.UID("extra-pod-uid"),
-				Name:        "extra-pod-name",
-				Namespace:   metav1.NamespaceDefault,
-				Annotations: map[string]string{kubetypes.ConfigSourceAnnotationKey: "api"},
-			},
-		},
-		staticPod,
-	}
-	updates := append(expectedPods, mirrorPod)
-	podManager, _ := newTestManager()
-	podManager.SetPods(updates)
-
-	podManager.DeletePod(staticPod)
-
-	actualPods := podManager.GetPods()
-	if len(actualPods) == len(expectedPods) {
-		t.Fatalf("Run DeletePod() error, expected %d pods, got %d pods; ", len(expectedPods)-1, len(actualPods))
-	}
-
-	orphanedMirrorPodNames := podManager.getOrphanedMirrorPodNames()
-	expectedOrphanedMirrorPodNameNum := 1
-	if len(orphanedMirrorPodNames) != expectedOrphanedMirrorPodNameNum {
-		t.Fatalf("Run getOrphanedMirrorPodNames() error, expected %d orphaned mirror pods, got %d orphaned mirror pods; ", expectedOrphanedMirrorPodNameNum, len(orphanedMirrorPodNames))
-	}
-
-	expectedOrphanedMirrorPodName := mirrorPod.Name + "_" + mirrorPod.Namespace
-	if orphanedMirrorPodNames[0] != expectedOrphanedMirrorPodName {
-		t.Fatalf("Run getOrphanedMirrorPodNames() error, expected orphaned mirror pod name : %s, got orphaned mirror pod name %s; ", expectedOrphanedMirrorPodName, orphanedMirrorPodNames[0])
-	}
 }

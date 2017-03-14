@@ -1,10 +1,4 @@
-reviewers:
-  - brendandburns
-  - dchen1107
-  - lavalamp
-  - smarterclayton
-  - thockin
-approvers:
+assignees:
   - brendandburns
   - dchen1107
   - lavalamp

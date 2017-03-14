@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"path"
@@ -25,13 +26,13 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
 func addMasterReplica(zone string) error {
 	framework.Logf(fmt.Sprintf("Adding a new master replica, zone: %s", zone))
-	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-grow-cluster.sh"), zone, "true", "true", "false")
+	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-add-master.sh"), zone)
 	framework.Logf("%s", v)
 	if err != nil {
 		return err
@@ -41,27 +42,7 @@ func addMasterReplica(zone string) error {
 
 func removeMasterReplica(zone string) error {
 	framework.Logf(fmt.Sprintf("Removing an existing master replica, zone: %s", zone))
-	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-shrink-cluster.sh"), zone, "true", "false", "false")
-	framework.Logf("%s", v)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func addWorkerNodes(zone string) error {
-	framework.Logf(fmt.Sprintf("Adding worker nodes, zone: %s", zone))
-	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-grow-cluster.sh"), zone, "true", "false", "true")
-	framework.Logf("%s", v)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func removeWorkerNodes(zone string) error {
-	framework.Logf(fmt.Sprintf("Removing worker nodes, zone: %s", zone))
-	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-shrink-cluster.sh"), zone, "true", "true", "true")
+	v, _, err := framework.RunCmd(path.Join(framework.TestContext.RepoRoot, "hack/e2e-internal/e2e-remove-master.sh"), zone)
 	framework.Logf("%s", v)
 	if err != nil {
 		return err
@@ -78,6 +59,22 @@ func verifyRCs(c clientset.Interface, ns string, names []string) {
 func createNewRC(c clientset.Interface, ns string, name string) {
 	_, err := newRCByName(c, ns, name, 1, nil)
 	framework.ExpectNoError(err)
+}
+
+func verifyNumberOfMasterReplicas(expected int) {
+	output, err := exec.Command("gcloud", "compute", "instances", "list",
+		"--project="+framework.TestContext.CloudConfig.ProjectID,
+		"--regexp="+framework.GenerateMasterRegexp(framework.TestContext.CloudConfig.MasterName),
+		"--filter=status=RUNNING",
+		"--format=[no-heading]").CombinedOutput()
+	framework.Logf("%s", output)
+	framework.ExpectNoError(err)
+	newline := []byte("\n")
+	replicas := bytes.Count(output, newline)
+	framework.Logf("Num master replicas/expected: %d/%d", replicas, expected)
+	if replicas != expected {
+		framework.Failf("Wrong number of master replicas %d expected %d", replicas, expected)
+	}
 }
 
 func findRegionForZone(zone string) string {
@@ -118,30 +115,24 @@ var _ = framework.KubeDescribe("HA-master [Feature:HAMaster]", func() {
 	var c clientset.Interface
 	var ns string
 	var additionalReplicaZones []string
-	var additionalNodesZones []string
 	var existingRCs []string
 
 	BeforeEach(func() {
 		framework.SkipUnlessProviderIs("gce")
 		c = f.ClientSet
 		ns = f.Namespace.Name
-		framework.ExpectNoError(framework.WaitForMasters(framework.TestContext.CloudConfig.MasterName, c, 1, 10*time.Minute))
+		verifyNumberOfMasterReplicas(1)
 		additionalReplicaZones = make([]string, 0)
 		existingRCs = make([]string, 0)
 	})
 
 	AfterEach(func() {
-		// Clean-up additional worker nodes if the test execution was broken.
-		for _, zone := range additionalNodesZones {
-			removeWorkerNodes(zone)
-		}
-		framework.ExpectNoError(framework.AllNodesReady(c, 5*time.Minute))
-
 		// Clean-up additional master replicas if the test execution was broken.
 		for _, zone := range additionalReplicaZones {
 			removeMasterReplica(zone)
 		}
-		framework.ExpectNoError(framework.WaitForMasters(framework.TestContext.CloudConfig.MasterName, c, 1, 10*time.Minute))
+		framework.WaitForMasters(framework.TestContext.CloudConfig.MasterName, c, 1, 10*time.Minute)
+		verifyNumberOfMasterReplicas(1)
 	})
 
 	type Action int
@@ -149,8 +140,6 @@ var _ = framework.KubeDescribe("HA-master [Feature:HAMaster]", func() {
 		None Action = iota
 		AddReplica
 		RemoveReplica
-		AddNodes
-		RemoveNodes
 	)
 
 	step := func(action Action, zone string) {
@@ -162,15 +151,9 @@ var _ = framework.KubeDescribe("HA-master [Feature:HAMaster]", func() {
 		case RemoveReplica:
 			framework.ExpectNoError(removeMasterReplica(zone))
 			additionalReplicaZones = removeZoneFromZones(additionalReplicaZones, zone)
-		case AddNodes:
-			framework.ExpectNoError(addWorkerNodes(zone))
-			additionalNodesZones = append(additionalNodesZones, zone)
-		case RemoveNodes:
-			framework.ExpectNoError(removeWorkerNodes(zone))
-			additionalNodesZones = removeZoneFromZones(additionalNodesZones, zone)
 		}
-		framework.ExpectNoError(framework.WaitForMasters(framework.TestContext.CloudConfig.MasterName, c, len(additionalReplicaZones)+1, 10*time.Minute))
-		framework.ExpectNoError(framework.AllNodesReady(c, 5*time.Minute))
+		verifyNumberOfMasterReplicas(len(additionalReplicaZones) + 1)
+		framework.WaitForMasters(framework.TestContext.CloudConfig.MasterName, c, len(additionalReplicaZones)+1, 10*time.Minute)
 
 		// Verify that API server works correctly with HA master.
 		rcName := "ha-master-" + strconv.Itoa(len(existingRCs))
@@ -206,39 +189,6 @@ var _ = framework.KubeDescribe("HA-master [Feature:HAMaster]", func() {
 		}
 		for i := 0; i < numAdditionalReplicas; i++ {
 			step(RemoveReplica, zones[i%len(zones)])
-		}
-	})
-
-	It("survive addition/removal replicas multizone workers [Serial][Disruptive]", func() {
-		zone := framework.TestContext.CloudConfig.Zone
-		region := findRegionForZone(zone)
-		zones := findZonesForRegion(region)
-		zones = removeZoneFromZones(zones, zone)
-
-		step(None, "")
-		numAdditionalReplicas := 2
-
-		// Add worker nodes.
-		for i := 0; i < numAdditionalReplicas && i < len(zones); i++ {
-			step(AddNodes, zones[i])
-		}
-
-		// Add master repilcas.
-		//
-		// If numAdditionalReplicas is larger then the number of remaining zones in the region,
-		// we create a few masters in the same zone and zone entry is repeated in additionalReplicaZones.
-		for i := 0; i < numAdditionalReplicas; i++ {
-			step(AddReplica, zones[i%len(zones)])
-		}
-
-		// Remove master repilcas.
-		for i := 0; i < numAdditionalReplicas; i++ {
-			step(RemoveReplica, zones[i%len(zones)])
-		}
-
-		// Remove worker nodes.
-		for i := 0; i < numAdditionalReplicas && i < len(zones); i++ {
-			step(RemoveNodes, zones[i])
 		}
 	})
 })

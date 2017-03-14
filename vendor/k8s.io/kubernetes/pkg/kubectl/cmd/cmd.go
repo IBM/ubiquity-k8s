@@ -20,14 +20,13 @@ import (
 	"fmt"
 	"io"
 
-	"k8s.io/apiserver/pkg/util/flag"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	cmdconfig "k8s.io/kubernetes/pkg/kubectl/cmd/config"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/rollout"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/set"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/util/flag"
 
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -171,11 +170,7 @@ __custom_func() {
 	// TODO: This should be populated using the discovery information from apiserver.
 	valid_resources = `Valid resource types include:
 
-    * all
-    * certificatesigningrequests (aka 'csr')
     * clusters (valid only for federation apiservers)
-    * clusterrolebindings
-    * clusterroles
     * componentstatuses (aka 'cs')
     * configmaps (aka 'cm')
     * daemonsets (aka 'ds')
@@ -192,14 +187,11 @@ __custom_func() {
     * persistentvolumeclaims (aka 'pvc')
     * persistentvolumes (aka 'pv')
     * pods (aka 'po')
-    * poddisruptionbudgets (aka 'pdb')
     * podsecuritypolicies (aka 'psp')
     * podtemplates
     * replicasets (aka 'rs')
     * replicationcontrollers (aka 'rc')
     * resourcequotas (aka 'quota')
-    * rolebindings
-    * roles
     * secrets
     * serviceaccounts (aka 'sa')
     * services (aka 'svc')
@@ -214,7 +206,7 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 	// Parent command to which all subcommands are added.
 	cmds := &cobra.Command{
 		Use:   "kubectl",
-		Short: i18n.T("kubectl controls the Kubernetes cluster manager"),
+		Short: "kubectl controls the Kubernetes cluster manager",
 		Long: templates.LongDesc(`
       kubectl controls the Kubernetes cluster manager.
 
@@ -225,13 +217,6 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 
 	f.BindFlags(cmds.PersistentFlags())
 	f.BindExternalFlags(cmds.PersistentFlags())
-
-	// Sending in 'nil' for the getLanguageFn() results in using
-	// the LANG environment variable.
-	//
-	// TODO: Consider adding a flag or file preference for setting
-	// the language, instead of just loading from the LANG env. variable.
-	i18n.LoadTranslations("kubectl", nil)
 
 	// From this point and forward we get warnings on flags that contain "_" separators
 	cmds.SetGlobalNormalizationFunc(flag.WarnWordSepNormalizeFunc)
@@ -291,7 +276,7 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 		{
 			Message: "Advanced Commands:",
 			Commands: []*cobra.Command{
-				NewCmdApply(f, out, err),
+				NewCmdApply(f, out),
 				NewCmdPatch(f, out),
 				NewCmdReplace(f, out),
 				NewCmdConvert(f, out),
@@ -302,7 +287,7 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 			Commands: []*cobra.Command{
 				NewCmdLabel(f, out),
 				NewCmdAnnotate(f, out),
-				NewCmdCompletion(f, out, ""),
+				NewCmdCompletion(f, out),
 			},
 		},
 	}

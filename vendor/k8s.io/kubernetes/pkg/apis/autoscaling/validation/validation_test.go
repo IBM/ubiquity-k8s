@@ -20,36 +20,35 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
+	"k8s.io/kubernetes/pkg/controller/podautoscaler"
 )
 
 func TestValidateScale(t *testing.T) {
 	successCases := []autoscaling.Scale{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "frontend",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
 			},
 			Spec: autoscaling.ScaleSpec{
 				Replicas: 1,
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "frontend",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
 			},
 			Spec: autoscaling.ScaleSpec{
 				Replicas: 10,
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "frontend",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
 			},
 			Spec: autoscaling.ScaleSpec{
 				Replicas: 0,
@@ -69,9 +68,9 @@ func TestValidateScale(t *testing.T) {
 	}{
 		{
 			scale: autoscaling.Scale{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "frontend",
-					Namespace: metav1.NamespaceDefault,
+					Namespace: api.NamespaceDefault,
 				},
 				Spec: autoscaling.ScaleSpec{
 					Replicas: -1,
@@ -93,32 +92,24 @@ func TestValidateScale(t *testing.T) {
 func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 	successCases := []autoscaling.HorizontalPodAutoscaler{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "myautoscaler",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
 			},
 			Spec: autoscaling.HorizontalPodAutoscalerSpec{
 				ScaleTargetRef: autoscaling.CrossVersionObjectReference{
 					Kind: "ReplicationController",
 					Name: "myrc",
 				},
-				MinReplicas: newInt32(1),
-				MaxReplicas: 5,
-				Metrics: []autoscaling.MetricSpec{
-					{
-						Type: autoscaling.ResourceMetricSourceType,
-						Resource: &autoscaling.ResourceMetricSource{
-							Name: api.ResourceCPU,
-							TargetAverageUtilization: newInt32(70),
-						},
-					},
-				},
+				MinReplicas:                    newInt32(1),
+				MaxReplicas:                    5,
+				TargetCPUUtilizationPercentage: newInt32(70),
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "myautoscaler",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
 			},
 			Spec: autoscaling.HorizontalPodAutoscalerSpec{
 				ScaleTargetRef: autoscaling.CrossVersionObjectReference{
@@ -130,9 +121,12 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "myautoscaler",
-				Namespace: metav1.NamespaceDefault,
+				Namespace: api.NamespaceDefault,
+				Annotations: map[string]string{
+					podautoscaler.HpaCustomMetricsTargetAnnotationName: "{\"items\":[{\"name\":\"qps\",\"value\":\"20\"}]}",
+				},
 			},
 			Spec: autoscaling.HorizontalPodAutoscalerSpec{
 				ScaleTargetRef: autoscaling.CrossVersionObjectReference{
@@ -141,65 +135,6 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 				},
 				MinReplicas: newInt32(1),
 				MaxReplicas: 5,
-				Metrics: []autoscaling.MetricSpec{
-					{
-						Type: autoscaling.ResourceMetricSourceType,
-						Resource: &autoscaling.ResourceMetricSource{
-							Name:               api.ResourceCPU,
-							TargetAverageValue: resource.NewMilliQuantity(300, resource.DecimalSI),
-						},
-					},
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "myautoscaler",
-				Namespace: metav1.NamespaceDefault,
-			},
-			Spec: autoscaling.HorizontalPodAutoscalerSpec{
-				ScaleTargetRef: autoscaling.CrossVersionObjectReference{
-					Kind: "ReplicationController",
-					Name: "myrc",
-				},
-				MinReplicas: newInt32(1),
-				MaxReplicas: 5,
-				Metrics: []autoscaling.MetricSpec{
-					{
-						Type: autoscaling.PodsMetricSourceType,
-						Pods: &autoscaling.PodsMetricSource{
-							MetricName:         "some/metric",
-							TargetAverageValue: *resource.NewMilliQuantity(300, resource.DecimalSI),
-						},
-					},
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "myautoscaler",
-				Namespace: metav1.NamespaceDefault,
-			},
-			Spec: autoscaling.HorizontalPodAutoscalerSpec{
-				ScaleTargetRef: autoscaling.CrossVersionObjectReference{
-					Kind: "ReplicationController",
-					Name: "myrc",
-				},
-				MinReplicas: newInt32(1),
-				MaxReplicas: 5,
-				Metrics: []autoscaling.MetricSpec{
-					{
-						Type: autoscaling.ObjectMetricSourceType,
-						Object: &autoscaling.ObjectMetricSource{
-							Target: autoscaling.CrossVersionObjectReference{
-								Kind: "ReplicationController",
-								Name: "myrc",
-							},
-							MetricName:  "some/metric",
-							TargetValue: *resource.NewMilliQuantity(300, resource.DecimalSI),
-						},
-					},
-				},
 			},
 		},
 	}
@@ -215,89 +150,57 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 	}{
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
+				ObjectMeta: api.ObjectMeta{Name: "myautoscaler", Namespace: api.NamespaceDefault},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(70),
-							},
-						},
-					},
+					ScaleTargetRef:                 autoscaling.CrossVersionObjectReference{Name: "myrc"},
+					MinReplicas:                    newInt32(1),
+					MaxReplicas:                    5,
+					TargetCPUUtilizationPercentage: newInt32(70),
 				},
 			},
 			msg: "scaleTargetRef.kind: Required",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
+				ObjectMeta: api.ObjectMeta{Name: "myautoscaler", Namespace: api.NamespaceDefault},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Kind: "..", Name: "myrc"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(70),
-							},
-						},
-					},
+					ScaleTargetRef:                 autoscaling.CrossVersionObjectReference{Kind: "..", Name: "myrc"},
+					MinReplicas:                    newInt32(1),
+					MaxReplicas:                    5,
+					TargetCPUUtilizationPercentage: newInt32(70),
 				},
 			},
 			msg: "scaleTargetRef.kind: Invalid",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
+				ObjectMeta: api.ObjectMeta{Name: "myautoscaler", Namespace: api.NamespaceDefault},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(70),
-							},
-						},
-					},
+					ScaleTargetRef:                 autoscaling.CrossVersionObjectReference{Kind: "ReplicationController"},
+					MinReplicas:                    newInt32(1),
+					MaxReplicas:                    5,
+					TargetCPUUtilizationPercentage: newInt32(70),
 				},
 			},
 			msg: "scaleTargetRef.name: Required",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
+				ObjectMeta: api.ObjectMeta{Name: "myautoscaler", Namespace: api.NamespaceDefault},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Kind: "ReplicationController", Name: ".."},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(70),
-							},
-						},
-					},
+					ScaleTargetRef:                 autoscaling.CrossVersionObjectReference{Kind: "ReplicationController", Name: ".."},
+					MinReplicas:                    newInt32(1),
+					MaxReplicas:                    5,
+					TargetCPUUtilizationPercentage: newInt32(70),
 				},
 			},
 			msg: "scaleTargetRef.name: Invalid",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "myautoscaler",
-					Namespace: metav1.NamespaceDefault,
+					Namespace: api.NamespaceDefault,
 				},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
 					ScaleTargetRef: autoscaling.CrossVersionObjectReference{},
@@ -309,9 +212,9 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "myautoscaler",
-					Namespace: metav1.NamespaceDefault,
+					Namespace: api.NamespaceDefault,
 				},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
 					ScaleTargetRef: autoscaling.CrossVersionObjectReference{},
@@ -323,9 +226,27 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "myautoscaler",
-					Namespace: metav1.NamespaceDefault,
+					Namespace: api.NamespaceDefault,
+				},
+				Spec: autoscaling.HorizontalPodAutoscalerSpec{
+					ScaleTargetRef:                 autoscaling.CrossVersionObjectReference{},
+					MinReplicas:                    newInt32(1),
+					MaxReplicas:                    5,
+					TargetCPUUtilizationPercentage: newInt32(-70),
+				},
+			},
+			msg: "must be greater than 0",
+		},
+		{
+			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
+				ObjectMeta: api.ObjectMeta{
+					Name:      "myautoscaler",
+					Namespace: api.NamespaceDefault,
+					Annotations: map[string]string{
+						podautoscaler.HpaCustomMetricsTargetAnnotationName: "broken",
+					},
 				},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
 					ScaleTargetRef: autoscaling.CrossVersionObjectReference{
@@ -334,238 +255,69 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 					},
 					MinReplicas: newInt32(1),
 					MaxReplicas: 5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(-70),
-							},
-						},
-					},
 				},
 			},
-			msg: "must be greater than 0",
+			msg: "failed to parse custom metrics target annotation",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "myautoscaler",
-					Namespace: metav1.NamespaceDefault,
-				},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(70),
-								TargetAverageValue:       resource.NewMilliQuantity(300, resource.DecimalSI),
-							},
-						},
+					Namespace: api.NamespaceDefault,
+					Annotations: map[string]string{
+						podautoscaler.HpaCustomMetricsTargetAnnotationName: "{}",
 					},
 				},
+				Spec: autoscaling.HorizontalPodAutoscalerSpec{
+					ScaleTargetRef: autoscaling.CrossVersionObjectReference{
+						Kind: "ReplicationController",
+						Name: "myrc",
+					},
+					MinReplicas: newInt32(1),
+					MaxReplicas: 5,
+				},
 			},
-			msg: "may not set both a target raw value and a target utilization",
+			msg: "custom metrics target must not be empty",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								TargetAverageUtilization: newInt32(70),
-							},
-						},
+				ObjectMeta: api.ObjectMeta{
+					Name:      "myautoscaler",
+					Namespace: api.NamespaceDefault,
+					Annotations: map[string]string{
+						podautoscaler.HpaCustomMetricsTargetAnnotationName: "{\"items\":[{\"value\":\"20\"}]}",
 					},
 				},
+				Spec: autoscaling.HorizontalPodAutoscalerSpec{
+					ScaleTargetRef: autoscaling.CrossVersionObjectReference{
+						Kind: "ReplicationController",
+						Name: "myrc",
+					},
+					MinReplicas: newInt32(1),
+					MaxReplicas: 5,
+				},
 			},
-			msg: "must specify a resource name",
+			msg: "missing custom metric target name",
 		},
 		{
 			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-								TargetAverageUtilization: newInt32(-10),
-							},
-						},
+				ObjectMeta: api.ObjectMeta{
+					Name:      "myautoscaler",
+					Namespace: api.NamespaceDefault,
+					Annotations: map[string]string{
+						podautoscaler.HpaCustomMetricsTargetAnnotationName: "{\"items\":[{\"name\":\"qps\",\"value\":\"0\"}]}",
 					},
 				},
-			},
-			msg: "must be greater than 0",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
 				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name: api.ResourceCPU,
-							},
-						},
+					ScaleTargetRef: autoscaling.CrossVersionObjectReference{
+						Kind: "ReplicationController",
+						Name: "myrc",
 					},
+					MinReplicas: newInt32(1),
+					MaxReplicas: 5,
 				},
 			},
-			msg: "must set either a target raw value or a target utilization",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.PodsMetricSourceType,
-							Pods: &autoscaling.PodsMetricSource{
-								TargetAverageValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-							},
-						},
-					},
-				},
-			},
-			msg: "must specify a metric name",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.PodsMetricSourceType,
-							Pods: &autoscaling.PodsMetricSource{
-								MetricName: "some/metric",
-							},
-						},
-					},
-				},
-			},
-			msg: "must specify a positive target value",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ObjectMetricSourceType,
-							Object: &autoscaling.ObjectMetricSource{
-								Target: autoscaling.CrossVersionObjectReference{
-									Name: "myrc",
-								},
-								MetricName:  "some/metric",
-								TargetValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-							},
-						},
-					},
-				},
-			},
-			msg: "target.kind: Required",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ObjectMetricSourceType,
-							Object: &autoscaling.ObjectMetricSource{
-								Target: autoscaling.CrossVersionObjectReference{
-									Kind: "ReplicationController",
-									Name: "myrc",
-								},
-								TargetValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-							},
-						},
-					},
-				},
-			},
-			msg: "must specify a metric name",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{},
-					},
-				},
-			},
-			msg: "must specify a metric source type",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.MetricSourceType("InvalidType"),
-						},
-					},
-				},
-			},
-			msg: "type: Unsupported value",
-		},
-		{
-			horizontalPodAutoscaler: autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5,
-					Metrics: []autoscaling.MetricSpec{
-						{
-							Type: autoscaling.ResourceMetricSourceType,
-							Resource: &autoscaling.ResourceMetricSource{
-								Name:               api.ResourceCPU,
-								TargetAverageValue: resource.NewMilliQuantity(100, resource.DecimalSI),
-							},
-							Pods: &autoscaling.PodsMetricSource{
-								MetricName:         "some/metric",
-								TargetAverageValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-							},
-						},
-					},
-				},
-			},
-			msg: "must populate the given metric source only",
+			msg: "custom metric target value must be greater than 0",
 		},
 	}
 
@@ -575,58 +327,6 @@ func TestValidateHorizontalPodAutoscaler(t *testing.T) {
 			t.Errorf("expected failure for %q", c.msg)
 		} else if !strings.Contains(errs[0].Error(), c.msg) {
 			t.Errorf("unexpected error: %q, expected: %q", errs[0], c.msg)
-		}
-	}
-
-	sourceTypes := map[autoscaling.MetricSourceType]autoscaling.MetricSpec{
-		autoscaling.ResourceMetricSourceType: {
-			Resource: &autoscaling.ResourceMetricSource{
-				Name:               api.ResourceCPU,
-				TargetAverageValue: resource.NewMilliQuantity(100, resource.DecimalSI),
-			},
-		},
-		autoscaling.PodsMetricSourceType: {
-			Pods: &autoscaling.PodsMetricSource{
-				MetricName:         "some/metric",
-				TargetAverageValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-			},
-		},
-		autoscaling.ObjectMetricSourceType: {
-			Object: &autoscaling.ObjectMetricSource{
-				Target: autoscaling.CrossVersionObjectReference{
-					Kind: "ReplicationController",
-					Name: "myrc",
-				},
-				MetricName:  "some/metric",
-				TargetValue: *resource.NewMilliQuantity(100, resource.DecimalSI),
-			},
-		},
-	}
-
-	for correctType, spec := range sourceTypes {
-		for incorrectType := range sourceTypes {
-			if correctType == incorrectType {
-				continue
-			}
-
-			spec.Type = incorrectType
-
-			errs := ValidateHorizontalPodAutoscaler(&autoscaling.HorizontalPodAutoscaler{
-				ObjectMeta: metav1.ObjectMeta{Name: "myautoscaler", Namespace: metav1.NamespaceDefault},
-				Spec: autoscaling.HorizontalPodAutoscalerSpec{
-					ScaleTargetRef: autoscaling.CrossVersionObjectReference{Name: "myrc", Kind: "ReplicationController"},
-					MinReplicas:    newInt32(1),
-					MaxReplicas:    5, Metrics: []autoscaling.MetricSpec{spec},
-				},
-			})
-
-			expectedMsg := "must populate information for the given metric source"
-
-			if len(errs) == 0 {
-				t.Errorf("expected failure with type of %v and spec for %v", incorrectType, correctType)
-			} else if !strings.Contains(errs[0].Error(), expectedMsg) {
-				t.Errorf("unexpected error: %q, expected %q", errs[0], expectedMsg)
-			}
 		}
 	}
 }

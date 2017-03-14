@@ -17,7 +17,7 @@ limitations under the License.
 package sliceutils
 
 import (
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 )
 
@@ -33,7 +33,7 @@ func StringInSlice(s string, list []string) bool {
 
 // PodsByCreationTime makes an array of pods sortable by their creation
 // timestamps in ascending order.
-type PodsByCreationTime []*v1.Pod
+type PodsByCreationTime []*api.Pod
 
 func (s PodsByCreationTime) Len() int {
 	return len(s)

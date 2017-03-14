@@ -24,8 +24,7 @@ import (
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/images/net/nat"
@@ -48,7 +47,7 @@ var _ = framework.KubeDescribe("Network", func() {
 
 	It("should set TCP CLOSE_WAIT timeout", func() {
 		nodes := framework.GetReadySchedulableNodesOrDie(fr.ClientSet)
-		ips := framework.CollectAddresses(nodes, v1.NodeInternalIP)
+		ips := collectAddresses(nodes, api.NodeInternalIP)
 
 		if len(nodes.Items) < 2 {
 			framework.Skipf(
@@ -57,7 +56,7 @@ var _ = framework.KubeDescribe("Network", func() {
 		}
 
 		type NodeInfo struct {
-			node   *v1.Node
+			node   *api.Node
 			name   string
 			nodeIp string
 		}
@@ -76,15 +75,15 @@ var _ = framework.KubeDescribe("Network", func() {
 
 		zero := int64(0)
 
-		clientPodSpec := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		clientPodSpec := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "e2e-net-client",
 				Namespace: fr.Namespace.Name,
 				Labels:    map[string]string{"app": "e2e-net-client"},
 			},
-			Spec: v1.PodSpec{
+			Spec: api.PodSpec{
 				NodeName: clientNodeInfo.name,
-				Containers: []v1.Container{
+				Containers: []api.Container{
 					{
 						Name:            "e2e-net-client",
 						Image:           kubeProxyE2eImage,
@@ -98,15 +97,15 @@ var _ = framework.KubeDescribe("Network", func() {
 			},
 		}
 
-		serverPodSpec := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		serverPodSpec := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "e2e-net-server",
 				Namespace: fr.Namespace.Name,
 				Labels:    map[string]string{"app": "e2e-net-server"},
 			},
-			Spec: v1.PodSpec{
+			Spec: api.PodSpec{
 				NodeName: serverNodeInfo.name,
-				Containers: []v1.Container{
+				Containers: []api.Container{
 					{
 						Name:            "e2e-net-server",
 						Image:           kubeProxyE2eImage,
@@ -119,7 +118,7 @@ var _ = framework.KubeDescribe("Network", func() {
 								testDaemonTcpPort,
 								postFinTimeoutSeconds),
 						},
-						Ports: []v1.ContainerPort{
+						Ports: []api.ContainerPort{
 							{
 								Name:          "tcp",
 								ContainerPort: testDaemonTcpPort,

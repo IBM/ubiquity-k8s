@@ -19,40 +19,37 @@ package deployment
 import (
 	"fmt"
 	"testing"
-	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	core "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/record"
+	"k8s.io/kubernetes/pkg/client/testing/core"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/deployment/util"
+	"k8s.io/kubernetes/pkg/controller/informers"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/intstr"
+	"k8s.io/kubernetes/pkg/util/uuid"
 )
 
 var (
 	alwaysReady = func() bool { return true }
-	noTimestamp = metav1.Time{}
+	noTimestamp = unversioned.Time{}
 )
 
-func rs(name string, replicas int, selector map[string]string, timestamp metav1.Time) *extensions.ReplicaSet {
+func rs(name string, replicas int, selector map[string]string, timestamp unversioned.Time) *extensions.ReplicaSet {
 	return &extensions.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:              name,
 			CreationTimestamp: timestamp,
-			Namespace:         metav1.NamespaceDefault,
+			Namespace:         api.NamespaceDefault,
 		},
 		Spec: extensions.ReplicaSetSpec{
-			Replicas: func() *int32 { i := int32(replicas); return &i }(),
-			Selector: &metav1.LabelSelector{MatchLabels: selector},
-			Template: v1.PodTemplateSpec{},
+			Replicas: int32(replicas),
+			Selector: &unversioned.LabelSelector{MatchLabels: selector},
+			Template: api.PodTemplateSpec{},
 		},
 	}
 }
@@ -67,29 +64,25 @@ func newRSWithStatus(name string, specReplicas, statusReplicas int, selector map
 
 func newDeployment(name string, replicas int, revisionHistoryLimit *int32, maxSurge, maxUnavailable *intstr.IntOrString, selector map[string]string) *extensions.Deployment {
 	d := extensions.Deployment{
-		TypeMeta: metav1.TypeMeta{APIVersion: api.Registry.GroupOrDie(extensions.GroupName).GroupVersion.String()},
-		ObjectMeta: metav1.ObjectMeta{
-			UID:         uuid.NewUUID(),
-			Name:        name,
-			Namespace:   metav1.NamespaceDefault,
-			Annotations: make(map[string]string),
+		TypeMeta: unversioned.TypeMeta{APIVersion: registered.GroupOrDie(extensions.GroupName).GroupVersion.String()},
+		ObjectMeta: api.ObjectMeta{
+			UID:       uuid.NewUUID(),
+			Name:      name,
+			Namespace: api.NamespaceDefault,
 		},
 		Spec: extensions.DeploymentSpec{
 			Strategy: extensions.DeploymentStrategy{
-				Type: extensions.RollingUpdateDeploymentStrategyType,
-				RollingUpdate: &extensions.RollingUpdateDeployment{
-					MaxUnavailable: func() *intstr.IntOrString { i := intstr.FromInt(0); return &i }(),
-					MaxSurge:       func() *intstr.IntOrString { i := intstr.FromInt(0); return &i }(),
-				},
+				Type:          extensions.RollingUpdateDeploymentStrategyType,
+				RollingUpdate: &extensions.RollingUpdateDeployment{},
 			},
-			Replicas: func() *int32 { i := int32(replicas); return &i }(),
-			Selector: &metav1.LabelSelector{MatchLabels: selector},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Replicas: int32(replicas),
+			Selector: &unversioned.LabelSelector{MatchLabels: selector},
+			Template: api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: selector,
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Image: "foo/bar",
 						},
@@ -100,24 +93,22 @@ func newDeployment(name string, replicas int, revisionHistoryLimit *int32, maxSu
 		},
 	}
 	if maxSurge != nil {
-		d.Spec.Strategy.RollingUpdate.MaxSurge = maxSurge
+		d.Spec.Strategy.RollingUpdate.MaxSurge = *maxSurge
 	}
 	if maxUnavailable != nil {
-		d.Spec.Strategy.RollingUpdate.MaxUnavailable = maxUnavailable
+		d.Spec.Strategy.RollingUpdate.MaxUnavailable = *maxUnavailable
 	}
 	return &d
 }
 
 func newReplicaSet(d *extensions.Deployment, name string, replicas int) *extensions.ReplicaSet {
 	return &extensions.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      name,
-			Namespace: metav1.NamespaceDefault,
-			Labels:    d.Spec.Selector.MatchLabels,
+			Namespace: api.NamespaceDefault,
 		},
 		Spec: extensions.ReplicaSetSpec{
-			Selector: d.Spec.Selector,
-			Replicas: func() *int32 { i := int32(replicas); return &i }(),
+			Replicas: int32(replicas),
 			Template: d.Spec.Template,
 		},
 	}
@@ -139,7 +130,7 @@ type fixture struct {
 	// Objects to put in the store.
 	dLister   []*extensions.Deployment
 	rsLister  []*extensions.ReplicaSet
-	podLister []*v1.Pod
+	podLister []*api.Pod
 
 	// Actions expected to happen on the client. Objects from here are also
 	// preloaded into NewSimpleFake.
@@ -147,14 +138,18 @@ type fixture struct {
 	objects []runtime.Object
 }
 
+func (f *fixture) expectUpdateDeploymentAction(d *extensions.Deployment) {
+	f.actions = append(f.actions, core.NewUpdateAction(unversioned.GroupVersionResource{Resource: "deployments"}, d.Namespace, d))
+}
+
 func (f *fixture) expectUpdateDeploymentStatusAction(d *extensions.Deployment) {
-	action := core.NewUpdateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d)
+	action := core.NewUpdateAction(unversioned.GroupVersionResource{Resource: "deployments"}, d.Namespace, d)
 	action.Subresource = "status"
 	f.actions = append(f.actions, action)
 }
 
 func (f *fixture) expectCreateRSAction(rs *extensions.ReplicaSet) {
-	f.actions = append(f.actions, core.NewCreateAction(schema.GroupVersionResource{Resource: "replicasets"}, rs.Namespace, rs))
+	f.actions = append(f.actions, core.NewCreateAction(unversioned.GroupVersionResource{Resource: "replicasets"}, rs.Namespace, rs))
 }
 
 func newFixture(t *testing.T) *fixture {
@@ -164,28 +159,23 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func (f *fixture) newController() (*DeploymentController, informers.SharedInformerFactory) {
+func (f *fixture) run(deploymentName string) {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	informers := informers.NewSharedInformerFactory(f.client, controller.NoResyncPeriodFunc())
-	c := NewDeploymentController(informers.Extensions().V1beta1().Deployments(), informers.Extensions().V1beta1().ReplicaSets(), informers.Core().V1().Pods(), f.client)
+	c := NewDeploymentController(informers.Deployments(), informers.ReplicaSets(), informers.Pods(), f.client)
 	c.eventRecorder = &record.FakeRecorder{}
 	c.dListerSynced = alwaysReady
 	c.rsListerSynced = alwaysReady
 	c.podListerSynced = alwaysReady
 	for _, d := range f.dLister {
-		informers.Extensions().V1beta1().Deployments().Informer().GetIndexer().Add(d)
+		c.dLister.Indexer.Add(d)
 	}
 	for _, rs := range f.rsLister {
-		informers.Extensions().V1beta1().ReplicaSets().Informer().GetIndexer().Add(rs)
+		c.rsLister.Indexer.Add(rs)
 	}
 	for _, pod := range f.podLister {
-		informers.Core().V1().Pods().Informer().GetIndexer().Add(pod)
+		c.podLister.Indexer.Add(pod)
 	}
-	return c, informers
-}
-
-func (f *fixture) run(deploymentName string) {
-	c, informers := f.newController()
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	informers.Start(stopCh)
@@ -224,7 +214,7 @@ func TestSyncDeploymentCreatesReplicaSet(t *testing.T) {
 	rs := newReplicaSet(d, "deploymentrs-4186632231", 1)
 
 	f.expectCreateRSAction(rs)
-	f.expectUpdateDeploymentStatusAction(d)
+	f.expectUpdateDeploymentAction(d)
 	f.expectUpdateDeploymentStatusAction(d)
 
 	f.run(getKey(d, t))
@@ -234,12 +224,10 @@ func TestSyncDeploymentDontDoAnythingDuringDeletion(t *testing.T) {
 	f := newFixture(t)
 
 	d := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	now := metav1.Now()
+	now := unversioned.Now()
 	d.DeletionTimestamp = &now
 	f.dLister = append(f.dLister, d)
-	f.objects = append(f.objects, d)
 
-	f.expectUpdateDeploymentStatusAction(d)
 	f.run(getKey(d, t))
 }
 
@@ -247,7 +235,7 @@ func TestSyncDeploymentDontDoAnythingDuringDeletion(t *testing.T) {
 func TestDeploymentController_dontSyncDeploymentsWithEmptyPodSelector(t *testing.T) {
 	fake := &fake.Clientset{}
 	informers := informers.NewSharedInformerFactory(fake, controller.NoResyncPeriodFunc())
-	controller := NewDeploymentController(informers.Extensions().V1beta1().Deployments(), informers.Extensions().V1beta1().ReplicaSets(), informers.Core().V1().Pods(), fake)
+	controller := NewDeploymentController(informers.Deployments(), informers.ReplicaSets(), informers.Pods(), fake)
 	controller.eventRecorder = &record.FakeRecorder{}
 	controller.dListerSynced = alwaysReady
 	controller.rsListerSynced = alwaysReady
@@ -258,9 +246,9 @@ func TestDeploymentController_dontSyncDeploymentsWithEmptyPodSelector(t *testing
 	informers.Start(stopCh)
 
 	d := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	empty := metav1.LabelSelector{}
+	empty := unversioned.LabelSelector{}
 	d.Spec.Selector = &empty
-	informers.Extensions().V1beta1().Deployments().Informer().GetIndexer().Add(d)
+	controller.dLister.Indexer.Add(d)
 	// We expect the deployment controller to not take action here since it's configuration
 	// is invalid, even though no replicasets exist that match it's selector.
 	controller.syncDeployment(fmt.Sprintf("%s/%s", d.ObjectMeta.Namespace, d.ObjectMeta.Name))
@@ -291,271 +279,4 @@ func filterInformerActions(actions []core.Action) []core.Action {
 	}
 
 	return ret
-}
-
-// TestOverlappingDeployment ensures that an overlapping deployment will not be synced by
-// the controller.
-func TestOverlappingDeployment(t *testing.T) {
-	f := newFixture(t)
-	now := metav1.Now()
-	later := metav1.Time{Time: now.Add(time.Minute)}
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.CreationTimestamp = now
-	bar := newDeployment("bar", 1, nil, nil, nil, map[string]string{"foo": "bar", "app": "baz"})
-	bar.CreationTimestamp = later
-
-	f.dLister = append(f.dLister, foo, bar)
-	f.objects = append(f.objects, foo, bar)
-
-	f.expectUpdateDeploymentStatusAction(bar)
-	f.run(getKey(bar, t))
-
-	for _, a := range filterInformerActions(f.client.Actions()) {
-		action, ok := a.(core.UpdateAction)
-		if !ok {
-			continue
-		}
-		d, ok := action.GetObject().(*extensions.Deployment)
-		if !ok {
-			continue
-		}
-		if d.Name == "bar" && d.Annotations[util.OverlapAnnotation] != "foo" {
-			t.Errorf("annotations weren't updated for the overlapping deployment: %v", d.Annotations)
-		}
-	}
-}
-
-// TestSyncOverlappedDeployment ensures that from two overlapping deployments, the older
-// one will be synced and the newer will be marked as overlapping. Note that in reality it's
-// not always the older deployment that is the one that works vs the rest but the one which
-// has the selector unchanged for longer time.
-func TestSyncOverlappedDeployment(t *testing.T) {
-	f := newFixture(t)
-	now := metav1.Now()
-	later := metav1.Time{Time: now.Add(time.Minute)}
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.CreationTimestamp = now
-	bar := newDeployment("bar", 1, nil, nil, nil, map[string]string{"foo": "bar", "app": "baz"})
-	bar.CreationTimestamp = later
-
-	f.dLister = append(f.dLister, foo, bar)
-	f.objects = append(f.objects, foo, bar)
-
-	f.expectUpdateDeploymentStatusAction(bar)
-	f.expectCreateRSAction(newReplicaSet(foo, "foo-rs", 1))
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.run(getKey(foo, t))
-
-	for _, a := range filterInformerActions(f.client.Actions()) {
-		action, ok := a.(core.UpdateAction)
-		if !ok {
-			continue
-		}
-		d, ok := action.GetObject().(*extensions.Deployment)
-		if !ok {
-			continue
-		}
-		if d.Name == "bar" && d.Annotations[util.OverlapAnnotation] != "foo" {
-			t.Errorf("annotations weren't updated for the overlapping deployment: %v", d.Annotations)
-		}
-	}
-}
-
-// TestSelectorUpdate ensures that from two overlapping deployments, the one that is working won't
-// be marked as overlapping if its selector is updated but still overlaps with the other one.
-func TestSelectorUpdate(t *testing.T) {
-	f := newFixture(t)
-	now := metav1.Now()
-	later := metav1.Time{Time: now.Add(time.Minute)}
-	selectorUpdated := metav1.Time{Time: later.Add(time.Minute)}
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.CreationTimestamp = now
-	foo.Annotations = map[string]string{util.SelectorUpdateAnnotation: selectorUpdated.Format(time.RFC3339)}
-	bar := newDeployment("bar", 1, nil, nil, nil, map[string]string{"foo": "bar", "app": "baz"})
-	bar.CreationTimestamp = later
-	bar.Annotations = map[string]string{util.OverlapAnnotation: "foo"}
-
-	f.dLister = append(f.dLister, foo, bar)
-	f.objects = append(f.objects, foo, bar)
-
-	f.expectCreateRSAction(newReplicaSet(foo, "foo-rs", 1))
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.run(getKey(foo, t))
-
-	for _, a := range filterInformerActions(f.client.Actions()) {
-		action, ok := a.(core.UpdateAction)
-		if !ok {
-			continue
-		}
-		d, ok := action.GetObject().(*extensions.Deployment)
-		if !ok {
-			continue
-		}
-
-		if d.Name == "foo" && len(d.Annotations[util.OverlapAnnotation]) > 0 {
-			t.Errorf("deployment %q should not have the overlapping annotation", d.Name)
-		}
-		if d.Name == "bar" && len(d.Annotations[util.OverlapAnnotation]) == 0 {
-			t.Errorf("deployment %q should have the overlapping annotation", d.Name)
-		}
-	}
-}
-
-// TestDeletedDeploymentShouldCleanupOverlaps ensures that the deletion of a deployment
-// will cleanup any deployments that overlap with it.
-func TestDeletedDeploymentShouldCleanupOverlaps(t *testing.T) {
-	f := newFixture(t)
-	now := metav1.Now()
-	earlier := metav1.Time{Time: now.Add(-time.Minute)}
-	later := metav1.Time{Time: now.Add(time.Minute)}
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.CreationTimestamp = earlier
-	foo.DeletionTimestamp = &now
-	bar := newDeployment("bar", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	bar.CreationTimestamp = later
-	bar.Annotations = map[string]string{util.OverlapAnnotation: "foo"}
-
-	f.dLister = append(f.dLister, foo, bar)
-	f.objects = append(f.objects, foo, bar)
-
-	f.expectUpdateDeploymentStatusAction(bar)
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.run(getKey(foo, t))
-
-	for _, a := range filterInformerActions(f.client.Actions()) {
-		action, ok := a.(core.UpdateAction)
-		if !ok {
-			continue
-		}
-		d := action.GetObject().(*extensions.Deployment)
-		if d.Name != "bar" {
-			continue
-		}
-
-		if len(d.Annotations[util.OverlapAnnotation]) > 0 {
-			t.Errorf("annotations weren't cleaned up for the overlapping deployment: %v", d.Annotations)
-		}
-	}
-}
-
-// TestDeletedDeploymentShouldNotCleanupOtherOverlaps ensures that the deletion of
-// a deployment will not cleanup deployments that overlap with another deployment.
-func TestDeletedDeploymentShouldNotCleanupOtherOverlaps(t *testing.T) {
-	f := newFixture(t)
-	now := metav1.Now()
-	earlier := metav1.Time{Time: now.Add(-time.Minute)}
-	later := metav1.Time{Time: now.Add(time.Minute)}
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.CreationTimestamp = earlier
-	foo.DeletionTimestamp = &now
-	bar := newDeployment("bar", 1, nil, nil, nil, map[string]string{"bla": "bla"})
-	bar.CreationTimestamp = later
-	// Notice this deployment is overlapping with another deployment
-	bar.Annotations = map[string]string{util.OverlapAnnotation: "baz"}
-
-	f.dLister = append(f.dLister, foo, bar)
-	f.objects = append(f.objects, foo, bar)
-
-	f.expectUpdateDeploymentStatusAction(foo)
-	f.run(getKey(foo, t))
-
-	for _, a := range filterInformerActions(f.client.Actions()) {
-		action, ok := a.(core.UpdateAction)
-		if !ok {
-			continue
-		}
-		d := action.GetObject().(*extensions.Deployment)
-		if d.Name != "bar" {
-			continue
-		}
-
-		if len(d.Annotations[util.OverlapAnnotation]) == 0 {
-			t.Errorf("overlapping annotation should not be cleaned up for bar: %v", d.Annotations)
-		}
-	}
-}
-
-// TestPodDeletionEnqueuesRecreateDeployment ensures that the deletion of a pod
-// will requeue a Recreate deployment iff there is no other pod returned from the
-// client.
-func TestPodDeletionEnqueuesRecreateDeployment(t *testing.T) {
-	f := newFixture(t)
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.Spec.Strategy.Type = extensions.RecreateDeploymentStrategyType
-	rs := newReplicaSet(foo, "foo-1", 1)
-	pod := generatePodFromRS(rs)
-
-	f.dLister = append(f.dLister, foo)
-	f.rsLister = append(f.rsLister, rs)
-	f.objects = append(f.objects, foo, rs)
-
-	c, _ := f.newController()
-	enqueued := false
-	c.enqueueDeployment = func(d *extensions.Deployment) {
-		if d.Name == "foo" {
-			enqueued = true
-		}
-	}
-
-	c.deletePod(pod)
-
-	if !enqueued {
-		t.Errorf("expected deployment %q to be queued after pod deletion", foo.Name)
-	}
-}
-
-// TestPodDeletionDoesntEnqueueRecreateDeployment ensures that the deletion of a pod
-// will not requeue a Recreate deployment iff there are other pods returned from the
-// client.
-func TestPodDeletionDoesntEnqueueRecreateDeployment(t *testing.T) {
-	f := newFixture(t)
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.Spec.Strategy.Type = extensions.RecreateDeploymentStrategyType
-	rs := newReplicaSet(foo, "foo-1", 1)
-	pod := generatePodFromRS(rs)
-
-	f.dLister = append(f.dLister, foo)
-	f.rsLister = append(f.rsLister, rs)
-	// Let's pretend this is a different pod. The gist is that the pod lister needs to
-	// return a non-empty list.
-	f.podLister = append(f.podLister, pod)
-
-	c, _ := f.newController()
-	enqueued := false
-	c.enqueueDeployment = func(d *extensions.Deployment) {
-		if d.Name == "foo" {
-			enqueued = true
-		}
-	}
-
-	c.deletePod(pod)
-
-	if enqueued {
-		t.Errorf("expected deployment %q not to be queued after pod deletion", foo.Name)
-	}
-}
-
-// generatePodFromRS creates a pod, with the input ReplicaSet's selector and its template
-func generatePodFromRS(rs *extensions.ReplicaSet) *v1.Pod {
-	trueVar := true
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      rs.Name + "-pod",
-			Namespace: rs.Namespace,
-			Labels:    rs.Spec.Selector.MatchLabels,
-			OwnerReferences: []metav1.OwnerReference{
-				{UID: rs.UID, APIVersion: "v1beta1", Kind: "ReplicaSet", Name: rs.Name, Controller: &trueVar},
-			},
-		},
-		Spec: rs.Spec.Template.Spec,
-	}
 }

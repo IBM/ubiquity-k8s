@@ -22,25 +22,23 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/client/cache"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	clientretry "k8s.io/kubernetes/pkg/client/retry"
+	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/registry/core/secret"
+	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/serviceaccount"
+	"k8s.io/kubernetes/pkg/types"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/util/metrics"
+	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/kubernetes/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/util/workqueue"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 // RemoveTokenBackoff is the recommended (empirical) retry interval for removing
@@ -93,14 +91,14 @@ func NewTokensController(cl clientset.Interface, options TokensControllerOptions
 
 	e.serviceAccounts, e.serviceAccountController = cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return e.client.Core().ServiceAccounts(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return e.client.Core().ServiceAccounts(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return e.client.Core().ServiceAccounts(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return e.client.Core().ServiceAccounts(api.NamespaceAll).Watch(options)
 			},
 		},
-		&v1.ServiceAccount{},
+		&api.ServiceAccount{},
 		options.ServiceAccountResync,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    e.queueServiceAccountSync,
@@ -109,19 +107,19 @@ func NewTokensController(cl clientset.Interface, options TokensControllerOptions
 		},
 	)
 
-	tokenSelector := fields.SelectorFromSet(map[string]string{api.SecretTypeField: string(v1.SecretTypeServiceAccountToken)})
+	tokenSelector := fields.SelectorFromSet(map[string]string{api.SecretTypeField: string(api.SecretTypeServiceAccountToken)})
 	e.secrets, e.secretController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				options.FieldSelector = tokenSelector.String()
-				return e.client.Core().Secrets(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				options.FieldSelector = tokenSelector
+				return e.client.Core().Secrets(api.NamespaceAll).List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				options.FieldSelector = tokenSelector.String()
-				return e.client.Core().Secrets(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				options.FieldSelector = tokenSelector
+				return e.client.Core().Secrets(api.NamespaceAll).Watch(options)
 			},
 		},
-		&v1.Secret{},
+		&api.Secret{},
 		options.SecretResync,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    e.queueSecretSync,
@@ -145,8 +143,8 @@ type TokensController struct {
 	secrets         cache.Indexer
 
 	// Since we join two objects, we'll watch both of them with controllers.
-	serviceAccountController cache.Controller
-	secretController         cache.Controller
+	serviceAccountController *cache.Controller
+	secretController         *cache.Controller
 
 	// syncServiceAccountQueue handles service account events:
 	//   * ensures a referenced token exists for service accounts which still exist
@@ -192,13 +190,13 @@ func (e *TokensController) Run(workers int, stopCh <-chan struct{}) {
 }
 
 func (e *TokensController) queueServiceAccountSync(obj interface{}) {
-	if serviceAccount, ok := obj.(*v1.ServiceAccount); ok {
+	if serviceAccount, ok := obj.(*api.ServiceAccount); ok {
 		e.syncServiceAccountQueue.Add(makeServiceAccountKey(serviceAccount))
 	}
 }
 
 func (e *TokensController) queueServiceAccountUpdateSync(oldObj interface{}, newObj interface{}) {
-	if serviceAccount, ok := newObj.(*v1.ServiceAccount); ok {
+	if serviceAccount, ok := newObj.(*api.ServiceAccount); ok {
 		e.syncServiceAccountQueue.Add(makeServiceAccountKey(serviceAccount))
 	}
 }
@@ -221,13 +219,13 @@ func (e *TokensController) retryOrForget(queue workqueue.RateLimitingInterface, 
 }
 
 func (e *TokensController) queueSecretSync(obj interface{}) {
-	if secret, ok := obj.(*v1.Secret); ok {
+	if secret, ok := obj.(*api.Secret); ok {
 		e.syncSecretQueue.Add(makeSecretQueueKey(secret))
 	}
 }
 
 func (e *TokensController) queueSecretUpdateSync(oldObj interface{}, newObj interface{}) {
-	if secret, ok := newObj.(*v1.Secret); ok {
+	if secret, ok := newObj.(*api.Secret); ok {
 		e.syncSecretQueue.Add(makeSecretQueueKey(secret))
 	}
 }
@@ -258,7 +256,7 @@ func (e *TokensController) syncServiceAccount() {
 	case sa == nil:
 		// service account no longer exists, so delete related tokens
 		glog.V(4).Infof("syncServiceAccount(%s/%s), service account deleted, removing tokens", saInfo.namespace, saInfo.name)
-		sa = &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Namespace: saInfo.namespace, Name: saInfo.name, UID: saInfo.uid}}
+		sa = &api.ServiceAccount{ObjectMeta: api.ObjectMeta{Namespace: saInfo.namespace, Name: saInfo.name, UID: saInfo.uid}}
 		if retriable, err := e.deleteTokens(sa); err != nil {
 			glog.Errorf("error deleting serviceaccount tokens for %s/%s: %v", saInfo.namespace, saInfo.name, err)
 			retry = retriable
@@ -330,7 +328,7 @@ func (e *TokensController) syncSecret() {
 	}
 }
 
-func (e *TokensController) deleteTokens(serviceAccount *v1.ServiceAccount) ( /*retry*/ bool, error) {
+func (e *TokensController) deleteTokens(serviceAccount *api.ServiceAccount) ( /*retry*/ bool, error) {
 	tokens, err := e.listTokenSecrets(serviceAccount)
 	if err != nil {
 		// don't retry on cache lookup errors
@@ -351,9 +349,9 @@ func (e *TokensController) deleteTokens(serviceAccount *v1.ServiceAccount) ( /*r
 }
 
 func (e *TokensController) deleteToken(ns, name string, uid types.UID) ( /*retry*/ bool, error) {
-	var opts *metav1.DeleteOptions
+	var opts *api.DeleteOptions
 	if len(uid) > 0 {
-		opts = &metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}}
+		opts = &api.DeleteOptions{Preconditions: &api.Preconditions{UID: &uid}}
 	}
 	err := e.client.Core().Secrets(ns).Delete(name, opts)
 	// NotFound doesn't need a retry (it's already been deleted)
@@ -366,7 +364,7 @@ func (e *TokensController) deleteToken(ns, name string, uid types.UID) ( /*retry
 }
 
 // ensureReferencedToken makes sure at least one ServiceAccountToken secret exists, and is included in the serviceAccount's Secrets list
-func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccount) ( /* retry */ bool, error) {
+func (e *TokensController) ensureReferencedToken(serviceAccount *api.ServiceAccount) ( /* retry */ bool, error) {
 	if len(serviceAccount.Secrets) > 0 {
 		allSecrets, err := e.listTokenSecrets(serviceAccount)
 		if err != nil {
@@ -385,7 +383,7 @@ func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccou
 	// We don't want to update the cache's copy of the service account
 	// so add the secret to a freshly retrieved copy of the service account
 	serviceAccounts := e.client.Core().ServiceAccounts(serviceAccount.Namespace)
-	liveServiceAccount, err := serviceAccounts.Get(serviceAccount.Name, metav1.GetOptions{})
+	liveServiceAccount, err := serviceAccounts.Get(serviceAccount.Name)
 	if err != nil {
 		// Retry for any error other than a NotFound
 		return !apierrors.IsNotFound(err), err
@@ -398,16 +396,16 @@ func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccou
 	}
 
 	// Build the secret
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+	secret := &api.Secret{
+		ObjectMeta: api.ObjectMeta{
 			Name:      secret.Strategy.GenerateName(fmt.Sprintf("%s-token-", serviceAccount.Name)),
 			Namespace: serviceAccount.Namespace,
 			Annotations: map[string]string{
-				v1.ServiceAccountNameKey: serviceAccount.Name,
-				v1.ServiceAccountUIDKey:  string(serviceAccount.UID),
+				api.ServiceAccountNameKey: serviceAccount.Name,
+				api.ServiceAccountUIDKey:  string(serviceAccount.UID),
 			},
 		},
-		Type: v1.SecretTypeServiceAccountToken,
+		Type: api.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{},
 	}
 
@@ -417,10 +415,10 @@ func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccou
 		// retriable error
 		return true, err
 	}
-	secret.Data[v1.ServiceAccountTokenKey] = []byte(token)
-	secret.Data[v1.ServiceAccountNamespaceKey] = []byte(serviceAccount.Namespace)
+	secret.Data[api.ServiceAccountTokenKey] = []byte(token)
+	secret.Data[api.ServiceAccountNamespaceKey] = []byte(serviceAccount.Namespace)
 	if e.rootCA != nil && len(e.rootCA) > 0 {
-		secret.Data[v1.ServiceAccountRootCAKey] = e.rootCA
+		secret.Data[api.ServiceAccountRootCAKey] = e.rootCA
 	}
 
 	// Save the secret
@@ -433,12 +431,12 @@ func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccou
 	// This prevents the service account update (below) triggering another token creation, if the referenced token couldn't be found in the store
 	e.secrets.Add(createdToken)
 
-	liveServiceAccount.Secrets = append(liveServiceAccount.Secrets, v1.ObjectReference{Name: secret.Name})
+	liveServiceAccount.Secrets = append(liveServiceAccount.Secrets, api.ObjectReference{Name: secret.Name})
 
 	if _, err = serviceAccounts.Update(liveServiceAccount); err != nil {
 		// we weren't able to use the token, try to clean it up.
 		glog.V(2).Infof("deleting secret %s/%s because reference couldn't be added (%v)", secret.Namespace, secret.Name, err)
-		deleteOpts := &metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &createdToken.UID}}
+		deleteOpts := &api.DeleteOptions{Preconditions: &api.Preconditions{UID: &createdToken.UID}}
 		if deleteErr := e.client.Core().Secrets(createdToken.Namespace).Delete(createdToken.Name, deleteOpts); deleteErr != nil {
 			glog.Error(deleteErr) // if we fail, just log it
 		}
@@ -456,20 +454,20 @@ func (e *TokensController) ensureReferencedToken(serviceAccount *v1.ServiceAccou
 	return false, nil
 }
 
-func (e *TokensController) secretUpdateNeeded(secret *v1.Secret) (bool, bool, bool) {
-	caData := secret.Data[v1.ServiceAccountRootCAKey]
+func (e *TokensController) secretUpdateNeeded(secret *api.Secret) (bool, bool, bool) {
+	caData := secret.Data[api.ServiceAccountRootCAKey]
 	needsCA := len(e.rootCA) > 0 && bytes.Compare(caData, e.rootCA) != 0
 
-	needsNamespace := len(secret.Data[v1.ServiceAccountNamespaceKey]) == 0
+	needsNamespace := len(secret.Data[api.ServiceAccountNamespaceKey]) == 0
 
-	tokenData := secret.Data[v1.ServiceAccountTokenKey]
+	tokenData := secret.Data[api.ServiceAccountTokenKey]
 	needsToken := len(tokenData) == 0
 
 	return needsCA, needsNamespace, needsToken
 }
 
 // generateTokenIfNeeded populates the token data for the given Secret if not already set
-func (e *TokensController) generateTokenIfNeeded(serviceAccount *v1.ServiceAccount, cachedSecret *v1.Secret) ( /* retry */ bool, error) {
+func (e *TokensController) generateTokenIfNeeded(serviceAccount *api.ServiceAccount, cachedSecret *api.Secret) ( /* retry */ bool, error) {
 	// Check the cached secret to see if changes are needed
 	if needsCA, needsNamespace, needsToken := e.secretUpdateNeeded(cachedSecret); !needsCA && !needsToken && !needsNamespace {
 		return false, nil
@@ -478,7 +476,7 @@ func (e *TokensController) generateTokenIfNeeded(serviceAccount *v1.ServiceAccou
 	// We don't want to update the cache's copy of the secret
 	// so add the token to a freshly retrieved copy of the secret
 	secrets := e.client.Core().Secrets(cachedSecret.Namespace)
-	liveSecret, err := secrets.Get(cachedSecret.Name, metav1.GetOptions{})
+	liveSecret, err := secrets.Get(cachedSecret.Name)
 	if err != nil {
 		// Retry for any error other than a NotFound
 		return !apierrors.IsNotFound(err), err
@@ -504,11 +502,11 @@ func (e *TokensController) generateTokenIfNeeded(serviceAccount *v1.ServiceAccou
 
 	// Set the CA
 	if needsCA {
-		liveSecret.Data[v1.ServiceAccountRootCAKey] = e.rootCA
+		liveSecret.Data[api.ServiceAccountRootCAKey] = e.rootCA
 	}
 	// Set the namespace
 	if needsNamespace {
-		liveSecret.Data[v1.ServiceAccountNamespaceKey] = []byte(liveSecret.Namespace)
+		liveSecret.Data[api.ServiceAccountNamespaceKey] = []byte(liveSecret.Namespace)
 	}
 
 	// Generate the token
@@ -517,12 +515,12 @@ func (e *TokensController) generateTokenIfNeeded(serviceAccount *v1.ServiceAccou
 		if err != nil {
 			return false, err
 		}
-		liveSecret.Data[v1.ServiceAccountTokenKey] = []byte(token)
+		liveSecret.Data[api.ServiceAccountTokenKey] = []byte(token)
 	}
 
 	// Set annotations
-	liveSecret.Annotations[v1.ServiceAccountNameKey] = serviceAccount.Name
-	liveSecret.Annotations[v1.ServiceAccountUIDKey] = string(serviceAccount.UID)
+	liveSecret.Annotations[api.ServiceAccountNameKey] = serviceAccount.Name
+	liveSecret.Annotations[api.ServiceAccountUIDKey] = string(serviceAccount.UID)
 
 	// Save the secret
 	_, err = secrets.Update(liveSecret)
@@ -542,7 +540,7 @@ func (e *TokensController) removeSecretReference(saNamespace string, saName stri
 	// We don't want to update the cache's copy of the service account
 	// so remove the secret from a freshly retrieved copy of the service account
 	serviceAccounts := e.client.Core().ServiceAccounts(saNamespace)
-	serviceAccount, err := serviceAccounts.Get(saName, metav1.GetOptions{})
+	serviceAccount, err := serviceAccounts.Get(saName)
 	// Ignore NotFound errors when attempting to remove a reference
 	if apierrors.IsNotFound(err) {
 		return nil
@@ -562,7 +560,7 @@ func (e *TokensController) removeSecretReference(saNamespace string, saName stri
 	}
 
 	// Remove the secret
-	secrets := []v1.ObjectReference{}
+	secrets := []api.ObjectReference{}
 	for _, s := range serviceAccount.Secrets {
 		if s.Name != secretName {
 			secrets = append(secrets, s)
@@ -577,16 +575,16 @@ func (e *TokensController) removeSecretReference(saNamespace string, saName stri
 	return err
 }
 
-func (e *TokensController) getServiceAccount(ns string, name string, uid types.UID, fetchOnCacheMiss bool) (*v1.ServiceAccount, error) {
+func (e *TokensController) getServiceAccount(ns string, name string, uid types.UID, fetchOnCacheMiss bool) (*api.ServiceAccount, error) {
 	// Look up in cache
 	obj, exists, err := e.serviceAccounts.GetByKey(makeCacheKey(ns, name))
 	if err != nil {
 		return nil, err
 	}
 	if exists {
-		sa, ok := obj.(*v1.ServiceAccount)
+		sa, ok := obj.(*api.ServiceAccount)
 		if !ok {
-			return nil, fmt.Errorf("expected *v1.ServiceAccount, got %#v", sa)
+			return nil, fmt.Errorf("expected *api.ServiceAccount, got %#v", sa)
 		}
 		// Ensure UID matches if given
 		if len(uid) == 0 || uid == sa.UID {
@@ -599,7 +597,7 @@ func (e *TokensController) getServiceAccount(ns string, name string, uid types.U
 	}
 
 	// Live lookup
-	sa, err := e.client.Core().ServiceAccounts(ns).Get(name, metav1.GetOptions{})
+	sa, err := e.client.Core().ServiceAccounts(ns).Get(name)
 	if apierrors.IsNotFound(err) {
 		return nil, nil
 	}
@@ -613,16 +611,16 @@ func (e *TokensController) getServiceAccount(ns string, name string, uid types.U
 	return nil, nil
 }
 
-func (e *TokensController) getSecret(ns string, name string, uid types.UID, fetchOnCacheMiss bool) (*v1.Secret, error) {
+func (e *TokensController) getSecret(ns string, name string, uid types.UID, fetchOnCacheMiss bool) (*api.Secret, error) {
 	// Look up in cache
 	obj, exists, err := e.secrets.GetByKey(makeCacheKey(ns, name))
 	if err != nil {
 		return nil, err
 	}
 	if exists {
-		secret, ok := obj.(*v1.Secret)
+		secret, ok := obj.(*api.Secret)
 		if !ok {
-			return nil, fmt.Errorf("expected *v1.Secret, got %#v", secret)
+			return nil, fmt.Errorf("expected *api.Secret, got %#v", secret)
 		}
 		// Ensure UID matches if given
 		if len(uid) == 0 || uid == secret.UID {
@@ -635,7 +633,7 @@ func (e *TokensController) getSecret(ns string, name string, uid types.UID, fetc
 	}
 
 	// Live lookup
-	secret, err := e.client.Core().Secrets(ns).Get(name, metav1.GetOptions{})
+	secret, err := e.client.Core().Secrets(ns).Get(name)
 	if apierrors.IsNotFound(err) {
 		return nil, nil
 	}
@@ -651,15 +649,15 @@ func (e *TokensController) getSecret(ns string, name string, uid types.UID, fetc
 
 // listTokenSecrets returns a list of all of the ServiceAccountToken secrets that
 // reference the given service account's name and uid
-func (e *TokensController) listTokenSecrets(serviceAccount *v1.ServiceAccount) ([]*v1.Secret, error) {
+func (e *TokensController) listTokenSecrets(serviceAccount *api.ServiceAccount) ([]*api.Secret, error) {
 	namespaceSecrets, err := e.secrets.ByIndex("namespace", serviceAccount.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	items := []*v1.Secret{}
+	items := []*api.Secret{}
 	for _, obj := range namespaceSecrets {
-		secret := obj.(*v1.Secret)
+		secret := obj.(*api.Secret)
 
 		if serviceaccount.IsServiceAccountToken(secret, serviceAccount) {
 			items = append(items, secret)
@@ -671,14 +669,14 @@ func (e *TokensController) listTokenSecrets(serviceAccount *v1.ServiceAccount) (
 // serviceAccountNameAndUID is a helper method to get the ServiceAccount Name and UID from the given secret
 // Returns "","" if the secret is not a ServiceAccountToken secret
 // If the name or uid annotation is missing, "" is returned instead
-func serviceAccountNameAndUID(secret *v1.Secret) (string, string) {
-	if secret.Type != v1.SecretTypeServiceAccountToken {
+func serviceAccountNameAndUID(secret *api.Secret) (string, string) {
+	if secret.Type != api.SecretTypeServiceAccountToken {
 		return "", ""
 	}
-	return secret.Annotations[v1.ServiceAccountNameKey], secret.Annotations[v1.ServiceAccountUIDKey]
+	return secret.Annotations[api.ServiceAccountNameKey], secret.Annotations[api.ServiceAccountUIDKey]
 }
 
-func getSecretReferences(serviceAccount *v1.ServiceAccount) sets.String {
+func getSecretReferences(serviceAccount *api.ServiceAccount) sets.String {
 	references := sets.NewString()
 	for _, secret := range serviceAccount.Secrets {
 		references.Insert(secret.Name)
@@ -695,7 +693,7 @@ type serviceAccountQueueKey struct {
 	uid       types.UID
 }
 
-func makeServiceAccountKey(sa *v1.ServiceAccount) interface{} {
+func makeServiceAccountKey(sa *api.ServiceAccount) interface{} {
 	return serviceAccountQueueKey{
 		namespace: sa.Namespace,
 		name:      sa.Name,
@@ -723,13 +721,13 @@ type secretQueueKey struct {
 	saUID types.UID
 }
 
-func makeSecretQueueKey(secret *v1.Secret) interface{} {
+func makeSecretQueueKey(secret *api.Secret) interface{} {
 	return secretQueueKey{
 		namespace: secret.Namespace,
 		name:      secret.Name,
 		uid:       secret.UID,
-		saName:    secret.Annotations[v1.ServiceAccountNameKey],
-		saUID:     types.UID(secret.Annotations[v1.ServiceAccountUIDKey]),
+		saName:    secret.Annotations[api.ServiceAccountNameKey],
+		saUID:     types.UID(secret.Annotations[api.ServiceAccountUIDKey]),
 	}
 }
 

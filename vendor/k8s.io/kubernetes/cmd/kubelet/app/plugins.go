@@ -25,6 +25,7 @@ import (
 	// Network plugins
 	"k8s.io/kubernetes/pkg/kubelet/network"
 	"k8s.io/kubernetes/pkg/kubelet/network/cni"
+	"k8s.io/kubernetes/pkg/kubelet/network/exec"
 	"k8s.io/kubernetes/pkg/kubelet/network/kubenet"
 	// Volume plugins
 	"k8s.io/kubernetes/pkg/volume"
@@ -46,7 +47,6 @@ import (
 	"k8s.io/kubernetes/pkg/volume/iscsi"
 	"k8s.io/kubernetes/pkg/volume/nfs"
 	"k8s.io/kubernetes/pkg/volume/photon_pd"
-	"k8s.io/kubernetes/pkg/volume/projected"
 	"k8s.io/kubernetes/pkg/volume/quobyte"
 	"k8s.io/kubernetes/pkg/volume/rbd"
 	"k8s.io/kubernetes/pkg/volume/secret"
@@ -89,7 +89,6 @@ func ProbeVolumePlugins(pluginDir string) []volume.VolumePlugin {
 	allPlugins = append(allPlugins, vsphere_volume.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, azure_dd.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, photon_pd.ProbeVolumePlugins()...)
-	allPlugins = append(allPlugins, projected.ProbeVolumePlugins()...)
 	return allPlugins
 }
 
@@ -102,6 +101,7 @@ func ProbeNetworkPlugins(pluginDir, cniConfDir, cniBinDir string) []network.Netw
 		cniConfDir = pluginDir
 	}
 	// for each existing plugin, add to the list
+	allPlugins = append(allPlugins, exec.ProbeNetworkPlugins(pluginDir)...)
 	allPlugins = append(allPlugins, cni.ProbeNetworkPlugins(cniConfDir, cniBinDir)...)
 	allPlugins = append(allPlugins, kubenet.NewPlugin(pluginDir))
 

@@ -19,8 +19,7 @@ package cache
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetesting "k8s.io/kubernetes/pkg/volume/testing"
 	volumetypes "k8s.io/kubernetes/pkg/volume/util/types"
@@ -34,17 +33,17 @@ func Test_AddPodToVolume_Positive_NewPodNewVolume(t *testing.T) {
 	// Arrange
 	volumePluginMgr, _ := volumetesting.GetTestVolumePluginMgr(t)
 	dsw := NewDesiredStateOfWorld(volumePluginMgr)
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod3",
 			UID:  "pod3uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device1",
 						},
 					},
@@ -78,17 +77,17 @@ func Test_AddPodToVolume_Positive_ExistingPodExistingVolume(t *testing.T) {
 	// Arrange
 	volumePluginMgr, _ := volumetesting.GetTestVolumePluginMgr(t)
 	dsw := NewDesiredStateOfWorld(volumePluginMgr)
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod3",
 			UID:  "pod3uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device1",
 						},
 					},
@@ -122,17 +121,17 @@ func Test_DeletePodFromVolume_Positive_PodExistsVolumeExists(t *testing.T) {
 	// Arrange
 	volumePluginMgr, _ := volumetesting.GetTestVolumePluginMgr(t)
 	dsw := NewDesiredStateOfWorld(volumePluginMgr)
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod3",
 			UID:  "pod3uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device1",
 						},
 					},
@@ -174,17 +173,17 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 	volumePluginMgr, _ := volumetesting.GetTestVolumePluginMgr(t)
 	dsw := NewDesiredStateOfWorld(volumePluginMgr)
 
-	pod1 := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod1 := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod1",
 			UID:  "pod1uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume1-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device1",
 						},
 					},
@@ -196,17 +195,17 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 	volume1Spec := &volume.Spec{Volume: &pod1.Spec.Volumes[0]}
 	pod1Name := volumehelper.GetUniquePodName(pod1)
 
-	pod2 := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod2 := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod2",
 			UID:  "pod2uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume2-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device2",
 						},
 					},
@@ -218,17 +217,17 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 	volume2Spec := &volume.Spec{Volume: &pod2.Spec.Volumes[0]}
 	pod2Name := volumehelper.GetUniquePodName(pod2)
 
-	pod3 := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod3 := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pod3",
 			UID:  "pod3uid",
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "volume3-name",
-					VolumeSource: v1.VolumeSource{
-						GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+					VolumeSource: api.VolumeSource{
+						GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 							PDName: "fake-device3",
 						},
 					},
@@ -259,7 +258,7 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 	}
 
 	// Act
-	volumesReportedInUse := []v1.UniqueVolumeName{generatedVolume2Name}
+	volumesReportedInUse := []api.UniqueVolumeName{generatedVolume2Name}
 	dsw.MarkVolumesReportedInUse(volumesReportedInUse)
 
 	// Assert
@@ -277,7 +276,7 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 	verifyPodExistsInVolumeDsw(t, pod3Name, generatedVolume3Name, dsw)
 
 	// Act
-	volumesReportedInUse = []v1.UniqueVolumeName{generatedVolume3Name}
+	volumesReportedInUse = []api.UniqueVolumeName{generatedVolume3Name}
 	dsw.MarkVolumesReportedInUse(volumesReportedInUse)
 
 	// Assert
@@ -296,7 +295,7 @@ func Test_MarkVolumesReportedInUse_Positive_NewPodNewVolume(t *testing.T) {
 }
 
 func verifyVolumeExistsDsw(
-	t *testing.T, expectedVolumeName v1.UniqueVolumeName, dsw DesiredStateOfWorld) {
+	t *testing.T, expectedVolumeName api.UniqueVolumeName, dsw DesiredStateOfWorld) {
 	volumeExists := dsw.VolumeExists(expectedVolumeName)
 	if !volumeExists {
 		t.Fatalf(
@@ -307,7 +306,7 @@ func verifyVolumeExistsDsw(
 }
 
 func verifyVolumeDoesntExist(
-	t *testing.T, expectedVolumeName v1.UniqueVolumeName, dsw DesiredStateOfWorld) {
+	t *testing.T, expectedVolumeName api.UniqueVolumeName, dsw DesiredStateOfWorld) {
 	volumeExists := dsw.VolumeExists(expectedVolumeName)
 	if volumeExists {
 		t.Fatalf(
@@ -319,7 +318,7 @@ func verifyVolumeDoesntExist(
 
 func verifyVolumeExistsInVolumesToMount(
 	t *testing.T,
-	expectedVolumeName v1.UniqueVolumeName,
+	expectedVolumeName api.UniqueVolumeName,
 	expectReportedInUse bool,
 	dsw DesiredStateOfWorld) {
 	volumesToMount := dsw.GetVolumesToMount()
@@ -344,7 +343,7 @@ func verifyVolumeExistsInVolumesToMount(
 }
 
 func verifyVolumeDoesntExistInVolumesToMount(
-	t *testing.T, volumeToCheck v1.UniqueVolumeName, dsw DesiredStateOfWorld) {
+	t *testing.T, volumeToCheck api.UniqueVolumeName, dsw DesiredStateOfWorld) {
 	volumesToMount := dsw.GetVolumesToMount()
 	for _, volume := range volumesToMount {
 		if volume.VolumeName == volumeToCheck {
@@ -358,7 +357,7 @@ func verifyVolumeDoesntExistInVolumesToMount(
 func verifyPodExistsInVolumeDsw(
 	t *testing.T,
 	expectedPodName volumetypes.UniquePodName,
-	expectedVolumeName v1.UniqueVolumeName,
+	expectedVolumeName api.UniqueVolumeName,
 	dsw DesiredStateOfWorld) {
 	if podExistsInVolume := dsw.PodExistsInVolume(
 		expectedPodName, expectedVolumeName); !podExistsInVolume {
@@ -371,7 +370,7 @@ func verifyPodExistsInVolumeDsw(
 func verifyPodDoesntExistInVolumeDsw(
 	t *testing.T,
 	expectedPodName volumetypes.UniquePodName,
-	expectedVolumeName v1.UniqueVolumeName,
+	expectedVolumeName api.UniqueVolumeName,
 	dsw DesiredStateOfWorld) {
 	if podExistsInVolume := dsw.PodExistsInVolume(
 		expectedPodName, expectedVolumeName); podExistsInVolume {

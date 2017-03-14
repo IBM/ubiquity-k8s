@@ -17,13 +17,12 @@ limitations under the License.
 package fake
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	api "k8s.io/kubernetes/pkg/api"
+	unversioned "k8s.io/kubernetes/pkg/api/unversioned"
 	batch "k8s.io/kubernetes/pkg/apis/batch"
+	core "k8s.io/kubernetes/pkg/client/testing/core"
+	labels "k8s.io/kubernetes/pkg/labels"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // FakeJobs implements JobInterface
@@ -32,11 +31,11 @@ type FakeJobs struct {
 	ns   string
 }
 
-var jobsResource = schema.GroupVersionResource{Group: "batch", Version: "", Resource: "jobs"}
+var jobsResource = unversioned.GroupVersionResource{Group: "batch", Version: "", Resource: "jobs"}
 
 func (c *FakeJobs) Create(job *batch.Job) (result *batch.Job, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(jobsResource, c.ns, job), &batch.Job{})
+		Invokes(core.NewCreateAction(jobsResource, c.ns, job), &batch.Job{})
 
 	if obj == nil {
 		return nil, err
@@ -46,7 +45,7 @@ func (c *FakeJobs) Create(job *batch.Job) (result *batch.Job, err error) {
 
 func (c *FakeJobs) Update(job *batch.Job) (result *batch.Job, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(jobsResource, c.ns, job), &batch.Job{})
+		Invokes(core.NewUpdateAction(jobsResource, c.ns, job), &batch.Job{})
 
 	if obj == nil {
 		return nil, err
@@ -56,7 +55,7 @@ func (c *FakeJobs) Update(job *batch.Job) (result *batch.Job, err error) {
 
 func (c *FakeJobs) UpdateStatus(job *batch.Job) (*batch.Job, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(jobsResource, "status", c.ns, job), &batch.Job{})
+		Invokes(core.NewUpdateSubresourceAction(jobsResource, "status", c.ns, job), &batch.Job{})
 
 	if obj == nil {
 		return nil, err
@@ -64,23 +63,23 @@ func (c *FakeJobs) UpdateStatus(job *batch.Job) (*batch.Job, error) {
 	return obj.(*batch.Job), err
 }
 
-func (c *FakeJobs) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeJobs) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(jobsResource, c.ns, name), &batch.Job{})
+		Invokes(core.NewDeleteAction(jobsResource, c.ns, name), &batch.Job{})
 
 	return err
 }
 
-func (c *FakeJobs) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(jobsResource, c.ns, listOptions)
+func (c *FakeJobs) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
+	action := core.NewDeleteCollectionAction(jobsResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &batch.JobList{})
 	return err
 }
 
-func (c *FakeJobs) Get(name string, options v1.GetOptions) (result *batch.Job, err error) {
+func (c *FakeJobs) Get(name string) (result *batch.Job, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(jobsResource, c.ns, name), &batch.Job{})
+		Invokes(core.NewGetAction(jobsResource, c.ns, name), &batch.Job{})
 
 	if obj == nil {
 		return nil, err
@@ -88,15 +87,15 @@ func (c *FakeJobs) Get(name string, options v1.GetOptions) (result *batch.Job, e
 	return obj.(*batch.Job), err
 }
 
-func (c *FakeJobs) List(opts v1.ListOptions) (result *batch.JobList, err error) {
+func (c *FakeJobs) List(opts api.ListOptions) (result *batch.JobList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(jobsResource, c.ns, opts), &batch.JobList{})
+		Invokes(core.NewListAction(jobsResource, c.ns, opts), &batch.JobList{})
 
 	if obj == nil {
 		return nil, err
 	}
 
-	label, _, _ := testing.ExtractFromListOptions(opts)
+	label, _, _ := core.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
@@ -110,16 +109,16 @@ func (c *FakeJobs) List(opts v1.ListOptions) (result *batch.JobList, err error) 
 }
 
 // Watch returns a watch.Interface that watches the requested jobs.
-func (c *FakeJobs) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeJobs) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(jobsResource, c.ns, opts))
+		InvokesWatch(core.NewWatchAction(jobsResource, c.ns, opts))
 
 }
 
 // Patch applies the patch and returns the patched job.
-func (c *FakeJobs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *batch.Job, err error) {
+func (c *FakeJobs) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *batch.Job, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(jobsResource, c.ns, name, data, subresources...), &batch.Job{})
+		Invokes(core.NewPatchSubresourceAction(jobsResource, c.ns, name, data, subresources...), &batch.Job{})
 
 	if obj == nil {
 		return nil, err

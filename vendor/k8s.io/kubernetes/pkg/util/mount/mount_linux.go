@@ -21,7 +21,7 @@ package mount
 import (
 	"bufio"
 	"fmt"
-	"hash/fnv"
+	"hash/adler32"
 	"io"
 	"os"
 	"os/exec"
@@ -30,8 +30,8 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/sets"
-	utilexec "k8s.io/kubernetes/pkg/util/exec"
+	utilExec "k8s.io/kubernetes/pkg/util/exec"
+	"k8s.io/kubernetes/pkg/util/sets"
 )
 
 const (
@@ -282,7 +282,7 @@ func readProcMounts(mountFilePath string, out *[]MountPoint) (uint32, error) {
 }
 
 func readProcMountsFrom(file io.Reader, out *[]MountPoint) (uint32, error) {
-	hash := fnv.New32a()
+	hash := adler32.New()
 	scanner := bufio.NewReader(file)
 	for {
 		line, err := scanner.ReadString('\n')
@@ -332,9 +332,9 @@ func (mounter *SafeFormatAndMount) formatAndMount(source string, target string, 
 	cmd := mounter.Runner.Command("fsck", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		ee, isExitError := err.(utilexec.ExitError)
+		ee, isExitError := err.(utilExec.ExitError)
 		switch {
-		case err == utilexec.ErrExecutableNotFound:
+		case err == utilExec.ErrExecutableNotFound:
 			glog.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
 		case isExitError && ee.ExitStatus() == fsckErrorsCorrected:
 			glog.Infof("Device %s has errors which were corrected by fsck.", source)

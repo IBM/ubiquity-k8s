@@ -22,10 +22,11 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 
-	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 // FSInfo linux returns (available bytes, byte capacity, byte usage, total inodes, inodes free, inode usage, error)
@@ -68,29 +69,35 @@ func Du(path string) (*resource.Quantity, error) {
 	return &used, nil
 }
 
-// Find uses the equivalent of the command `find <path> -dev -printf '.' | wc -c` to count files and directories.
+// Find uses the command `find <path> -dev -printf '.' | wc -c` to count files and directories.
 // While this is not an exact measure of inodes used, it is a very good approximation.
 func Find(path string) (int64, error) {
-	if path == "" {
-		return 0, fmt.Errorf("invalid directory")
-	}
-	var counter byteCounter
-	var stderr bytes.Buffer
+	var stdout, stdwcerr, stdfinderr bytes.Buffer
+	var err error
 	findCmd := exec.Command("find", path, "-xdev", "-printf", ".")
-	findCmd.Stdout, findCmd.Stderr = &counter, &stderr
-	if err := findCmd.Start(); err != nil {
-		return 0, fmt.Errorf("failed to exec cmd %v - %v; stderr: %v", findCmd.Args, err, stderr.String())
+	wcCmd := exec.Command("wc", "-c")
+	if wcCmd.Stdin, err = findCmd.StdoutPipe(); err != nil {
+		return 0, fmt.Errorf("failed to setup stdout for cmd %v - %v", findCmd.Args, err)
 	}
-	if err := findCmd.Wait(); err != nil {
-		return 0, fmt.Errorf("cmd %v failed. stderr: %s; err: %v", findCmd.Args, stderr.String(), err)
+	wcCmd.Stdout, wcCmd.Stderr, findCmd.Stderr = &stdout, &stdwcerr, &stdfinderr
+	if err = findCmd.Start(); err != nil {
+		return 0, fmt.Errorf("failed to exec cmd %v - %v; stderr: %v", findCmd.Args, err, stdfinderr.String())
 	}
-	return counter.bytesWritten, nil
-}
 
-// Simple io.Writer implementation that counts how many bytes were written.
-type byteCounter struct{ bytesWritten int64 }
-
-func (b *byteCounter) Write(p []byte) (int, error) {
-	b.bytesWritten += int64(len(p))
-	return len(p), nil
+	if err = wcCmd.Start(); err != nil {
+		return 0, fmt.Errorf("failed to exec cmd %v - %v; stderr %v", wcCmd.Args, err, stdwcerr.String())
+	}
+	err = findCmd.Wait()
+	if err != nil {
+		return 0, fmt.Errorf("cmd %v failed. stderr: %s; err: %v", findCmd.Args, stdfinderr.String(), err)
+	}
+	err = wcCmd.Wait()
+	if err != nil {
+		return 0, fmt.Errorf("cmd %v failed. stderr: %s; err: %v", wcCmd.Args, stdwcerr.String(), err)
+	}
+	inodeUsage, err := strconv.ParseInt(strings.TrimSpace(stdout.String()), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse cmds: %v, %v output %s - %s", findCmd.Args, wcCmd.Args, stdout.String(), err)
+	}
+	return inodeUsage, nil
 }
