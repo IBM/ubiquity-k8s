@@ -1,5 +1,5 @@
-hash: 2ca09eb9645a908e9b88e9368c6fbf37e9f40b7b1efe39a008b80150c872747a
-updated: 2017-03-14T08:46:58.328540808-07:00
+hash: d541f9bba9f243e7159978cf45a55aaf852766e5e1cf91abe161e62c1fd7e087
+updated: 2017-03-21T14:35:48.268871618-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -121,7 +121,7 @@ imports:
   - interfaces
   - services
 - name: github.ibm.com/almaden-containers/ubiquity
-  version: 744bc9a2f864f7fca7d8c0a531a3b937f5c3fe0b
+  version: 654e0cb16e167206a87d8e51a78a60757bda14c2
   subpackages:
   - fakes
   - local/softlayer

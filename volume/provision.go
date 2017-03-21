@@ -100,7 +100,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexVolumeSource{
-					Driver:    "kubernetes.io/ubiquity",
+					Driver:    "ibm/ubiquity",
 					FSType:    "",
 					SecretRef: nil,
 					ReadOnly:  false,

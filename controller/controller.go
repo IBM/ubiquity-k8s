@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 
 	"github.ibm.com/almaden-containers/ubiquity/remote"
@@ -63,14 +64,13 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 	volumeName, exists := attachRequest["volumeName"]
 	if !exists {
 
-			attachResponse = resources.FlexVolumeResponse{
-				Status:  "Failure",
-				Message: fmt.Sprintf("Failed to attach volume: VolumeName not found : #%v", attachRequest),
-				Device:  volumeName,
-			}
-			c.logger.Printf("Failed-to-attach-volume, VolumeName found %#v ", attachRequest)
-			return attachResponse
-
+		attachResponse = resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to attach volume: VolumeName not found : #%v", attachRequest),
+			Device:  volumeName,
+		}
+		c.logger.Printf("Failed-to-attach-volume, VolumeName found %#v ", attachRequest)
+		return attachResponse
 
 	}
 
@@ -83,14 +83,14 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 
 	c.logger.Printf("Found opts: #%v\n", opts)
 	err := c.Client.CreateVolume(volumeName, opts)
-	if err != nil && err.Error() != "Volume already exists" {
+	if err != nil && err.Error() != fmt.Sprintf("Volume `%s` already exists", volumeName) {
 		attachResponse = resources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
 			Device:  volumeName,
 		}
 		c.logger.Printf("Failed-to-attach-volume %#v ", err)
-	} else if err != nil && err.Error() == "Volume already exists" {
+	} else if err != nil && err.Error() == fmt.Sprintf("Volume `%s` already exists", volumeName) {
 		attachResponse = resources.FlexVolumeResponse{
 			Status:  "Success",
 			Message: "Volume already attached",
@@ -104,6 +104,7 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 			Device:  volumeName,
 		}
 	}
+
 	c.logger.Printf("Done attach of volume: %s\n", volumeName)
 	return attachResponse
 }
@@ -150,29 +151,46 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 
 	c.logger.Printf("volume/ fileset mounted at %s", mountedPath)
 
-	c.logger.Printf("creating volume directory %s", dir)
-	err = os.MkdirAll(dir, 0777)
-	if err != nil && !os.IsExist(err) {
-		return resources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed creating volume directory %#v", err),
-			Device:  "",
+	if _, err = os.Stat(path.Join(mountRequest.MountPath, mountRequest.MountDevice)); err != nil {
+		if os.IsNotExist(err) {
+
+			c.logger.Printf("creating volume directory %s", dir)
+			err = os.MkdirAll(dir, 0777)
+			if err != nil && !os.IsExist(err) {
+				return resources.FlexVolumeResponse{
+					Status:  "Failure",
+					Message: fmt.Sprintf("Failed creating volume directory %#v", err),
+					Device:  "",
+				}
+
+			}
+
+			symLinkCommand := "/bin/ln"
+			args := []string{"-s", mountedPath, mountRequest.MountPath}
+			cmd := exec.Command(symLinkCommand, args...)
+			_, err = cmd.Output()
+			if err != nil {
+				c.logger.Printf("Controller: mount failed to symlink %#v", err)
+				return resources.FlexVolumeResponse{
+					Status:  "Failure",
+					Message: fmt.Sprintf("Failed running ln command %#v", err),
+					Device:  "",
+				}
+
+			}
+
+			return resources.FlexVolumeResponse{
+				Status:  "Success",
+				Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
+				Device:  "",
+			}
+		} else {
+			return resources.FlexVolumeResponse{
+				Status:  "Failure",
+				Message: fmt.Sprintf("Failed running mount %#v", err),
+				Device:  "",
+			}
 		}
-
-	}
-
-	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, mountRequest.MountPath}
-	cmd := exec.Command(symLinkCommand, args...)
-	_, err = cmd.Output()
-	if err != nil {
-		c.logger.Printf("Controller: mount failed to symlink %#v", err)
-		return resources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed running ln command %#v", err),
-			Device:  "",
-		}
-
 	}
 
 	return resources.FlexVolumeResponse{
@@ -180,6 +198,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 		Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
 		Device:  "",
 	}
+
 }
 
 //Unmount methods unmounts the volume/ fileset from the pod
