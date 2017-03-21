@@ -11,7 +11,7 @@ printf "\n calling ubiquity init \n"
 ./ubiquity init
 
 printf "\n calling ubiquity mount \n"
-./ubiquity attach \{\"volumeName\"\:\"testvolume3\",\"fileset\"\:\"testvolume3\",\"filesystem\"\:\"gold\",\"path\"\:\"/gpfs/gold\"\}
+./ubiquity attach \{\"volumeName\"\:\"testvolume\",\"fileset\"\:\"testvolume\",\"filesystem\"\:\"gold\",\"path\"\:\"/gpfs/gold\"\}
 printf "\n calling ubiquity mount \n"
 mkdir -p /tmp/dir1
 ./ubiquity mount /tmp/dir1/testvolume  testvolume \{\}
