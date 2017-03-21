@@ -1,0 +1,9 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: "spectrum-scale-lightweight"
+provisioner: "ubiquity/flex"
+parameters:
+  filesystem: "gold"
+  backend: "spectrum-scale"
+  type: "lightweight"

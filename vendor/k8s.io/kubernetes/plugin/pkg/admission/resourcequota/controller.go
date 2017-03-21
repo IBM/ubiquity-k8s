@@ -25,14 +25,14 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/quota"
+	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/kubernetes/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/util/workqueue"
 	_ "k8s.io/kubernetes/pkg/util/workqueue/prometheus" // for workqueue metric registration
 )
 
@@ -45,8 +45,8 @@ type Evaluator interface {
 
 type quotaEvaluator struct {
 	quotaAccessor QuotaAccessor
-	// lockAcquisitionFunc acquires any required locks and returns a cleanup method to defer
-	lockAcquisitionFunc func([]api.ResourceQuota) func()
+	// lockAquisitionFunc acquires any required locks and returns a cleanup method to defer
+	lockAquisitionFunc func([]api.ResourceQuota) func()
 
 	// registry that knows how to measure usage for objects
 	registry quota.Registry
@@ -99,10 +99,10 @@ func newAdmissionWaiter(a admission.Attributes) *admissionWaiter {
 // NewQuotaEvaluator configures an admission controller that can enforce quota constraints
 // using the provided registry.  The registry must have the capability to handle group/kinds that
 // are persisted by the server this admission controller is intercepting
-func NewQuotaEvaluator(quotaAccessor QuotaAccessor, registry quota.Registry, lockAcquisitionFunc func([]api.ResourceQuota) func(), workers int, stopCh <-chan struct{}) Evaluator {
+func NewQuotaEvaluator(quotaAccessor QuotaAccessor, registry quota.Registry, lockAquisitionFunc func([]api.ResourceQuota) func(), workers int, stopCh <-chan struct{}) Evaluator {
 	return &quotaEvaluator{
-		quotaAccessor:       quotaAccessor,
-		lockAcquisitionFunc: lockAcquisitionFunc,
+		quotaAccessor:      quotaAccessor,
+		lockAquisitionFunc: lockAquisitionFunc,
 
 		registry: registry,
 
@@ -173,8 +173,8 @@ func (e *quotaEvaluator) checkAttributes(ns string, admissionAttributes []*admis
 		return
 	}
 
-	if e.lockAcquisitionFunc != nil {
-		releaseLocks := e.lockAcquisitionFunc(quotas)
+	if e.lockAquisitionFunc != nil {
+		releaseLocks := e.lockAquisitionFunc(quotas)
 		defer releaseLocks()
 	}
 
@@ -327,7 +327,8 @@ func (e *quotaEvaluator) checkRequest(quotas []api.ResourceQuota, a admission.At
 	}
 
 	op := a.GetOperation()
-	if !evaluator.Handles(op) {
+	operationResources := evaluator.OperationResources(op)
+	if len(operationResources) == 0 {
 		return quotas, nil
 	}
 
@@ -339,16 +340,14 @@ func (e *quotaEvaluator) checkRequest(quotas []api.ResourceQuota, a admission.At
 	interestingQuotaIndexes := []int{}
 	for i := range quotas {
 		resourceQuota := quotas[i]
-		match, err := evaluator.Matches(&resourceQuota, inputObject)
-		if err != nil {
-			return quotas, err
-		}
+		match := evaluator.Matches(&resourceQuota, inputObject)
 		if !match {
 			continue
 		}
 
 		hardResources := quota.ResourceNames(resourceQuota.Status.Hard)
-		requiredResources := evaluator.MatchingResources(hardResources)
+		evaluatorResources := evaluator.MatchesResources()
+		requiredResources := quota.Intersection(hardResources, evaluatorResources)
 		if err := evaluator.Constraints(requiredResources, inputObject); err != nil {
 			return nil, admission.NewForbidden(a, fmt.Errorf("failed quota: %s: %v", resourceQuota.Name, err))
 		}
@@ -376,10 +375,7 @@ func (e *quotaEvaluator) checkRequest(quotas []api.ResourceQuota, a admission.At
 	// as a result, we need to measure the usage of this object for quota
 	// on updates, we need to subtract the previous measured usage
 	// if usage shows no change, just return since it has no impact on quota
-	deltaUsage, err := evaluator.Usage(inputObject)
-	if err != nil {
-		return quotas, err
-	}
+	deltaUsage := evaluator.Usage(inputObject)
 
 	// ensure that usage for input object is never negative (this would mean a resource made a negative resource requirement)
 	if negativeUsage := quota.IsNegative(deltaUsage); len(negativeUsage) > 0 {
@@ -396,10 +392,7 @@ func (e *quotaEvaluator) checkRequest(quotas []api.ResourceQuota, a admission.At
 		// then charge based on the delta.  Otherwise, bill the maximum
 		metadata, err := meta.Accessor(prevItem)
 		if err == nil && len(metadata.GetResourceVersion()) > 0 {
-			prevUsage, innerErr := evaluator.Usage(prevItem)
-			if innerErr != nil {
-				return quotas, innerErr
-			}
+			prevUsage := evaluator.Usage(prevItem)
 			deltaUsage = quota.Subtract(deltaUsage, prevUsage)
 		}
 	}
@@ -453,7 +446,8 @@ func (e *quotaEvaluator) Evaluate(a admission.Attributes) error {
 	// for this kind, check if the operation could mutate any quota resources
 	// if no resources tracked by quota are impacted, then just return
 	op := a.GetOperation()
-	if !evaluator.Handles(op) {
+	operationResources := evaluator.OperationResources(op)
+	if len(operationResources) == 0 {
 		return nil
 	}
 

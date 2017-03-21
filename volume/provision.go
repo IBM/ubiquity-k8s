@@ -2,8 +2,9 @@ package volume
 
 import (
 	"fmt"
+	"log"
 
-	"github.ibm.com/almaden-containers/ubiquity-k8s/controller"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
@@ -28,13 +29,14 @@ const (
 	nodeEnv      = "NODE_NAME"
 )
 
-func NewFlexProvisioner(client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
-	return newFlexProvisionerInternal(client, flexClient)
+func NewFlexProvisioner(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
+	return newFlexProvisionerInternal(logger, client, flexClient)
 }
 
-func newFlexProvisionerInternal(client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
+func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
 
 	provisioner := &flexProvisioner{
+		logger:         logger,
 		client:         client,
 		ubiquityClient: flexClient,
 		podIPEnv:       podIPEnv,
@@ -48,7 +50,7 @@ func newFlexProvisionerInternal(client kubernetes.Interface, flexClient resource
 }
 
 type flexProvisioner struct {
-
+	logger *log.Logger
 	// Client, needed for getting a service cluster IP to put as the NFS server of
 	// provisioned PVs
 	client kubernetes.Interface
@@ -98,7 +100,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexVolumeSource{
-					Driver:    "kubernetes.io/ubiquity",
+					Driver:    "ibm/ubiquity",
 					FSType:    "",
 					SecretRef: nil,
 					ReadOnly:  false,
@@ -114,7 +116,6 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // Delete removes the directory that was created by Provision backing the given
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
-	//remote.NewRemoteClient(log,backendName,url,config)
 	err := p.ubiquityClient.RemoveVolume(volume.Name, true)
 
 	if err != nil {
@@ -134,7 +135,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 		return nil, fmt.Errorf("error creating volume: %v", err)
 	}
 
-	_, volumeConfig, err := p.ubiquityClient.GetVolume(options.PVName)
+	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(options.PVName)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
 	}
@@ -142,7 +143,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	flexVolumeConfig := make(map[string]string)
 	flexVolumeConfig["volumeName"] = options.PVName
 	for key, value := range volumeConfig {
-		flexVolumeConfig[key] = value.(string)
+		flexVolumeConfig[key] = fmt.Sprintf("%v", value)
 	}
 
 	return flexVolumeConfig, nil

@@ -21,24 +21,23 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	_ "k8s.io/kubernetes/pkg/api/install"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/runtime/serializer"
 )
 
 func getPod() *v1.Pod {
 	return &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "Pod",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name: "pod",
-			OwnerReferences: []metav1.OwnerReference{
+			OwnerReferences: []v1.OwnerReference{
 				{UID: "1234"},
 			},
 		},
@@ -63,7 +62,7 @@ func getPodJson(t *testing.T) []byte {
 
 func getPodListJson(t *testing.T) []byte {
 	data, err := json.Marshal(&v1.PodList{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "PodList",
 			APIVersion: "v1",
 		},
@@ -92,7 +91,7 @@ func TestDecodeToMetadataOnlyObject(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected to get a JSON serializer")
 	}
-	codec := cf.DecoderToVersion(info.Serializer, schema.GroupVersion{Group: "SOMEGROUP", Version: "SOMEVERSION"})
+	codec := cf.DecoderToVersion(info.Serializer, unversioned.GroupVersion{Group: "SOMEGROUP", Version: "SOMEVERSION"})
 	// decode with into
 	into := &MetadataOnlyObject{}
 	ret, _, err := codec.Decode(data, nil, into)
@@ -138,7 +137,7 @@ func TestDecodeToMetadataOnlyObjectList(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected to get a JSON serializer")
 	}
-	codec := cf.DecoderToVersion(info.Serializer, schema.GroupVersion{Group: "SOMEGROUP", Version: "SOMEVERSION"})
+	codec := cf.DecoderToVersion(info.Serializer, unversioned.GroupVersion{Group: "SOMEGROUP", Version: "SOMEVERSION"})
 	// decode with into
 	into := &MetadataOnlyObjectList{}
 	ret, _, err := codec.Decode(data, nil, into)

@@ -25,22 +25,17 @@ import (
 	"testing"
 	"time"
 
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/federation/apis/federation"
-	fedfake "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/fake"
+	fed_fake "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/fake"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 	"k8s.io/kubernetes/pkg/apis/storage"
-	versionedfake "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
-	"k8s.io/kubernetes/pkg/util"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 type describeClient struct {
@@ -52,7 +47,7 @@ type describeClient struct {
 
 func TestDescribePod(t *testing.T) {
 	fake := fake.NewSimpleClientset(&api.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "bar",
 			Namespace: "foo",
 		},
@@ -70,15 +65,15 @@ func TestDescribePod(t *testing.T) {
 
 func TestDescribePodTolerations(t *testing.T) {
 
-	podTolerations := []v1.Toleration{{Key: "key1", Value: "value1"},
+	podTolerations := []api.Toleration{{Key: "key1", Value: "value1"},
 		{Key: "key2", Value: "value2"}}
 	pt, _ := json.Marshal(podTolerations)
 	fake := fake.NewSimpleClientset(&api.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "bar",
 			Namespace: "foo",
 			Annotations: map[string]string{
-				v1.TolerationsAnnotationKey: string(pt),
+				api.TolerationsAnnotationKey: string(pt),
 			},
 		},
 	})
@@ -95,7 +90,7 @@ func TestDescribePodTolerations(t *testing.T) {
 
 func TestDescribeNamespace(t *testing.T) {
 	fake := fake.NewSimpleClientset(&api.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "myns",
 		},
 	})
@@ -112,7 +107,7 @@ func TestDescribeNamespace(t *testing.T) {
 
 func TestDescribeService(t *testing.T) {
 	fake := fake.NewSimpleClientset(&api.Service{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "bar",
 			Namespace: "foo",
 		},
@@ -134,35 +129,35 @@ func TestPodDescribeResultsSorted(t *testing.T) {
 		&api.EventList{
 			Items: []api.Event{
 				{
-					ObjectMeta:     metav1.ObjectMeta{Name: "one"},
+					ObjectMeta:     api.ObjectMeta{Name: "one"},
 					Source:         api.EventSource{Component: "kubelet"},
 					Message:        "Item 1",
-					FirstTimestamp: metav1.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
-					LastTimestamp:  metav1.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
+					FirstTimestamp: unversioned.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
+					LastTimestamp:  unversioned.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
 					Count:          1,
 					Type:           api.EventTypeNormal,
 				},
 				{
-					ObjectMeta:     metav1.ObjectMeta{Name: "two"},
+					ObjectMeta:     api.ObjectMeta{Name: "two"},
 					Source:         api.EventSource{Component: "scheduler"},
 					Message:        "Item 2",
-					FirstTimestamp: metav1.NewTime(time.Date(1987, time.June, 17, 0, 0, 0, 0, time.UTC)),
-					LastTimestamp:  metav1.NewTime(time.Date(1987, time.June, 17, 0, 0, 0, 0, time.UTC)),
+					FirstTimestamp: unversioned.NewTime(time.Date(1987, time.June, 17, 0, 0, 0, 0, time.UTC)),
+					LastTimestamp:  unversioned.NewTime(time.Date(1987, time.June, 17, 0, 0, 0, 0, time.UTC)),
 					Count:          1,
 					Type:           api.EventTypeNormal,
 				},
 				{
-					ObjectMeta:     metav1.ObjectMeta{Name: "three"},
+					ObjectMeta:     api.ObjectMeta{Name: "three"},
 					Source:         api.EventSource{Component: "kubelet"},
 					Message:        "Item 3",
-					FirstTimestamp: metav1.NewTime(time.Date(2002, time.December, 25, 0, 0, 0, 0, time.UTC)),
-					LastTimestamp:  metav1.NewTime(time.Date(2002, time.December, 25, 0, 0, 0, 0, time.UTC)),
+					FirstTimestamp: unversioned.NewTime(time.Date(2002, time.December, 25, 0, 0, 0, 0, time.UTC)),
+					LastTimestamp:  unversioned.NewTime(time.Date(2002, time.December, 25, 0, 0, 0, 0, time.UTC)),
 					Count:          1,
 					Type:           api.EventTypeNormal,
 				},
 			},
 		},
-		&api.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "bar"}},
+		&api.Pod{ObjectMeta: api.ObjectMeta{Namespace: "foo", Name: "bar"}},
 	)
 	c := &describeClient{T: t, Namespace: "foo", Interface: fake}
 	d := PodDescriber{c}
@@ -202,7 +197,6 @@ func VerifyDatesInOrder(
 }
 
 func TestDescribeContainers(t *testing.T) {
-	trueVal := true
 	testCases := []struct {
 		container        api.Container
 		status           api.ContainerStatus
@@ -215,7 +209,7 @@ func TestDescribeContainers(t *testing.T) {
 				Name: "test",
 				State: api.ContainerState{
 					Running: &api.ContainerStateRunning{
-						StartedAt: metav1.NewTime(time.Now()),
+						StartedAt: unversioned.NewTime(time.Now()),
 					},
 				},
 				Ready:        true,
@@ -245,8 +239,8 @@ func TestDescribeContainers(t *testing.T) {
 				Name: "test",
 				State: api.ContainerState{
 					Terminated: &api.ContainerStateTerminated{
-						StartedAt:  metav1.NewTime(time.Now()),
-						FinishedAt: metav1.NewTime(time.Now()),
+						StartedAt:  unversioned.NewTime(time.Now()),
+						FinishedAt: unversioned.NewTime(time.Now()),
 						Reason:     "potato",
 						ExitCode:   2,
 					},
@@ -263,13 +257,13 @@ func TestDescribeContainers(t *testing.T) {
 				Name: "test",
 				State: api.ContainerState{
 					Running: &api.ContainerStateRunning{
-						StartedAt: metav1.NewTime(time.Now()),
+						StartedAt: unversioned.NewTime(time.Now()),
 					},
 				},
 				LastTerminationState: api.ContainerState{
 					Terminated: &api.ContainerStateTerminated{
-						StartedAt:  metav1.NewTime(time.Now().Add(time.Second * 3)),
-						FinishedAt: metav1.NewTime(time.Now()),
+						StartedAt:  unversioned.NewTime(time.Now().Add(time.Second * 3)),
+						FinishedAt: unversioned.NewTime(time.Now()),
 						Reason:     "crashing",
 						ExitCode:   3,
 					},
@@ -291,49 +285,13 @@ func TestDescribeContainers(t *testing.T) {
 		},
 		// Env
 		{
-			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}, EnvFrom: []api.EnvFromSource{{ConfigMapRef: &api.ConfigMapEnvSource{LocalObjectReference: api.LocalObjectReference{Name: "a123"}}}}},
+			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}},
 			status: api.ContainerStatus{
 				Name:         "test",
 				Ready:        true,
 				RestartCount: 7,
 			},
-			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz", "a123\tConfigMap\tOptional: false"},
-		},
-		{
-			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}, EnvFrom: []api.EnvFromSource{{Prefix: "p_", ConfigMapRef: &api.ConfigMapEnvSource{LocalObjectReference: api.LocalObjectReference{Name: "a123"}}}}},
-			status: api.ContainerStatus{
-				Name:         "test",
-				Ready:        true,
-				RestartCount: 7,
-			},
-			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz", "a123\tConfigMap with prefix 'p_'\tOptional: false"},
-		},
-		{
-			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}, EnvFrom: []api.EnvFromSource{{ConfigMapRef: &api.ConfigMapEnvSource{Optional: &trueVal, LocalObjectReference: api.LocalObjectReference{Name: "a123"}}}}},
-			status: api.ContainerStatus{
-				Name:         "test",
-				Ready:        true,
-				RestartCount: 7,
-			},
-			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz", "a123\tConfigMap\tOptional: true"},
-		},
-		{
-			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}, EnvFrom: []api.EnvFromSource{{SecretRef: &api.SecretEnvSource{LocalObjectReference: api.LocalObjectReference{Name: "a123"}, Optional: &trueVal}}}},
-			status: api.ContainerStatus{
-				Name:         "test",
-				Ready:        true,
-				RestartCount: 7,
-			},
-			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz", "a123\tSecret\tOptional: true"},
-		},
-		{
-			container: api.Container{Name: "test", Image: "image", Env: []api.EnvVar{{Name: "envname", Value: "xyz"}}, EnvFrom: []api.EnvFromSource{{Prefix: "p_", SecretRef: &api.SecretEnvSource{LocalObjectReference: api.LocalObjectReference{Name: "a123"}}}}},
-			status: api.ContainerStatus{
-				Name:         "test",
-				Ready:        true,
-				RestartCount: 7,
-			},
-			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz", "a123\tSecret with prefix 'p_'\tOptional: false"},
+			expectedElements: []string{"test", "State", "Waiting", "Ready", "True", "Restart Count", "7", "Image", "image", "envname", "xyz"},
 		},
 		// Command
 		{
@@ -402,8 +360,7 @@ func TestDescribeContainers(t *testing.T) {
 				ContainerStatuses: []api.ContainerStatus{testCase.status},
 			},
 		}
-		writer := &PrefixWriter{out}
-		describeContainers("Containers", pod.Spec.Containers, pod.Status.ContainerStatuses, EnvValueRetriever(&pod), writer, "")
+		describeContainers("Containers", pod.Spec.Containers, pod.Status.ContainerStatuses, EnvValueRetriever(&pod), out, "")
 		output := out.String()
 		for _, expected := range testCase.expectedElements {
 			if !strings.Contains(output, expected) {
@@ -460,7 +417,7 @@ func TestDescribers(t *testing.T) {
 }
 
 func TestDefaultDescribers(t *testing.T) {
-	out, err := DefaultObjectDescriber.DescribeObject(&api.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo"}})
+	out, err := DefaultObjectDescriber.DescribeObject(&api.Pod{ObjectMeta: api.ObjectMeta{Name: "foo"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -468,7 +425,7 @@ func TestDefaultDescribers(t *testing.T) {
 		t.Errorf("unexpected output: %s", out)
 	}
 
-	out, err = DefaultObjectDescriber.DescribeObject(&api.Service{ObjectMeta: metav1.ObjectMeta{Name: "foo"}})
+	out, err = DefaultObjectDescriber.DescribeObject(&api.Service{ObjectMeta: api.ObjectMeta{Name: "foo"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -476,7 +433,7 @@ func TestDefaultDescribers(t *testing.T) {
 		t.Errorf("unexpected output: %s", out)
 	}
 
-	out, err = DefaultObjectDescriber.DescribeObject(&api.ReplicationController{ObjectMeta: metav1.ObjectMeta{Name: "foo"}})
+	out, err = DefaultObjectDescriber.DescribeObject(&api.ReplicationController{ObjectMeta: api.ObjectMeta{Name: "foo"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -484,7 +441,7 @@ func TestDefaultDescribers(t *testing.T) {
 		t.Errorf("unexpected output: %s", out)
 	}
 
-	out, err = DefaultObjectDescriber.DescribeObject(&api.Node{ObjectMeta: metav1.ObjectMeta{Name: "foo"}})
+	out, err = DefaultObjectDescriber.DescribeObject(&api.Node{ObjectMeta: api.ObjectMeta{Name: "foo"}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -564,7 +521,7 @@ func TestGetPodsTotalRequests(t *testing.T) {
 		if err != nil {
 			t.Errorf("Unexpected error %v", err)
 		}
-		if !apiequality.Semantic.DeepEqual(reqs, testCase.expectedReqs) {
+		if !api.Semantic.DeepEqual(reqs, testCase.expectedReqs) {
 			t.Errorf("Expected %v, got %v", testCase.expectedReqs, reqs)
 		}
 	}
@@ -574,7 +531,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 	tests := map[string]*api.PersistentVolume{
 
 		"hostpath": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					HostPath: &api.HostPathVolumeSource{},
@@ -582,7 +539,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"gce": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{},
@@ -590,7 +547,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"ebs": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					AWSElasticBlockStore: &api.AWSElasticBlockStoreVolumeSource{},
@@ -598,7 +555,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"nfs": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					NFS: &api.NFSVolumeSource{},
@@ -606,7 +563,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"iscsi": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					ISCSI: &api.ISCSIVolumeSource{},
@@ -614,7 +571,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"gluster": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					Glusterfs: &api.GlusterfsVolumeSource{},
@@ -622,7 +579,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"rbd": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					RBD: &api.RBDVolumeSource{},
@@ -630,7 +587,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"quobyte": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					Quobyte: &api.QuobyteVolumeSource{},
@@ -638,7 +595,7 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 			},
 		},
 		"cinder": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
+			ObjectMeta: api.ObjectMeta{Name: "bar"},
 			Spec: api.PersistentVolumeSpec{
 				PersistentVolumeSource: api.PersistentVolumeSource{
 					Cinder: &api.CinderVolumeSource{},
@@ -661,19 +618,16 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 }
 
 func TestDescribeDeployment(t *testing.T) {
-	fake := fake.NewSimpleClientset()
-	versionedFake := versionedfake.NewSimpleClientset(&v1beta1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
+	fake := fake.NewSimpleClientset(&extensions.Deployment{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "bar",
 			Namespace: "foo",
 		},
-		Spec: v1beta1.DeploymentSpec{
-			Replicas: util.Int32Ptr(1),
-			Selector: &metav1.LabelSelector{},
-			Template: v1.PodTemplateSpec{},
+		Spec: extensions.DeploymentSpec{
+			Template: api.PodTemplateSpec{},
 		},
 	})
-	d := DeploymentDescriber{fake, versionedFake}
+	d := DeploymentDescriber{fake}
 	out, err := d.Describe("foo", "bar", DescriberSettings{ShowEvents: true})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -685,7 +639,7 @@ func TestDescribeDeployment(t *testing.T) {
 
 func TestDescribeCluster(t *testing.T) {
 	cluster := federation.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "foo",
 			ResourceVersion: "4",
 			Labels: map[string]string{
@@ -706,7 +660,7 @@ func TestDescribeCluster(t *testing.T) {
 			},
 		},
 	}
-	fake := fedfake.NewSimpleClientset(&cluster)
+	fake := fed_fake.NewSimpleClientset(&cluster)
 	d := ClusterDescriber{Interface: fake}
 	out, err := d.Describe("any", "foo", DescriberSettings{ShowEvents: true})
 	if err != nil {
@@ -719,7 +673,7 @@ func TestDescribeCluster(t *testing.T) {
 
 func TestDescribeStorageClass(t *testing.T) {
 	f := fake.NewSimpleClientset(&storage.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "foo",
 			ResourceVersion: "4",
 			Annotations: map[string]string{
@@ -744,10 +698,10 @@ func TestDescribeStorageClass(t *testing.T) {
 
 func TestDescribePodDisruptionBudget(t *testing.T) {
 	f := fake.NewSimpleClientset(&policy.PodDisruptionBudget{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Namespace:         "ns1",
 			Name:              "pdb1",
-			CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
+			CreationTimestamp: unversioned.Time{Time: time.Now().Add(1.9e9)},
 		},
 		Spec: policy.PodDisruptionBudgetSpec{
 			MinAvailable: intstr.FromInt(22),
@@ -771,13 +725,13 @@ func TestDescribeEvents(t *testing.T) {
 	events := &api.EventList{
 		Items: []api.Event{
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Namespace: "foo",
 				},
 				Source:         api.EventSource{Component: "kubelet"},
 				Message:        "Item 1",
-				FirstTimestamp: metav1.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
-				LastTimestamp:  metav1.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
+				FirstTimestamp: unversioned.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
+				LastTimestamp:  unversioned.NewTime(time.Date(2014, time.January, 15, 0, 0, 0, 0, time.UTC)),
 				Count:          1,
 				Type:           api.EventTypeNormal,
 			},
@@ -787,28 +741,23 @@ func TestDescribeEvents(t *testing.T) {
 	m := map[string]Describer{
 		"DaemonSetDescriber": &DaemonSetDescriber{
 			fake.NewSimpleClientset(&extensions.DaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
 			}, events),
 		},
 		"DeploymentDescriber": &DeploymentDescriber{
-			fake.NewSimpleClientset(events),
-			versionedfake.NewSimpleClientset(&v1beta1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
+			fake.NewSimpleClientset(&extensions.Deployment{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
-				Spec: v1beta1.DeploymentSpec{
-					Replicas: util.Int32Ptr(1),
-					Selector: &metav1.LabelSelector{},
-				},
-			}),
+			}, events),
 		},
 		"EndpointsDescriber": &EndpointsDescriber{
 			fake.NewSimpleClientset(&api.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
@@ -820,7 +769,7 @@ func TestDescribeEvents(t *testing.T) {
 		// - JobDescriber
 		"NodeDescriber": &NodeDescriber{
 			fake.NewSimpleClientset(&api.Node{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:     "bar",
 					SelfLink: "url/url/url",
 				},
@@ -828,7 +777,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"PersistentVolumeDescriber": &PersistentVolumeDescriber{
 			fake.NewSimpleClientset(&api.PersistentVolume{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:     "bar",
 					SelfLink: "url/url/url",
 				},
@@ -836,7 +785,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"PodDescriber": &PodDescriber{
 			fake.NewSimpleClientset(&api.Pod{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 					SelfLink:  "url/url/url",
@@ -845,7 +794,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"ReplicaSetDescriber": &ReplicaSetDescriber{
 			fake.NewSimpleClientset(&extensions.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
@@ -853,7 +802,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"ReplicationControllerDescriber": &ReplicationControllerDescriber{
 			fake.NewSimpleClientset(&api.ReplicationController{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
@@ -861,7 +810,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"Service": &ServiceDescriber{
 			fake.NewSimpleClientset(&api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:      "bar",
 					Namespace: "foo",
 				},
@@ -869,7 +818,7 @@ func TestDescribeEvents(t *testing.T) {
 		},
 		"StorageClass": &StorageClassDescriber{
 			fake.NewSimpleClientset(&storage.StorageClass{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "bar",
 				},
 			}, events),

@@ -4,5 +4,5 @@ go get github.com/onsi/ginkgo/ginkgo
 go get github.com/onsi/gomega
 
 echo "Starting unit tests...."
-cd core/
+cd controller/
 ginkgo

@@ -26,14 +26,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 var (
@@ -68,7 +67,7 @@ func NewCmdReplace(f cmdutil.Factory, out io.Writer) *cobra.Command {
 		Use: "replace -f FILENAME",
 		// update is deprecated.
 		Aliases: []string{"update"},
-		Short:   i18n.T("Replace a resource by filename or stdin"),
+		Short:   "Replace a resource by filename or stdin",
 		Long:    replace_long,
 		Example: replace_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -129,7 +128,7 @@ func RunReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []str
 	if err != nil {
 		return err
 	}
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), runtime.UnstructuredJSONScheme).
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
@@ -200,7 +199,7 @@ func forceReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []s
 	if err != nil {
 		return err
 	}
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), runtime.UnstructuredJSONScheme).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
 		FilenameParam(enforceNamespace, options).
@@ -249,7 +248,7 @@ func forceReplace(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []s
 		})
 	})
 
-	r = resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	r = resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), runtime.UnstructuredJSONScheme).
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().

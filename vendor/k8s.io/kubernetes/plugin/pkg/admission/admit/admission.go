@@ -19,11 +19,13 @@ package admit
 import (
 	"io"
 
-	"k8s.io/apiserver/pkg/admission"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+
+	"k8s.io/kubernetes/pkg/admission"
 )
 
 func init() {
-	admission.RegisterPlugin("AlwaysAdmit", func(config io.Reader) (admission.Interface, error) {
+	admission.RegisterPlugin("AlwaysAdmit", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
 		return NewAlwaysAdmit(), nil
 	})
 }

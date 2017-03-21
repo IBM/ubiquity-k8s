@@ -17,9 +17,8 @@ limitations under the License.
 package common
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -68,21 +67,21 @@ var _ = framework.KubeDescribe("Docker Containers", func() {
 const testContainerName = "test-container"
 
 // Return a prototypical entrypoint test pod
-func entrypointTestPod() *v1.Pod {
+func entrypointTestPod() *api.Pod {
 	podName := "client-containers-" + string(uuid.NewUUID())
 
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: podName,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  testContainerName,
 					Image: "gcr.io/google_containers/eptest:0.1",
 				},
 			},
-			RestartPolicy: v1.RestartPolicyNever,
+			RestartPolicy: api.RestartPolicyNever,
 		},
 	}
 }

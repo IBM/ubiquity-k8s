@@ -21,14 +21,15 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apimachinery"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/sets"
 	core "k8s.io/kubernetes/federation/apis/core"
 	core_v1 "k8s.io/kubernetes/federation/apis/core/v1"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/sets"
 )
 
 const importPrefix = "k8s.io/kubernetes/pkg/api"
@@ -36,13 +37,13 @@ const importPrefix = "k8s.io/kubernetes/pkg/api"
 var accessor = meta.NewAccessor()
 
 // availableVersions lists all known external versions for this group from most preferred to least preferred
-var availableVersions = []schema.GroupVersion{core_v1.SchemeGroupVersion}
+var availableVersions = []unversioned.GroupVersion{core_v1.SchemeGroupVersion}
 
 func init() {
-	api.Registry.RegisterVersions(availableVersions)
-	externalVersions := []schema.GroupVersion{}
+	registered.RegisterVersions(availableVersions)
+	externalVersions := []unversioned.GroupVersion{}
 	for _, v := range availableVersions {
-		if api.Registry.IsAllowedVersion(v) {
+		if registered.IsAllowedVersion(v) {
 			externalVersions = append(externalVersions, v)
 		}
 	}
@@ -51,7 +52,7 @@ func init() {
 		return
 	}
 
-	if err := api.Registry.EnableVersions(externalVersions...); err != nil {
+	if err := registered.EnableVersions(externalVersions...); err != nil {
 		glog.V(4).Infof("%v", err)
 		return
 	}
@@ -63,9 +64,9 @@ func init() {
 
 // TODO: enableVersions should be centralized rather than spread in each API
 // group.
-// We can combine api.Registry.RegisterVersions, api.Registry.EnableVersions and
-// api.Registry.RegisterGroup once we have moved enableVersions there.
-func enableVersions(externalVersions []schema.GroupVersion) error {
+// We can combine registered.RegisterVersions, registered.EnableVersions and
+// registered.RegisterGroup once we have moved enableVersions there.
+func enableVersions(externalVersions []unversioned.GroupVersion) error {
 	addVersionsToScheme(externalVersions...)
 	preferredExternalVersion := externalVersions[0]
 
@@ -77,7 +78,7 @@ func enableVersions(externalVersions []schema.GroupVersion) error {
 		InterfacesFor: interfacesFor,
 	}
 
-	if err := api.Registry.RegisterGroup(groupMeta); err != nil {
+	if err := registered.RegisterGroup(groupMeta); err != nil {
 		return err
 	}
 	return nil
@@ -86,7 +87,7 @@ func enableVersions(externalVersions []schema.GroupVersion) error {
 // userResources is a group of resources mostly used by a kubectl user
 var userResources = []string{"svc"}
 
-func newRESTMapper(externalVersions []schema.GroupVersion) meta.RESTMapper {
+func newRESTMapper(externalVersions []unversioned.GroupVersion) meta.RESTMapper {
 	// the list of kinds that are scoped at the root of the api hierarchy
 	// if a kind is not enumerated here, it is assumed to have a namespace scope
 	rootScoped := sets.NewString(
@@ -99,7 +100,7 @@ func newRESTMapper(externalVersions []schema.GroupVersion) meta.RESTMapper {
 		"DeleteOptions",
 		"Status")
 
-	mapper := meta.NewDefaultRESTMapperFromScheme(externalVersions, interfacesFor, importPrefix, ignoredKinds, rootScoped, core.Scheme)
+	mapper := api.NewDefaultRESTMapperFromScheme(externalVersions, interfacesFor, importPrefix, ignoredKinds, rootScoped, core.Scheme)
 	// setup aliases for groups of resources
 	mapper.AddResourceAlias("all", userResources...)
 
@@ -108,7 +109,7 @@ func newRESTMapper(externalVersions []schema.GroupVersion) meta.RESTMapper {
 
 // InterfacesFor returns the default Codec and ResourceVersioner for a given version
 // string, or an error if the version is not known.
-func interfacesFor(version schema.GroupVersion) (*meta.VersionInterfaces, error) {
+func interfacesFor(version unversioned.GroupVersion) (*meta.VersionInterfaces, error) {
 	switch version {
 	case core_v1.SchemeGroupVersion:
 		return &meta.VersionInterfaces{
@@ -116,12 +117,12 @@ func interfacesFor(version schema.GroupVersion) (*meta.VersionInterfaces, error)
 			MetadataAccessor: accessor,
 		}, nil
 	default:
-		g, _ := api.Registry.Group(core.GroupName)
+		g, _ := registered.Group(core.GroupName)
 		return nil, fmt.Errorf("unsupported storage version: %s (valid: %v)", version, g.GroupVersions)
 	}
 }
 
-func addVersionsToScheme(externalVersions ...schema.GroupVersion) {
+func addVersionsToScheme(externalVersions ...unversioned.GroupVersion) {
 	// add the internal version to Scheme
 	if err := core.AddToScheme(core.Scheme); err != nil {
 		// Programmer error, detect immediately
@@ -129,7 +130,7 @@ func addVersionsToScheme(externalVersions ...schema.GroupVersion) {
 	}
 	// add the enabled external versions to Scheme
 	for _, v := range externalVersions {
-		if !api.Registry.IsEnabledVersion(v) {
+		if !registered.IsEnabledVersion(v) {
 			glog.Errorf("Version %s is not enabled, so it will not be added to the Scheme.", v)
 			continue
 		}

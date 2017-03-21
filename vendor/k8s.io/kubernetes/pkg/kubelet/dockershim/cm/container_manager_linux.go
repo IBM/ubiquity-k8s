@@ -25,14 +25,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/blang/semver"
 	"github.com/golang/glog"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubecm "k8s.io/kubernetes/pkg/kubelet/cm"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/pkg/kubelet/qos"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 const (
@@ -85,7 +85,7 @@ func (m *containerManager) doWork() {
 		glog.Errorf("Unable to get docker version: %v", err)
 		return
 	}
-	version, err := utilversion.ParseSemantic(v.Version)
+	version, err := semver.Parse(v.Version)
 	if err != nil {
 		glog.Errorf("Unable to parse docker version %q: %v", v.Version, err)
 		return

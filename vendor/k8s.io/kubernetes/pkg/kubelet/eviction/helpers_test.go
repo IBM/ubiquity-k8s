@@ -22,13 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	statsapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/stats"
 	"k8s.io/kubernetes/pkg/quota"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 func quantityMustParse(value string) *resource.Quantity {
@@ -398,20 +397,20 @@ func thresholdEqual(a Threshold, b Threshold) bool {
 
 // TestOrderedByQoS ensures we order BestEffort < Burstable < Guaranteed
 func TestOrderedByQoS(t *testing.T) {
-	bestEffort := newPod("best-effort", []v1.Container{
+	bestEffort := newPod("best-effort", []api.Container{
 		newContainer("best-effort", newResourceList("", ""), newResourceList("", "")),
 	}, nil)
-	burstable := newPod("burstable", []v1.Container{
+	burstable := newPod("burstable", []api.Container{
 		newContainer("burstable", newResourceList("100m", "100Mi"), newResourceList("200m", "200Mi")),
 	}, nil)
-	guaranteed := newPod("guaranteed", []v1.Container{
+	guaranteed := newPod("guaranteed", []api.Container{
 		newContainer("guaranteed", newResourceList("200m", "200Mi"), newResourceList("200m", "200Mi")),
 	}, nil)
 
-	pods := []*v1.Pod{guaranteed, burstable, bestEffort}
+	pods := []*api.Pod{guaranteed, burstable, bestEffort}
 	orderedBy(qosComparator).Sort(pods)
 
-	expected := []*v1.Pod{bestEffort, burstable, guaranteed}
+	expected := []*api.Pod{bestEffort, burstable, guaranteed}
 	for i := range expected {
 		if pods[i] != expected[i] {
 			t.Errorf("Expected pod: %s, but got: %s", expected[i].Name, pods[i].Name)
@@ -428,51 +427,51 @@ func TestOrderedbyInodes(t *testing.T) {
 }
 
 // testOrderedByDisk ensures we order pods by greediest resource consumer
-func testOrderedByResource(t *testing.T, orderedByResource v1.ResourceName,
-	newPodStatsFunc func(pod *v1.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats) {
-	pod1 := newPod("best-effort-high", []v1.Container{
+func testOrderedByResource(t *testing.T, orderedByResource api.ResourceName,
+	newPodStatsFunc func(pod *api.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats) {
+	pod1 := newPod("best-effort-high", []api.Container{
 		newContainer("best-effort-high", newResourceList("", ""), newResourceList("", "")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod2 := newPod("best-effort-low", []v1.Container{
+	pod2 := newPod("best-effort-low", []api.Container{
 		newContainer("best-effort-low", newResourceList("", ""), newResourceList("", "")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod3 := newPod("burstable-high", []v1.Container{
+	pod3 := newPod("burstable-high", []api.Container{
 		newContainer("burstable-high", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod4 := newPod("burstable-low", []v1.Container{
+	pod4 := newPod("burstable-low", []api.Container{
 		newContainer("burstable-low", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod5 := newPod("guaranteed-high", []v1.Container{
+	pod5 := newPod("guaranteed-high", []api.Container{
 		newContainer("guaranteed-high", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod6 := newPod("guaranteed-low", []v1.Container{
+	pod6 := newPod("guaranteed-low", []api.Container{
 		newContainer("guaranteed-low", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	stats := map[*v1.Pod]statsapi.PodStats{
+	stats := map[*api.Pod]statsapi.PodStats{
 		pod1: newPodStatsFunc(pod1, resource.MustParse("50Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")),  // 200Mi
 		pod2: newPodStatsFunc(pod2, resource.MustParse("100Mi"), resource.MustParse("150Mi"), resource.MustParse("50Mi")), // 300Mi
 		pod3: newPodStatsFunc(pod3, resource.MustParse("200Mi"), resource.MustParse("150Mi"), resource.MustParse("50Mi")), // 400Mi
@@ -480,13 +479,13 @@ func testOrderedByResource(t *testing.T, orderedByResource v1.ResourceName,
 		pod5: newPodStatsFunc(pod5, resource.MustParse("400Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")), // 550Mi
 		pod6: newPodStatsFunc(pod6, resource.MustParse("500Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")), // 650Mi
 	}
-	statsFn := func(pod *v1.Pod) (statsapi.PodStats, bool) {
+	statsFn := func(pod *api.Pod) (statsapi.PodStats, bool) {
 		result, found := stats[pod]
 		return result, found
 	}
-	pods := []*v1.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
+	pods := []*api.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
 	orderedBy(disk(statsFn, []fsStatsType{fsStatsRoot, fsStatsLogs, fsStatsLocalVolumeSource}, orderedByResource)).Sort(pods)
-	expected := []*v1.Pod{pod6, pod5, pod4, pod3, pod2, pod1}
+	expected := []*api.Pod{pod6, pod5, pod4, pod3, pod2, pod1}
 	for i := range expected {
 		if pods[i] != expected[i] {
 			t.Errorf("Expected pod[%d]: %s, but got: %s", i, expected[i].Name, pods[i].Name)
@@ -503,51 +502,51 @@ func TestOrderedbyQoSInodes(t *testing.T) {
 }
 
 // testOrderedByQoSDisk ensures we order pods by qos and then greediest resource consumer
-func testOrderedByQoSResource(t *testing.T, orderedByResource v1.ResourceName,
-	newPodStatsFunc func(pod *v1.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats) {
-	pod1 := newPod("best-effort-high", []v1.Container{
+func testOrderedByQoSResource(t *testing.T, orderedByResource api.ResourceName,
+	newPodStatsFunc func(pod *api.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats) {
+	pod1 := newPod("best-effort-high", []api.Container{
 		newContainer("best-effort-high", newResourceList("", ""), newResourceList("", "")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod2 := newPod("best-effort-low", []v1.Container{
+	pod2 := newPod("best-effort-low", []api.Container{
 		newContainer("best-effort-low", newResourceList("", ""), newResourceList("", "")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod3 := newPod("burstable-high", []v1.Container{
+	pod3 := newPod("burstable-high", []api.Container{
 		newContainer("burstable-high", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod4 := newPod("burstable-low", []v1.Container{
+	pod4 := newPod("burstable-low", []api.Container{
 		newContainer("burstable-low", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod5 := newPod("guaranteed-high", []v1.Container{
+	pod5 := newPod("guaranteed-high", []api.Container{
 		newContainer("guaranteed-high", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	pod6 := newPod("guaranteed-low", []v1.Container{
+	pod6 := newPod("guaranteed-low", []api.Container{
 		newContainer("guaranteed-low", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
-	}, []v1.Volume{
-		newVolume("local-volume", v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
+	}, []api.Volume{
+		newVolume("local-volume", api.VolumeSource{
+			EmptyDir: &api.EmptyDirVolumeSource{},
 		}),
 	})
-	stats := map[*v1.Pod]statsapi.PodStats{
+	stats := map[*api.Pod]statsapi.PodStats{
 		pod1: newPodStatsFunc(pod1, resource.MustParse("50Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")),  // 200Mi
 		pod2: newPodStatsFunc(pod2, resource.MustParse("100Mi"), resource.MustParse("150Mi"), resource.MustParse("50Mi")), // 300Mi
 		pod3: newPodStatsFunc(pod3, resource.MustParse("200Mi"), resource.MustParse("150Mi"), resource.MustParse("50Mi")), // 400Mi
@@ -555,13 +554,13 @@ func testOrderedByQoSResource(t *testing.T, orderedByResource v1.ResourceName,
 		pod5: newPodStatsFunc(pod5, resource.MustParse("400Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")), // 550Mi
 		pod6: newPodStatsFunc(pod6, resource.MustParse("500Mi"), resource.MustParse("100Mi"), resource.MustParse("50Mi")), // 650Mi
 	}
-	statsFn := func(pod *v1.Pod) (statsapi.PodStats, bool) {
+	statsFn := func(pod *api.Pod) (statsapi.PodStats, bool) {
 		result, found := stats[pod]
 		return result, found
 	}
-	pods := []*v1.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
+	pods := []*api.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
 	orderedBy(qosComparator, disk(statsFn, []fsStatsType{fsStatsRoot, fsStatsLogs, fsStatsLocalVolumeSource}, orderedByResource)).Sort(pods)
-	expected := []*v1.Pod{pod2, pod1, pod4, pod3, pod6, pod5}
+	expected := []*api.Pod{pod2, pod1, pod4, pod3, pod6, pod5}
 	for i := range expected {
 		if pods[i] != expected[i] {
 			t.Errorf("Expected pod[%d]: %s, but got: %s", i, expected[i].Name, pods[i].Name)
@@ -571,25 +570,25 @@ func testOrderedByQoSResource(t *testing.T, orderedByResource v1.ResourceName,
 
 // TestOrderedByMemory ensures we order pods by greediest memory consumer relative to request.
 func TestOrderedByMemory(t *testing.T) {
-	pod1 := newPod("best-effort-high", []v1.Container{
+	pod1 := newPod("best-effort-high", []api.Container{
 		newContainer("best-effort-high", newResourceList("", ""), newResourceList("", "")),
 	}, nil)
-	pod2 := newPod("best-effort-low", []v1.Container{
+	pod2 := newPod("best-effort-low", []api.Container{
 		newContainer("best-effort-low", newResourceList("", ""), newResourceList("", "")),
 	}, nil)
-	pod3 := newPod("burstable-high", []v1.Container{
+	pod3 := newPod("burstable-high", []api.Container{
 		newContainer("burstable-high", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
 	}, nil)
-	pod4 := newPod("burstable-low", []v1.Container{
+	pod4 := newPod("burstable-low", []api.Container{
 		newContainer("burstable-low", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
 	}, nil)
-	pod5 := newPod("guaranteed-high", []v1.Container{
+	pod5 := newPod("guaranteed-high", []api.Container{
 		newContainer("guaranteed-high", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
 	}, nil)
-	pod6 := newPod("guaranteed-low", []v1.Container{
+	pod6 := newPod("guaranteed-low", []api.Container{
 		newContainer("guaranteed-low", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
 	}, nil)
-	stats := map[*v1.Pod]statsapi.PodStats{
+	stats := map[*api.Pod]statsapi.PodStats{
 		pod1: newPodMemoryStats(pod1, resource.MustParse("500Mi")), // 500 relative to request
 		pod2: newPodMemoryStats(pod2, resource.MustParse("300Mi")), // 300 relative to request
 		pod3: newPodMemoryStats(pod3, resource.MustParse("800Mi")), // 700 relative to request
@@ -597,13 +596,13 @@ func TestOrderedByMemory(t *testing.T) {
 		pod5: newPodMemoryStats(pod5, resource.MustParse("800Mi")), // -200 relative to request
 		pod6: newPodMemoryStats(pod6, resource.MustParse("200Mi")), // -800 relative to request
 	}
-	statsFn := func(pod *v1.Pod) (statsapi.PodStats, bool) {
+	statsFn := func(pod *api.Pod) (statsapi.PodStats, bool) {
 		result, found := stats[pod]
 		return result, found
 	}
-	pods := []*v1.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
+	pods := []*api.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
 	orderedBy(memory(statsFn)).Sort(pods)
-	expected := []*v1.Pod{pod3, pod1, pod2, pod4, pod5, pod6}
+	expected := []*api.Pod{pod3, pod1, pod2, pod4, pod5, pod6}
 	for i := range expected {
 		if pods[i] != expected[i] {
 			t.Errorf("Expected pod[%d]: %s, but got: %s", i, expected[i].Name, pods[i].Name)
@@ -613,25 +612,25 @@ func TestOrderedByMemory(t *testing.T) {
 
 // TestOrderedByQoSMemory ensures we order by qosComparator and then memory consumption relative to request.
 func TestOrderedByQoSMemory(t *testing.T) {
-	pod1 := newPod("best-effort-high", []v1.Container{
+	pod1 := newPod("best-effort-high", []api.Container{
 		newContainer("best-effort-high", newResourceList("", ""), newResourceList("", "")),
 	}, nil)
-	pod2 := newPod("best-effort-low", []v1.Container{
+	pod2 := newPod("best-effort-low", []api.Container{
 		newContainer("best-effort-low", newResourceList("", ""), newResourceList("", "")),
 	}, nil)
-	pod3 := newPod("burstable-high", []v1.Container{
+	pod3 := newPod("burstable-high", []api.Container{
 		newContainer("burstable-high", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
 	}, nil)
-	pod4 := newPod("burstable-low", []v1.Container{
+	pod4 := newPod("burstable-low", []api.Container{
 		newContainer("burstable-low", newResourceList("100m", "100Mi"), newResourceList("200m", "1Gi")),
 	}, nil)
-	pod5 := newPod("guaranteed-high", []v1.Container{
+	pod5 := newPod("guaranteed-high", []api.Container{
 		newContainer("guaranteed-high", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
 	}, nil)
-	pod6 := newPod("guaranteed-low", []v1.Container{
+	pod6 := newPod("guaranteed-low", []api.Container{
 		newContainer("guaranteed-low", newResourceList("100m", "1Gi"), newResourceList("100m", "1Gi")),
 	}, nil)
-	stats := map[*v1.Pod]statsapi.PodStats{
+	stats := map[*api.Pod]statsapi.PodStats{
 		pod1: newPodMemoryStats(pod1, resource.MustParse("500Mi")), // 500 relative to request
 		pod2: newPodMemoryStats(pod2, resource.MustParse("50Mi")),  // 50 relative to request
 		pod3: newPodMemoryStats(pod3, resource.MustParse("50Mi")),  // -50 relative to request
@@ -639,12 +638,12 @@ func TestOrderedByQoSMemory(t *testing.T) {
 		pod5: newPodMemoryStats(pod5, resource.MustParse("800Mi")), // -200 relative to request
 		pod6: newPodMemoryStats(pod6, resource.MustParse("200Mi")), // -800 relative to request
 	}
-	statsFn := func(pod *v1.Pod) (statsapi.PodStats, bool) {
+	statsFn := func(pod *api.Pod) (statsapi.PodStats, bool) {
 		result, found := stats[pod]
 		return result, found
 	}
-	pods := []*v1.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
-	expected := []*v1.Pod{pod1, pod2, pod4, pod3, pod5, pod6}
+	pods := []*api.Pod{pod1, pod2, pod3, pod4, pod5, pod6}
+	expected := []*api.Pod{pod1, pod2, pod4, pod3, pod5, pod6}
 	orderedBy(qosComparator, memory(statsFn)).Sort(pods)
 	for i := range expected {
 		if pods[i] != expected[i] {
@@ -663,7 +662,7 @@ func (f *fakeSummaryProvider) Get() (*statsapi.Summary, error) {
 
 // newPodStats returns a pod stat where each container is using the specified working set
 // each pod must have a Name, UID, Namespace
-func newPodStats(pod *v1.Pod, containerWorkingSetBytes int64) statsapi.PodStats {
+func newPodStats(pod *api.Pod, containerWorkingSetBytes int64) statsapi.PodStats {
 	result := statsapi.PodStats{
 		PodRef: statsapi.PodReference{
 			Name:      pod.Name,
@@ -683,14 +682,14 @@ func newPodStats(pod *v1.Pod, containerWorkingSetBytes int64) statsapi.PodStats 
 }
 
 func TestMakeSignalObservations(t *testing.T) {
-	podMaker := func(name, namespace, uid string, numContainers int) *v1.Pod {
-		pod := &v1.Pod{}
+	podMaker := func(name, namespace, uid string, numContainers int) *api.Pod {
+		pod := &api.Pod{}
 		pod.Name = name
 		pod.Namespace = namespace
 		pod.UID = types.UID(uid)
-		pod.Spec = v1.PodSpec{}
+		pod.Spec = api.PodSpec{}
 		for i := 0; i < numContainers; i++ {
-			pod.Spec.Containers = append(pod.Spec.Containers, v1.Container{
+			pod.Spec.Containers = append(pod.Spec.Containers, api.Container{
 				Name: fmt.Sprintf("ctr%v", i),
 			})
 		}
@@ -732,7 +731,7 @@ func TestMakeSignalObservations(t *testing.T) {
 	provider := &fakeSummaryProvider{
 		result: fakeStats,
 	}
-	pods := []*v1.Pod{
+	pods := []*api.Pod{
 		podMaker("pod1", "ns1", "uuid1", 1),
 		podMaker("pod1", "ns2", "uuid2", 1),
 		podMaker("pod3", "ns3", "uuid3", 1),
@@ -915,7 +914,7 @@ func TestThresholdsUpdatedStats(t *testing.T) {
 			thresholds: []Threshold{updatedThreshold},
 			observations: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
 				},
 			},
 			last:   signalObservations{},
@@ -925,12 +924,12 @@ func TestThresholdsUpdatedStats(t *testing.T) {
 			thresholds: []Threshold{updatedThreshold},
 			observations: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
 				},
 			},
 			last: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 1, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 1, 0, 0, locationUTC),
 				},
 			},
 			result: []Threshold{},
@@ -939,12 +938,12 @@ func TestThresholdsUpdatedStats(t *testing.T) {
 			thresholds: []Threshold{updatedThreshold},
 			observations: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
 				},
 			},
 			last: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
 				},
 			},
 			result: []Threshold{},
@@ -953,12 +952,12 @@ func TestThresholdsUpdatedStats(t *testing.T) {
 			thresholds: []Threshold{updatedThreshold},
 			observations: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 1, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 1, 0, 0, locationUTC),
 				},
 			},
 			last: signalObservations{
 				SignalMemoryAvailable: signalObservation{
-					time: metav1.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
+					time: unversioned.Date(2016, 1, 1, 0, 0, 0, 0, locationUTC),
 				},
 			},
 			result: []Threshold{updatedThreshold},
@@ -1098,8 +1097,8 @@ func TestThresholdsFirstObservedAt(t *testing.T) {
 			Quantity: quantityMustParse("1Gi"),
 		},
 	}
-	now := metav1.Now()
-	oldTime := metav1.NewTime(now.Time.Add(-1 * time.Minute))
+	now := unversioned.Now()
+	oldTime := unversioned.NewTime(now.Time.Add(-1 * time.Minute))
 	testCases := map[string]struct {
 		thresholds     []Threshold
 		lastObservedAt thresholdsObservedAt
@@ -1140,7 +1139,7 @@ func TestThresholdsFirstObservedAt(t *testing.T) {
 }
 
 func TestThresholdsMetGracePeriod(t *testing.T) {
-	now := metav1.Now()
+	now := unversioned.Now()
 	hardThreshold := Threshold{
 		Signal:   SignalMemoryAvailable,
 		Operator: OpLessThan,
@@ -1156,7 +1155,7 @@ func TestThresholdsMetGracePeriod(t *testing.T) {
 		},
 		GracePeriod: 1 * time.Minute,
 	}
-	oldTime := metav1.NewTime(now.Time.Add(-2 * time.Minute))
+	oldTime := unversioned.NewTime(now.Time.Add(-2 * time.Minute))
 	testCases := map[string]struct {
 		observedAt thresholdsObservedAt
 		now        time.Time
@@ -1200,17 +1199,17 @@ func TestThresholdsMetGracePeriod(t *testing.T) {
 func TestNodeConditions(t *testing.T) {
 	testCases := map[string]struct {
 		inputs []Threshold
-		result []v1.NodeConditionType
+		result []api.NodeConditionType
 	}{
 		"empty-list": {
 			inputs: []Threshold{},
-			result: []v1.NodeConditionType{},
+			result: []api.NodeConditionType{},
 		},
 		"memory.available": {
 			inputs: []Threshold{
 				{Signal: SignalMemoryAvailable},
 			},
-			result: []v1.NodeConditionType{v1.NodeMemoryPressure},
+			result: []api.NodeConditionType{api.NodeMemoryPressure},
 		},
 	}
 	for testName, testCase := range testCases {
@@ -1222,40 +1221,40 @@ func TestNodeConditions(t *testing.T) {
 }
 
 func TestNodeConditionsLastObservedAt(t *testing.T) {
-	now := metav1.Now()
-	oldTime := metav1.NewTime(now.Time.Add(-1 * time.Minute))
+	now := unversioned.Now()
+	oldTime := unversioned.NewTime(now.Time.Add(-1 * time.Minute))
 	testCases := map[string]struct {
-		nodeConditions []v1.NodeConditionType
+		nodeConditions []api.NodeConditionType
 		lastObservedAt nodeConditionsObservedAt
 		now            time.Time
 		result         nodeConditionsObservedAt
 	}{
 		"no-previous-observation": {
-			nodeConditions: []v1.NodeConditionType{v1.NodeMemoryPressure},
+			nodeConditions: []api.NodeConditionType{api.NodeMemoryPressure},
 			lastObservedAt: nodeConditionsObservedAt{},
 			now:            now.Time,
 			result: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: now.Time,
+				api.NodeMemoryPressure: now.Time,
 			},
 		},
 		"previous-observation": {
-			nodeConditions: []v1.NodeConditionType{v1.NodeMemoryPressure},
+			nodeConditions: []api.NodeConditionType{api.NodeMemoryPressure},
 			lastObservedAt: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: oldTime.Time,
+				api.NodeMemoryPressure: oldTime.Time,
 			},
 			now: now.Time,
 			result: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: now.Time,
+				api.NodeMemoryPressure: now.Time,
 			},
 		},
 		"old-observation": {
-			nodeConditions: []v1.NodeConditionType{},
+			nodeConditions: []api.NodeConditionType{},
 			lastObservedAt: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: oldTime.Time,
+				api.NodeMemoryPressure: oldTime.Time,
 			},
 			now: now.Time,
 			result: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: oldTime.Time,
+				api.NodeMemoryPressure: oldTime.Time,
 			},
 		},
 	}
@@ -1268,29 +1267,29 @@ func TestNodeConditionsLastObservedAt(t *testing.T) {
 }
 
 func TestNodeConditionsObservedSince(t *testing.T) {
-	now := metav1.Now()
-	observedTime := metav1.NewTime(now.Time.Add(-1 * time.Minute))
+	now := unversioned.Now()
+	observedTime := unversioned.NewTime(now.Time.Add(-1 * time.Minute))
 	testCases := map[string]struct {
 		observedAt nodeConditionsObservedAt
 		period     time.Duration
 		now        time.Time
-		result     []v1.NodeConditionType
+		result     []api.NodeConditionType
 	}{
 		"in-period": {
 			observedAt: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: observedTime.Time,
+				api.NodeMemoryPressure: observedTime.Time,
 			},
 			period: 2 * time.Minute,
 			now:    now.Time,
-			result: []v1.NodeConditionType{v1.NodeMemoryPressure},
+			result: []api.NodeConditionType{api.NodeMemoryPressure},
 		},
 		"out-of-period": {
 			observedAt: nodeConditionsObservedAt{
-				v1.NodeMemoryPressure: observedTime.Time,
+				api.NodeMemoryPressure: observedTime.Time,
 			},
 			period: 30 * time.Second,
 			now:    now.Time,
-			result: []v1.NodeConditionType{},
+			result: []api.NodeConditionType{},
 		},
 	}
 	for testName, testCase := range testCases {
@@ -1303,18 +1302,18 @@ func TestNodeConditionsObservedSince(t *testing.T) {
 
 func TestHasNodeConditions(t *testing.T) {
 	testCases := map[string]struct {
-		inputs []v1.NodeConditionType
-		item   v1.NodeConditionType
+		inputs []api.NodeConditionType
+		item   api.NodeConditionType
 		result bool
 	}{
 		"has-condition": {
-			inputs: []v1.NodeConditionType{v1.NodeReady, v1.NodeOutOfDisk, v1.NodeMemoryPressure},
-			item:   v1.NodeMemoryPressure,
+			inputs: []api.NodeConditionType{api.NodeReady, api.NodeOutOfDisk, api.NodeMemoryPressure},
+			item:   api.NodeMemoryPressure,
 			result: true,
 		},
 		"does-not-have-condition": {
-			inputs: []v1.NodeConditionType{v1.NodeReady, v1.NodeOutOfDisk},
-			item:   v1.NodeMemoryPressure,
+			inputs: []api.NodeConditionType{api.NodeReady, api.NodeOutOfDisk},
+			item:   api.NodeMemoryPressure,
 			result: false,
 		},
 	}
@@ -1328,38 +1327,31 @@ func TestHasNodeConditions(t *testing.T) {
 func TestGetStarvedResources(t *testing.T) {
 	testCases := map[string]struct {
 		inputs []Threshold
-		result []v1.ResourceName
+		result []api.ResourceName
 	}{
 		"memory.available": {
 			inputs: []Threshold{
 				{Signal: SignalMemoryAvailable},
 			},
-			result: []v1.ResourceName{v1.ResourceMemory},
+			result: []api.ResourceName{api.ResourceMemory},
 		},
 		"imagefs.available": {
 			inputs: []Threshold{
 				{Signal: SignalImageFsAvailable},
 			},
-			result: []v1.ResourceName{resourceImageFs},
+			result: []api.ResourceName{resourceImageFs},
 		},
 		"nodefs.available": {
 			inputs: []Threshold{
 				{Signal: SignalNodeFsAvailable},
 			},
-			result: []v1.ResourceName{resourceNodeFs},
+			result: []api.ResourceName{resourceNodeFs},
 		},
-	}
-	var internalResourceNames = func(in []v1.ResourceName) []api.ResourceName {
-		var out []api.ResourceName
-		for _, name := range in {
-			out = append(out, api.ResourceName(name))
-		}
-		return out
 	}
 	for testName, testCase := range testCases {
 		actual := getStarvedResources(testCase.inputs)
-		actualSet := quota.ToSet(internalResourceNames(actual))
-		expectedSet := quota.ToSet(internalResourceNames(testCase.result))
+		actualSet := quota.ToSet(actual)
+		expectedSet := quota.ToSet(testCase.result)
 		if !actualSet.Equal(expectedSet) {
 			t.Errorf("Test case: %s, expected: %v, actual: %v", testName, expectedSet, actualSet)
 		}
@@ -1456,7 +1448,7 @@ func testCompareThresholdValue(t *testing.T) {
 }
 
 // newPodInodeStats returns stats with specified usage amounts.
-func newPodInodeStats(pod *v1.Pod, rootFsInodesUsed, logsInodesUsed, perLocalVolumeInodesUsed resource.Quantity) statsapi.PodStats {
+func newPodInodeStats(pod *api.Pod, rootFsInodesUsed, logsInodesUsed, perLocalVolumeInodesUsed resource.Quantity) statsapi.PodStats {
 	result := statsapi.PodStats{
 		PodRef: statsapi.PodReference{
 			Name: pod.Name, Namespace: pod.Namespace, UID: string(pod.UID),
@@ -1488,7 +1480,7 @@ func newPodInodeStats(pod *v1.Pod, rootFsInodesUsed, logsInodesUsed, perLocalVol
 }
 
 // newPodDiskStats returns stats with specified usage amounts.
-func newPodDiskStats(pod *v1.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats {
+func newPodDiskStats(pod *api.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resource.Quantity) statsapi.PodStats {
 	result := statsapi.PodStats{
 		PodRef: statsapi.PodReference{
 			Name: pod.Name, Namespace: pod.Namespace, UID: string(pod.UID),
@@ -1521,7 +1513,7 @@ func newPodDiskStats(pod *v1.Pod, rootFsUsed, logsUsed, perLocalVolumeUsed resou
 	return result
 }
 
-func newPodMemoryStats(pod *v1.Pod, workingSet resource.Quantity) statsapi.PodStats {
+func newPodMemoryStats(pod *api.Pod, workingSet resource.Quantity) statsapi.PodStats {
 	result := statsapi.PodStats{
 		PodRef: statsapi.PodReference{
 			Name: pod.Name, Namespace: pod.Namespace, UID: string(pod.UID),
@@ -1538,46 +1530,46 @@ func newPodMemoryStats(pod *v1.Pod, workingSet resource.Quantity) statsapi.PodSt
 	return result
 }
 
-func newResourceList(cpu, memory string) v1.ResourceList {
-	res := v1.ResourceList{}
+func newResourceList(cpu, memory string) api.ResourceList {
+	res := api.ResourceList{}
 	if cpu != "" {
-		res[v1.ResourceCPU] = resource.MustParse(cpu)
+		res[api.ResourceCPU] = resource.MustParse(cpu)
 	}
 	if memory != "" {
-		res[v1.ResourceMemory] = resource.MustParse(memory)
+		res[api.ResourceMemory] = resource.MustParse(memory)
 	}
 	return res
 }
 
-func newResourceRequirements(requests, limits v1.ResourceList) v1.ResourceRequirements {
-	res := v1.ResourceRequirements{}
+func newResourceRequirements(requests, limits api.ResourceList) api.ResourceRequirements {
+	res := api.ResourceRequirements{}
 	res.Requests = requests
 	res.Limits = limits
 	return res
 }
 
-func newContainer(name string, requests v1.ResourceList, limits v1.ResourceList) v1.Container {
-	return v1.Container{
+func newContainer(name string, requests api.ResourceList, limits api.ResourceList) api.Container {
+	return api.Container{
 		Name:      name,
 		Resources: newResourceRequirements(requests, limits),
 	}
 }
 
-func newVolume(name string, volumeSource v1.VolumeSource) v1.Volume {
-	return v1.Volume{
+func newVolume(name string, volumeSource api.VolumeSource) api.Volume {
+	return api.Volume{
 		Name:         name,
 		VolumeSource: volumeSource,
 	}
 }
 
 // newPod uses the name as the uid.  Make names unique for testing.
-func newPod(name string, containers []v1.Container, volumes []v1.Volume) *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func newPod(name string, containers []api.Container, volumes []api.Volume) *api.Pod {
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 			UID:  types.UID(name),
 		},
-		Spec: v1.PodSpec{
+		Spec: api.PodSpec{
 			Containers: containers,
 			Volumes:    volumes,
 		},
@@ -1585,7 +1577,7 @@ func newPod(name string, containers []v1.Container, volumes []v1.Volume) *v1.Pod
 }
 
 // nodeConditionList is a simple alias to support equality checking independent of order
-type nodeConditionList []v1.NodeConditionType
+type nodeConditionList []api.NodeConditionType
 
 // Equal adds the ability to check equality between two lists of node conditions.
 func (s1 nodeConditionList) Equal(s2 nodeConditionList) bool {

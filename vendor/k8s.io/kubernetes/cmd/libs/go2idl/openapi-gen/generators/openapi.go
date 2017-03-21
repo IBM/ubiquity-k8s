@@ -25,11 +25,11 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/openapi"
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/generator"
 	"k8s.io/gengo/namer"
 	"k8s.io/gengo/types"
+	"k8s.io/kubernetes/pkg/genericapiserver/openapi/common"
 
 	"github.com/golang/glog"
 )
@@ -127,13 +127,13 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 
 const (
 	specPackagePath          = "github.com/go-openapi/spec"
-	openAPICommonPackagePath = "k8s.io/apimachinery/pkg/openapi"
+	openAPICommonPackagePath = "k8s.io/kubernetes/pkg/genericapiserver/openapi/common"
 )
 
 // openApiGen produces a file with auto-generated OpenAPI functions.
 type openAPIGen struct {
 	generator.DefaultGen
-	// TargetPackage is the package that will get GetOpenAPIDefinitions function returns all open API definitions.
+	// TargetPackage is the package that will get OpenAPIDefinitions variable contains all open API definitions.
 	targetPackage *types.Package
 	imports       namer.ImportTracker
 	context       *generator.Context
@@ -185,23 +185,22 @@ func (g *openAPIGen) Imports(c *generator.Context) []string {
 
 func argsFromType(t *types.Type) generator.Args {
 	return generator.Args{
-		"type":              t,
-		"ReferenceCallback": types.Ref(openAPICommonPackagePath, "ReferenceCallback"),
-		"OpenAPIDefinition": types.Ref(openAPICommonPackagePath, "OpenAPIDefinition"),
-		"SpecSchemaType":    types.Ref(specPackagePath, "Schema"),
+		"type":               t,
+		"OpenAPIDefinitions": types.Ref(openAPICommonPackagePath, "OpenAPIDefinitions"),
+		"OpenAPIDefinition":  types.Ref(openAPICommonPackagePath, "OpenAPIDefinition"),
+		"SpecSchemaType":     types.Ref(specPackagePath, "Schema"),
 	}
 }
 
 func (g *openAPIGen) Init(c *generator.Context, w io.Writer) error {
 	sw := generator.NewSnippetWriter(w, c, "$", "$")
-	sw.Do("func GetOpenAPIDefinitions(ref $.ReferenceCallback|raw$) map[string]$.OpenAPIDefinition|raw$ {\n", argsFromType(nil))
-	sw.Do("return map[string]$.OpenAPIDefinition|raw${\n", argsFromType(nil))
+	sw.Do("var OpenAPIDefinitions *$.OpenAPIDefinitions|raw$ = ", argsFromType(nil))
+	sw.Do("&$.OpenAPIDefinitions|raw${\n", argsFromType(nil))
 	return sw.Error()
 }
 
 func (g *openAPIGen) Finalize(c *generator.Context, w io.Writer) error {
 	sw := generator.NewSnippetWriter(w, c, "$", "$")
-	sw.Do("}\n", nil)
 	sw.Do("}\n", nil)
 	return sw.Error()
 }
@@ -309,9 +308,9 @@ func (g openAPITypeWriter) generate(t *types.Type) error {
 	switch t.Kind {
 	case types.Struct:
 		args := argsFromType(t)
-		g.Do("\"$.$\": ", t.Name)
+		g.Do("\"$.$\": ", typeShortName(t))
 		if hasOpenAPIDefinitionMethod(t) {
-			g.Do("$.type|raw${}.OpenAPIDefinition(),\n", args)
+			g.Do("$.type|raw${}.OpenAPIDefinition(),", args)
 			return nil
 		}
 		g.Do("{\nSchema: spec.Schema{\nSchemaProps: spec.SchemaProps{\n", nil)
@@ -335,7 +334,7 @@ func (g openAPITypeWriter) generate(t *types.Type) error {
 		sort.Strings(keys)
 		for _, k := range keys {
 			v := g.refTypes[k]
-			if t, _ := openapi.GetOpenAPITypeFormat(v.String()); t != "" {
+			if t, _ := common.GetOpenAPITypeFormat(v.String()); t != "" {
 				// This is a known type, we do not need a reference to it
 				// Will eliminate special case of time.Time
 				continue
@@ -406,7 +405,7 @@ func (g openAPITypeWriter) generateProperty(m *types.Member) error {
 	}
 	t := resolveAliasAndPtrType(m.Type)
 	// If we can get a openAPI type and format for this type, we consider it to be simple property
-	typeString, format := openapi.GetOpenAPITypeFormat(t.String())
+	typeString, format := common.GetOpenAPITypeFormat(t.String())
 	if typeString != "" {
 		g.generateSimpleProperty(typeString, format)
 		g.Do("},\n},\n", nil)
@@ -414,7 +413,7 @@ func (g openAPITypeWriter) generateProperty(m *types.Member) error {
 	}
 	switch t.Kind {
 	case types.Builtin:
-		return fmt.Errorf("please add type %v to getOpenAPITypeFormat function", t)
+		return fmt.Errorf("please add type %v to getOpenAPITypeFormat function.", t)
 	case types.Map:
 		if err := g.generateMapProperty(t); err != nil {
 			return err
@@ -426,7 +425,7 @@ func (g openAPITypeWriter) generateProperty(m *types.Member) error {
 	case types.Struct, types.Interface:
 		g.generateReferenceProperty(t)
 	default:
-		return fmt.Errorf("cannot generate spec for type %v", t)
+		return fmt.Errorf("cannot generate spec for type %v.", t)
 	}
 	g.Do("},\n},\n", nil)
 	return g.Error()
@@ -438,8 +437,14 @@ func (g openAPITypeWriter) generateSimpleProperty(typeString, format string) {
 }
 
 func (g openAPITypeWriter) generateReferenceProperty(t *types.Type) {
-	g.refTypes[t.Name.String()] = t
-	g.Do("Ref: ref(\"$.$\"),\n", t.Name.String())
+	var name string
+	if t.Name.Package == "" {
+		name = t.Name.Name
+	} else {
+		name = filepath.Base(t.Name.Package) + "." + t.Name.Name
+	}
+	g.refTypes[name] = t
+	g.Do("Ref: spec.MustCreateRef(\"#/definitions/$.$\"),\n", name)
 }
 
 func resolveAliasAndPtrType(t *types.Type) *types.Type {
@@ -466,7 +471,7 @@ func (g openAPITypeWriter) generateMapProperty(t *types.Type) error {
 	}
 	g.Do("Type: []string{\"object\"},\n", nil)
 	g.Do("AdditionalProperties: &spec.SchemaOrBool{\nSchema: &spec.Schema{\nSchemaProps: spec.SchemaProps{\n", nil)
-	typeString, format := openapi.GetOpenAPITypeFormat(elemType.String())
+	typeString, format := common.GetOpenAPITypeFormat(elemType.String())
 	if typeString != "" {
 		g.generateSimpleProperty(typeString, format)
 		g.Do("},\n},\n},\n", nil)
@@ -490,7 +495,7 @@ func (g openAPITypeWriter) generateSliceProperty(t *types.Type) error {
 	elemType := resolveAliasAndPtrType(t.Elem)
 	g.Do("Type: []string{\"array\"},\n", nil)
 	g.Do("Items: &spec.SchemaOrArray{\nSchema: &spec.Schema{\nSchemaProps: spec.SchemaProps{\n", nil)
-	typeString, format := openapi.GetOpenAPITypeFormat(elemType.String())
+	typeString, format := common.GetOpenAPITypeFormat(elemType.String())
 	if typeString != "" {
 		g.generateSimpleProperty(typeString, format)
 		g.Do("},\n},\n},\n", nil)

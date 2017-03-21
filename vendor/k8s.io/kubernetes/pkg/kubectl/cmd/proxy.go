@@ -28,7 +28,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/util/i18n"
 )
 
 var (
@@ -59,14 +58,14 @@ var (
 		kubectl proxy --port=0
 
 		# Run a proxy to kubernetes apiserver, changing the api prefix to k8s-api
-		# This makes e.g. the pods api available at localhost:8001/k8s-api/v1/pods/
+		# This makes e.g. the pods api available at localhost:8011/k8s-api/v1/pods/
 		kubectl proxy --api-prefix=/k8s-api`)
 )
 
 func NewCmdProxy(f cmdutil.Factory, out io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "proxy [--port=PORT] [--www=static-dir] [--www-prefix=prefix] [--api-prefix=prefix]",
-		Short:   i18n.T("Run a proxy to the Kubernetes API server"),
+		Short:   "Run a proxy to the Kubernetes API server",
 		Long:    proxy_long,
 		Example: proxy_example,
 		Run: func(cmd *cobra.Command, args []string) {

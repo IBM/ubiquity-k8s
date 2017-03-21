@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/kubernetes/pkg/api/v1"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	"k8s.io/kubernetes/pkg/api"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
 	"k8s.io/kubernetes/pkg/util/term"
 	"k8s.io/kubernetes/pkg/volume"
 )
@@ -85,13 +85,13 @@ type Runtime interface {
 	// TODO: Revisit this method and make it cleaner.
 	GarbageCollect(gcPolicy ContainerGCPolicy, allSourcesReady bool) error
 	// Syncs the running pod into the desired pod.
-	SyncPod(pod *v1.Pod, apiPodStatus v1.PodStatus, podStatus *PodStatus, pullSecrets []v1.Secret, backOff *flowcontrol.Backoff) PodSyncResult
+	SyncPod(pod *api.Pod, apiPodStatus api.PodStatus, podStatus *PodStatus, pullSecrets []api.Secret, backOff *flowcontrol.Backoff) PodSyncResult
 	// KillPod kills all the containers of a pod. Pod may be nil, running pod must not be.
 	// TODO(random-liu): Return PodSyncResult in KillPod.
 	// gracePeriodOverride if specified allows the caller to override the pod default grace period.
 	// only hard kill paths are allowed to specify a gracePeriodOverride in the kubelet in order to not corrupt user data.
 	// it is useful when doing SIGKILL for hard eviction scenarios, or max grace period during soft eviction scenarios.
-	KillPod(pod *v1.Pod, runningPod Pod, gracePeriodOverride *int64) error
+	KillPod(pod *api.Pod, runningPod Pod, gracePeriodOverride *int64) error
 	// GetPodStatus retrieves the status of the pod, including the
 	// information of all containers in the pod that are visble in Runtime.
 	GetPodStatus(uid types.UID, name, namespace string) (*PodStatus, error)
@@ -111,7 +111,7 @@ type Runtime interface {
 	// default, it returns a snapshot of the container log. Set 'follow' to true to
 	// stream the log. Set 'follow' to false and specify the number of lines (e.g.
 	// "100" or "all") to tail the log.
-	GetContainerLogs(pod *v1.Pod, containerID ContainerID, logOptions *v1.PodLogOptions, stdout, stderr io.Writer) (err error)
+	GetContainerLogs(pod *api.Pod, containerID ContainerID, logOptions *api.PodLogOptions, stdout, stderr io.Writer) (err error)
 	// Delete a container. If the container is still running, an error is returned.
 	DeleteContainer(containerID ContainerID) error
 	// ImageService provides methods to image-related methods.
@@ -130,7 +130,7 @@ type DirectStreamingRuntime interface {
 	// tty.
 	ExecInContainer(containerID ContainerID, cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser, tty bool, resize <-chan term.Size, timeout time.Duration) error
 	// Forward the specified port from the specified pod to the stream.
-	PortForward(pod *Pod, port int32, stream io.ReadWriteCloser) error
+	PortForward(pod *Pod, port uint16, stream io.ReadWriteCloser) error
 	// ContainerAttach encapsulates the attaching to containers for testability
 	ContainerAttacher
 }
@@ -140,17 +140,16 @@ type DirectStreamingRuntime interface {
 // the runtime server.
 type IndirectStreamingRuntime interface {
 	GetExec(id ContainerID, cmd []string, stdin, stdout, stderr, tty bool) (*url.URL, error)
-	GetAttach(id ContainerID, stdin, stdout, stderr, tty bool) (*url.URL, error)
-	GetPortForward(podName, podNamespace string, podUID types.UID, ports []int32) (*url.URL, error)
+	GetAttach(id ContainerID, stdin, stdout, stderr bool) (*url.URL, error)
+	GetPortForward(podName, podNamespace string, podUID types.UID) (*url.URL, error)
 }
 
 type ImageService interface {
 	// PullImage pulls an image from the network to local storage using the supplied
-	// secrets if necessary. It returns a reference (digest or ID) to the pulled image.
-	PullImage(image ImageSpec, pullSecrets []v1.Secret) (string, error)
-	// GetImageRef gets the reference (digest or ID) of the image which has already been in
-	// the local storage. It returns ("", nil) if the image isn't in the local storage.
-	GetImageRef(image ImageSpec) (string, error)
+	// secrets if necessary.
+	PullImage(image ImageSpec, pullSecrets []api.Secret) error
+	// IsImagePresent checks whether the container image is already in the local storage.
+	IsImagePresent(image ImageSpec) (bool, error)
 	// Gets all images currently on the machine.
 	ListImages() ([]Image, error)
 	// Removes the specified image.
@@ -189,9 +188,9 @@ type Pod struct {
 
 // PodPair contains both runtime#Pod and api#Pod
 type PodPair struct {
-	// APIPod is the v1.Pod
-	APIPod *v1.Pod
-	// RunningPod is the pod defined in pkg/kubelet/container/runtime#Pod
+	// APIPod is the api.Pod
+	APIPod *api.Pod
+	// RunningPod is the pod defined defined in pkg/kubelet/container/runtime#Pod
 	RunningPod *Pod
 }
 
@@ -271,7 +270,7 @@ type Container struct {
 	// a container.
 	ID ContainerID
 	// The name of the container, which should be the same as specified by
-	// v1.Container.
+	// api.Container.
 	Name string
 	// The image name of the container, this also includes the tag of the image,
 	// the expected form is "NAME:TAG".
@@ -286,7 +285,7 @@ type Container struct {
 }
 
 // PodStatus represents the status of the pod and its containers.
-// v1.PodStatus can be derived from examining PodStatus and v1.Pod.
+// api.PodStatus can be derived from examining PodStatus and api.Pod.
 type PodStatus struct {
 	// ID of the pod.
 	ID types.UID
@@ -300,7 +299,7 @@ type PodStatus struct {
 	ContainerStatuses []*ContainerStatus
 	// Status of the pod sandbox.
 	// Only for kuberuntime now, other runtime may keep it nil.
-	SandboxStatuses []*runtimeapi.PodSandboxStatus
+	SandboxStatuses []*runtimeApi.PodSandboxStatus
 }
 
 // ContainerStatus represents the status of a container.
@@ -348,13 +347,13 @@ func (podStatus *PodStatus) FindContainerStatusByName(containerName string) *Con
 
 // Get container status of all the running containers in a pod
 func (podStatus *PodStatus) GetRunningContainerStatuses() []*ContainerStatus {
-	runningContainerStatuses := []*ContainerStatus{}
+	runnningContainerStatues := []*ContainerStatus{}
 	for _, containerStatus := range podStatus.ContainerStatuses {
 		if containerStatus.State == ContainerStateRunning {
-			runningContainerStatuses = append(runningContainerStatuses, containerStatus)
+			runnningContainerStatues = append(runnningContainerStatues, containerStatus)
 		}
 	}
-	return runningContainerStatuses
+	return runnningContainerStatues
 }
 
 // Basic information about a container image.
@@ -393,7 +392,7 @@ type PortMapping struct {
 	// Name of the port mapping
 	Name string
 	// Protocol of the port mapping.
-	Protocol v1.Protocol
+	Protocol api.Protocol
 	// The port number within the container.
 	ContainerPort int
 	// The port number on the host.
@@ -571,16 +570,16 @@ func (p *Pod) FindSandboxByID(id ContainerID) *Container {
 	return nil
 }
 
-// ToAPIPod converts Pod to v1.Pod. Note that if a field in v1.Pod has no
+// ToAPIPod converts Pod to api.Pod. Note that if a field in api.Pod has no
 // corresponding field in Pod, the field would not be populated.
-func (p *Pod) ToAPIPod() *v1.Pod {
-	var pod v1.Pod
+func (p *Pod) ToAPIPod() *api.Pod {
+	var pod api.Pod
 	pod.UID = p.ID
 	pod.Name = p.Name
 	pod.Namespace = p.Namespace
 
 	for _, c := range p.Containers {
-		var container v1.Container
+		var container api.Container
 		container.Name = c.Name
 		container.Image = c.Image
 		pod.Spec.Containers = append(pod.Spec.Containers, container)
@@ -594,7 +593,7 @@ func (p *Pod) IsEmpty() bool {
 }
 
 // GetPodFullName returns a name that uniquely identifies a pod.
-func GetPodFullName(pod *v1.Pod) string {
+func GetPodFullName(pod *api.Pod) string {
 	// Use underscore as the delimiter because it is not allowed in pod name
 	// (DNS subdomain format), while allowed in the container name format.
 	return pod.Name + "_" + pod.Namespace
@@ -626,19 +625,3 @@ func (s SortContainerStatusesByCreationTime) Swap(i, j int) { s[i], s[j] = s[j],
 func (s SortContainerStatusesByCreationTime) Less(i, j int) bool {
 	return s[i].CreatedAt.Before(s[j].CreatedAt)
 }
-
-const (
-	// MaxPodTerminationMessageLogLength is the maximum bytes any one pod may have written
-	// as termination message output across all containers. Containers will be evenly truncated
-	// until output is below this limit.
-	MaxPodTerminationMessageLogLength = 1024 * 12
-	// MaxContainerTerminationMessageLength is the upper bound any one container may write to
-	// its termination message path. Contents above this length will be truncated.
-	MaxContainerTerminationMessageLength = 1024 * 4
-	// MaxContainerTerminationMessageLogLength is the maximum bytes any one container will
-	// have written to its termination message when the message is read from the logs.
-	MaxContainerTerminationMessageLogLength = 1024 * 2
-	// MaxContainerTerminationMessageLogLines is the maximum number of previous lines of
-	// log output that the termination message can contain.
-	MaxContainerTerminationMessageLogLines = 80
-)

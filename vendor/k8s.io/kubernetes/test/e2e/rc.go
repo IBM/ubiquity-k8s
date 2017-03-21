@@ -20,13 +20,12 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/controller/replication"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/uuid"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -52,21 +51,21 @@ var _ = framework.KubeDescribe("ReplicationController", func() {
 	})
 })
 
-func newRC(rsName string, replicas int32, rcPodLabels map[string]string, imageName string, image string) *v1.ReplicationController {
+func newRC(rsName string, replicas int32, rcPodLabels map[string]string, imageName string, image string) *api.ReplicationController {
 	zero := int64(0)
-	return &v1.ReplicationController{
-		ObjectMeta: metav1.ObjectMeta{
+	return &api.ReplicationController{
+		ObjectMeta: api.ObjectMeta{
 			Name: rsName,
 		},
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: func(i int32) *int32 { return &i }(replicas),
-			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+		Spec: api.ReplicationControllerSpec{
+			Replicas: replicas,
+			Template: &api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: rcPodLabels,
 				},
-				Spec: v1.PodSpec{
+				Spec: api.PodSpec{
 					TerminationGracePeriodSeconds: &zero,
-					Containers: []v1.Container{
+					Containers: []api.Container{
 						{
 							Name:  imageName,
 							Image: image,
@@ -90,25 +89,25 @@ func ServeImageOrFail(f *framework.Framework, test string, image string) {
 	// The source for the Docker containter kubernetes/serve_hostname is
 	// in contrib/for-demos/serve_hostname
 	By(fmt.Sprintf("Creating replication controller %s", name))
-	controller, err := f.ClientSet.Core().ReplicationControllers(f.Namespace.Name).Create(&v1.ReplicationController{
-		ObjectMeta: metav1.ObjectMeta{
+	controller, err := f.ClientSet.Core().ReplicationControllers(f.Namespace.Name).Create(&api.ReplicationController{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: func(i int32) *int32 { return &i }(replicas),
+		Spec: api.ReplicationControllerSpec{
+			Replicas: replicas,
 			Selector: map[string]string{
 				"name": name,
 			},
-			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Template: &api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{"name": name},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Name:  name,
 							Image: image,
-							Ports: []v1.ContainerPort{{ContainerPort: 9376}},
+							Ports: []api.ContainerPort{{ContainerPort: 9376}},
 						},
 					},
 				},
@@ -119,7 +118,7 @@ func ServeImageOrFail(f *framework.Framework, test string, image string) {
 	// Cleanup the replication controller when we are done.
 	defer func() {
 		// Resize the replication controller to zero to get rid of pods.
-		if err := framework.DeleteRCAndPods(f.ClientSet, f.InternalClientset, f.Namespace.Name, controller.Name); err != nil {
+		if err := framework.DeleteRCAndPods(f.ClientSet, f.Namespace.Name, controller.Name); err != nil {
 			framework.Logf("Failed to cleanup replication controller %v: %v.", controller.Name, err)
 		}
 	}()
@@ -166,11 +165,11 @@ func rcConditionCheck(f *framework.Framework) {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		quota, err = c.Core().ResourceQuotas(namespace).Get(name, metav1.GetOptions{})
+		quota, err = c.Core().ResourceQuotas(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
-		podQuota := quota.Status.Hard[v1.ResourcePods]
+		podQuota := quota.Status.Hard[api.ResourcePods]
 		quantity := resource.MustParse("2")
 		return (&podQuota).Cmp(quantity) == 0, nil
 	})
@@ -188,7 +187,7 @@ func rcConditionCheck(f *framework.Framework) {
 	generation := rc.Generation
 	conditions := rc.Status.Conditions
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		rc, err = c.Core().ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
+		rc, err = c.Core().ReplicationControllers(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
@@ -198,7 +197,7 @@ func rcConditionCheck(f *framework.Framework) {
 		}
 		conditions = rc.Status.Conditions
 
-		cond := replication.GetCondition(rc.Status, v1.ReplicationControllerReplicaFailure)
+		cond := replication.GetCondition(rc.Status, api.ReplicationControllerReplicaFailure)
 		return cond != nil, nil
 	})
 	if err == wait.ErrWaitTimeout {
@@ -207,9 +206,8 @@ func rcConditionCheck(f *framework.Framework) {
 	Expect(err).NotTo(HaveOccurred())
 
 	By(fmt.Sprintf("Scaling down rc %q to satisfy pod quota", name))
-	rc, err = framework.UpdateReplicationControllerWithRetries(c, namespace, name, func(update *v1.ReplicationController) {
-		x := int32(2)
-		update.Spec.Replicas = &x
+	rc, err = framework.UpdateReplicationControllerWithRetries(c, namespace, name, func(update *api.ReplicationController) {
+		update.Spec.Replicas = 2
 	})
 	Expect(err).NotTo(HaveOccurred())
 
@@ -217,7 +215,7 @@ func rcConditionCheck(f *framework.Framework) {
 	generation = rc.Generation
 	conditions = rc.Status.Conditions
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		rc, err = c.Core().ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
+		rc, err = c.Core().ReplicationControllers(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
@@ -227,7 +225,7 @@ func rcConditionCheck(f *framework.Framework) {
 		}
 		conditions = rc.Status.Conditions
 
-		cond := replication.GetCondition(rc.Status, v1.ReplicationControllerReplicaFailure)
+		cond := replication.GetCondition(rc.Status, api.ReplicationControllerReplicaFailure)
 		return cond == nil, nil
 	})
 	if err == wait.ErrWaitTimeout {

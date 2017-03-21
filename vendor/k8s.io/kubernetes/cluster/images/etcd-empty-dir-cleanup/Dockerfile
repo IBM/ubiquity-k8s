@@ -13,6 +13,7 @@
 # limitations under the License.
 
 FROM gliderlabs/alpine
+MAINTAINER Mehdy Bohlool <mehdy@google.com>
 
 RUN apk-install bash
 ADD etcd-empty-dir-cleanup.sh etcd-empty-dir-cleanup.sh

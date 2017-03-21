@@ -40,5 +40,5 @@ func init() {
 func newRoute53(config io.Reader) (*Interface, error) {
 	// Connect to AWS Route53 - TODO: Do more sophisticated auth
 	svc := route53.New(session.New())
-	return New(svc), nil
+	return newInterfaceWithStub(svc), nil
 }

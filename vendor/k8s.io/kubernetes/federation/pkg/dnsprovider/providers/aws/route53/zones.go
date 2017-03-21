@@ -19,11 +19,11 @@ package route53
 import (
 	"github.com/aws/aws-sdk-go/service/route53"
 
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/federation/pkg/dnsprovider"
+	"k8s.io/kubernetes/pkg/util/uuid"
 )
 
-// Compile time check for interface adherence
+// Compile time check for interface adeherence
 var _ dnsprovider.Zones = Zones{}
 
 type Zones struct {

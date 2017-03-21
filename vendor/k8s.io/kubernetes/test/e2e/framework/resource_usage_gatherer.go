@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"math"
@@ -27,9 +28,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	. "github.com/onsi/gomega"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
 	"k8s.io/kubernetes/pkg/util/system"
 )
 
@@ -139,20 +141,14 @@ type resourceGatherWorker struct {
 }
 
 func (w *resourceGatherWorker) singleProbe() {
-	data := make(ResourceUsagePerContainer)
+	var data ResourceUsagePerContainer
 	if w.inKubemark {
-		kubemarkData := GetKubemarkMasterComponentsResourceUsage()
+		data = getKubemarkMasterComponentsResourceUsage()
 		if data == nil {
 			return
 		}
-		for k, v := range kubemarkData {
-			data[k] = &ContainerResourceUsage{
-				Name: v.Name,
-				MemoryWorkingSetInBytes: v.MemoryWorkingSetInBytes,
-				CPUUsageInCores:         v.CPUUsageInCores,
-			}
-		}
 	} else {
+		data = make(ResourceUsagePerContainer)
 		nodeUsage, err := getOneTimeResourceUsageOnNode(w.c, w.nodeName, probeDuration, func() []string { return w.containerIDs }, true)
 		if err != nil {
 			Logf("Error while reading data from %v: %v", w.nodeName, err)
@@ -184,6 +180,28 @@ func (w *resourceGatherWorker) gather(initialSleep time.Duration) {
 	case <-w.stopCh:
 		return
 	}
+}
+
+func getKubemarkMasterComponentsResourceUsage() ResourceUsagePerContainer {
+	result := make(ResourceUsagePerContainer)
+	sshResult, err := SSH("ps ax -o %cpu,rss,command | tail -n +2 | grep kube", GetMasterHost()+":22", TestContext.Provider)
+	if err != nil {
+		Logf("Error when trying to SSH to master machine. Skipping probe")
+		return nil
+	}
+	scanner := bufio.NewScanner(strings.NewReader(sshResult.Stdout))
+	for scanner.Scan() {
+		var cpu float64
+		var mem uint64
+		var name string
+		fmt.Sscanf(strings.TrimSpace(scanner.Text()), "%f %d kubernetes/server/bin/%s", &cpu, &mem, &name)
+		if name != "" {
+			// Gatherer expects pod_name/container_name format
+			fullName := name + "/" + name
+			result[fullName] = &ContainerResourceUsage{Name: fullName, MemoryWorkingSetInBytes: mem * 1024, CPUUsageInCores: cpu / 100}
+		}
+	}
+	return result
 }
 
 func (g *containerResourceGatherer) getKubeSystemContainersResourceUsage(c clientset.Interface) {
@@ -232,7 +250,7 @@ func NewResourceUsageGatherer(c clientset.Interface, options ResourceGathererOpt
 			finished:   false,
 		})
 	} else {
-		pods, err := c.Core().Pods("kube-system").List(metav1.ListOptions{})
+		pods, err := c.Core().Pods("kube-system").List(api.ListOptions{})
 		if err != nil {
 			Logf("Error while listing Pods: %v", err)
 			return nil, err
@@ -244,14 +262,14 @@ func NewResourceUsageGatherer(c clientset.Interface, options ResourceGathererOpt
 				g.containerIDs = append(g.containerIDs, containerID)
 			}
 		}
-		nodeList, err := c.Core().Nodes().List(metav1.ListOptions{})
+		nodeList, err := c.Core().Nodes().List(api.ListOptions{})
 		if err != nil {
 			Logf("Error while listing Nodes: %v", err)
 			return nil, err
 		}
 
 		for _, node := range nodeList.Items {
-			if !options.masterOnly || system.IsMasterNode(node.Name) {
+			if !options.masterOnly || system.IsMasterNode(&node) {
 				g.workerWg.Add(1)
 				g.workers = append(g.workers, resourceGatherWorker{
 					c:                    c,
@@ -277,7 +295,7 @@ func (g *containerResourceGatherer) startGatheringData() {
 	g.getKubeSystemContainersResourceUsage(g.client)
 }
 
-func (g *containerResourceGatherer) stopAndSummarize(percentiles []int, constraints map[string]ResourceConstraint) (*ResourceUsageSummary, error) {
+func (g *containerResourceGatherer) stopAndSummarize(percentiles []int, constraints map[string]ResourceConstraint) *ResourceUsageSummary {
 	close(g.stopCh)
 	Logf("Closed stop channel. Waiting for %v workers", len(g.workers))
 	finished := make(chan struct{})
@@ -300,7 +318,7 @@ func (g *containerResourceGatherer) stopAndSummarize(percentiles []int, constrai
 
 	if len(percentiles) == 0 {
 		Logf("Warning! Empty percentile list for stopAndPrintData.")
-		return &ResourceUsageSummary{}, fmt.Errorf("Failed to get any resource usage data")
+		return &ResourceUsageSummary{}
 	}
 	data := make(map[int]ResourceUsagePerContainer)
 	for i := range g.workers {
@@ -355,8 +373,6 @@ func (g *containerResourceGatherer) stopAndSummarize(percentiles []int, constrai
 			}
 		}
 	}
-	if len(violatedConstraints) > 0 {
-		return &summary, fmt.Errorf(strings.Join(violatedConstraints, "\n"))
-	}
-	return &summary, nil
+	Expect(violatedConstraints).To(BeEmpty())
+	return &summary
 }

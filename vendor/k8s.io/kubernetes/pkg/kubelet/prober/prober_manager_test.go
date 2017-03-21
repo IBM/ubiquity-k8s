@@ -23,23 +23,22 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/prober/results"
 	"k8s.io/kubernetes/pkg/probe"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 func init() {
 	runtime.ReallyCrash = true
 }
 
-var defaultProbe *v1.Probe = &v1.Probe{
-	Handler: v1.Handler{
-		Exec: &v1.ExecAction{},
+var defaultProbe *api.Probe = &api.Probe{
+	Handler: api.Handler{
+		Exec: &api.ExecAction{},
 	},
 	TimeoutSeconds:   1,
 	PeriodSeconds:    1,
@@ -48,12 +47,12 @@ var defaultProbe *v1.Probe = &v1.Probe{
 }
 
 func TestAddRemovePods(t *testing.T) {
-	noProbePod := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	noProbePod := api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID: "no_probe_pod",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
 				Name: "no_probe1",
 			}, {
 				Name: "no_probe2",
@@ -61,12 +60,12 @@ func TestAddRemovePods(t *testing.T) {
 		},
 	}
 
-	probePod := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	probePod := api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID: "probe_pod",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
 				Name: "no_probe1",
 			}, {
 				Name:           "readiness",
@@ -127,12 +126,12 @@ func TestAddRemovePods(t *testing.T) {
 func TestCleanupPods(t *testing.T) {
 	m := newTestManager()
 	defer cleanup(t, m)
-	podToCleanup := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	podToCleanup := api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID: "pod_cleanup",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
 				Name:           "prober1",
 				ReadinessProbe: defaultProbe,
 			}, {
@@ -141,12 +140,12 @@ func TestCleanupPods(t *testing.T) {
 			}},
 		},
 	}
-	podToKeep := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	podToKeep := api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID: "pod_keep",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
 				Name:           "prober1",
 				ReadinessProbe: defaultProbe,
 			}, {
@@ -158,7 +157,7 @@ func TestCleanupPods(t *testing.T) {
 	m.AddPod(&podToCleanup)
 	m.AddPod(&podToKeep)
 
-	m.CleanupPods([]*v1.Pod{&podToKeep})
+	m.CleanupPods([]*api.Pod{&podToKeep})
 
 	removedProbes := []probeKey{
 		{"pod_cleanup", "prober1", readiness},
@@ -179,9 +178,9 @@ func TestCleanupPods(t *testing.T) {
 func TestCleanupRepeated(t *testing.T) {
 	m := newTestManager()
 	defer cleanup(t, m)
-	podTemplate := v1.Pod{
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{{
+	podTemplate := api.Pod{
+		Spec: api.PodSpec{
+			Containers: []api.Container{{
 				Name:           "prober1",
 				ReadinessProbe: defaultProbe,
 				LivenessProbe:  defaultProbe,
@@ -197,49 +196,49 @@ func TestCleanupRepeated(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		m.CleanupPods([]*v1.Pod{})
+		m.CleanupPods([]*api.Pod{})
 	}
 }
 
 func TestUpdatePodStatus(t *testing.T) {
-	unprobed := v1.ContainerStatus{
+	unprobed := api.ContainerStatus{
 		Name:        "unprobed_container",
 		ContainerID: "test://unprobed_container_id",
-		State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{},
+		State: api.ContainerState{
+			Running: &api.ContainerStateRunning{},
 		},
 	}
-	probedReady := v1.ContainerStatus{
+	probedReady := api.ContainerStatus{
 		Name:        "probed_container_ready",
 		ContainerID: "test://probed_container_ready_id",
-		State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{},
+		State: api.ContainerState{
+			Running: &api.ContainerStateRunning{},
 		},
 	}
-	probedPending := v1.ContainerStatus{
+	probedPending := api.ContainerStatus{
 		Name:        "probed_container_pending",
 		ContainerID: "test://probed_container_pending_id",
-		State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{},
+		State: api.ContainerState{
+			Running: &api.ContainerStateRunning{},
 		},
 	}
-	probedUnready := v1.ContainerStatus{
+	probedUnready := api.ContainerStatus{
 		Name:        "probed_container_unready",
 		ContainerID: "test://probed_container_unready_id",
-		State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{},
+		State: api.ContainerState{
+			Running: &api.ContainerStateRunning{},
 		},
 	}
-	terminated := v1.ContainerStatus{
+	terminated := api.ContainerStatus{
 		Name:        "terminated_container",
 		ContainerID: "test://terminated_container_id",
-		State: v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{},
+		State: api.ContainerState{
+			Terminated: &api.ContainerStateTerminated{},
 		},
 	}
-	podStatus := v1.PodStatus{
-		Phase: v1.PodRunning,
-		ContainerStatuses: []v1.ContainerStatus{
+	podStatus := api.PodStatus{
+		Phase: api.PodRunning,
+		ContainerStatuses: []api.ContainerStatus{
 			unprobed, probedReady, probedPending, probedUnready, terminated,
 		},
 	}
@@ -255,9 +254,9 @@ func TestUpdatePodStatus(t *testing.T) {
 		probeKey{testPodUID, probedUnready.Name, readiness}: {},
 		probeKey{testPodUID, terminated.Name, readiness}:    {},
 	}
-	m.readinessManager.Set(kubecontainer.ParseContainerID(probedReady.ContainerID), results.Success, &v1.Pod{})
-	m.readinessManager.Set(kubecontainer.ParseContainerID(probedUnready.ContainerID), results.Failure, &v1.Pod{})
-	m.readinessManager.Set(kubecontainer.ParseContainerID(terminated.ContainerID), results.Success, &v1.Pod{})
+	m.readinessManager.Set(kubecontainer.ParseContainerID(probedReady.ContainerID), results.Success, &api.Pod{})
+	m.readinessManager.Set(kubecontainer.ParseContainerID(probedUnready.ContainerID), results.Failure, &api.Pod{})
+	m.readinessManager.Set(kubecontainer.ParseContainerID(terminated.ContainerID), results.Success, &api.Pod{})
 
 	m.UpdatePodStatus(testPodUID, &podStatus)
 
@@ -282,7 +281,7 @@ func TestUpdatePodStatus(t *testing.T) {
 
 func TestUpdateReadiness(t *testing.T) {
 	testPod := getTestPod()
-	setTestProbe(testPod, readiness, v1.Probe{})
+	setTestProbe(testPod, readiness, api.Probe{})
 	m := newTestManager()
 	defer cleanup(t, m)
 
@@ -292,7 +291,7 @@ func TestUpdateReadiness(t *testing.T) {
 	defer func() {
 		close(stopCh)
 		// Send an update to exit updateReadiness()
-		m.readinessManager.Set(kubecontainer.ContainerID{}, results.Success, &v1.Pod{})
+		m.readinessManager.Set(kubecontainer.ContainerID{}, results.Success, &api.Pod{})
 	}()
 
 	exec := syncExecProber{}

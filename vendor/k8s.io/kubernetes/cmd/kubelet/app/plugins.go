@@ -25,6 +25,7 @@ import (
 	// Network plugins
 	"k8s.io/kubernetes/pkg/kubelet/network"
 	"k8s.io/kubernetes/pkg/kubelet/network/cni"
+	"k8s.io/kubernetes/pkg/kubelet/network/exec"
 	"k8s.io/kubernetes/pkg/kubelet/network/kubenet"
 	// Volume plugins
 	"k8s.io/kubernetes/pkg/volume"
@@ -100,6 +101,7 @@ func ProbeNetworkPlugins(pluginDir, cniConfDir, cniBinDir string) []network.Netw
 		cniConfDir = pluginDir
 	}
 	// for each existing plugin, add to the list
+	allPlugins = append(allPlugins, exec.ProbeNetworkPlugins(pluginDir)...)
 	allPlugins = append(allPlugins, cni.ProbeNetworkPlugins(cniConfDir, cniBinDir)...)
 	allPlugins = append(allPlugins, kubenet.NewPlugin(pluginDir))
 

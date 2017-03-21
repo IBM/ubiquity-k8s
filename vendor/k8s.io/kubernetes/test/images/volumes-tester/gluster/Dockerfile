@@ -13,7 +13,9 @@
 # limitations under the License.
 
 FROM centos
-RUN yum -y install hostname centos-release-gluster && yum -y install glusterfs-server && yum clean all
+MAINTAINER Jan Safranek, jsafrane@redhat.com
+ADD gluster.repo /etc/yum.repos.d/
+RUN yum -y install hostname glusterfs-server && yum clean all
 ADD glusterd.vol /etc/glusterfs/
 ADD run_gluster.sh /usr/local/bin/
 ADD index.html /vol/

@@ -11,8 +11,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	flags "github.com/jessevdk/go-flags"
+	"github.ibm.com/almaden-containers/ubiquity-k8s/controller"
 
-	"github.ibm.com/almaden-containers/ubiquity-k8s/core"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
 	"github.ibm.com/almaden-containers/ubiquity/utils"
 )
@@ -59,7 +59,7 @@ func (a *AttachCommand) Execute(args []string) error {
 	controller, err := createController(*configFile)
 
 	if err != nil {
-		panic("backend not found")
+		panic(fmt.Sprintf("backend %s not found", configFile))
 	}
 	attachResponse := controller.Attach(attachRequest)
 	return utils.PrintResponse(attachResponse)
@@ -173,7 +173,7 @@ func main() {
 	}
 }
 
-func createController(configFile string) (*core.Controller, error) {
+func createController(configFile string) (*controller.Controller, error) {
 	var config resources.UbiquityPluginConfig
 	if _, err := toml.DecodeFile(configFile, &config); err != nil {
 		fmt.Printf("error decoding config file", err)
@@ -181,11 +181,11 @@ func createController(configFile string) (*core.Controller, error) {
 
 	}
 
-	logger, logFile := setupLogger(config.LogPath)
-	defer closeLogs(logFile)
+	logger, _ := setupLogger(config.LogPath)
+	//defer closeLogs(logFile)
 
 	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := core.NewController(logger, storageApiURL, config.Backend, config)
+	controller, err := controller.NewController(logger, storageApiURL, config)
 	return controller, err
 }
 
@@ -196,7 +196,6 @@ func setupLogger(logPath string) (*log.Logger, *os.File) {
 		return nil, nil
 	}
 	log.SetOutput(logFile)
-	// logger := log.New(io.MultiWriter(logFile, os.Stdout), "spectrum-cli: ", log.Lshortfile|log.LstdFlags)
 	logger := log.New(io.MultiWriter(logFile), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
 	return logger, logFile
 }

@@ -41,16 +41,12 @@ func NewAPIServer() *APIServer {
 // Start starts the apiserver, returns when apiserver is ready.
 func (a *APIServer) Start() error {
 	config := options.NewServerRunOptions()
-	config.Etcd.StorageConfig.ServerList = []string{getEtcdClientURL()}
-	// TODO: Current setup of etcd in e2e-node tests doesn't support etcd v3
-	// protocol. We should migrate it to use the same infrastructure as all
-	// other tests (pkg/storage/etcd/testing).
-	config.Etcd.StorageConfig.Type = "etcd2"
+	config.GenericServerRunOptions.StorageConfig.ServerList = []string{getEtcdClientURL()}
 	_, ipnet, err := net.ParseCIDR(clusterIPRange)
 	if err != nil {
 		return err
 	}
-	config.ServiceClusterIPRange = *ipnet
+	config.GenericServerRunOptions.ServiceClusterIPRange = *ipnet
 	config.AllowPrivileged = true
 	errCh := make(chan error)
 	go func() {

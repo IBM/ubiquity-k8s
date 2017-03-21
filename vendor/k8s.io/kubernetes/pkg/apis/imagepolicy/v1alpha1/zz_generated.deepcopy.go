@@ -21,9 +21,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	conversion "k8s.io/apimachinery/pkg/conversion"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	v1 "k8s.io/kubernetes/pkg/api/v1"
+	conversion "k8s.io/kubernetes/pkg/conversion"
+	runtime "k8s.io/kubernetes/pkg/runtime"
 	reflect "reflect"
 )
 
@@ -46,15 +46,14 @@ func DeepCopy_v1alpha1_ImageReview(in interface{}, out interface{}, c *conversio
 	{
 		in := in.(*ImageReview)
 		out := out.(*ImageReview)
-		*out = *in
-		if newVal, err := c.DeepCopy(&in.ObjectMeta); err != nil {
+		out.TypeMeta = in.TypeMeta
+		if err := v1.DeepCopy_v1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, c); err != nil {
 			return err
-		} else {
-			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
 		if err := DeepCopy_v1alpha1_ImageReviewSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
 		}
+		out.Status = in.Status
 		return nil
 	}
 }
@@ -63,7 +62,7 @@ func DeepCopy_v1alpha1_ImageReviewContainerSpec(in interface{}, out interface{},
 	{
 		in := in.(*ImageReviewContainerSpec)
 		out := out.(*ImageReviewContainerSpec)
-		*out = *in
+		out.Image = in.Image
 		return nil
 	}
 }
@@ -72,11 +71,14 @@ func DeepCopy_v1alpha1_ImageReviewSpec(in interface{}, out interface{}, c *conve
 	{
 		in := in.(*ImageReviewSpec)
 		out := out.(*ImageReviewSpec)
-		*out = *in
 		if in.Containers != nil {
 			in, out := &in.Containers, &out.Containers
 			*out = make([]ImageReviewContainerSpec, len(*in))
-			copy(*out, *in)
+			for i := range *in {
+				(*out)[i] = (*in)[i]
+			}
+		} else {
+			out.Containers = nil
 		}
 		if in.Annotations != nil {
 			in, out := &in.Annotations, &out.Annotations
@@ -84,7 +86,10 @@ func DeepCopy_v1alpha1_ImageReviewSpec(in interface{}, out interface{}, c *conve
 			for key, val := range *in {
 				(*out)[key] = val
 			}
+		} else {
+			out.Annotations = nil
 		}
+		out.Namespace = in.Namespace
 		return nil
 	}
 }
@@ -93,7 +98,8 @@ func DeepCopy_v1alpha1_ImageReviewStatus(in interface{}, out interface{}, c *con
 	{
 		in := in.(*ImageReviewStatus)
 		out := out.(*ImageReviewStatus)
-		*out = *in
+		out.Allowed = in.Allowed
+		out.Reason = in.Reason
 		return nil
 	}
 }

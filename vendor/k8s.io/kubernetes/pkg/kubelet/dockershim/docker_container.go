@@ -28,12 +28,12 @@ import (
 	dockerstrslice "github.com/docker/engine-api/types/strslice"
 	"github.com/golang/glog"
 
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 )
 
 // ListContainers lists all containers matching the filter.
-func (ds *dockerService) ListContainers(filter *runtimeapi.ContainerFilter) ([]*runtimeapi.Container, error) {
+func (ds *dockerService) ListContainers(filter *runtimeApi.ContainerFilter) ([]*runtimeApi.Container, error) {
 	opts := dockertypes.ContainerListOptions{All: true}
 
 	opts.Filter = dockerfilters.NewArgs()
@@ -42,14 +42,14 @@ func (ds *dockerService) ListContainers(filter *runtimeapi.ContainerFilter) ([]*
 	f.AddLabel(containerTypeLabelKey, containerTypeLabelContainer)
 
 	if filter != nil {
-		if filter.Id != "" {
-			f.Add("id", filter.Id)
+		if filter.Id != nil {
+			f.Add("id", filter.GetId())
 		}
 		if filter.State != nil {
-			f.Add("status", toDockerContainerStatus(filter.GetState().State))
+			f.Add("status", toDockerContainerStatus(filter.GetState()))
 		}
-		if filter.PodSandboxId != "" {
-			f.AddLabel(sandboxIDLabelKey, filter.PodSandboxId)
+		if filter.PodSandboxId != nil {
+			f.AddLabel(sandboxIDLabelKey, *filter.PodSandboxId)
 		}
 
 		if filter.LabelSelector != nil {
@@ -63,7 +63,7 @@ func (ds *dockerService) ListContainers(filter *runtimeapi.ContainerFilter) ([]*
 		return nil, err
 	}
 	// Convert docker to runtime api containers.
-	result := []*runtimeapi.Container{}
+	result := []*runtimeApi.Container{}
 	for i := range containers {
 		c := containers[i]
 
@@ -75,15 +75,6 @@ func (ds *dockerService) ListContainers(filter *runtimeapi.ContainerFilter) ([]*
 
 		result = append(result, converted)
 	}
-	// Include legacy containers if there are still legacy containers not cleaned up yet.
-	if !ds.legacyCleanup.Done() {
-		legacyContainers, err := ds.ListLegacyContainers(filter)
-		if err != nil {
-			return nil, err
-		}
-		// Legacy containers are always older, so we can safely append them to the end.
-		result = append(result, legacyContainers...)
-	}
 	return result, nil
 }
 
@@ -91,52 +82,54 @@ func (ds *dockerService) ListContainers(filter *runtimeapi.ContainerFilter) ([]*
 // Docker cannot store the log to an arbitrary location (yet), so we create an
 // symlink at LogPath, linking to the actual path of the log.
 // TODO: check if the default values returned by the runtime API are ok.
-func (ds *dockerService) CreateContainer(podSandboxID string, config *runtimeapi.ContainerConfig, sandboxConfig *runtimeapi.PodSandboxConfig) (string, error) {
+func (ds *dockerService) CreateContainer(podSandboxID string, config *runtimeApi.ContainerConfig, sandboxConfig *runtimeApi.PodSandboxConfig) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("container config is nil")
 	}
 	if sandboxConfig == nil {
-		return "", fmt.Errorf("sandbox config is nil for container %q", config.Metadata.Name)
+		return "", fmt.Errorf("sandbox config is nil for container %q", config.Metadata.GetName())
 	}
 
 	labels := makeLabels(config.GetLabels(), config.GetAnnotations())
 	// Apply a the container type label.
 	labels[containerTypeLabelKey] = containerTypeLabelContainer
 	// Write the container log path in the labels.
-	labels[containerLogPathLabelKey] = filepath.Join(sandboxConfig.LogDirectory, config.LogPath)
+	labels[containerLogPathLabelKey] = filepath.Join(sandboxConfig.GetLogDirectory(), config.GetLogPath())
 	// Write the sandbox ID in the labels.
 	labels[sandboxIDLabelKey] = podSandboxID
 
-	apiVersion, err := ds.getDockerAPIVersion()
-	if err != nil {
-		return "", fmt.Errorf("unable to get the docker API version: %v", err)
-	}
-	securityOptSep := getSecurityOptSeparator(apiVersion)
-
 	image := ""
 	if iSpec := config.GetImage(); iSpec != nil {
-		image = iSpec.Image
+		image = iSpec.GetImage()
 	}
 	createConfig := dockertypes.ContainerCreateConfig{
 		Name: makeContainerName(sandboxConfig, config),
 		Config: &dockercontainer.Config{
 			// TODO: set User.
-			Entrypoint: dockerstrslice.StrSlice(config.Command),
-			Cmd:        dockerstrslice.StrSlice(config.Args),
+			Entrypoint: dockerstrslice.StrSlice(config.GetCommand()),
+			Cmd:        dockerstrslice.StrSlice(config.GetArgs()),
 			Env:        generateEnvList(config.GetEnvs()),
 			Image:      image,
-			WorkingDir: config.WorkingDir,
+			WorkingDir: config.GetWorkingDir(),
 			Labels:     labels,
 			// Interactive containers:
-			OpenStdin: config.Stdin,
-			StdinOnce: config.StdinOnce,
-			Tty:       config.Tty,
+			OpenStdin: config.GetStdin(),
+			StdinOnce: config.GetStdinOnce(),
+			Tty:       config.GetTty(),
 		},
 	}
 
 	// Fill the HostConfig.
 	hc := &dockercontainer.HostConfig{
 		Binds: generateMountBindings(config.GetMounts()),
+	}
+
+	// Apply cgroupsParent derived from the sandbox config.
+	if lc := sandboxConfig.GetLinux(); lc != nil {
+		// Apply Cgroup options.
+		// TODO: Check if this works with per-pod cgroups.
+		// TODO: we need to pass the cgroup in syntax expected by cgroup driver but shim does not use docker info yet...
+		hc.CgroupParent = lc.GetCgroupParent()
 	}
 
 	// Apply Linux-specific options if applicable.
@@ -147,53 +140,41 @@ func (ds *dockerService) CreateContainer(podSandboxID string, config *runtimeapi
 		rOpts := lc.GetResources()
 		if rOpts != nil {
 			hc.Resources = dockercontainer.Resources{
-				Memory:     rOpts.MemoryLimitInBytes,
+				Memory:     rOpts.GetMemoryLimitInBytes(),
 				MemorySwap: dockertools.DefaultMemorySwap(),
-				CPUShares:  rOpts.CpuShares,
-				CPUQuota:   rOpts.CpuQuota,
-				CPUPeriod:  rOpts.CpuPeriod,
+				CPUShares:  rOpts.GetCpuShares(),
+				CPUQuota:   rOpts.GetCpuQuota(),
+				CPUPeriod:  rOpts.GetCpuPeriod(),
 			}
-			hc.OomScoreAdj = int(rOpts.OomScoreAdj)
+			hc.OomScoreAdj = int(rOpts.GetOomScoreAdj())
 		}
 		// Note: ShmSize is handled in kube_docker_client.go
 
 		// Apply security context.
-		applyContainerSecurityContext(lc, podSandboxID, createConfig.Config, hc, securityOptSep)
-	}
-
-	// Apply cgroupsParent derived from the sandbox config.
-	if lc := sandboxConfig.GetLinux(); lc != nil {
-		// Apply Cgroup options.
-		cgroupParent, err := ds.GenerateExpectedCgroupParent(lc.CgroupParent)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate cgroup parent in expected syntax for container %q: %v", config.Metadata.Name, err)
-		}
-		hc.CgroupParent = cgroupParent
+		applyContainerSecurityContext(lc, podSandboxID, createConfig.Config, hc)
 	}
 
 	// Set devices for container.
 	devices := make([]dockercontainer.DeviceMapping, len(config.Devices))
 	for i, device := range config.Devices {
 		devices[i] = dockercontainer.DeviceMapping{
-			PathOnHost:        device.HostPath,
-			PathInContainer:   device.ContainerPath,
-			CgroupPermissions: device.Permissions,
+			PathOnHost:        device.GetHostPath(),
+			PathInContainer:   device.GetContainerPath(),
+			CgroupPermissions: device.GetPermissions(),
 		}
 	}
 	hc.Resources.Devices = devices
 
 	// Apply appArmor and seccomp options.
-	securityOpts, err := getContainerSecurityOpts(config.Metadata.Name, sandboxConfig, ds.seccompProfileRoot, securityOptSep)
+	securityOpts, err := getContainerSecurityOpts(config.Metadata.GetName(), sandboxConfig, ds.seccompProfileRoot)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate container security options for container %q: %v", config.Metadata.Name, err)
+		return "", fmt.Errorf("failed to generate container security options for container %q: %v", config.Metadata.GetName(), err)
 	}
 	hc.SecurityOpt = append(hc.SecurityOpt, securityOpts...)
 
 	createConfig.HostConfig = hc
 	createResp, err := ds.client.CreateContainer(createConfig)
-	if err != nil {
-		createResp, err = recoverFromCreationConflictIfNeeded(ds.client, createConfig, err)
-	}
+	recoverFromConflictIfNeeded(ds.client, err)
 
 	if createResp != nil {
 		return createResp.ID, err
@@ -302,7 +283,7 @@ func getContainerTimestamps(r *dockertypes.ContainerJSON) (time.Time, time.Time,
 }
 
 // ContainerStatus inspects the docker container and returns the status.
-func (ds *dockerService) ContainerStatus(containerID string) (*runtimeapi.ContainerStatus, error) {
+func (ds *dockerService) ContainerStatus(containerID string) (*runtimeApi.ContainerStatus, error) {
 	r, err := ds.client.InspectContainer(containerID)
 	if err != nil {
 		return nil, err
@@ -322,23 +303,23 @@ func (ds *dockerService) ContainerStatus(containerID string) (*runtimeapi.Contai
 	imageID := toPullableImageID(r.Image, ir)
 
 	// Convert the mounts.
-	mounts := []*runtimeapi.Mount{}
+	mounts := []*runtimeApi.Mount{}
 	for i := range r.Mounts {
 		m := r.Mounts[i]
 		readonly := !m.RW
-		mounts = append(mounts, &runtimeapi.Mount{
-			HostPath:      m.Source,
-			ContainerPath: m.Destination,
-			Readonly:      readonly,
+		mounts = append(mounts, &runtimeApi.Mount{
+			HostPath:      &m.Source,
+			ContainerPath: &m.Destination,
+			Readonly:      &readonly,
 			// Note: Can't set SeLinuxRelabel
 		})
 	}
 	// Interpret container states.
-	var state runtimeapi.ContainerState
+	var state runtimeApi.ContainerState
 	var reason, message string
 	if r.State.Running {
 		// Container is running.
-		state = runtimeapi.ContainerState_CONTAINER_RUNNING
+		state = runtimeApi.ContainerState_CONTAINER_RUNNING
 	} else {
 		// Container is *not* running. We need to get more details.
 		//    * Case 1: container has run and exited with non-zero finishedAt
@@ -347,7 +328,7 @@ func (ds *dockerService) ContainerStatus(containerID string) (*runtimeapi.Contai
 		//              time, but a non-zero exit code.
 		//    * Case 3: container has been created, but not started (yet).
 		if !finishedAt.IsZero() { // Case 1
-			state = runtimeapi.ContainerState_CONTAINER_EXITED
+			state = runtimeApi.ContainerState_CONTAINER_EXITED
 			switch {
 			case r.State.OOMKilled:
 				// TODO: consider exposing OOMKilled via the runtimeAPI.
@@ -360,13 +341,13 @@ func (ds *dockerService) ContainerStatus(containerID string) (*runtimeapi.Contai
 				reason = "Error"
 			}
 		} else if r.State.ExitCode != 0 { // Case 2
-			state = runtimeapi.ContainerState_CONTAINER_EXITED
+			state = runtimeApi.ContainerState_CONTAINER_EXITED
 			// Adjust finshedAt and startedAt time to createdAt time to avoid
 			// the confusion.
 			finishedAt, startedAt = createdAt, createdAt
 			reason = "ContainerCannotRun"
 		} else { // Case 3
-			state = runtimeapi.ContainerState_CONTAINER_CREATED
+			state = runtimeApi.ContainerState_CONTAINER_CREATED
 		}
 		message = r.State.Error
 	}
@@ -375,38 +356,25 @@ func (ds *dockerService) ContainerStatus(containerID string) (*runtimeapi.Contai
 	ct, st, ft := createdAt.UnixNano(), startedAt.UnixNano(), finishedAt.UnixNano()
 	exitCode := int32(r.State.ExitCode)
 
-	// If the container has no containerTypeLabelKey label, treat it as a legacy container.
-	if _, ok := r.Config.Labels[containerTypeLabelKey]; !ok {
-		names, labels, err := convertLegacyNameAndLabels([]string{r.Name}, r.Config.Labels)
-		if err != nil {
-			return nil, err
-		}
-		r.Name, r.Config.Labels = names[0], labels
-	}
-
 	metadata, err := parseContainerName(r.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	labels, annotations := extractLabels(r.Config.Labels)
-	imageName := r.Config.Image
-	if len(ir.RepoTags) > 0 {
-		imageName = ir.RepoTags[0]
-	}
-	return &runtimeapi.ContainerStatus{
-		Id:          r.ID,
+	return &runtimeApi.ContainerStatus{
+		Id:          &r.ID,
 		Metadata:    metadata,
-		Image:       &runtimeapi.ImageSpec{Image: imageName},
-		ImageRef:    imageID,
+		Image:       &runtimeApi.ImageSpec{Image: &r.Config.Image},
+		ImageRef:    &imageID,
 		Mounts:      mounts,
-		ExitCode:    exitCode,
-		State:       state,
-		CreatedAt:   ct,
-		StartedAt:   st,
-		FinishedAt:  ft,
-		Reason:      reason,
-		Message:     message,
+		ExitCode:    &exitCode,
+		State:       &state,
+		CreatedAt:   &ct,
+		StartedAt:   &st,
+		FinishedAt:  &ft,
+		Reason:      &reason,
+		Message:     &message,
 		Labels:      labels,
 		Annotations: annotations,
 	}, nil

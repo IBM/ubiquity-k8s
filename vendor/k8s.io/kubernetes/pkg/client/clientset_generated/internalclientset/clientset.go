@@ -18,10 +18,6 @@ package internalclientset
 
 import (
 	"github.com/golang/glog"
-	discovery "k8s.io/client-go/discovery"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	rest "k8s.io/client-go/rest"
-	"k8s.io/client-go/util/flowcontrol"
 	internalversionapps "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/apps/internalversion"
 	internalversionauthentication "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/authentication/internalversion"
 	internalversionauthorization "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/authorization/internalversion"
@@ -33,6 +29,10 @@ import (
 	internalversionpolicy "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/policy/internalversion"
 	internalversionrbac "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/rbac/internalversion"
 	internalversionstorage "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/storage/internalversion"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
+	discovery "k8s.io/kubernetes/pkg/client/typed/discovery"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	_ "k8s.io/kubernetes/plugin/pkg/client/auth"
 )
 
 type Interface interface {
@@ -167,108 +167,105 @@ func (c *Clientset) Storage() internalversionstorage.StorageInterface {
 
 // Discovery retrieves the DiscoveryClient
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
-	if c == nil {
-		return nil
-	}
 	return c.DiscoveryClient
 }
 
 // NewForConfig creates a new Clientset for the given config.
-func NewForConfig(c *rest.Config) (*Clientset, error) {
+func NewForConfig(c *restclient.Config) (*Clientset, error) {
 	configShallowCopy := *c
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
-	var cs Clientset
+	var clientset Clientset
 	var err error
-	cs.CoreClient, err = internalversioncore.NewForConfig(&configShallowCopy)
+	clientset.CoreClient, err = internalversioncore.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.AppsClient, err = internalversionapps.NewForConfig(&configShallowCopy)
+	clientset.AppsClient, err = internalversionapps.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.AuthenticationClient, err = internalversionauthentication.NewForConfig(&configShallowCopy)
+	clientset.AuthenticationClient, err = internalversionauthentication.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.AuthorizationClient, err = internalversionauthorization.NewForConfig(&configShallowCopy)
+	clientset.AuthorizationClient, err = internalversionauthorization.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.AutoscalingClient, err = internalversionautoscaling.NewForConfig(&configShallowCopy)
+	clientset.AutoscalingClient, err = internalversionautoscaling.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.BatchClient, err = internalversionbatch.NewForConfig(&configShallowCopy)
+	clientset.BatchClient, err = internalversionbatch.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.CertificatesClient, err = internalversioncertificates.NewForConfig(&configShallowCopy)
+	clientset.CertificatesClient, err = internalversioncertificates.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.ExtensionsClient, err = internalversionextensions.NewForConfig(&configShallowCopy)
+	clientset.ExtensionsClient, err = internalversionextensions.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.PolicyClient, err = internalversionpolicy.NewForConfig(&configShallowCopy)
+	clientset.PolicyClient, err = internalversionpolicy.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.RbacClient, err = internalversionrbac.NewForConfig(&configShallowCopy)
+	clientset.RbacClient, err = internalversionrbac.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
-	cs.StorageClient, err = internalversionstorage.NewForConfig(&configShallowCopy)
+	clientset.StorageClient, err = internalversionstorage.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
 
-	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
+	clientset.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
 		glog.Errorf("failed to create the DiscoveryClient: %v", err)
 		return nil, err
 	}
-	return &cs, nil
+	return &clientset, nil
 }
 
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *Clientset {
-	var cs Clientset
-	cs.CoreClient = internalversioncore.NewForConfigOrDie(c)
-	cs.AppsClient = internalversionapps.NewForConfigOrDie(c)
-	cs.AuthenticationClient = internalversionauthentication.NewForConfigOrDie(c)
-	cs.AuthorizationClient = internalversionauthorization.NewForConfigOrDie(c)
-	cs.AutoscalingClient = internalversionautoscaling.NewForConfigOrDie(c)
-	cs.BatchClient = internalversionbatch.NewForConfigOrDie(c)
-	cs.CertificatesClient = internalversioncertificates.NewForConfigOrDie(c)
-	cs.ExtensionsClient = internalversionextensions.NewForConfigOrDie(c)
-	cs.PolicyClient = internalversionpolicy.NewForConfigOrDie(c)
-	cs.RbacClient = internalversionrbac.NewForConfigOrDie(c)
-	cs.StorageClient = internalversionstorage.NewForConfigOrDie(c)
+func NewForConfigOrDie(c *restclient.Config) *Clientset {
+	var clientset Clientset
+	clientset.CoreClient = internalversioncore.NewForConfigOrDie(c)
+	clientset.AppsClient = internalversionapps.NewForConfigOrDie(c)
+	clientset.AuthenticationClient = internalversionauthentication.NewForConfigOrDie(c)
+	clientset.AuthorizationClient = internalversionauthorization.NewForConfigOrDie(c)
+	clientset.AutoscalingClient = internalversionautoscaling.NewForConfigOrDie(c)
+	clientset.BatchClient = internalversionbatch.NewForConfigOrDie(c)
+	clientset.CertificatesClient = internalversioncertificates.NewForConfigOrDie(c)
+	clientset.ExtensionsClient = internalversionextensions.NewForConfigOrDie(c)
+	clientset.PolicyClient = internalversionpolicy.NewForConfigOrDie(c)
+	clientset.RbacClient = internalversionrbac.NewForConfigOrDie(c)
+	clientset.StorageClient = internalversionstorage.NewForConfigOrDie(c)
 
-	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
-	return &cs
+	clientset.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
+	return &clientset
 }
 
 // New creates a new Clientset for the given RESTClient.
-func New(c rest.Interface) *Clientset {
-	var cs Clientset
-	cs.CoreClient = internalversioncore.New(c)
-	cs.AppsClient = internalversionapps.New(c)
-	cs.AuthenticationClient = internalversionauthentication.New(c)
-	cs.AuthorizationClient = internalversionauthorization.New(c)
-	cs.AutoscalingClient = internalversionautoscaling.New(c)
-	cs.BatchClient = internalversionbatch.New(c)
-	cs.CertificatesClient = internalversioncertificates.New(c)
-	cs.ExtensionsClient = internalversionextensions.New(c)
-	cs.PolicyClient = internalversionpolicy.New(c)
-	cs.RbacClient = internalversionrbac.New(c)
-	cs.StorageClient = internalversionstorage.New(c)
+func New(c restclient.Interface) *Clientset {
+	var clientset Clientset
+	clientset.CoreClient = internalversioncore.New(c)
+	clientset.AppsClient = internalversionapps.New(c)
+	clientset.AuthenticationClient = internalversionauthentication.New(c)
+	clientset.AuthorizationClient = internalversionauthorization.New(c)
+	clientset.AutoscalingClient = internalversionautoscaling.New(c)
+	clientset.BatchClient = internalversionbatch.New(c)
+	clientset.CertificatesClient = internalversioncertificates.New(c)
+	clientset.ExtensionsClient = internalversionextensions.New(c)
+	clientset.PolicyClient = internalversionpolicy.New(c)
+	clientset.RbacClient = internalversionrbac.New(c)
+	clientset.StorageClient = internalversionstorage.New(c)
 
-	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
-	return &cs
+	clientset.DiscoveryClient = discovery.NewDiscoveryClient(c)
+	return &clientset
 }

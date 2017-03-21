@@ -17,21 +17,20 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api/pod"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/uuid"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -43,37 +42,37 @@ var dnsServiceLabelSelector = labels.Set{
 	"kubernetes.io/cluster-service": "true",
 }.AsSelector()
 
-func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd string, useAnnotation bool) *v1.Pod {
-	dnsPod := &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd string, useAnnotation bool) *api.Pod {
+	dnsPod := &api.Pod{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+			APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "dns-test-" + string(uuid.NewUUID()),
 			Namespace: namespace,
 		},
-		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{
+		Spec: api.PodSpec{
+			Volumes: []api.Volume{
 				{
 					Name: "results",
-					VolumeSource: v1.VolumeSource{
-						EmptyDir: &v1.EmptyDirVolumeSource{},
+					VolumeSource: api.VolumeSource{
+						EmptyDir: &api.EmptyDirVolumeSource{},
 					},
 				},
 			},
-			Containers: []v1.Container{
+			Containers: []api.Container{
 				// TODO: Consider scraping logs instead of running a webserver.
 				{
 					Name:  "webserver",
 					Image: "gcr.io/google_containers/test-webserver:e2e",
-					Ports: []v1.ContainerPort{
+					Ports: []api.ContainerPort{
 						{
 							Name:          "http",
 							ContainerPort: 80,
 						},
 					},
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      "results",
 							MountPath: "/results",
@@ -84,7 +83,7 @@ func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd string, useAnnotatio
 					Name:    "querier",
 					Image:   "gcr.io/google_containers/dnsutils:e2e",
 					Command: []string{"sh", "-c", wheezyProbeCmd},
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      "results",
 							MountPath: "/results",
@@ -95,7 +94,7 @@ func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd string, useAnnotatio
 					Name:    "jessie-querier",
 					Image:   "gcr.io/google_containers/jessie-dnsutils:e2e",
 					Command: []string{"sh", "-c", jessieProbeCmd},
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      "results",
 							MountPath: "/results",
@@ -172,11 +171,11 @@ func createTargetedProbeCommand(nameToResolve string, lookup string, fileNamePre
 	return probeCmd, fileName
 }
 
-func assertFilesExist(fileNames []string, fileDir string, pod *v1.Pod, client clientset.Interface) {
+func assertFilesExist(fileNames []string, fileDir string, pod *api.Pod, client clientset.Interface) {
 	assertFilesContain(fileNames, fileDir, pod, client, false, "")
 }
 
-func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client clientset.Interface, check bool, expected string) {
+func assertFilesContain(fileNames []string, fileDir string, pod *api.Pod, client clientset.Interface, check bool, expected string) {
 	var failed []string
 
 	framework.ExpectNoError(wait.Poll(time.Second*2, time.Second*60, func() (bool, error) {
@@ -185,15 +184,10 @@ func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client 
 		if err != nil {
 			return false, err
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-		defer cancel()
-
 		var contents []byte
 		for _, fileName := range fileNames {
 			if subResourceProxyAvailable {
 				contents, err = client.Core().RESTClient().Get().
-					Context(ctx).
 					Namespace(pod.Namespace).
 					Resource("pods").
 					SubResource("proxy").
@@ -202,7 +196,6 @@ func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client 
 					Do().Raw()
 			} else {
 				contents, err = client.Core().RESTClient().Get().
-					Context(ctx).
 					Prefix("proxy").
 					Resource("pods").
 					Namespace(pod.Namespace).
@@ -211,11 +204,7 @@ func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client 
 					Do().Raw()
 			}
 			if err != nil {
-				if ctx.Err() != nil {
-					framework.Failf("Unable to read %s from pod %s: %v", fileName, pod.Name, err)
-				} else {
-					framework.Logf("Unable to read %s from pod %s: %v", fileName, pod.Name, err)
-				}
+				framework.Logf("Unable to read %s from pod %s: %v", fileName, pod.Name, err)
 				failed = append(failed, fileName)
 			} else if check && strings.TrimSpace(string(contents)) != expected {
 				framework.Logf("File %s from pod %s contains '%s' instead of '%s'", fileName, pod.Name, string(contents), expected)
@@ -231,14 +220,14 @@ func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client 
 	Expect(len(failed)).To(Equal(0))
 }
 
-func validateDNSResults(f *framework.Framework, pod *v1.Pod, fileNames []string) {
+func validateDNSResults(f *framework.Framework, pod *api.Pod, fileNames []string) {
 
 	By("submitting the pod to kubernetes")
 	podClient := f.ClientSet.Core().Pods(f.Namespace.Name)
 	defer func() {
 		By("deleting the pod")
 		defer GinkgoRecover()
-		podClient.Delete(pod.Name, metav1.NewDeleteOptions(0))
+		podClient.Delete(pod.Name, api.NewDeleteOptions(0))
 	}()
 	if _, err := podClient.Create(pod); err != nil {
 		framework.Failf("Failed to create %s pod: %v", pod.Name, err)
@@ -247,7 +236,7 @@ func validateDNSResults(f *framework.Framework, pod *v1.Pod, fileNames []string)
 	framework.ExpectNoError(f.WaitForPodRunning(pod.Name))
 
 	By("retrieving the pod")
-	pod, err := podClient.Get(pod.Name, metav1.GetOptions{})
+	pod, err := podClient.Get(pod.Name)
 	if err != nil {
 		framework.Failf("Failed to get pod %s: %v", pod.Name, err)
 	}
@@ -260,14 +249,14 @@ func validateDNSResults(f *framework.Framework, pod *v1.Pod, fileNames []string)
 	framework.Logf("DNS probes using %s succeeded\n", pod.Name)
 }
 
-func validateTargetedProbeOutput(f *framework.Framework, pod *v1.Pod, fileNames []string, value string) {
+func validateTargetedProbeOutput(f *framework.Framework, pod *api.Pod, fileNames []string, value string) {
 
 	By("submitting the pod to kubernetes")
 	podClient := f.ClientSet.Core().Pods(f.Namespace.Name)
 	defer func() {
 		By("deleting the pod")
 		defer GinkgoRecover()
-		podClient.Delete(pod.Name, metav1.NewDeleteOptions(0))
+		podClient.Delete(pod.Name, api.NewDeleteOptions(0))
 	}()
 	if _, err := podClient.Create(pod); err != nil {
 		framework.Failf("Failed to create %s pod: %v", pod.Name, err)
@@ -276,7 +265,7 @@ func validateTargetedProbeOutput(f *framework.Framework, pod *v1.Pod, fileNames 
 	framework.ExpectNoError(f.WaitForPodRunning(pod.Name))
 
 	By("retrieving the pod")
-	pod, err := podClient.Get(pod.Name, metav1.GetOptions{})
+	pod, err := podClient.Get(pod.Name)
 	if err != nil {
 		framework.Failf("Failed to get pod %s: %v", pod.Name, err)
 	}
@@ -288,9 +277,9 @@ func validateTargetedProbeOutput(f *framework.Framework, pod *v1.Pod, fileNames 
 }
 
 func verifyDNSPodIsRunning(f *framework.Framework) {
-	systemClient := f.ClientSet.Core().Pods(metav1.NamespaceSystem)
+	systemClient := f.ClientSet.Core().Pods(api.NamespaceSystem)
 	By("Waiting for DNS Service to be Running")
-	options := metav1.ListOptions{LabelSelector: dnsServiceLabelSelector.String()}
+	options := api.ListOptions{LabelSelector: dnsServiceLabelSelector}
 	dnsPods, err := systemClient.List(options)
 	if err != nil {
 		framework.Failf("Failed to list all dns service pods")
@@ -302,20 +291,20 @@ func verifyDNSPodIsRunning(f *framework.Framework) {
 	framework.ExpectNoError(framework.WaitForPodRunningInNamespace(f.ClientSet, &pod))
 }
 
-func createServiceSpec(serviceName, externalName string, isHeadless bool, selector map[string]string) *v1.Service {
-	headlessService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
+func createServiceSpec(serviceName, externalName string, isHeadless bool, selector map[string]string) *api.Service {
+	headlessService := &api.Service{
+		ObjectMeta: api.ObjectMeta{
 			Name: serviceName,
 		},
-		Spec: v1.ServiceSpec{
+		Spec: api.ServiceSpec{
 			Selector: selector,
 		},
 	}
 	if externalName != "" {
-		headlessService.Spec.Type = v1.ServiceTypeExternalName
+		headlessService.Spec.Type = api.ServiceTypeExternalName
 		headlessService.Spec.ExternalName = externalName
 	} else {
-		headlessService.Spec.Ports = []v1.ServicePort{
+		headlessService.Spec.Ports = []api.ServicePort{
 			{Port: 80, Name: "http", Protocol: "TCP"},
 		}
 	}
@@ -474,7 +463,7 @@ var _ = framework.KubeDescribe("DNS", func() {
 
 		// Test changing the externalName field
 		By("changing the externalName to bar.example.com")
-		_, err = framework.UpdateService(f.ClientSet, f.Namespace.Name, serviceName, func(s *v1.Service) {
+		_, err = updateService(f.ClientSet, f.Namespace.Name, serviceName, func(s *api.Service) {
 			s.Spec.ExternalName = "bar.example.com"
 		})
 		Expect(err).NotTo(HaveOccurred())
@@ -491,10 +480,10 @@ var _ = framework.KubeDescribe("DNS", func() {
 
 		// Test changing type from ExternalName to ClusterIP
 		By("changing the service to type=ClusterIP")
-		_, err = framework.UpdateService(f.ClientSet, f.Namespace.Name, serviceName, func(s *v1.Service) {
-			s.Spec.Type = v1.ServiceTypeClusterIP
+		_, err = updateService(f.ClientSet, f.Namespace.Name, serviceName, func(s *api.Service) {
+			s.Spec.Type = api.ServiceTypeClusterIP
 			s.Spec.ClusterIP = "127.1.2.3"
-			s.Spec.Ports = []v1.ServicePort{
+			s.Spec.Ports = []api.ServicePort{
 				{Port: 80, Name: "http", Protocol: "TCP"},
 			}
 		})

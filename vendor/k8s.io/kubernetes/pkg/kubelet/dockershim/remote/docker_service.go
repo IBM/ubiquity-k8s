@@ -21,16 +21,16 @@ import (
 
 	"golang.org/x/net/context"
 
-	internalapi "k8s.io/kubernetes/pkg/kubelet/api"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	internalApi "k8s.io/kubernetes/pkg/kubelet/api"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim"
 	utilexec "k8s.io/kubernetes/pkg/util/exec"
 )
 
 // DockerService is the interface implement CRI remote service server.
 type DockerService interface {
-	runtimeapi.RuntimeServiceServer
-	runtimeapi.ImageServiceServer
+	runtimeApi.RuntimeServiceServer
+	runtimeApi.ImageServiceServer
 }
 
 // dockerService uses dockershim service to implement DockerService.
@@ -38,116 +38,116 @@ type DockerService interface {
 // TODO(random-liu): Change the dockershim service to support context, and implement
 // internal services and remote services with the dockershim service.
 type dockerService struct {
-	runtimeService internalapi.RuntimeService
-	imageService   internalapi.ImageManagerService
+	runtimeService internalApi.RuntimeService
+	imageService   internalApi.ImageManagerService
 }
 
 func NewDockerService(s dockershim.DockerService) DockerService {
 	return &dockerService{runtimeService: s, imageService: s}
 }
 
-func (d *dockerService) Version(ctx context.Context, r *runtimeapi.VersionRequest) (*runtimeapi.VersionResponse, error) {
-	return d.runtimeService.Version(r.Version)
+func (d *dockerService) Version(ctx context.Context, r *runtimeApi.VersionRequest) (*runtimeApi.VersionResponse, error) {
+	return d.runtimeService.Version(r.GetVersion())
 }
 
-func (d *dockerService) Status(ctx context.Context, r *runtimeapi.StatusRequest) (*runtimeapi.StatusResponse, error) {
+func (d *dockerService) Status(ctx context.Context, r *runtimeApi.StatusRequest) (*runtimeApi.StatusResponse, error) {
 	status, err := d.runtimeService.Status()
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.StatusResponse{Status: status}, nil
+	return &runtimeApi.StatusResponse{Status: status}, nil
 }
 
-func (d *dockerService) RunPodSandbox(ctx context.Context, r *runtimeapi.RunPodSandboxRequest) (*runtimeapi.RunPodSandboxResponse, error) {
+func (d *dockerService) RunPodSandbox(ctx context.Context, r *runtimeApi.RunPodSandboxRequest) (*runtimeApi.RunPodSandboxResponse, error) {
 	podSandboxId, err := d.runtimeService.RunPodSandbox(r.GetConfig())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.RunPodSandboxResponse{PodSandboxId: podSandboxId}, nil
+	return &runtimeApi.RunPodSandboxResponse{PodSandboxId: &podSandboxId}, nil
 }
 
-func (d *dockerService) StopPodSandbox(ctx context.Context, r *runtimeapi.StopPodSandboxRequest) (*runtimeapi.StopPodSandboxResponse, error) {
-	err := d.runtimeService.StopPodSandbox(r.PodSandboxId)
+func (d *dockerService) StopPodSandbox(ctx context.Context, r *runtimeApi.StopPodSandboxRequest) (*runtimeApi.StopPodSandboxResponse, error) {
+	err := d.runtimeService.StopPodSandbox(r.GetPodSandboxId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.StopPodSandboxResponse{}, nil
+	return &runtimeApi.StopPodSandboxResponse{}, nil
 }
 
-func (d *dockerService) RemovePodSandbox(ctx context.Context, r *runtimeapi.RemovePodSandboxRequest) (*runtimeapi.RemovePodSandboxResponse, error) {
-	err := d.runtimeService.RemovePodSandbox(r.PodSandboxId)
+func (d *dockerService) RemovePodSandbox(ctx context.Context, r *runtimeApi.RemovePodSandboxRequest) (*runtimeApi.RemovePodSandboxResponse, error) {
+	err := d.runtimeService.RemovePodSandbox(r.GetPodSandboxId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.RemovePodSandboxResponse{}, nil
+	return &runtimeApi.RemovePodSandboxResponse{}, nil
 }
 
-func (d *dockerService) PodSandboxStatus(ctx context.Context, r *runtimeapi.PodSandboxStatusRequest) (*runtimeapi.PodSandboxStatusResponse, error) {
-	podSandboxStatus, err := d.runtimeService.PodSandboxStatus(r.PodSandboxId)
+func (d *dockerService) PodSandboxStatus(ctx context.Context, r *runtimeApi.PodSandboxStatusRequest) (*runtimeApi.PodSandboxStatusResponse, error) {
+	podSandboxStatus, err := d.runtimeService.PodSandboxStatus(r.GetPodSandboxId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.PodSandboxStatusResponse{Status: podSandboxStatus}, nil
+	return &runtimeApi.PodSandboxStatusResponse{Status: podSandboxStatus}, nil
 }
 
-func (d *dockerService) ListPodSandbox(ctx context.Context, r *runtimeapi.ListPodSandboxRequest) (*runtimeapi.ListPodSandboxResponse, error) {
+func (d *dockerService) ListPodSandbox(ctx context.Context, r *runtimeApi.ListPodSandboxRequest) (*runtimeApi.ListPodSandboxResponse, error) {
 	items, err := d.runtimeService.ListPodSandbox(r.GetFilter())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.ListPodSandboxResponse{Items: items}, nil
+	return &runtimeApi.ListPodSandboxResponse{Items: items}, nil
 }
 
-func (d *dockerService) CreateContainer(ctx context.Context, r *runtimeapi.CreateContainerRequest) (*runtimeapi.CreateContainerResponse, error) {
-	containerId, err := d.runtimeService.CreateContainer(r.PodSandboxId, r.GetConfig(), r.GetSandboxConfig())
+func (d *dockerService) CreateContainer(ctx context.Context, r *runtimeApi.CreateContainerRequest) (*runtimeApi.CreateContainerResponse, error) {
+	containerId, err := d.runtimeService.CreateContainer(r.GetPodSandboxId(), r.GetConfig(), r.GetSandboxConfig())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.CreateContainerResponse{ContainerId: containerId}, nil
+	return &runtimeApi.CreateContainerResponse{ContainerId: &containerId}, nil
 }
 
-func (d *dockerService) StartContainer(ctx context.Context, r *runtimeapi.StartContainerRequest) (*runtimeapi.StartContainerResponse, error) {
-	err := d.runtimeService.StartContainer(r.ContainerId)
+func (d *dockerService) StartContainer(ctx context.Context, r *runtimeApi.StartContainerRequest) (*runtimeApi.StartContainerResponse, error) {
+	err := d.runtimeService.StartContainer(r.GetContainerId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.StartContainerResponse{}, nil
+	return &runtimeApi.StartContainerResponse{}, nil
 }
 
-func (d *dockerService) StopContainer(ctx context.Context, r *runtimeapi.StopContainerRequest) (*runtimeapi.StopContainerResponse, error) {
-	err := d.runtimeService.StopContainer(r.ContainerId, r.Timeout)
+func (d *dockerService) StopContainer(ctx context.Context, r *runtimeApi.StopContainerRequest) (*runtimeApi.StopContainerResponse, error) {
+	err := d.runtimeService.StopContainer(r.GetContainerId(), r.GetTimeout())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.StopContainerResponse{}, nil
+	return &runtimeApi.StopContainerResponse{}, nil
 }
 
-func (d *dockerService) RemoveContainer(ctx context.Context, r *runtimeapi.RemoveContainerRequest) (*runtimeapi.RemoveContainerResponse, error) {
-	err := d.runtimeService.RemoveContainer(r.ContainerId)
+func (d *dockerService) RemoveContainer(ctx context.Context, r *runtimeApi.RemoveContainerRequest) (*runtimeApi.RemoveContainerResponse, error) {
+	err := d.runtimeService.RemoveContainer(r.GetContainerId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.RemoveContainerResponse{}, nil
+	return &runtimeApi.RemoveContainerResponse{}, nil
 }
 
-func (d *dockerService) ListContainers(ctx context.Context, r *runtimeapi.ListContainersRequest) (*runtimeapi.ListContainersResponse, error) {
+func (d *dockerService) ListContainers(ctx context.Context, r *runtimeApi.ListContainersRequest) (*runtimeApi.ListContainersResponse, error) {
 	containers, err := d.runtimeService.ListContainers(r.GetFilter())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.ListContainersResponse{Containers: containers}, nil
+	return &runtimeApi.ListContainersResponse{Containers: containers}, nil
 }
 
-func (d *dockerService) ContainerStatus(ctx context.Context, r *runtimeapi.ContainerStatusRequest) (*runtimeapi.ContainerStatusResponse, error) {
-	status, err := d.runtimeService.ContainerStatus(r.ContainerId)
+func (d *dockerService) ContainerStatus(ctx context.Context, r *runtimeApi.ContainerStatusRequest) (*runtimeApi.ContainerStatusResponse, error) {
+	status, err := d.runtimeService.ContainerStatus(r.GetContainerId())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.ContainerStatusResponse{Status: status}, nil
+	return &runtimeApi.ContainerStatusResponse{Status: status}, nil
 }
 
-func (d *dockerService) ExecSync(ctx context.Context, r *runtimeapi.ExecSyncRequest) (*runtimeapi.ExecSyncResponse, error) {
-	stdout, stderr, err := d.runtimeService.ExecSync(r.ContainerId, r.Cmd, time.Duration(r.Timeout)*time.Second)
+func (d *dockerService) ExecSync(ctx context.Context, r *runtimeApi.ExecSyncRequest) (*runtimeApi.ExecSyncResponse, error) {
+	stdout, stderr, err := d.runtimeService.ExecSync(r.GetContainerId(), r.GetCmd(), time.Duration(r.GetTimeout())*time.Second)
 	var exitCode int32
 	if err != nil {
 		exitError, ok := err.(utilexec.ExitError)
@@ -156,61 +156,61 @@ func (d *dockerService) ExecSync(ctx context.Context, r *runtimeapi.ExecSyncRequ
 		}
 		exitCode = int32(exitError.ExitStatus())
 	}
-	return &runtimeapi.ExecSyncResponse{
+	return &runtimeApi.ExecSyncResponse{
 		Stdout:   stdout,
 		Stderr:   stderr,
-		ExitCode: exitCode,
+		ExitCode: &exitCode,
 	}, nil
 }
 
-func (d *dockerService) Exec(ctx context.Context, r *runtimeapi.ExecRequest) (*runtimeapi.ExecResponse, error) {
+func (d *dockerService) Exec(ctx context.Context, r *runtimeApi.ExecRequest) (*runtimeApi.ExecResponse, error) {
 	return d.runtimeService.Exec(r)
 }
 
-func (d *dockerService) Attach(ctx context.Context, r *runtimeapi.AttachRequest) (*runtimeapi.AttachResponse, error) {
+func (d *dockerService) Attach(ctx context.Context, r *runtimeApi.AttachRequest) (*runtimeApi.AttachResponse, error) {
 	return d.runtimeService.Attach(r)
 }
 
-func (d *dockerService) PortForward(ctx context.Context, r *runtimeapi.PortForwardRequest) (*runtimeapi.PortForwardResponse, error) {
+func (d *dockerService) PortForward(ctx context.Context, r *runtimeApi.PortForwardRequest) (*runtimeApi.PortForwardResponse, error) {
 	return d.runtimeService.PortForward(r)
 }
 
-func (d *dockerService) UpdateRuntimeConfig(ctx context.Context, r *runtimeapi.UpdateRuntimeConfigRequest) (*runtimeapi.UpdateRuntimeConfigResponse, error) {
+func (d *dockerService) UpdateRuntimeConfig(ctx context.Context, r *runtimeApi.UpdateRuntimeConfigRequest) (*runtimeApi.UpdateRuntimeConfigResponse, error) {
 	err := d.runtimeService.UpdateRuntimeConfig(r.GetRuntimeConfig())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.UpdateRuntimeConfigResponse{}, nil
+	return &runtimeApi.UpdateRuntimeConfigResponse{}, nil
 }
 
-func (d *dockerService) ListImages(ctx context.Context, r *runtimeapi.ListImagesRequest) (*runtimeapi.ListImagesResponse, error) {
+func (d *dockerService) ListImages(ctx context.Context, r *runtimeApi.ListImagesRequest) (*runtimeApi.ListImagesResponse, error) {
 	images, err := d.imageService.ListImages(r.GetFilter())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.ListImagesResponse{Images: images}, nil
+	return &runtimeApi.ListImagesResponse{Images: images}, nil
 }
 
-func (d *dockerService) ImageStatus(ctx context.Context, r *runtimeapi.ImageStatusRequest) (*runtimeapi.ImageStatusResponse, error) {
+func (d *dockerService) ImageStatus(ctx context.Context, r *runtimeApi.ImageStatusRequest) (*runtimeApi.ImageStatusResponse, error) {
 	image, err := d.imageService.ImageStatus(r.GetImage())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.ImageStatusResponse{Image: image}, nil
+	return &runtimeApi.ImageStatusResponse{Image: image}, nil
 }
 
-func (d *dockerService) PullImage(ctx context.Context, r *runtimeapi.PullImageRequest) (*runtimeapi.PullImageResponse, error) {
-	image, err := d.imageService.PullImage(r.GetImage(), r.GetAuth())
+func (d *dockerService) PullImage(ctx context.Context, r *runtimeApi.PullImageRequest) (*runtimeApi.PullImageResponse, error) {
+	err := d.imageService.PullImage(r.GetImage(), r.GetAuth())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.PullImageResponse{ImageRef: image}, nil
+	return &runtimeApi.PullImageResponse{}, nil
 }
 
-func (d *dockerService) RemoveImage(ctx context.Context, r *runtimeapi.RemoveImageRequest) (*runtimeapi.RemoveImageResponse, error) {
+func (d *dockerService) RemoveImage(ctx context.Context, r *runtimeApi.RemoveImageRequest) (*runtimeApi.RemoveImageResponse, error) {
 	err := d.imageService.RemoveImage(r.GetImage())
 	if err != nil {
 		return nil, err
 	}
-	return &runtimeapi.RemoveImageResponse{}, nil
+	return &runtimeApi.RemoveImageResponse{}, nil
 }

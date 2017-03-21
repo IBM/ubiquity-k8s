@@ -17,11 +17,9 @@ limitations under the License.
 package fake
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
-	kubernetes "k8s.io/client-go/kubernetes"
+	clientset "k8s.io/client-go/kubernetes"
 	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
 	fakev1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1/fake"
 	v1beta1authentication "k8s.io/client-go/kubernetes/typed/authentication/v1beta1"
@@ -34,8 +32,8 @@ import (
 	fakev1batch "k8s.io/client-go/kubernetes/typed/batch/v1/fake"
 	v2alpha1batch "k8s.io/client-go/kubernetes/typed/batch/v2alpha1"
 	fakev2alpha1batch "k8s.io/client-go/kubernetes/typed/batch/v2alpha1/fake"
-	v1beta1certificates "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
-	fakev1beta1certificates "k8s.io/client-go/kubernetes/typed/certificates/v1beta1/fake"
+	v1alpha1certificates "k8s.io/client-go/kubernetes/typed/certificates/v1alpha1"
+	fakev1alpha1certificates "k8s.io/client-go/kubernetes/typed/certificates/v1alpha1/fake"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	fakev1core "k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
@@ -44,11 +42,12 @@ import (
 	fakev1beta1policy "k8s.io/client-go/kubernetes/typed/policy/v1beta1/fake"
 	v1alpha1rbac "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1"
 	fakev1alpha1rbac "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1/fake"
-	v1beta1rbac "k8s.io/client-go/kubernetes/typed/rbac/v1beta1"
-	fakev1beta1rbac "k8s.io/client-go/kubernetes/typed/rbac/v1beta1/fake"
 	v1beta1storage "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
 	fakev1beta1storage "k8s.io/client-go/kubernetes/typed/storage/v1beta1/fake"
 	"k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/pkg/apimachinery/registered"
+	"k8s.io/client-go/pkg/runtime"
+	"k8s.io/client-go/pkg/watch"
 	"k8s.io/client-go/testing"
 )
 
@@ -57,7 +56,7 @@ import (
 // without applying any validations and/or defaults. It shouldn't be considered a replacement
 // for a real clientset and is mostly useful in simple unit tests.
 func NewSimpleClientset(objects ...runtime.Object) *Clientset {
-	o := testing.NewObjectTracker(api.Registry, api.Scheme, api.Codecs.UniversalDecoder())
+	o := testing.NewObjectTracker(api.Scheme, api.Codecs.UniversalDecoder())
 	for _, obj := range objects {
 		if err := o.Add(obj); err != nil {
 			panic(err)
@@ -65,14 +64,14 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 	}
 
 	fakePtr := testing.Fake{}
-	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o, api.Registry.RESTMapper()))
+	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o, registered.RESTMapper()))
 
 	fakePtr.AddWatchReactor("*", testing.DefaultWatchReactor(watch.NewFake(), nil))
 
 	return &Clientset{fakePtr}
 }
 
-// Clientset implements kubernetes.Interface. Meant to be embedded into a
+// Clientset implements clientset.Interface. Meant to be embedded into a
 // struct to get a default implementation. This makes faking out just the method
 // you want to test easier.
 type Clientset struct {
@@ -83,7 +82,7 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	return &fakediscovery.FakeDiscovery{Fake: &c.Fake}
 }
 
-var _ kubernetes.Interface = &Clientset{}
+var _ clientset.Interface = &Clientset{}
 
 // CoreV1 retrieves the CoreV1Client
 func (c *Clientset) CoreV1() v1core.CoreV1Interface {
@@ -150,14 +149,14 @@ func (c *Clientset) BatchV2alpha1() v2alpha1batch.BatchV2alpha1Interface {
 	return &fakev2alpha1batch.FakeBatchV2alpha1{Fake: &c.Fake}
 }
 
-// CertificatesV1beta1 retrieves the CertificatesV1beta1Client
-func (c *Clientset) CertificatesV1beta1() v1beta1certificates.CertificatesV1beta1Interface {
-	return &fakev1beta1certificates.FakeCertificatesV1beta1{Fake: &c.Fake}
+// CertificatesV1alpha1 retrieves the CertificatesV1alpha1Client
+func (c *Clientset) CertificatesV1alpha1() v1alpha1certificates.CertificatesV1alpha1Interface {
+	return &fakev1alpha1certificates.FakeCertificatesV1alpha1{Fake: &c.Fake}
 }
 
-// Certificates retrieves the CertificatesV1beta1Client
-func (c *Clientset) Certificates() v1beta1certificates.CertificatesV1beta1Interface {
-	return &fakev1beta1certificates.FakeCertificatesV1beta1{Fake: &c.Fake}
+// Certificates retrieves the CertificatesV1alpha1Client
+func (c *Clientset) Certificates() v1alpha1certificates.CertificatesV1alpha1Interface {
+	return &fakev1alpha1certificates.FakeCertificatesV1alpha1{Fake: &c.Fake}
 }
 
 // ExtensionsV1beta1 retrieves the ExtensionsV1beta1Client
@@ -180,18 +179,13 @@ func (c *Clientset) Policy() v1beta1policy.PolicyV1beta1Interface {
 	return &fakev1beta1policy.FakePolicyV1beta1{Fake: &c.Fake}
 }
 
-// RbacV1beta1 retrieves the RbacV1beta1Client
-func (c *Clientset) RbacV1beta1() v1beta1rbac.RbacV1beta1Interface {
-	return &fakev1beta1rbac.FakeRbacV1beta1{Fake: &c.Fake}
-}
-
-// Rbac retrieves the RbacV1beta1Client
-func (c *Clientset) Rbac() v1beta1rbac.RbacV1beta1Interface {
-	return &fakev1beta1rbac.FakeRbacV1beta1{Fake: &c.Fake}
-}
-
 // RbacV1alpha1 retrieves the RbacV1alpha1Client
 func (c *Clientset) RbacV1alpha1() v1alpha1rbac.RbacV1alpha1Interface {
+	return &fakev1alpha1rbac.FakeRbacV1alpha1{Fake: &c.Fake}
+}
+
+// Rbac retrieves the RbacV1alpha1Client
+func (c *Clientset) Rbac() v1alpha1rbac.RbacV1alpha1Interface {
 	return &fakev1alpha1rbac.FakeRbacV1alpha1{Fake: &c.Fake}
 }
 

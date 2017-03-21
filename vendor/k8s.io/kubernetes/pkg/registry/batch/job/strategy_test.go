@@ -20,13 +20,12 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/batch"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 func newBool(a bool) *bool {
@@ -36,7 +35,7 @@ func newBool(a bool) *bool {
 }
 
 func TestJobStrategy(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("Job must be namespace scoped")
 	}
@@ -44,23 +43,23 @@ func TestJobStrategy(t *testing.T) {
 		t.Errorf("Job should not allow create on update")
 	}
 
-	validSelector := &metav1.LabelSelector{
+	validSelector := &unversioned.LabelSelector{
 		MatchLabels: map[string]string{"a": "b"},
 	}
 	validPodTemplateSpec := api.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Labels: validSelector.MatchLabels,
 		},
 		Spec: api.PodSpec{
 			RestartPolicy: api.RestartPolicyOnFailure,
 			DNSPolicy:     api.DNSClusterFirst,
-			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: api.TerminationMessageReadFile}},
+			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent"}},
 		},
 	}
 	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "myjob",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: api.NamespaceDefault,
 		},
 		Spec: batch.JobSpec{
 			Selector:       validSelector,
@@ -82,7 +81,7 @@ func TestJobStrategy(t *testing.T) {
 	}
 	parallelism := int32(10)
 	updatedJob := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{Name: "bar", ResourceVersion: "4"},
+		ObjectMeta: api.ObjectMeta{Name: "bar", ResourceVersion: "4"},
 		Spec: batch.JobSpec{
 			Parallelism: &parallelism,
 		},
@@ -103,7 +102,7 @@ func TestJobStrategy(t *testing.T) {
 }
 
 func TestJobStrategyWithGeneration(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 
 	theUID := types.UID("1a2b3c4d5e6f7g8h9i0k")
 
@@ -111,13 +110,13 @@ func TestJobStrategyWithGeneration(t *testing.T) {
 		Spec: api.PodSpec{
 			RestartPolicy: api.RestartPolicyOnFailure,
 			DNSPolicy:     api.DNSClusterFirst,
-			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: api.TerminationMessageReadFile}},
+			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent"}},
 		},
 	}
 	job := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "myjob2",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: api.NamespaceDefault,
 			UID:       theUID,
 		},
 		Spec: batch.JobSpec{
@@ -153,32 +152,32 @@ func TestJobStrategyWithGeneration(t *testing.T) {
 }
 
 func TestJobStatusStrategy(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 	if !StatusStrategy.NamespaceScoped() {
 		t.Errorf("Job must be namespace scoped")
 	}
 	if StatusStrategy.AllowCreateOnUpdate() {
 		t.Errorf("Job should not allow create on update")
 	}
-	validSelector := &metav1.LabelSelector{
+	validSelector := &unversioned.LabelSelector{
 		MatchLabels: map[string]string{"a": "b"},
 	}
 	validPodTemplateSpec := api.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Labels: validSelector.MatchLabels,
 		},
 		Spec: api.PodSpec{
 			RestartPolicy: api.RestartPolicyOnFailure,
 			DNSPolicy:     api.DNSClusterFirst,
-			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: api.TerminationMessageReadFile}},
+			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent"}},
 		},
 	}
 	oldParallelism := int32(10)
 	newParallelism := int32(11)
 	oldJob := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "myjob",
-			Namespace:       metav1.NamespaceDefault,
+			Namespace:       api.NamespaceDefault,
 			ResourceVersion: "10",
 		},
 		Spec: batch.JobSpec{
@@ -191,9 +190,9 @@ func TestJobStatusStrategy(t *testing.T) {
 		},
 	}
 	newJob := &batch.Job{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "myjob",
-			Namespace:       metav1.NamespaceDefault,
+			Namespace:       api.NamespaceDefault,
 			ResourceVersion: "9",
 		},
 		Spec: batch.JobSpec{
@@ -224,7 +223,7 @@ func TestJobStatusStrategy(t *testing.T) {
 
 func TestSelectableFieldLabelConversions(t *testing.T) {
 	apitesting.TestSelectableFieldLabelConversionsOfKind(t,
-		testapi.Batch.GroupVersion().String(),
+		testapi.Extensions.GroupVersion().String(),
 		"Job",
 		JobToSelectableFields(&batch.Job{}),
 		nil,

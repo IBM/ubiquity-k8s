@@ -19,7 +19,7 @@ package cache
 import (
 	"time"
 
-	expirationcache "k8s.io/client-go/tools/cache"
+	expirationCache "k8s.io/kubernetes/pkg/client/cache"
 )
 
 // ObjectCache is a simple wrapper of expiration cache that
@@ -27,7 +27,7 @@ import (
 // 2. has an updater to get value directly if it is expired
 // 3. then update the cache
 type ObjectCache struct {
-	cache   expirationcache.Store
+	cache   expirationCache.Store
 	updater func() (interface{}, error)
 }
 
@@ -42,7 +42,7 @@ type objectEntry struct {
 func NewObjectCache(f func() (interface{}, error), ttl time.Duration) *ObjectCache {
 	return &ObjectCache{
 		updater: f,
-		cache:   expirationcache.NewTTLStore(stringKeyFunc, ttl),
+		cache:   expirationCache.NewTTLStore(stringKeyFunc, ttl),
 	}
 }
 

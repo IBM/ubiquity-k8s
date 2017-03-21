@@ -22,16 +22,14 @@ import (
 	"reflect"
 	"testing"
 
-	gapi "github.com/heketi/heketi/pkg/glusterfs/api"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	core "k8s.io/client-go/testing"
-	utiltesting "k8s.io/client-go/util/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
+	utiltesting "k8s.io/kubernetes/pkg/util/testing"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
 )
@@ -52,10 +50,10 @@ func TestCanSupport(t *testing.T) {
 	if plug.GetPluginName() != "kubernetes.io/glusterfs" {
 		t.Errorf("Wrong name: %s", plug.GetPluginName())
 	}
-	if plug.CanSupport(&volume.Spec{PersistentVolume: &v1.PersistentVolume{Spec: v1.PersistentVolumeSpec{PersistentVolumeSource: v1.PersistentVolumeSource{}}}}) {
+	if plug.CanSupport(&volume.Spec{PersistentVolume: &api.PersistentVolume{Spec: api.PersistentVolumeSpec{PersistentVolumeSource: api.PersistentVolumeSource{}}}}) {
 		t.Errorf("Expected false")
 	}
-	if plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{}}}) {
+	if plug.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{}}}) {
 		t.Errorf("Expected false")
 	}
 }
@@ -74,12 +72,12 @@ func TestGetAccessModes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Can't find the plugin by name")
 	}
-	if !contains(plug.GetAccessModes(), v1.ReadWriteOnce) || !contains(plug.GetAccessModes(), v1.ReadOnlyMany) || !contains(plug.GetAccessModes(), v1.ReadWriteMany) {
-		t.Errorf("Expected three AccessModeTypes:  %s, %s, and %s", v1.ReadWriteOnce, v1.ReadOnlyMany, v1.ReadWriteMany)
+	if !contains(plug.GetAccessModes(), api.ReadWriteOnce) || !contains(plug.GetAccessModes(), api.ReadOnlyMany) || !contains(plug.GetAccessModes(), api.ReadWriteMany) {
+		t.Errorf("Expected three AccessModeTypes:  %s, %s, and %s", api.ReadWriteOnce, api.ReadOnlyMany, api.ReadWriteMany)
 	}
 }
 
-func contains(modes []v1.PersistentVolumeAccessMode, mode v1.PersistentVolumeAccessMode) bool {
+func contains(modes []api.PersistentVolumeAccessMode, mode api.PersistentVolumeAccessMode) bool {
 	for _, m := range modes {
 		if m == mode {
 			return true
@@ -101,8 +99,8 @@ func doTestPlugin(t *testing.T, spec *volume.Spec) {
 	if err != nil {
 		t.Errorf("Can't find the plugin by name")
 	}
-	ep := &v1.Endpoints{ObjectMeta: metav1.ObjectMeta{Name: "foo"}, Subsets: []v1.EndpointSubset{{
-		Addresses: []v1.EndpointAddress{{IP: "127.0.0.1"}}}}}
+	ep := &api.Endpoints{ObjectMeta: api.ObjectMeta{Name: "foo"}, Subsets: []api.EndpointSubset{{
+		Addresses: []api.EndpointAddress{{IP: "127.0.0.1"}}}}}
 	var fcmd exec.FakeCmd
 	fcmd = exec.FakeCmd{
 		CombinedOutputScript: []exec.FakeCombinedOutputAction{
@@ -117,7 +115,7 @@ func doTestPlugin(t *testing.T, spec *volume.Spec) {
 			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
 		},
 	}
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	mounter, err := plug.(*glusterfsPlugin).newMounterInternal(spec, ep, pod, &mount.FakeMounter{}, &fake)
 	volumePath := mounter.GetPath()
 	if err != nil {
@@ -159,21 +157,21 @@ func doTestPlugin(t *testing.T, spec *volume.Spec) {
 }
 
 func TestPluginVolume(t *testing.T) {
-	vol := &v1.Volume{
+	vol := &api.Volume{
 		Name:         "vol1",
-		VolumeSource: v1.VolumeSource{Glusterfs: &v1.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false}},
+		VolumeSource: api.VolumeSource{Glusterfs: &api.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false}},
 	}
 	doTestPlugin(t, volume.NewSpecFromVolume(vol))
 }
 
 func TestPluginPersistentVolume(t *testing.T) {
-	vol := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	vol := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name: "vol1",
 		},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				Glusterfs: &v1.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false},
+		Spec: api.PersistentVolumeSpec{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				Glusterfs: &api.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false},
 			},
 		},
 	}
@@ -188,41 +186,41 @@ func TestPersistentClaimReadOnlyFlag(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	pv := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pvA",
 		},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				Glusterfs: &v1.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false},
+		Spec: api.PersistentVolumeSpec{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				Glusterfs: &api.GlusterfsVolumeSource{EndpointsName: "ep", Path: "vol", ReadOnly: false},
 			},
-			ClaimRef: &v1.ObjectReference{
+			ClaimRef: &api.ObjectReference{
 				Name: "claimA",
 			},
 		},
 	}
 
-	claim := &v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
+	claim := &api.PersistentVolumeClaim{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "claimA",
 			Namespace: "nsA",
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
+		Spec: api.PersistentVolumeClaimSpec{
 			VolumeName: "pvA",
 		},
-		Status: v1.PersistentVolumeClaimStatus{
-			Phase: v1.ClaimBound,
+		Status: api.PersistentVolumeClaimStatus{
+			Phase: api.ClaimBound,
 		},
 	}
 
-	ep := &v1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
+	ep := &api.Endpoints{
+		ObjectMeta: api.ObjectMeta{
 			Namespace: "nsA",
 			Name:      "ep",
 		},
-		Subsets: []v1.EndpointSubset{{
-			Addresses: []v1.EndpointAddress{{IP: "127.0.0.1"}},
-			Ports:     []v1.EndpointPort{{Name: "foo", Port: 80, Protocol: v1.ProtocolTCP}},
+		Subsets: []api.EndpointSubset{{
+			Addresses: []api.EndpointAddress{{IP: "127.0.0.1"}},
+			Ports:     []api.EndpointPort{{Name: "foo", Port: 80, Protocol: api.ProtocolTCP}},
 		}},
 	}
 
@@ -234,7 +232,7 @@ func TestPersistentClaimReadOnlyFlag(t *testing.T) {
 
 	// readOnly bool is supplied by persistent-claim volume source when its mounter creates other volumes
 	spec := volume.NewSpecFromPersistentVolume(pv, true)
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "nsA", UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{Namespace: "nsA", UID: types.UID("poduid")}}
 	mounter, _ := plug.NewMounter(spec, pod, volume.VolumeOptions{})
 
 	if !mounter.GetAttributes().ReadOnly {
@@ -243,16 +241,17 @@ func TestPersistentClaimReadOnlyFlag(t *testing.T) {
 }
 
 func TestParseClassParameters(t *testing.T) {
-	secret := v1.Secret{
+	secret := api.Secret{
 		Type: "kubernetes.io/glusterfs",
 		Data: map[string][]byte{
 			"data": []byte("mypassword"),
 		},
 	}
+
 	tests := []struct {
 		name         string
 		parameters   map[string]string
-		secret       *v1.Secret
+		secret       *api.Secret
 		expectError  bool
 		expectConfig *provisioningConfig
 	}{
@@ -270,9 +269,6 @@ func TestParseClassParameters(t *testing.T) {
 				user:        "admin",
 				userKey:     "password",
 				secretValue: "password",
-				gidMin:      2000,
-				gidMax:      2147483647,
-				volumeType:  gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
 			},
 		},
 		{
@@ -291,9 +287,6 @@ func TestParseClassParameters(t *testing.T) {
 				secretName:      "mysecret",
 				secretNamespace: "default",
 				secretValue:     "mypassword",
-				gidMin:          2000,
-				gidMax:          2147483647,
-				volumeType:      gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
 			},
 		},
 		{
@@ -305,10 +298,7 @@ func TestParseClassParameters(t *testing.T) {
 			&secret,
 			false, // expect error
 			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     2000,
-				gidMax:     2147483647,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
+				url: "https://localhost:8080",
 			},
 		},
 		{
@@ -351,215 +341,6 @@ func TestParseClassParameters(t *testing.T) {
 				"restuserkey": "password",
 			},
 			nil,  // secret
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMin #1",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "0",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMin #2",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "1999",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMin #3",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "1999",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMax #1",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMax":          "0",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMax #2",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMax":          "1999",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMax #3",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMax":          "1999",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid gidMin:gidMax",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "5001",
-				"gidMax":          "5000",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"valid gidMin",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "4000",
-			},
-			&secret,
-			false, // expect error
-			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     4000,
-				gidMax:     2147483647,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
-			},
-		},
-		{
-			"valid gidMax",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMax":          "5000",
-			},
-			&secret,
-			false, // expect error
-			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     2000,
-				gidMax:     5000,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
-			},
-		},
-		{
-			"valid gidMin:gidMax",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "4000",
-				"gidMax":          "5000",
-			},
-			&secret,
-			false, // expect error
-			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     4000,
-				gidMax:     5000,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 3}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
-			},
-		},
-
-		{
-			"valid volumetype: replicate",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "4000",
-				"gidMax":          "5000",
-				"volumetype":      "replicate:4",
-			},
-			&secret,
-			false, // expect error
-			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     4000,
-				gidMax:     5000,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "replicate", Replicate: gapi.ReplicaDurability{Replica: 4}, Disperse: gapi.DisperseDurability{Data: 0, Redundancy: 0}},
-			},
-		},
-
-		{
-			"valid volumetype: disperse",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"gidMin":          "4000",
-				"gidMax":          "5000",
-				"volumetype":      "disperse:4:2",
-			},
-			&secret,
-			false, // expect error
-			&provisioningConfig{
-				url:        "https://localhost:8080",
-				gidMin:     4000,
-				gidMax:     5000,
-				volumeType: gapi.VolumeDurabilityInfo{Type: "disperse", Replicate: gapi.ReplicaDurability{Replica: 0}, Disperse: gapi.DisperseDurability{Data: 4, Redundancy: 2}},
-			},
-		},
-		{
-			"invalid volumetype (disperse) parameter",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"volumetype":      "disperse:4:asd",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid volumetype (replicate) parameter",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"volumetype":      "replicate:asd",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid volumetype: unknown volumetype",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"volumetype":      "dispersereplicate:4:2",
-			},
-			&secret,
-			true, // expect error
-			nil,
-		},
-		{
-			"invalid volumetype : negative value",
-			map[string]string{
-				"resturl":         "https://localhost:8080",
-				"restauthenabled": "false",
-				"volumetype":      "replicate:-1000",
-			},
-			&secret,
 			true, // expect error
 			nil,
 		},

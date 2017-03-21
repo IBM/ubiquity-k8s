@@ -19,6 +19,8 @@ package services
 import (
 	"io/ioutil"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/golang/glog"
 )
@@ -36,6 +38,10 @@ func newE2EServices() *e2eServices {
 	return &e2eServices{}
 }
 
+// terminationSignals are signals that cause the program to exit in the
+// supported platforms (linux, darwin, windows).
+var terminationSignals = []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT}
+
 // run starts all e2e services and wait for the termination signal. Once receives the
 // termination signal, it will stop the e2e services gracefully.
 func (es *e2eServices) run() error {
@@ -44,7 +50,9 @@ func (es *e2eServices) run() error {
 		return err
 	}
 	// Wait until receiving a termination signal.
-	waitForTerminationSignal()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, terminationSignals...)
+	<-sig
 	return nil
 }
 

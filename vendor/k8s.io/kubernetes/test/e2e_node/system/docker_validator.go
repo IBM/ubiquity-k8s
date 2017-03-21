@@ -28,9 +28,7 @@ import (
 var _ Validator = &DockerValidator{}
 
 // DockerValidator validates docker configuration.
-type DockerValidator struct {
-	Reporter Reporter
-}
+type DockerValidator struct{}
 
 func (d *DockerValidator) Name() string {
 	return "docker"
@@ -65,22 +63,22 @@ func (d *DockerValidator) validateDockerInfo(spec *DockerSpec, info types.Info) 
 	for _, v := range spec.Version {
 		r := regexp.MustCompile(v)
 		if r.MatchString(info.ServerVersion) {
-			d.Reporter.Report(dockerConfigPrefix+"VERSION", info.ServerVersion, good)
+			report(dockerConfigPrefix+"VERSION", info.ServerVersion, good)
 			matched = true
 		}
 	}
 	if !matched {
-		d.Reporter.Report(dockerConfigPrefix+"VERSION", info.ServerVersion, bad)
+		report(dockerConfigPrefix+"VERSION", info.ServerVersion, bad)
 		return fmt.Errorf("unsupported docker version: %s", info.ServerVersion)
 	}
 	// Validate graph driver.
 	item := dockerConfigPrefix + "GRAPH_DRIVER"
-	for _, gd := range spec.GraphDriver {
-		if info.Driver == gd {
-			d.Reporter.Report(item, info.Driver, good)
+	for _, d := range spec.GraphDriver {
+		if info.Driver == d {
+			report(item, info.Driver, good)
 			return nil
 		}
 	}
-	d.Reporter.Report(item, info.Driver, bad)
+	report(item, info.Driver, bad)
 	return fmt.Errorf("unsupported graph driver: %s", info.Driver)
 }

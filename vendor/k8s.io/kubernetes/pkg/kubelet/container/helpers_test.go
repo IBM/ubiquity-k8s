@@ -20,8 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 func TestEnvVarsToMap(t *testing.T) {
@@ -54,18 +53,18 @@ func TestEnvVarsToMap(t *testing.T) {
 func TestExpandCommandAndArgs(t *testing.T) {
 	cases := []struct {
 		name            string
-		container       *v1.Container
+		container       *api.Container
 		envs            []EnvVar
 		expectedCommand []string
 		expectedArgs    []string
 	}{
 		{
 			name:      "none",
-			container: &v1.Container{},
+			container: &api.Container{},
 		},
 		{
 			name: "command expanded",
-			container: &v1.Container{
+			container: &api.Container{
 				Command: []string{"foo", "$(VAR_TEST)", "$(VAR_TEST2)"},
 			},
 			envs: []EnvVar{
@@ -82,7 +81,7 @@ func TestExpandCommandAndArgs(t *testing.T) {
 		},
 		{
 			name: "args expanded",
-			container: &v1.Container{
+			container: &api.Container{
 				Args: []string{"zap", "$(VAR_TEST)", "$(VAR_TEST2)"},
 			},
 			envs: []EnvVar{
@@ -99,7 +98,7 @@ func TestExpandCommandAndArgs(t *testing.T) {
 		},
 		{
 			name: "both expanded",
-			container: &v1.Container{
+			container: &api.Container{
 				Command: []string{"$(VAR_TEST2)--$(VAR_TEST)", "foo", "$(VAR_TEST3)"},
 				Args:    []string{"foo", "$(VAR_TEST)", "$(VAR_TEST2)"},
 			},
@@ -137,14 +136,14 @@ func TestExpandCommandAndArgs(t *testing.T) {
 }
 
 func TestShouldContainerBeRestarted(t *testing.T) {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{Name: "no-history"},
 				{Name: "alive"},
 				{Name: "succeed"},
@@ -188,10 +187,10 @@ func TestShouldContainerBeRestarted(t *testing.T) {
 			},
 		},
 	}
-	policies := []v1.RestartPolicy{
-		v1.RestartPolicyNever,
-		v1.RestartPolicyOnFailure,
-		v1.RestartPolicyAlways,
+	policies := []api.RestartPolicy{
+		api.RestartPolicyNever,
+		api.RestartPolicyOnFailure,
+		api.RestartPolicyAlways,
 	}
 	expected := map[string][]bool{
 		"no-history": {true, true, true},
@@ -209,47 +208,6 @@ func TestShouldContainerBeRestarted(t *testing.T) {
 				t.Errorf("Restart for container %q with restart policy %q expected %t, got %t",
 					c.Name, policy, e, r)
 			}
-		}
-	}
-}
-
-func TestHasPrivilegedContainer(t *testing.T) {
-	newBoolPtr := func(b bool) *bool {
-		return &b
-	}
-	tests := map[string]struct {
-		securityContext *v1.SecurityContext
-		expected        bool
-	}{
-		"nil security context": {
-			securityContext: nil,
-			expected:        false,
-		},
-		"nil privileged": {
-			securityContext: &v1.SecurityContext{},
-			expected:        false,
-		},
-		"false privileged": {
-			securityContext: &v1.SecurityContext{Privileged: newBoolPtr(false)},
-			expected:        false,
-		},
-		"true privileged": {
-			securityContext: &v1.SecurityContext{Privileged: newBoolPtr(true)},
-			expected:        true,
-		},
-	}
-
-	for k, v := range tests {
-		pod := &v1.Pod{
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{
-					{SecurityContext: v.securityContext},
-				},
-			},
-		}
-		actual := HasPrivilegedContainer(pod)
-		if actual != v.expected {
-			t.Errorf("%s expected %t but got %t", k, v.expected, actual)
 		}
 	}
 }

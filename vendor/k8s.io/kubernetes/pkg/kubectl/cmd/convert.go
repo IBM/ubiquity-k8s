@@ -21,15 +21,15 @@ import (
 	"io"
 	"os"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/runtime"
 
 	"github.com/spf13/cobra"
 )
@@ -65,7 +65,7 @@ func NewCmdConvert(f cmdutil.Factory, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "convert -f FILENAME",
-		Short:   i18n.T("Convert config files between different API versions"),
+		Short:   "Convert config files between different API versions",
 		Long:    convert_long,
 		Example: convert_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -97,16 +97,16 @@ type ConvertOptions struct {
 	out     io.Writer
 	printer kubectl.ResourcePrinter
 
-	outputVersion schema.GroupVersion
+	outputVersion unversioned.GroupVersion
 }
 
 // Complete collects information required to run Convert command from command line.
 func (o *ConvertOptions) Complete(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []string) (err error) {
-	o.outputVersion, err = cmdutil.OutputVersion(cmd, &api.Registry.EnabledVersionsForGroup(api.GroupName)[0])
+	o.outputVersion, err = cmdutil.OutputVersion(cmd, &registered.EnabledVersionsForGroup(api.GroupName)[0])
 	if err != nil {
 		return err
 	}
-	if !api.Registry.IsEnabledVersion(o.outputVersion) {
+	if !registered.IsEnabledVersion(o.outputVersion) {
 		cmdutil.UsageError(cmd, "'%s' is not a registered version.", o.outputVersion)
 	}
 

@@ -22,8 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -52,13 +51,13 @@ var _ = framework.KubeDescribe("Initial Resources [Feature:InitialResources] [Fl
 	})
 })
 
-func runPod(f *framework.Framework, name, image string) *v1.Pod {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func runPod(f *framework.Framework, name, image string) *api.Pod {
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  name,
 					Image: image,

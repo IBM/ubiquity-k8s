@@ -25,27 +25,27 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/controller"
 	replicationcontroller "k8s.io/kubernetes/pkg/controller/replication"
 	resourcequotacontroller "k8s.io/kubernetes/pkg/controller/resourcequota"
-	kubeadmission "k8s.io/kubernetes/pkg/kubeapiserver/admission"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
 	quotainstall "k8s.io/kubernetes/pkg/quota/install"
+	"k8s.io/kubernetes/pkg/watch"
 	"k8s.io/kubernetes/plugin/pkg/admission/resourcequota"
+	"k8s.io/kubernetes/test/integration"
 	"k8s.io/kubernetes/test/integration/framework"
 )
+
+func init() {
+	integration.RequireEtcd()
+}
 
 // 1.2 code gets:
 // 	quota_test.go:95: Took 4.218619579s to scale up without quota
@@ -63,13 +63,11 @@ func TestQuota(t *testing.T) {
 	defer s.Close()
 
 	admissionCh := make(chan struct{})
-	clientset := clientset.NewForConfigOrDie(&restclient.Config{QPS: -1, Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
-	internalClientset := internalclientset.NewForConfigOrDie(&restclient.Config{QPS: -1, Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
-	admission, err := resourcequota.NewResourceQuota(quotainstall.NewRegistry(nil, nil), 5, admissionCh)
+	clientset := clientset.NewForConfigOrDie(&restclient.Config{QPS: -1, Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &registered.GroupOrDie(api.GroupName).GroupVersion}})
+	admission, err := resourcequota.NewResourceQuota(clientset, quotainstall.NewRegistry(clientset, nil), 5, admissionCh)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	admission.(kubeadmission.WantsInternalClientSet).SetInternalClientSet(internalClientset)
 	defer close(admissionCh)
 
 	masterConfig := framework.NewIntegrationTestMasterConfig()
@@ -84,21 +82,11 @@ func TestQuota(t *testing.T) {
 	controllerCh := make(chan struct{})
 	defer close(controllerCh)
 
-	informers := informers.NewSharedInformerFactory(nil, clientset, controller.NoResyncPeriodFunc())
-	rm := replicationcontroller.NewReplicationManager(
-		informers.Core().V1().Pods(),
-		informers.Core().V1().ReplicationControllers(),
-		clientset,
-		replicationcontroller.BurstReplicas,
-		4096,
-		false,
-	)
-	rm.SetEventRecorder(&record.FakeRecorder{})
-	informers.Start(controllerCh)
-	go rm.Run(3, controllerCh)
+	go replicationcontroller.NewReplicationManagerFromClientForIntegration(clientset, controller.NoResyncPeriodFunc, replicationcontroller.BurstReplicas, 4096).
+		Run(3, controllerCh)
 
 	resourceQuotaRegistry := quotainstall.NewRegistry(clientset, nil)
-	groupKindsToReplenish := []schema.GroupKind{
+	groupKindsToReplenish := []unversioned.GroupKind{
 		api.Kind("Pod"),
 	}
 	resourceQuotaControllerOptions := &resourcequotacontroller.ResourceQuotaControllerOptions{
@@ -116,14 +104,14 @@ func TestQuota(t *testing.T) {
 	endTime := time.Now()
 	t.Logf("Took %v to scale up without quota", endTime.Sub(startTime))
 
-	quota := &v1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
+	quota := &api.ResourceQuota{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "quota",
 			Namespace: ns.Name,
 		},
-		Spec: v1.ResourceQuotaSpec{
-			Hard: v1.ResourceList{
-				v1.ResourcePods: resource.MustParse("1000"),
+		Spec: api.ResourceQuotaSpec{
+			Hard: api.ResourceList{
+				api.ResourcePods: resource.MustParse("1000"),
 			},
 		},
 	}
@@ -135,8 +123,8 @@ func TestQuota(t *testing.T) {
 	t.Logf("Took %v to scale up with quota", endTime.Sub(startTime))
 }
 
-func waitForQuota(t *testing.T, quota *v1.ResourceQuota, clientset *clientset.Clientset) {
-	w, err := clientset.Core().ResourceQuotas(quota.Namespace).Watch(metav1.SingleObject(metav1.ObjectMeta{Name: quota.Name}))
+func waitForQuota(t *testing.T, quota *api.ResourceQuota, clientset *clientset.Clientset) {
+	w, err := clientset.Core().ResourceQuotas(quota.Namespace).Watch(api.SingleObject(api.ObjectMeta{Name: quota.Name}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -153,7 +141,7 @@ func waitForQuota(t *testing.T, quota *v1.ResourceQuota, clientset *clientset.Cl
 		}
 
 		switch cast := event.Object.(type) {
-		case *v1.ResourceQuota:
+		case *api.ResourceQuota:
 			if len(cast.Status.Hard) > 0 {
 				return true, nil
 			}
@@ -167,23 +155,23 @@ func waitForQuota(t *testing.T, quota *v1.ResourceQuota, clientset *clientset.Cl
 }
 
 func scale(t *testing.T, namespace string, clientset *clientset.Clientset) {
-	target := int32(100)
-	rc := &v1.ReplicationController{
-		ObjectMeta: metav1.ObjectMeta{
+	target := 100
+	rc := &api.ReplicationController{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "foo",
 			Namespace: namespace,
 		},
-		Spec: v1.ReplicationControllerSpec{
-			Replicas: &target,
+		Spec: api.ReplicationControllerSpec{
+			Replicas: int32(target),
 			Selector: map[string]string{"foo": "bar"},
-			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Template: &api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{
 						"foo": "bar",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Name:  "container",
 							Image: "busybox",
@@ -194,7 +182,7 @@ func scale(t *testing.T, namespace string, clientset *clientset.Clientset) {
 		},
 	}
 
-	w, err := clientset.Core().ReplicationControllers(namespace).Watch(metav1.SingleObject(metav1.ObjectMeta{Name: rc.Name}))
+	w, err := clientset.Core().ReplicationControllers(namespace).Watch(api.SingleObject(api.ObjectMeta{Name: rc.Name}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -211,9 +199,9 @@ func scale(t *testing.T, namespace string, clientset *clientset.Clientset) {
 		}
 
 		switch cast := event.Object.(type) {
-		case *v1.ReplicationController:
+		case *api.ReplicationController:
 			fmt.Printf("Found %v of %v replicas\n", int(cast.Status.Replicas), target)
-			if cast.Status.Replicas == target {
+			if int(cast.Status.Replicas) == target {
 				return true, nil
 			}
 		}
@@ -221,7 +209,7 @@ func scale(t *testing.T, namespace string, clientset *clientset.Clientset) {
 		return false, nil
 	})
 	if err != nil {
-		pods, _ := clientset.Core().Pods(namespace).List(metav1.ListOptions{LabelSelector: labels.Everything().String(), FieldSelector: fields.Everything().String()})
+		pods, _ := clientset.Core().Pods(namespace).List(api.ListOptions{LabelSelector: labels.Everything(), FieldSelector: fields.Everything()})
 		t.Fatalf("unexpected error: %v, ended with %v pods", err, len(pods.Items))
 	}
 }

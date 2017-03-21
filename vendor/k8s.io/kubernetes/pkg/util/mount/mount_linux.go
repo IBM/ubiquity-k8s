@@ -30,8 +30,8 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/sets"
-	utilexec "k8s.io/kubernetes/pkg/util/exec"
+	utilExec "k8s.io/kubernetes/pkg/util/exec"
+	"k8s.io/kubernetes/pkg/util/sets"
 )
 
 const (
@@ -332,9 +332,9 @@ func (mounter *SafeFormatAndMount) formatAndMount(source string, target string, 
 	cmd := mounter.Runner.Command("fsck", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		ee, isExitError := err.(utilexec.ExitError)
+		ee, isExitError := err.(utilExec.ExitError)
 		switch {
-		case err == utilexec.ErrExecutableNotFound:
+		case err == utilExec.ErrExecutableNotFound:
 			glog.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
 		case isExitError && ee.ExitStatus() == fsckErrorsCorrected:
 			glog.Infof("Device %s has errors which were corrected by fsck.", source)

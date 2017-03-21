@@ -130,13 +130,16 @@ var _ = Describe("Suite", func() {
 				sleepTime := time.Duration(r.Float64() * 0.01 * float64(time.Second))
 				time.Sleep(sleepTime)
 			})
-			Ω(runtime.Seconds()).Should(BeNumerically("<=", 0.015))
+			Ω(runtime.Seconds()).Should(BeNumerically("<=", 1))
 			Ω(runtime.Seconds()).Should(BeNumerically(">=", 0))
 
 			randomValue := r.Float64() * 10.0
 			b.RecordValue("random value", randomValue)
 			Ω(randomValue).Should(BeNumerically("<=", 10.0))
 			Ω(randomValue).Should(BeNumerically(">=", 0.0))
+
+			b.RecordValueWithPrecision("specific value", 123.4567, "ms", 2)
+			b.RecordValueWithPrecision("specific value", 234.5678, "ms", 2)
 		}, 10)
 
 		It("creates a node hierarchy, converts it to a spec collection, and runs it", func() {

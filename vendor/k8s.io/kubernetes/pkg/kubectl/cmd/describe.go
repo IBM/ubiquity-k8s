@@ -23,17 +23,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/runtime"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 )
 
 var (
@@ -79,7 +76,7 @@ func NewCmdDescribe(f cmdutil.Factory, out, cmdErr io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "describe (-f FILENAME | TYPE [NAME_PREFIX | -l label] | TYPE/NAME)",
-		Short:   i18n.T("Show details of a specific resource or group of resources"),
+		Short:   "Show details of a specific resource or group of resources",
 		Long:    describe_long,
 		Example: describe_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -91,7 +88,7 @@ func NewCmdDescribe(f cmdutil.Factory, out, cmdErr io.Writer) *cobra.Command {
 	}
 	usage := "containing the resource to describe"
 	cmdutil.AddFilenameOptionFlags(cmd, options, usage)
-	cmd.Flags().StringP("selector", "l", "", "Selector (label query) to filter on, supports '=', '==', and '!='.")
+	cmd.Flags().StringP("selector", "l", "", "Selector (label query) to filter on")
 	cmd.Flags().Bool("all-namespaces", false, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 	cmd.Flags().BoolVar(&describerSettings.ShowEvents, "show-events", true, "If true, display events related to the described object.")
 	cmdutil.AddInclude3rdPartyFlags(cmd)
@@ -113,11 +110,8 @@ func RunDescribe(f cmdutil.Factory, out, cmdErr io.Writer, cmd *cobra.Command, a
 		return cmdutil.UsageError(cmd, "Required resource not specified.")
 	}
 
-	mapper, typer, err := f.UnstructuredObject()
-	if err != nil {
-		return err
-	}
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	mapper, typer := f.Object()
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().AllNamespaces(allNamespaces).
 		FilenameParam(enforceNamespace, options).
@@ -139,26 +133,17 @@ func RunDescribe(f cmdutil.Factory, out, cmdErr io.Writer, cmd *cobra.Command, a
 		allErrs = append(allErrs, err)
 	}
 
-	errs := sets.NewString()
 	first := true
 	for _, info := range infos {
 		mapping := info.ResourceMapping()
 		describer, err := f.Describer(mapping)
 		if err != nil {
-			if errs.Has(err.Error()) {
-				continue
-			}
 			allErrs = append(allErrs, err)
-			errs.Insert(err.Error())
 			continue
 		}
 		s, err := describer.Describe(info.Namespace, info.Name, *describerSettings)
 		if err != nil {
-			if errs.Has(err.Error()) {
-				continue
-			}
 			allErrs = append(allErrs, err)
-			errs.Insert(err.Error())
 			continue
 		}
 		if first {
@@ -173,11 +158,7 @@ func RunDescribe(f cmdutil.Factory, out, cmdErr io.Writer, cmd *cobra.Command, a
 }
 
 func DescribeMatchingResources(mapper meta.RESTMapper, typer runtime.ObjectTyper, f cmdutil.Factory, namespace, rsrc, prefix string, describerSettings *kubectl.DescriberSettings, out io.Writer, originalError error) error {
-	mapper, typer, err := f.UnstructuredObject()
-	if err != nil {
-		return err
-	}
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
 		NamespaceParam(namespace).DefaultNamespace().
 		ResourceTypeOrNameArgs(true, rsrc).
 		SingleResourceType().

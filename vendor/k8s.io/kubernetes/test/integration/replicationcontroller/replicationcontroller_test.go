@@ -25,15 +25,16 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated"
+	"k8s.io/kubernetes/pkg/client/cache"
+	internalclientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/controller/informers"
 	"k8s.io/kubernetes/pkg/controller/replication"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/integration/framework"
 )
 
@@ -44,11 +45,11 @@ func testLabels() map[string]string {
 func newRC(name, namespace string, replicas int) *v1.ReplicationController {
 	replicasCopy := int32(replicas)
 	return &v1.ReplicationController{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "ReplicationController",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -56,7 +57,7 @@ func newRC(name, namespace string, replicas int) *v1.ReplicationController {
 			Selector: testLabels(),
 			Replicas: &replicasCopy,
 			Template: &v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: v1.ObjectMeta{
 					Labels: testLabels(),
 				},
 				Spec: v1.PodSpec{
@@ -74,11 +75,11 @@ func newRC(name, namespace string, replicas int) *v1.ReplicationController {
 
 func newMatchingPod(podName, namespace string) *v1.Pod {
 	return &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "Pod",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 			Labels:    testLabels(),
@@ -103,7 +104,7 @@ func newMatchingPod(podName, namespace string) *v1.Pod {
 func verifyRemainingObjects(t *testing.T, clientSet clientset.Interface, namespace string, rcNum, podNum int) (bool, error) {
 	rcClient := clientSet.Core().ReplicationControllers(namespace)
 	podClient := clientSet.Core().Pods(namespace)
-	pods, err := podClient.List(metav1.ListOptions{})
+	pods, err := podClient.List(v1.ListOptions{})
 	if err != nil {
 		return false, fmt.Errorf("Failed to list pods: %v", err)
 	}
@@ -112,7 +113,7 @@ func verifyRemainingObjects(t *testing.T, clientSet clientset.Interface, namespa
 		ret = false
 		t.Logf("expect %d pods, got %d pods", podNum, len(pods.Items))
 	}
-	rcs, err := rcClient.List(metav1.ListOptions{})
+	rcs, err := rcClient.List(v1.ListOptions{})
 	if err != nil {
 		return false, fmt.Errorf("Failed to list replication controllers: %v", err)
 	}
@@ -123,7 +124,7 @@ func verifyRemainingObjects(t *testing.T, clientSet clientset.Interface, namespa
 	return ret, nil
 }
 
-func rmSetup(t *testing.T, stopCh chan struct{}, enableGarbageCollector bool) (*httptest.Server, *replication.ReplicationManager, informers.SharedInformerFactory, clientset.Interface) {
+func rmSetup(t *testing.T, enableGarbageCollector bool) (*httptest.Server, *replication.ReplicationManager, cache.SharedIndexInformer, clientset.Interface) {
 	masterConfig := framework.NewIntegrationTestMasterConfig()
 	_, s := framework.RunAMaster(masterConfig)
 
@@ -133,12 +134,23 @@ func rmSetup(t *testing.T, stopCh chan struct{}, enableGarbageCollector bool) (*
 		t.Fatalf("Error in create clientset: %v", err)
 	}
 	resyncPeriod := 12 * time.Hour
+	resyncPeriodFunc := func() time.Duration {
+		return resyncPeriod
+	}
+	podInformer := informers.NewPodInformer(internalclientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "pod-informer")), resyncPeriod)
+	rm := replication.NewReplicationManager(
+		podInformer,
+		internalclientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "replication-controller")),
+		resyncPeriodFunc,
+		replication.BurstReplicas,
+		4096,
+		enableGarbageCollector,
+	)
 
-	informers := informers.NewSharedInformerFactory(nil, clientSet, resyncPeriod)
-	rm := replication.NewReplicationManager(informers.Core().V1().Pods(), informers.Core().V1().ReplicationControllers(), clientSet, replication.BurstReplicas, 4096, enableGarbageCollector)
-	informers.Start(stopCh)
-
-	return s, rm, informers, clientSet
+	if err != nil {
+		t.Fatalf("Failed to create replication manager")
+	}
+	return s, rm, podInformer, clientSet
 }
 
 // wait for the podInformer to observe the pods. Call this function before
@@ -161,46 +173,46 @@ func TestAdoption(t *testing.T) {
 	var trueVar = true
 	testCases := []struct {
 		name                    string
-		existingOwnerReferences func(rc *v1.ReplicationController) []metav1.OwnerReference
-		expectedOwnerReferences func(rc *v1.ReplicationController) []metav1.OwnerReference
+		existingOwnerReferences func(rc *v1.ReplicationController) []v1.OwnerReference
+		expectedOwnerReferences func(rc *v1.ReplicationController) []v1.OwnerReference
 	}{
 		{
 			"pod refers rc as an owner, not a controller",
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController"}}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController"}}
 			},
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
 			},
 		},
 		{
 			"pod doesn't have owner references",
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{}
 			},
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
 			},
 		},
 		{
 			"pod refers rc as a controller",
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
 			},
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar}}
 			},
 		},
 		{
 			"pod refers other rc as the controller, refers the rc as an owner",
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{
 					{UID: "1", Name: "anotherRC", APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar},
 					{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController"},
 				}
 			},
-			func(rc *v1.ReplicationController) []metav1.OwnerReference {
-				return []metav1.OwnerReference{
+			func(rc *v1.ReplicationController) []v1.OwnerReference {
+				return []v1.OwnerReference{
 					{UID: "1", Name: "anotherRC", APIVersion: "v1", Kind: "ReplicationController", Controller: &trueVar},
 					{UID: rc.UID, Name: rc.Name, APIVersion: "v1", Kind: "ReplicationController"},
 				}
@@ -208,8 +220,7 @@ func TestAdoption(t *testing.T) {
 		},
 	}
 	for i, tc := range testCases {
-		stopCh := make(chan struct{})
-		s, rm, informers, clientSet := rmSetup(t, stopCh, true)
+		s, rm, podInformer, clientSet := rmSetup(t, true)
 		ns := framework.CreateTestingNamespace(fmt.Sprintf("adoption-%d", i), s, t)
 		defer framework.DeleteTestingNamespace(ns, s, t)
 
@@ -228,11 +239,12 @@ func TestAdoption(t *testing.T) {
 			t.Fatalf("Failed to create Pod: %v", err)
 		}
 
-		informers.Start(stopCh)
-		waitToObservePods(t, informers.Core().V1().Pods().Informer(), 1)
+		stopCh := make(chan struct{})
+		go podInformer.Run(stopCh)
+		waitToObservePods(t, podInformer, 1)
 		go rm.Run(5, stopCh)
 		if err := wait.Poll(10*time.Second, 60*time.Second, func() (bool, error) {
-			updatedPod, err := podClient.Get(pod.Name, metav1.GetOptions{})
+			updatedPod, err := podClient.Get(pod.Name)
 			if err != nil {
 				return false, err
 			}
@@ -267,7 +279,7 @@ func createRCsPods(t *testing.T, clientSet clientset.Interface, rcs []*v1.Replic
 func waitRCStable(t *testing.T, clientSet clientset.Interface, rc *v1.ReplicationController, ns string) {
 	rcClient := clientSet.Core().ReplicationControllers(ns)
 	if err := wait.Poll(10*time.Second, 60*time.Second, func() (bool, error) {
-		updatedRC, err := rcClient.Get(rc.Name, metav1.GetOptions{})
+		updatedRC, err := rcClient.Get(rc.Name)
 		if err != nil {
 			return false, err
 		}
@@ -285,8 +297,7 @@ func TestUpdateSelectorToAdopt(t *testing.T) {
 	// We have pod1, pod2 and rc. rc.spec.replicas=1. At first rc.Selector
 	// matches pod1 only; change the selector to match pod2 as well. Verify
 	// there is only one pod left.
-	stopCh := make(chan struct{})
-	s, rm, _, clientSet := rmSetup(t, stopCh, true)
+	s, rm, podInformer, clientSet := rmSetup(t, true)
 	ns := framework.CreateTestingNamespace("update-selector-to-adopt", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 	rc := newRC("rc", ns.Name, 1)
@@ -299,13 +310,15 @@ func TestUpdateSelectorToAdopt(t *testing.T) {
 	pod2.Labels["uniqueKey"] = "2"
 	createRCsPods(t, clientSet, []*v1.ReplicationController{rc}, []*v1.Pod{pod1, pod2}, ns.Name)
 
+	stopCh := make(chan struct{})
+	go podInformer.Run(stopCh)
 	go rm.Run(5, stopCh)
 	waitRCStable(t, clientSet, rc, ns.Name)
 
 	// change the rc's selector to match both pods
 	patch := `{"spec":{"selector":{"uniqueKey":null}}}`
 	rcClient := clientSet.Core().ReplicationControllers(ns.Name)
-	rc, err := rcClient.Patch(rc.Name, types.StrategicMergePatchType, []byte(patch))
+	rc, err := rcClient.Patch(rc.Name, api.StrategicMergePatchType, []byte(patch))
 	if err != nil {
 		t.Fatalf("Failed to patch replication controller: %v", err)
 	}
@@ -324,8 +337,7 @@ func TestUpdateSelectorToRemoveControllerRef(t *testing.T) {
 	// matches pod1 and pod2; change the selector to match only pod1. Verify
 	// that rc creates one more pod, so there are 3 pods. Also verify that
 	// pod2's controllerRef is cleared.
-	stopCh := make(chan struct{})
-	s, rm, informers, clientSet := rmSetup(t, stopCh, true)
+	s, rm, podInformer, clientSet := rmSetup(t, true)
 	ns := framework.CreateTestingNamespace("update-selector-to-remove-controllerref", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 	rc := newRC("rc", ns.Name, 2)
@@ -335,14 +347,16 @@ func TestUpdateSelectorToRemoveControllerRef(t *testing.T) {
 	pod2.Labels["uniqueKey"] = "2"
 	createRCsPods(t, clientSet, []*v1.ReplicationController{rc}, []*v1.Pod{pod1, pod2}, ns.Name)
 
-	waitToObservePods(t, informers.Core().V1().Pods().Informer(), 2)
+	stopCh := make(chan struct{})
+	go podInformer.Run(stopCh)
+	waitToObservePods(t, podInformer, 2)
 	go rm.Run(5, stopCh)
 	waitRCStable(t, clientSet, rc, ns.Name)
 
 	// change the rc's selector to match both pods
 	patch := `{"spec":{"selector":{"uniqueKey":"1"},"template":{"metadata":{"labels":{"uniqueKey":"1"}}}}}`
 	rcClient := clientSet.Core().ReplicationControllers(ns.Name)
-	rc, err := rcClient.Patch(rc.Name, types.StrategicMergePatchType, []byte(patch))
+	rc, err := rcClient.Patch(rc.Name, api.StrategicMergePatchType, []byte(patch))
 	if err != nil {
 		t.Fatalf("Failed to patch replication controller: %v", err)
 	}
@@ -354,7 +368,7 @@ func TestUpdateSelectorToRemoveControllerRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	podClient := clientSet.Core().Pods(ns.Name)
-	pod2, err = podClient.Get(pod2.Name, metav1.GetOptions{})
+	pod2, err = podClient.Get(pod2.Name)
 	if err != nil {
 		t.Fatalf("Failed to get pod2: %v", err)
 	}
@@ -369,8 +383,7 @@ func TestUpdateLabelToRemoveControllerRef(t *testing.T) {
 	// matches pod1 and pod2; change pod2's labels to non-matching. Verify
 	// that rc creates one more pod, so there are 3 pods. Also verify that
 	// pod2's controllerRef is cleared.
-	stopCh := make(chan struct{})
-	s, rm, _, clientSet := rmSetup(t, stopCh, true)
+	s, rm, podInformer, clientSet := rmSetup(t, true)
 	ns := framework.CreateTestingNamespace("update-label-to-remove-controllerref", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 	rc := newRC("rc", ns.Name, 2)
@@ -378,13 +391,15 @@ func TestUpdateLabelToRemoveControllerRef(t *testing.T) {
 	pod2 := newMatchingPod("pod2", ns.Name)
 	createRCsPods(t, clientSet, []*v1.ReplicationController{rc}, []*v1.Pod{pod1, pod2}, ns.Name)
 
+	stopCh := make(chan struct{})
+	go podInformer.Run(stopCh)
 	go rm.Run(5, stopCh)
 	waitRCStable(t, clientSet, rc, ns.Name)
 
 	// change the rc's selector to match both pods
 	patch := `{"metadata":{"labels":{"name":null}}}`
 	podClient := clientSet.Core().Pods(ns.Name)
-	pod2, err := podClient.Patch(pod2.Name, types.StrategicMergePatchType, []byte(patch))
+	pod2, err := podClient.Patch(pod2.Name, api.StrategicMergePatchType, []byte(patch))
 	if err != nil {
 		t.Fatalf("Failed to patch pod2: %v", err)
 	}
@@ -395,7 +410,7 @@ func TestUpdateLabelToRemoveControllerRef(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	pod2, err = podClient.Get(pod2.Name, metav1.GetOptions{})
+	pod2, err = podClient.Get(pod2.Name)
 	if err != nil {
 		t.Fatalf("Failed to get pod2: %v", err)
 	}
@@ -410,8 +425,7 @@ func TestUpdateLabelToBeAdopted(t *testing.T) {
 	// matches pod1 only; change pod2's labels to be matching. Verify the RC
 	// controller adopts pod2 and delete one of them, so there is only 1 pod
 	// left.
-	stopCh := make(chan struct{})
-	s, rm, _, clientSet := rmSetup(t, stopCh, true)
+	s, rm, podInformer, clientSet := rmSetup(t, true)
 	ns := framework.CreateTestingNamespace("update-label-to-be-adopted", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 	rc := newRC("rc", ns.Name, 1)
@@ -424,13 +438,15 @@ func TestUpdateLabelToBeAdopted(t *testing.T) {
 	pod2.Labels["uniqueKey"] = "2"
 	createRCsPods(t, clientSet, []*v1.ReplicationController{rc}, []*v1.Pod{pod1, pod2}, ns.Name)
 
+	stopCh := make(chan struct{})
+	go podInformer.Run(stopCh)
 	go rm.Run(5, stopCh)
 	waitRCStable(t, clientSet, rc, ns.Name)
 
 	// change the rc's selector to match both pods
 	patch := `{"metadata":{"labels":{"uniqueKey":"1"}}}`
 	podClient := clientSet.Core().Pods(ns.Name)
-	pod2, err := podClient.Patch(pod2.Name, types.StrategicMergePatchType, []byte(patch))
+	pod2, err := podClient.Patch(pod2.Name, api.StrategicMergePatchType, []byte(patch))
 	if err != nil {
 		t.Fatalf("Failed to patch pod2: %v", err)
 	}

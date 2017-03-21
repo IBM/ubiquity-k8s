@@ -20,25 +20,30 @@ import (
 	"fmt"
 	"io"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apiserver/pkg/admission"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
 )
 
 func init() {
-	admission.RegisterPlugin("SecurityContextDeny", func(config io.Reader) (admission.Interface, error) {
-		return NewSecurityContextDeny(), nil
+	admission.RegisterPlugin("SecurityContextDeny", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
+		return NewSecurityContextDeny(client), nil
 	})
 }
 
+// plugin contains the client used by the SecurityContextDeny admission controller
 type plugin struct {
 	*admission.Handler
+	client clientset.Interface
 }
 
 // NewSecurityContextDeny creates a new instance of the SecurityContextDeny admission controller
-func NewSecurityContextDeny() admission.Interface {
+func NewSecurityContextDeny(client clientset.Interface) admission.Interface {
 	return &plugin{
 		Handler: admission.NewHandler(admission.Create, admission.Update),
+		client:  client,
 	}
 }
 

@@ -5,17 +5,12 @@ metadata:
 spec:
   containers:
   - name: write-pod
-    image: gcr.io/google_containers/busybox:1.24
-    command:
-      - "/bin/sh"
-    args:
-      - "-c"
-      - "touch /mnt/SUCCESS && exit 0 || exit 1"
+    image: midoblgsm/kubenode
     volumeMounts:
-      - name: nfs-pvc
+      - name: ubiquity-pvc
         mountPath: "/mnt"
   restartPolicy: "Never"
   volumes:
     - name: ubiquity-pvc
       persistentVolumeClaim:
-        claimName: ubiquity-claim
+        claimName: ubiquity-claim-fileset

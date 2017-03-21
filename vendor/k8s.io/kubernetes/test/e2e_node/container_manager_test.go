@@ -26,10 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -96,12 +95,12 @@ var _ = framework.KubeDescribe("Kubelet Container Manager [Serial]", func() {
 				var err error
 				podClient := f.PodClient()
 				podName := "besteffort" + string(uuid.NewUUID())
-				podClient.Create(&v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
+				podClient.Create(&api.Pod{
+					ObjectMeta: api.ObjectMeta{
 						Name: podName,
 					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
+					Spec: api.PodSpec{
+						Containers: []api.Container{
 							{
 								Image: "gcr.io/google_containers/serve_hostname:v1.4",
 								Name:  podName,
@@ -140,17 +139,17 @@ var _ = framework.KubeDescribe("Kubelet Container Manager [Serial]", func() {
 			It("guaranteed container's oom-score-adj should be -998", func() {
 				podClient := f.PodClient()
 				podName := "guaranteed" + string(uuid.NewUUID())
-				podClient.Create(&v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
+				podClient.Create(&api.Pod{
+					ObjectMeta: api.ObjectMeta{
 						Name: podName,
 					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
+					Spec: api.PodSpec{
+						Containers: []api.Container{
 							{
 								Image: "gcr.io/google_containers/nginx-slim:0.7",
 								Name:  podName,
-								Resources: v1.ResourceRequirements{
-									Limits: v1.ResourceList{
+								Resources: api.ResourceRequirements{
+									Limits: api.ResourceList{
 										"cpu":    resource.MustParse("100m"),
 										"memory": resource.MustParse("50Mi"),
 									},
@@ -181,17 +180,17 @@ var _ = framework.KubeDescribe("Kubelet Container Manager [Serial]", func() {
 			It("burstable container's oom-score-adj should be between [2, 1000)", func() {
 				podClient := f.PodClient()
 				podName := "burstable" + string(uuid.NewUUID())
-				podClient.Create(&v1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
+				podClient.Create(&api.Pod{
+					ObjectMeta: api.ObjectMeta{
 						Name: podName,
 					},
-					Spec: v1.PodSpec{
-						Containers: []v1.Container{
+					Spec: api.PodSpec{
+						Containers: []api.Container{
 							{
 								Image: "gcr.io/google_containers/test-webserver:e2e",
 								Name:  podName,
-								Resources: v1.ResourceRequirements{
-									Requests: v1.ResourceList{
+								Resources: api.ResourceRequirements{
+									Requests: api.ResourceList{
 										"cpu":    resource.MustParse("100m"),
 										"memory": resource.MustParse("50Mi"),
 									},

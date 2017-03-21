@@ -17,13 +17,12 @@ limitations under the License.
 package fake
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	api "k8s.io/kubernetes/pkg/api"
+	unversioned "k8s.io/kubernetes/pkg/api/unversioned"
 	extensions "k8s.io/kubernetes/pkg/apis/extensions"
+	core "k8s.io/kubernetes/pkg/client/testing/core"
+	labels "k8s.io/kubernetes/pkg/labels"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // FakeThirdPartyResources implements ThirdPartyResourceInterface
@@ -31,11 +30,11 @@ type FakeThirdPartyResources struct {
 	Fake *FakeExtensions
 }
 
-var thirdpartyresourcesResource = schema.GroupVersionResource{Group: "extensions", Version: "", Resource: "thirdpartyresources"}
+var thirdpartyresourcesResource = unversioned.GroupVersionResource{Group: "extensions", Version: "", Resource: "thirdpartyresources"}
 
 func (c *FakeThirdPartyResources) Create(thirdPartyResource *extensions.ThirdPartyResource) (result *extensions.ThirdPartyResource, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(thirdpartyresourcesResource, thirdPartyResource), &extensions.ThirdPartyResource{})
+		Invokes(core.NewRootCreateAction(thirdpartyresourcesResource, thirdPartyResource), &extensions.ThirdPartyResource{})
 	if obj == nil {
 		return nil, err
 	}
@@ -44,43 +43,43 @@ func (c *FakeThirdPartyResources) Create(thirdPartyResource *extensions.ThirdPar
 
 func (c *FakeThirdPartyResources) Update(thirdPartyResource *extensions.ThirdPartyResource) (result *extensions.ThirdPartyResource, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(thirdpartyresourcesResource, thirdPartyResource), &extensions.ThirdPartyResource{})
+		Invokes(core.NewRootUpdateAction(thirdpartyresourcesResource, thirdPartyResource), &extensions.ThirdPartyResource{})
 	if obj == nil {
 		return nil, err
 	}
 	return obj.(*extensions.ThirdPartyResource), err
 }
 
-func (c *FakeThirdPartyResources) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeThirdPartyResources) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(thirdpartyresourcesResource, name), &extensions.ThirdPartyResource{})
+		Invokes(core.NewRootDeleteAction(thirdpartyresourcesResource, name), &extensions.ThirdPartyResource{})
 	return err
 }
 
-func (c *FakeThirdPartyResources) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(thirdpartyresourcesResource, listOptions)
+func (c *FakeThirdPartyResources) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
+	action := core.NewRootDeleteCollectionAction(thirdpartyresourcesResource, listOptions)
 
 	_, err := c.Fake.Invokes(action, &extensions.ThirdPartyResourceList{})
 	return err
 }
 
-func (c *FakeThirdPartyResources) Get(name string, options v1.GetOptions) (result *extensions.ThirdPartyResource, err error) {
+func (c *FakeThirdPartyResources) Get(name string) (result *extensions.ThirdPartyResource, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(thirdpartyresourcesResource, name), &extensions.ThirdPartyResource{})
+		Invokes(core.NewRootGetAction(thirdpartyresourcesResource, name), &extensions.ThirdPartyResource{})
 	if obj == nil {
 		return nil, err
 	}
 	return obj.(*extensions.ThirdPartyResource), err
 }
 
-func (c *FakeThirdPartyResources) List(opts v1.ListOptions) (result *extensions.ThirdPartyResourceList, err error) {
+func (c *FakeThirdPartyResources) List(opts api.ListOptions) (result *extensions.ThirdPartyResourceList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(thirdpartyresourcesResource, opts), &extensions.ThirdPartyResourceList{})
+		Invokes(core.NewRootListAction(thirdpartyresourcesResource, opts), &extensions.ThirdPartyResourceList{})
 	if obj == nil {
 		return nil, err
 	}
 
-	label, _, _ := testing.ExtractFromListOptions(opts)
+	label, _, _ := core.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
@@ -94,15 +93,15 @@ func (c *FakeThirdPartyResources) List(opts v1.ListOptions) (result *extensions.
 }
 
 // Watch returns a watch.Interface that watches the requested thirdPartyResources.
-func (c *FakeThirdPartyResources) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeThirdPartyResources) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(thirdpartyresourcesResource, opts))
+		InvokesWatch(core.NewRootWatchAction(thirdpartyresourcesResource, opts))
 }
 
 // Patch applies the patch and returns the patched thirdPartyResource.
-func (c *FakeThirdPartyResources) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *extensions.ThirdPartyResource, err error) {
+func (c *FakeThirdPartyResources) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *extensions.ThirdPartyResource, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(thirdpartyresourcesResource, name, data, subresources...), &extensions.ThirdPartyResource{})
+		Invokes(core.NewRootPatchSubresourceAction(thirdpartyresourcesResource, name, data, subresources...), &extensions.ThirdPartyResource{})
 	if obj == nil {
 		return nil, err
 	}

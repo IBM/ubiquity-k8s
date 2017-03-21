@@ -108,14 +108,16 @@ func rrs(t *testing.T, zone dnsprovider.Zone) (r dnsprovider.ResourceRecordSets)
 	return rrsets
 }
 
-func getRrOrFail(t *testing.T, rrsets dnsprovider.ResourceRecordSets, name string) dnsprovider.ResourceRecordSet {
-	rrset, err := rrsets.Get(name)
+func listRrsOrFail(t *testing.T, rrsets dnsprovider.ResourceRecordSets) []dnsprovider.ResourceRecordSet {
+	rrset, err := rrsets.List()
 	if err != nil {
-		t.Fatalf("Failed to get recordset: %v", err)
-	} else if rrset == nil {
-		t.Logf("Did not Get recordset: %v", name)
+		t.Fatalf("Failed to list recordsets: %v", err)
 	} else {
-		t.Logf("Got recordset: %v", rrset.Name())
+		if len(rrset) < 0 {
+			t.Fatalf("Record set length=%d, expected >=0", len(rrset))
+		} else {
+			t.Logf("Got %d recordsets: %v", len(rrset), rrset)
+		}
 	}
 	return rrset
 }
@@ -123,33 +125,16 @@ func getRrOrFail(t *testing.T, rrsets dnsprovider.ResourceRecordSets, name strin
 // assertHasRecord tests that rrsets has a record equivalent to rrset
 func assertHasRecord(t *testing.T, rrsets dnsprovider.ResourceRecordSets, rrset dnsprovider.ResourceRecordSet) {
 	var found dnsprovider.ResourceRecordSet
-
-	rrs, err := rrsets.List()
-	if err != nil {
-		if err.Error() == "OperationNotSupported" {
-			found = getRrOrFail(t, rrsets, rrset.Name())
-		} else {
-			t.Fatalf("Failed to list recordsets: %v", err)
-		}
-	} else {
-		if len(rrs) < 0 {
-			t.Fatalf("Record set length=%d, expected >=0", len(rrs))
-		} else {
-			t.Logf("Got %d recordsets: %v", len(rrs), rrs)
+	for _, r := range listRrsOrFail(t, rrsets) {
+		if r.Name() != rrset.Name() || r.Type() != rrset.Type() {
+			continue
 		}
 
-		for _, r := range rrs {
-			if r.Name() != rrset.Name() || r.Type() != rrset.Type() {
-				continue
-			}
-
-			if found != nil {
-				t.Errorf("found duplicate resource record set: %q and %q", r, found)
-			}
-			found = r
+		if found != nil {
+			t.Errorf("found duplicate resource record set: %q and %q", r, found)
 		}
+		found = r
 	}
-
 	if found == nil {
 		t.Errorf("resource record set %v not found", rrset)
 	} else {
@@ -159,7 +144,17 @@ func assertHasRecord(t *testing.T, rrsets dnsprovider.ResourceRecordSets, rrset 
 
 // assertNotHasRecord tests that rrsets does not have a record matching name and type
 func assertNotHasRecord(t *testing.T, rrsets dnsprovider.ResourceRecordSets, name string, rrstype rrstype.RrsType) {
-	found := getRrOrFail(t, rrsets, name)
+	var found dnsprovider.ResourceRecordSet
+	for _, r := range listRrsOrFail(t, rrsets) {
+		if r.Name() != name || r.Type() != rrstype {
+			continue
+		}
+
+		if found != nil {
+			t.Errorf("found duplicate resource record set: %q and %q", r, found)
+		}
+		found = r
+	}
 	if found != nil {
 		t.Errorf("resource record set found unexpectedly: %v", found)
 	}

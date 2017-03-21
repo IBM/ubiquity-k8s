@@ -19,12 +19,9 @@ package deployment
 import (
 	"fmt"
 	"reflect"
-	"time"
 
-	"github.com/golang/glog"
-
-	"k8s.io/kubernetes/pkg/api/v1"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
@@ -60,7 +57,7 @@ func (dc *DeploymentController) hasFailed(d *extensions.Deployment) (bool, error
 	// See https://github.com/kubernetes/kubernetes/issues/18568
 
 	allRSs := append(oldRSs, newRS)
-	newStatus := calculateStatus(allRSs, newRS, d)
+	newStatus := dc.calculateStatus(allRSs, newRS, d)
 
 	// If the deployment is complete or it is progressing, there is no need to check if it
 	// has timed out.
@@ -77,7 +74,7 @@ func (dc *DeploymentController) hasFailed(d *extensions.Deployment) (bool, error
 // for example a resync of the deployment after it was scaled up. In those cases,
 // we shouldn't try to estimate any progress.
 func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSet, newRS *extensions.ReplicaSet, d *extensions.Deployment) error {
-	newStatus := calculateStatus(allRSs, newRS, d)
+	newStatus := dc.calculateStatus(allRSs, newRS, d)
 
 	// If there is no progressDeadlineSeconds set, remove any Progressing condition.
 	if d.Spec.ProgressDeadlineSeconds == nil {
@@ -88,26 +85,24 @@ func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSe
 	// a new rollout and this is a resync where we don't need to estimate any progress.
 	// In such a case, we should simply not estimate any progress for this deployment.
 	currentCond := util.GetDeploymentCondition(d.Status, extensions.DeploymentProgressing)
-	isCompleteDeployment := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == util.NewRSAvailableReason
+	isResyncEvent := newStatus.Replicas == newStatus.UpdatedReplicas && currentCond != nil && currentCond.Reason == util.NewRSAvailableReason
 	// Check for progress only if there is a progress deadline set and the latest rollout
-	// hasn't completed yet.
-	if d.Spec.ProgressDeadlineSeconds != nil && !isCompleteDeployment {
+	// hasn't completed yet. We also need to ensure the new replica set exists, otherwise
+	// we cannot estimate any progress.
+	if d.Spec.ProgressDeadlineSeconds != nil && !isResyncEvent && newRS != nil {
 		switch {
 		case util.DeploymentComplete(d, &newStatus):
 			// Update the deployment conditions with a message for the new replica set that
 			// was successfully deployed. If the condition already exists, we ignore this update.
-			msg := fmt.Sprintf("ReplicaSet %q has successfully progressed.", newRS.Name)
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionTrue, util.NewRSAvailableReason, msg)
+			msg := fmt.Sprintf("Replica set %q has successfully progressed.", newRS.Name)
+			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, api.ConditionTrue, util.NewRSAvailableReason, msg)
 			util.SetDeploymentCondition(&newStatus, *condition)
 
 		case util.DeploymentProgressing(d, &newStatus):
 			// If there is any progress made, continue by not checking if the deployment failed. This
 			// behavior emulates the rolling updater progressDeadline check.
-			msg := fmt.Sprintf("Deployment %q is progressing.", d.Name)
-			if newRS != nil {
-				msg = fmt.Sprintf("ReplicaSet %q is progressing.", newRS.Name)
-			}
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionTrue, util.ReplicaSetUpdatedReason, msg)
+			msg := fmt.Sprintf("Replica set %q is progressing.", newRS.Name)
+			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, api.ConditionTrue, util.ReplicaSetUpdatedReason, msg)
 			// Update the current Progressing condition or add a new one if it doesn't exist.
 			// If a Progressing condition with status=true already exists, we should update
 			// everything but lastTransitionTime. SetDeploymentCondition already does that but
@@ -116,7 +111,7 @@ func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSe
 			// update with the same reason and change just lastUpdateTime iff we notice any
 			// progress. That's why we handle it here.
 			if currentCond != nil {
-				if currentCond.Status == v1.ConditionTrue {
+				if currentCond.Status == api.ConditionTrue {
 					condition.LastTransitionTime = currentCond.LastTransitionTime
 				}
 				util.RemoveDeploymentCondition(&newStatus, extensions.DeploymentProgressing)
@@ -126,11 +121,8 @@ func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSe
 		case util.DeploymentTimedOut(d, &newStatus):
 			// Update the deployment with a timeout condition. If the condition already exists,
 			// we ignore this update.
-			msg := fmt.Sprintf("Deployment %q has timed out progressing.", d.Name)
-			if newRS != nil {
-				msg = fmt.Sprintf("ReplicaSet %q has timed out progressing.", newRS.Name)
-			}
-			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, v1.ConditionFalse, util.TimedOutReason, msg)
+			msg := fmt.Sprintf("Replica set %q has timed out progressing.", newRS.Name)
+			condition := util.NewDeploymentCondition(extensions.DeploymentProgressing, api.ConditionFalse, util.TimedOutReason, msg)
 			util.SetDeploymentCondition(&newStatus, *condition)
 		}
 	}
@@ -146,21 +138,13 @@ func (dc *DeploymentController) syncRolloutStatus(allRSs []*extensions.ReplicaSe
 
 	// Do not update if there is nothing new to add.
 	if reflect.DeepEqual(d.Status, newStatus) {
-		// If there is no sign of progress at this point then there is a high chance that the
-		// deployment is stuck. We should resync this deployment at some point[1] in the future
-		// and check if it has timed out. We definitely need this, otherwise we depend on the
-		// controller resync interval. See https://github.com/kubernetes/kubernetes/issues/34458.
+		// TODO: If there is no sign of progress at this point then there is a high chance that the
+		// deployment is stuck. We should resync this deployment at some point[1] in the future[2] and
+		// check if it has timed out. We definitely need this, otherwise we depend on the controller
+		// resync interval. See https://github.com/kubernetes/kubernetes/issues/34458.
 		//
 		// [1] time.Now() + progressDeadlineSeconds - lastUpdateTime (of the Progressing condition).
-		if d.Spec.ProgressDeadlineSeconds != nil &&
-			!util.DeploymentComplete(d, &newStatus) &&
-			!util.DeploymentTimedOut(d, &newStatus) &&
-			currentCond != nil {
-
-			after := time.Now().Add(time.Duration(*d.Spec.ProgressDeadlineSeconds) * time.Second).Sub(currentCond.LastUpdateTime.Time)
-			glog.V(2).Infof("Queueing up deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
-			dc.checkProgressAfter(d, after)
-		}
+		// [2] Use dc.queue.AddAfter
 		return nil
 	}
 

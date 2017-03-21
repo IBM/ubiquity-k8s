@@ -20,25 +20,25 @@ import (
 	"fmt"
 	"reflect"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	pkgruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
+	api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/cache"
+	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
 )
 
 // Returns cache.ResourceEventHandlerFuncs that trigger the given function
 // on all object changes.
-func NewTriggerOnAllChanges(triggerFunc func(pkgruntime.Object)) *cache.ResourceEventHandlerFuncs {
+func NewTriggerOnAllChanges(triggerFunc func(pkg_runtime.Object)) *cache.ResourceEventHandlerFuncs {
 	return &cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(old interface{}) {
-			oldObj := old.(pkgruntime.Object)
+			oldObj := old.(pkg_runtime.Object)
 			triggerFunc(oldObj)
 		},
 		AddFunc: func(cur interface{}) {
-			curObj := cur.(pkgruntime.Object)
+			curObj := cur.(pkg_runtime.Object)
 			triggerFunc(curObj)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			curObj := cur.(pkgruntime.Object)
+			curObj := cur.(pkg_runtime.Object)
 			if !reflect.DeepEqual(old, cur) {
 				triggerFunc(curObj)
 			}
@@ -48,7 +48,7 @@ func NewTriggerOnAllChanges(triggerFunc func(pkgruntime.Object)) *cache.Resource
 
 // Returns cache.ResourceEventHandlerFuncs that trigger the given function
 // on object add and delete as well as spec/object meta on update.
-func NewTriggerOnMetaAndSpecChanges(triggerFunc func(pkgruntime.Object)) *cache.ResourceEventHandlerFuncs {
+func NewTriggerOnMetaAndSpecChanges(triggerFunc func(pkg_runtime.Object)) *cache.ResourceEventHandlerFuncs {
 	getFieldOrPanic := func(obj interface{}, fieldName string) interface{} {
 		val := reflect.ValueOf(obj).Elem().FieldByName(fieldName)
 		if val.IsValid() {
@@ -59,17 +59,17 @@ func NewTriggerOnMetaAndSpecChanges(triggerFunc func(pkgruntime.Object)) *cache.
 	}
 	return &cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(old interface{}) {
-			oldObj := old.(pkgruntime.Object)
+			oldObj := old.(pkg_runtime.Object)
 			triggerFunc(oldObj)
 		},
 		AddFunc: func(cur interface{}) {
-			curObj := cur.(pkgruntime.Object)
+			curObj := cur.(pkg_runtime.Object)
 			triggerFunc(curObj)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			curObj := cur.(pkgruntime.Object)
-			oldMeta := getFieldOrPanic(old, "ObjectMeta").(metav1.ObjectMeta)
-			curMeta := getFieldOrPanic(cur, "ObjectMeta").(metav1.ObjectMeta)
+			curObj := cur.(pkg_runtime.Object)
+			oldMeta := getFieldOrPanic(old, "ObjectMeta").(api_v1.ObjectMeta)
+			curMeta := getFieldOrPanic(cur, "ObjectMeta").(api_v1.ObjectMeta)
 			if !ObjectMetaEquivalent(oldMeta, curMeta) ||
 				!reflect.DeepEqual(getFieldOrPanic(old, "Spec"), getFieldOrPanic(cur, "Spec")) {
 				triggerFunc(curObj)

@@ -22,26 +22,26 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 // getResourceList returns a ResourceList with the
 // specified cpu and memory resource values
-func getResourceList(cpu, memory string) v1.ResourceList {
-	res := v1.ResourceList{}
+func getResourceList(cpu, memory string) api.ResourceList {
+	res := api.ResourceList{}
 	if cpu != "" {
-		res[v1.ResourceCPU] = resource.MustParse(cpu)
+		res[api.ResourceCPU] = resource.MustParse(cpu)
 	}
 	if memory != "" {
-		res[v1.ResourceMemory] = resource.MustParse(memory)
+		res[api.ResourceMemory] = resource.MustParse(memory)
 	}
 	return res
 }
 
 // getResourceRequirements returns a ResourceRequirements object
-func getResourceRequirements(requests, limits v1.ResourceList) v1.ResourceRequirements {
-	res := v1.ResourceRequirements{}
+func getResourceRequirements(requests, limits api.ResourceList) api.ResourceRequirements {
+	res := api.ResourceRequirements{}
 	res.Requests = requests
 	res.Limits = limits
 	return res
@@ -59,13 +59,13 @@ func TestResourceConfigForPod(t *testing.T) {
 	memoryQuantity = resource.MustParse("100Mi")
 	guaranteedMemory := memoryQuantity.Value()
 	testCases := map[string]struct {
-		pod      *v1.Pod
+		pod      *api.Pod
 		expected *ResourceConfig
 	}{
 		"besteffort": {
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+			pod: &api.Pod{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Resources: getResourceRequirements(getResourceList("", ""), getResourceList("", "")),
 						},
@@ -75,9 +75,9 @@ func TestResourceConfigForPod(t *testing.T) {
 			expected: &ResourceConfig{CpuShares: &minShares},
 		},
 		"burstable-no-limits": {
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+			pod: &api.Pod{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Resources: getResourceRequirements(getResourceList("100m", "100Mi"), getResourceList("", "")),
 						},
@@ -87,9 +87,9 @@ func TestResourceConfigForPod(t *testing.T) {
 			expected: &ResourceConfig{CpuShares: &burstableShares},
 		},
 		"burstable-with-limits": {
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+			pod: &api.Pod{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Resources: getResourceRequirements(getResourceList("100m", "100Mi"), getResourceList("200m", "200Mi")),
 						},
@@ -99,9 +99,9 @@ func TestResourceConfigForPod(t *testing.T) {
 			expected: &ResourceConfig{CpuShares: &burstableShares, CpuQuota: &burstableQuota, CpuPeriod: &burstablePeriod, Memory: &burstableMemory},
 		},
 		"burstable-partial-limits": {
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+			pod: &api.Pod{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Resources: getResourceRequirements(getResourceList("100m", "100Mi"), getResourceList("200m", "200Mi")),
 						},
@@ -114,9 +114,9 @@ func TestResourceConfigForPod(t *testing.T) {
 			expected: &ResourceConfig{CpuShares: &burstablePartialShares},
 		},
 		"guaranteed": {
-			pod: &v1.Pod{
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+			pod: &api.Pod{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Resources: getResourceRequirements(getResourceList("100m", "100Mi"), getResourceList("100m", "100Mi")),
 						},

@@ -17,13 +17,12 @@ limitations under the License.
 package fake
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	api "k8s.io/kubernetes/pkg/api"
+	unversioned "k8s.io/kubernetes/pkg/api/unversioned"
 	extensions "k8s.io/kubernetes/pkg/apis/extensions"
+	core "k8s.io/kubernetes/pkg/client/testing/core"
+	labels "k8s.io/kubernetes/pkg/labels"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // FakeReplicaSets implements ReplicaSetInterface
@@ -32,11 +31,11 @@ type FakeReplicaSets struct {
 	ns   string
 }
 
-var replicasetsResource = schema.GroupVersionResource{Group: "extensions", Version: "", Resource: "replicasets"}
+var replicasetsResource = unversioned.GroupVersionResource{Group: "extensions", Version: "", Resource: "replicasets"}
 
 func (c *FakeReplicaSets) Create(replicaSet *extensions.ReplicaSet) (result *extensions.ReplicaSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(replicasetsResource, c.ns, replicaSet), &extensions.ReplicaSet{})
+		Invokes(core.NewCreateAction(replicasetsResource, c.ns, replicaSet), &extensions.ReplicaSet{})
 
 	if obj == nil {
 		return nil, err
@@ -46,7 +45,7 @@ func (c *FakeReplicaSets) Create(replicaSet *extensions.ReplicaSet) (result *ext
 
 func (c *FakeReplicaSets) Update(replicaSet *extensions.ReplicaSet) (result *extensions.ReplicaSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(replicasetsResource, c.ns, replicaSet), &extensions.ReplicaSet{})
+		Invokes(core.NewUpdateAction(replicasetsResource, c.ns, replicaSet), &extensions.ReplicaSet{})
 
 	if obj == nil {
 		return nil, err
@@ -56,7 +55,7 @@ func (c *FakeReplicaSets) Update(replicaSet *extensions.ReplicaSet) (result *ext
 
 func (c *FakeReplicaSets) UpdateStatus(replicaSet *extensions.ReplicaSet) (*extensions.ReplicaSet, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(replicasetsResource, "status", c.ns, replicaSet), &extensions.ReplicaSet{})
+		Invokes(core.NewUpdateSubresourceAction(replicasetsResource, "status", c.ns, replicaSet), &extensions.ReplicaSet{})
 
 	if obj == nil {
 		return nil, err
@@ -64,23 +63,23 @@ func (c *FakeReplicaSets) UpdateStatus(replicaSet *extensions.ReplicaSet) (*exte
 	return obj.(*extensions.ReplicaSet), err
 }
 
-func (c *FakeReplicaSets) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeReplicaSets) Delete(name string, options *api.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(replicasetsResource, c.ns, name), &extensions.ReplicaSet{})
+		Invokes(core.NewDeleteAction(replicasetsResource, c.ns, name), &extensions.ReplicaSet{})
 
 	return err
 }
 
-func (c *FakeReplicaSets) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(replicasetsResource, c.ns, listOptions)
+func (c *FakeReplicaSets) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
+	action := core.NewDeleteCollectionAction(replicasetsResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &extensions.ReplicaSetList{})
 	return err
 }
 
-func (c *FakeReplicaSets) Get(name string, options v1.GetOptions) (result *extensions.ReplicaSet, err error) {
+func (c *FakeReplicaSets) Get(name string) (result *extensions.ReplicaSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(replicasetsResource, c.ns, name), &extensions.ReplicaSet{})
+		Invokes(core.NewGetAction(replicasetsResource, c.ns, name), &extensions.ReplicaSet{})
 
 	if obj == nil {
 		return nil, err
@@ -88,15 +87,15 @@ func (c *FakeReplicaSets) Get(name string, options v1.GetOptions) (result *exten
 	return obj.(*extensions.ReplicaSet), err
 }
 
-func (c *FakeReplicaSets) List(opts v1.ListOptions) (result *extensions.ReplicaSetList, err error) {
+func (c *FakeReplicaSets) List(opts api.ListOptions) (result *extensions.ReplicaSetList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(replicasetsResource, c.ns, opts), &extensions.ReplicaSetList{})
+		Invokes(core.NewListAction(replicasetsResource, c.ns, opts), &extensions.ReplicaSetList{})
 
 	if obj == nil {
 		return nil, err
 	}
 
-	label, _, _ := testing.ExtractFromListOptions(opts)
+	label, _, _ := core.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
@@ -110,16 +109,16 @@ func (c *FakeReplicaSets) List(opts v1.ListOptions) (result *extensions.ReplicaS
 }
 
 // Watch returns a watch.Interface that watches the requested replicaSets.
-func (c *FakeReplicaSets) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeReplicaSets) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(replicasetsResource, c.ns, opts))
+		InvokesWatch(core.NewWatchAction(replicasetsResource, c.ns, opts))
 
 }
 
 // Patch applies the patch and returns the patched replicaSet.
-func (c *FakeReplicaSets) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *extensions.ReplicaSet, err error) {
+func (c *FakeReplicaSets) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *extensions.ReplicaSet, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(replicasetsResource, c.ns, name, data, subresources...), &extensions.ReplicaSet{})
+		Invokes(core.NewPatchSubresourceAction(replicasetsResource, c.ns, name, data, subresources...), &extensions.ReplicaSet{})
 
 	if obj == nil {
 		return nil, err

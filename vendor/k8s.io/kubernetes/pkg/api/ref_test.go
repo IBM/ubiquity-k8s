@@ -20,21 +20,20 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 type FakeAPIObject struct{}
 
-func (obj *FakeAPIObject) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }
+func (obj *FakeAPIObject) GetObjectKind() unversioned.ObjectKind { return unversioned.EmptyObjectKind }
 
 type ExtensionAPIObject struct {
-	metav1.TypeMeta
-	metav1.ObjectMeta
+	unversioned.TypeMeta
+	ObjectMeta
 }
 
-func (obj *ExtensionAPIObject) GetObjectKind() schema.ObjectKind { return &obj.TypeMeta }
+func (obj *ExtensionAPIObject) GetObjectKind() unversioned.ObjectKind { return &obj.TypeMeta }
 
 func TestGetReference(t *testing.T) {
 
@@ -53,7 +52,7 @@ func TestGetReference(t *testing.T) {
 	}{
 		"pod": {
 			obj: &Pod{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: ObjectMeta{
 					Name:            "foo",
 					UID:             "bar",
 					ResourceVersion: "42",
@@ -72,7 +71,7 @@ func TestGetReference(t *testing.T) {
 		},
 		"serviceList": {
 			obj: &ServiceList{
-				ListMeta: metav1.ListMeta{
+				ListMeta: unversioned.ListMeta{
 					ResourceVersion: "42",
 					SelfLink:        "/api/version2/services",
 				},
@@ -85,10 +84,10 @@ func TestGetReference(t *testing.T) {
 		},
 		"extensionAPIObject": {
 			obj: &ExtensionAPIObject{
-				TypeMeta: metav1.TypeMeta{
+				TypeMeta: unversioned.TypeMeta{
 					Kind: "ExtensionAPIObject",
 				},
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: ObjectMeta{
 					Name:            "foo",
 					UID:             "bar",
 					ResourceVersion: "42",
@@ -105,7 +104,7 @@ func TestGetReference(t *testing.T) {
 		},
 		"badSelfLink": {
 			obj: &ServiceList{
-				ListMeta: metav1.ListMeta{
+				ListMeta: unversioned.ListMeta{
 					ResourceVersion: "42",
 					SelfLink:        "version2/services",
 				},
@@ -125,7 +124,7 @@ func TestGetReference(t *testing.T) {
 	}
 
 	for name, item := range table {
-		ref, err := GetPartialReference(Scheme, item.obj, item.fieldPath)
+		ref, err := GetPartialReference(item.obj, item.fieldPath)
 		if e, a := item.shouldErr, (err != nil); e != a {
 			t.Errorf("%v: expected %v, got %v, err %v", name, e, a, err)
 			continue

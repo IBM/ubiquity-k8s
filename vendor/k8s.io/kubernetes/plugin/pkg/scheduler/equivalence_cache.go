@@ -17,15 +17,13 @@ limitations under the License.
 package scheduler
 
 import (
+	"github.com/golang/groupcache/lru"
 	"hash/adler32"
 
-	"github.com/golang/groupcache/lru"
-
-	"sync"
-
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm"
+	"sync"
 )
 
 // TODO(harryz) figure out the right number for this, 4096 may be too big
@@ -70,7 +68,7 @@ func (ec *EquivalenceCache) addPodPredicate(podKey uint64, nodeName string, fit 
 }
 
 // AddPodPredicatesCache cache pod predicate for equivalence class
-func (ec *EquivalenceCache) AddPodPredicatesCache(pod *v1.Pod, fitNodeList []*v1.Node, failedPredicates *FailedPredicateMap) {
+func (ec *EquivalenceCache) AddPodPredicatesCache(pod *api.Pod, fitNodeList []*api.Node, failedPredicates *FailedPredicateMap) {
 	equivalenceHash := ec.hashEquivalencePod(pod)
 
 	for _, fitNode := range fitNodeList {
@@ -82,10 +80,10 @@ func (ec *EquivalenceCache) AddPodPredicatesCache(pod *v1.Pod, fitNodeList []*v1
 }
 
 // GetCachedPredicates gets cached predicates for equivalence class
-func (ec *EquivalenceCache) GetCachedPredicates(pod *v1.Pod, nodes []*v1.Node) ([]*v1.Node, FailedPredicateMap, []*v1.Node) {
-	fitNodeList := []*v1.Node{}
+func (ec *EquivalenceCache) GetCachedPredicates(pod *api.Pod, nodes []*api.Node) ([]*api.Node, FailedPredicateMap, []*api.Node) {
+	fitNodeList := []*api.Node{}
 	failedPredicates := FailedPredicateMap{}
-	noCacheNodeList := []*v1.Node{}
+	noCacheNodeList := []*api.Node{}
 	equivalenceHash := ec.hashEquivalencePod(pod)
 	for _, node := range nodes {
 		findCache := false
@@ -126,7 +124,7 @@ func (ec *EquivalenceCache) SendClearAllCacheReq() {
 }
 
 // hashEquivalencePod returns the hash of equivalence pod.
-func (ec *EquivalenceCache) hashEquivalencePod(pod *v1.Pod) uint64 {
+func (ec *EquivalenceCache) hashEquivalencePod(pod *api.Pod) uint64 {
 	equivalencePod := ec.getEquivalencePod(pod)
 	hash := adler32.New()
 	hashutil.DeepHashObject(hash, equivalencePod)

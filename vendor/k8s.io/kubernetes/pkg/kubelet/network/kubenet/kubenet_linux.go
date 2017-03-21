@@ -20,10 +20,8 @@ package kubenet
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -33,25 +31,31 @@ import (
 	cnitypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/golang/glog"
 	"github.com/vishvananda/netlink"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
-	utilsets "k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"github.com/vishvananda/netlink/nl"
+	"io/ioutil"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/network"
-	"k8s.io/kubernetes/pkg/kubelet/network/hostport"
 	"k8s.io/kubernetes/pkg/util/bandwidth"
 	utildbus "k8s.io/kubernetes/pkg/util/dbus"
 	utilebtables "k8s.io/kubernetes/pkg/util/ebtables"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
+	utilnet "k8s.io/kubernetes/pkg/util/net"
+	utilsets "k8s.io/kubernetes/pkg/util/sets"
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
+
+	"strconv"
+
+	"k8s.io/kubernetes/pkg/kubelet/network/hostport"
 )
 
 const (
-	BridgeName    = "cbr0"
-	DefaultCNIDir = "/opt/cni/bin"
+	KubenetPluginName = "kubenet"
+	BridgeName        = "cbr0"
+	DefaultCNIDir     = "/opt/cni/bin"
 
 	sysctlBridgeCallIPTables = "net/bridge/bridge-nf-call-iptables"
 
@@ -89,7 +93,7 @@ type kubenetNetworkPlugin struct {
 	execer          utilexec.Interface
 	nsenterPath     string
 	hairpinMode     componentconfig.HairpinMode
-	hostportSyncer  hostport.HostportSyncer
+	hostportHandler hostport.HostportHandler
 	iptables        utiliptables.Interface
 	sysctl          utilsysctl.Interface
 	ebtables        utilebtables.Interface
@@ -113,7 +117,7 @@ func NewPlugin(networkPluginDir string) network.NetworkPlugin {
 		iptables:          iptInterface,
 		sysctl:            sysctl,
 		vendorDir:         networkPluginDir,
-		hostportSyncer:    hostport.NewHostportSyncer(),
+		hostportHandler:   hostport.NewHostportHandler(),
 		nonMasqueradeCIDR: "10.0.0.0/8",
 	}
 }
@@ -291,6 +295,37 @@ func (plugin *kubenetNetworkPlugin) clearBridgeAddressesExcept(keep *net.IPNet) 
 	}
 }
 
+// ensureBridgeTxQueueLen() ensures that the bridge interface's TX queue
+// length is greater than zero.  Due to a CNI <= 0.3.0 'bridge' plugin bug,
+// the bridge is initially created with a TX queue length of 0, which gets
+// used as the packet limit for FIFO traffic shapers, which drops packets.
+// TODO: remove when we can depend on a fixed CNI
+func (plugin *kubenetNetworkPlugin) ensureBridgeTxQueueLen() {
+	bridge, err := netlink.LinkByName(BridgeName)
+	if err != nil {
+		return
+	}
+
+	if bridge.Attrs().TxQLen > 0 {
+		return
+	}
+
+	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	req.AddData(msg)
+
+	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(BridgeName))
+	req.AddData(nameData)
+
+	qlen := nl.NewRtAttr(syscall.IFLA_TXQLEN, nl.Uint32Attr(1000))
+	req.AddData(qlen)
+
+	_, err = req.Execute(syscall.NETLINK_ROUTE, 0)
+	if err != nil {
+		glog.V(5).Infof("Failed to set bridge tx queue length: %v", err)
+	}
+}
+
 func (plugin *kubenetNetworkPlugin) Name() string {
 	return KubenetPluginName
 }
@@ -302,7 +337,7 @@ func (plugin *kubenetNetworkPlugin) Capabilities() utilsets.Int {
 // setup sets up networking through CNI using the given ns/name and sandbox ID.
 // TODO: Don't pass the pod to this method, it only needs it for bandwidth
 // shaping and hostport management.
-func (plugin *kubenetNetworkPlugin) setup(namespace string, name string, id kubecontainer.ContainerID, pod *v1.Pod) error {
+func (plugin *kubenetNetworkPlugin) setup(namespace string, name string, id kubecontainer.ContainerID, pod *api.Pod) error {
 	// Bring up container loopback interface
 	if _, err := plugin.addContainerToNetwork(plugin.loConfig, "lo", namespace, name, id); err != nil {
 		return err
@@ -375,13 +410,13 @@ func (plugin *kubenetNetworkPlugin) setup(namespace string, name string, id kube
 	}
 
 	// Open any hostports the pod's containers want
-	activePodPortMapping, err := plugin.getPodPortMapping()
+	activePods, err := plugin.getActivePods()
 	if err != nil {
 		return err
 	}
 
-	newPodPortMapping := constructPodPortMapping(pod, ip4)
-	if err := plugin.hostportSyncer.OpenPodHostportsAndSync(newPodPortMapping, BridgeName, activePodPortMapping); err != nil {
+	newPod := &hostport.ActivePod{Pod: pod, IP: ip4}
+	if err := plugin.hostportHandler.OpenPodHostportsAndSync(newPod, BridgeName, activePods); err != nil {
 		return err
 	}
 
@@ -471,9 +506,9 @@ func (plugin *kubenetNetworkPlugin) teardown(namespace string, name string, id k
 		return utilerrors.NewAggregate(errList)
 	}
 
-	activePodPortMapping, err := plugin.getPodPortMapping()
+	activePods, err := plugin.getActivePods()
 	if err == nil {
-		err = plugin.hostportSyncer.SyncHostports(BridgeName, activePodPortMapping)
+		err = plugin.hostportHandler.SyncHostports(BridgeName, activePods)
 	}
 	if err != nil {
 		errList = append(errList, err)
@@ -589,12 +624,15 @@ func (plugin *kubenetNetworkPlugin) getNonExitedPods() ([]*kubecontainer.Pod, er
 	return ret, nil
 }
 
-func (plugin *kubenetNetworkPlugin) getPodPortMapping() ([]*hostport.PodPortMapping, error) {
+// Returns a list of pods running or ready to run on this node and each pod's IP address.
+// Assumes PodSpecs retrieved from the runtime include the name and ID of containers in
+// each pod.
+func (plugin *kubenetNetworkPlugin) getActivePods() ([]*hostport.ActivePod, error) {
 	pods, err := plugin.getNonExitedPods()
 	if err != nil {
 		return nil, err
 	}
-	activePodPortMappings := make([]*hostport.PodPortMapping, 0)
+	activePods := make([]*hostport.ActivePod, 0)
 	for _, p := range pods {
 		containerID, err := plugin.host.GetRuntime().GetPodContainerID(p)
 		if err != nil {
@@ -609,33 +647,13 @@ func (plugin *kubenetNetworkPlugin) getPodPortMapping() ([]*hostport.PodPortMapp
 			continue
 		}
 		if pod, ok := plugin.host.GetPodByName(p.Namespace, p.Name); ok {
-			activePodPortMappings = append(activePodPortMappings, constructPodPortMapping(pod, podIP))
-		}
-	}
-	return activePodPortMappings, nil
-}
-
-func constructPodPortMapping(pod *v1.Pod, podIP net.IP) *hostport.PodPortMapping {
-	portMappings := make([]*hostport.PortMapping, 0)
-	for _, c := range pod.Spec.Containers {
-		for _, port := range c.Ports {
-			portMappings = append(portMappings, &hostport.PortMapping{
-				Name:          port.Name,
-				HostPort:      port.HostPort,
-				ContainerPort: port.ContainerPort,
-				Protocol:      port.Protocol,
-				HostIP:        port.HostIP,
+			activePods = append(activePods, &hostport.ActivePod{
+				Pod: pod,
+				IP:  podIP,
 			})
 		}
 	}
-
-	return &hostport.PodPortMapping{
-		Namespace:    pod.Namespace,
-		Name:         pod.Name,
-		PortMappings: portMappings,
-		HostNetwork:  pod.Spec.HostNetwork,
-		IP:           podIP,
-	}
+	return activePods, nil
 }
 
 // ipamGarbageCollection will release unused IP.
@@ -727,7 +745,7 @@ func podIsExited(p *kubecontainer.Pod) bool {
 func (plugin *kubenetNetworkPlugin) buildCNIRuntimeConf(ifName string, id kubecontainer.ContainerID) (*libcni.RuntimeConf, error) {
 	netnsPath, err := plugin.host.GetNetNS(id.ID)
 	if err != nil {
-		glog.Errorf("Kubenet failed to retrieve network namespace path: %v", err)
+		return nil, fmt.Errorf("Kubenet failed to retrieve network namespace path: %v", err)
 	}
 
 	return &libcni.RuntimeConf{
@@ -770,6 +788,7 @@ func (plugin *kubenetNetworkPlugin) delContainerFromNetwork(config *libcni.Netwo
 func (plugin *kubenetNetworkPlugin) shaper() bandwidth.BandwidthShaper {
 	if plugin.bandwidthShaper == nil {
 		plugin.bandwidthShaper = bandwidth.NewTCShaper(BridgeName)
+		plugin.ensureBridgeTxQueueLen()
 		plugin.bandwidthShaper.ReconcileInterface()
 	}
 	return plugin.bandwidthShaper

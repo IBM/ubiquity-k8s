@@ -62,9 +62,9 @@ func (g *genClientset) Imports(c *generator.Context) (imports []string) {
 		}
 	}
 	imports = append(imports, "github.com/golang/glog")
-	imports = append(imports, "k8s.io/client-go/util/flowcontrol")
+	imports = append(imports, "k8s.io/kubernetes/pkg/util/flowcontrol")
 	// import solely to initialize client auth plugins.
-	imports = append(imports, "_ \"k8s.io/client-go/plugin/pkg/client/auth\"")
+	imports = append(imports, "_ \"k8s.io/kubernetes/plugin/pkg/client/auth\"")
 	return
 }
 
@@ -72,8 +72,8 @@ func (g *genClientset) GenerateType(c *generator.Context, t *types.Type, w io.Wr
 	// TODO: We actually don't need any type information to generate the clientset,
 	// perhaps we can adapt the go2ild framework to this kind of usage.
 	sw := generator.NewSnippetWriter(w, c, "$", "$")
-	const pkgDiscovery = "k8s.io/client-go/discovery"
-	const pkgRESTClient = "k8s.io/client-go/rest"
+	const pkgDiscovery = "k8s.io/kubernetes/pkg/client/typed/discovery"
+	const pkgRESTClient = "k8s.io/kubernetes/pkg/client/restclient"
 
 	allGroups := clientgentypes.ToGroupVersionPackages(g.groups)
 
@@ -149,9 +149,6 @@ func (c *Clientset) $.Group$() $.PackageName$.$.GroupVersion$Interface {
 var getDiscoveryTemplate = `
 // Discovery retrieves the DiscoveryClient
 func (c *Clientset) Discovery() $.DiscoveryInterface|raw$ {
-	if c == nil {
-		return nil
-	}
 	return c.DiscoveryClient
 }
 `
@@ -163,19 +160,19 @@ func NewForConfig(c *$.Config|raw$) (*Clientset, error) {
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
-	var cs Clientset
+	var clientset Clientset
 	var err error
-$range .allGroups$    cs.$.GroupVersion$Client, err =$.PackageName$.NewForConfig(&configShallowCopy)
+$range .allGroups$    clientset.$.GroupVersion$Client, err =$.PackageName$.NewForConfig(&configShallowCopy)
 	if err!=nil {
 		return nil, err
 	}
 $end$
-	cs.DiscoveryClient, err = $.NewDiscoveryClientForConfig|raw$(&configShallowCopy)
+	clientset.DiscoveryClient, err = $.NewDiscoveryClientForConfig|raw$(&configShallowCopy)
 	if err!=nil {
 		glog.Errorf("failed to create the DiscoveryClient: %v", err)
 		return nil, err
 	}
-	return &cs, nil
+	return &clientset, nil
 }
 `
 
@@ -183,21 +180,21 @@ var newClientsetForConfigOrDieTemplate = `
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *$.Config|raw$) *Clientset {
-	var cs Clientset
-$range .allGroups$    cs.$.GroupVersion$Client =$.PackageName$.NewForConfigOrDie(c)
+	var clientset Clientset
+$range .allGroups$    clientset.$.GroupVersion$Client =$.PackageName$.NewForConfigOrDie(c)
 $end$
-	cs.DiscoveryClient = $.NewDiscoveryClientForConfigOrDie|raw$(c)
-	return &cs
+	clientset.DiscoveryClient = $.NewDiscoveryClientForConfigOrDie|raw$(c)
+	return &clientset
 }
 `
 
 var newClientsetForRESTClientTemplate = `
 // New creates a new Clientset for the given RESTClient.
 func New(c $.RESTClientInterface|raw$) *Clientset {
-	var cs Clientset
-$range .allGroups$    cs.$.GroupVersion$Client =$.PackageName$.New(c)
+	var clientset Clientset
+$range .allGroups$    clientset.$.GroupVersion$Client =$.PackageName$.New(c)
 $end$
-	cs.DiscoveryClient = $.NewDiscoveryClient|raw$(c)
-	return &cs
+	clientset.DiscoveryClient = $.NewDiscoveryClient|raw$(c)
+	return &clientset
 }
 `

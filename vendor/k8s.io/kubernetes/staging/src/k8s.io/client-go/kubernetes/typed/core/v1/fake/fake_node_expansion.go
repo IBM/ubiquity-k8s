@@ -18,12 +18,12 @@ package fake
 
 import (
 	"k8s.io/client-go/pkg/api/v1"
-	core "k8s.io/client-go/testing"
+	"k8s.io/client-go/testing"
 )
 
 func (c *FakeNodes) PatchStatus(nodeName string, data []byte) (*v1.Node, error) {
 	obj, err := c.Fake.Invokes(
-		core.NewRootPatchSubresourceAction(nodesResource, nodeName, data, "status"), &v1.Node{})
+		testing.NewRootPatchSubresourceAction(nodesResource, nodeName, data, "status"), &v1.Node{})
 	if obj == nil {
 		return nil, err
 	}

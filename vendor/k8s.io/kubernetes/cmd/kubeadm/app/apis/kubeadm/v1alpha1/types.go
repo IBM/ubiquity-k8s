@@ -16,46 +16,28 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
+import "k8s.io/kubernetes/pkg/api/unversioned"
 
 type MasterConfiguration struct {
-	metav1.TypeMeta `json:",inline"`
+	unversioned.TypeMeta `json:",inline"`
 
+	Secrets           Secrets    `json:"secrets"`
 	API               API        `json:"api"`
-	Discovery         Discovery  `json:"discovery"`
 	Etcd              Etcd       `json:"etcd"`
+	Discovery         Discovery  `json:"discovery"`
 	Networking        Networking `json:"networking"`
 	KubernetesVersion string     `json:"kubernetesVersion"`
 	CloudProvider     string     `json:"cloudProvider"`
-	AuthorizationMode string     `json:"authorizationMode"`
 }
 
 type API struct {
 	AdvertiseAddresses []string `json:"advertiseAddresses"`
 	ExternalDNSNames   []string `json:"externalDNSNames"`
-	Port               int32    `json:"port"`
+	BindPort           int32    `json:"bindPort"`
 }
 
 type Discovery struct {
-	HTTPS *HTTPSDiscovery `json:"https"`
-	File  *FileDiscovery  `json:"file"`
-	Token *TokenDiscovery `json:"token"`
-}
-
-type HTTPSDiscovery struct {
-	URL string `json:"url"`
-}
-
-type FileDiscovery struct {
-	Path string `json:"path"`
-}
-
-type TokenDiscovery struct {
-	ID        string   `json:"id"`
-	Secret    string   `json:"secret"`
-	Addresses []string `json:"addresses"`
+	BindPort int32 `json:"bindPort"`
 }
 
 type Networking struct {
@@ -71,15 +53,25 @@ type Etcd struct {
 	KeyFile   string   `json:"keyFile"`
 }
 
-type NodeConfiguration struct {
-	metav1.TypeMeta `json:",inline"`
+type Secrets struct {
+	GivenToken  string `json:"givenToken"`  // dot-separated `<TokenID>.<Token>` set by the user
+	TokenID     string `json:"tokenID"`     // optional on master side, will be generated if not specified
+	Token       []byte `json:"token"`       // optional on master side, will be generated if not specified
+	BearerToken string `json:"bearerToken"` // set based on Token
+}
 
-	Discovery Discovery `json:"discovery"`
+type NodeConfiguration struct {
+	unversioned.TypeMeta `json:",inline"`
+
+	MasterAddresses []string `json:"masterAddresses"`
+	Secrets         Secrets  `json:"secrets"`
+	APIPort         int32    `json:"apiPort"`
+	DiscoveryPort   int32    `json:"discoveryPort"`
 }
 
 // ClusterInfo TODO add description
 type ClusterInfo struct {
-	metav1.TypeMeta `json:",inline"`
+	unversioned.TypeMeta `json:",inline"`
 	// TODO(phase1+) this may become simply `api.Config`
 	CertificateAuthorities []string `json:"certificateAuthorities"`
 	Endpoints              []string `json:"endpoints"`

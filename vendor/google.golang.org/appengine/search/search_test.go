@@ -169,17 +169,6 @@ func TestSaveDoc(t *testing.T) {
 	}
 }
 
-func TestSaveDocUsesDefaultedRankIfNotSpecified(t *testing.T) {
-	got, err := saveDoc(&searchDoc)
-	if err != nil {
-		t.Fatalf("saveDoc: %v", err)
-	}
-	orderIdSource := got.GetOrderIdSource()
-	if orderIdSource != pb.Document_DEFAULTED {
-		t.Errorf("OrderIdSource: got %v, wanted DEFAULTED", orderIdSource)
-	}
-}
-
 func TestLoadFieldList(t *testing.T) {
 	var got FieldList
 	want := searchFieldsWithLang
@@ -242,9 +231,8 @@ func TestLoadMeta(t *testing.T) {
 		Fields: searchFieldsWithLang,
 	}
 	doc := &pb.Document{
-		Field:         protoFields,
-		OrderId:       proto.Int32(42),
-		OrderIdSource: pb.Document_SUPPLIED.Enum(),
+		Field:   protoFields,
+		OrderId: proto.Int32(42),
 	}
 	if err := loadDoc(&got, doc, nil); err != nil {
 		t.Fatalf("loadDoc: %v", err)
@@ -263,47 +251,8 @@ func TestSaveMeta(t *testing.T) {
 		t.Fatalf("saveDoc: %v", err)
 	}
 	want := &pb.Document{
-		Field:         protoFields,
-		OrderId:       proto.Int32(42),
-		OrderIdSource: pb.Document_SUPPLIED.Enum(),
-	}
-	if !proto.Equal(got, want) {
-		t.Errorf("\ngot  %v\nwant %v", got, want)
-	}
-}
-
-func TestSaveMetaWithDefaultedRank(t *testing.T) {
-	metaWithoutRank := &DocumentMetadata{
-		Rank: 0,
-	}
-	got, err := saveDoc(&FieldListWithMeta{
-		Meta:   metaWithoutRank,
-		Fields: searchFields,
-	})
-	if err != nil {
-		t.Fatalf("saveDoc: %v", err)
-	}
-	want := &pb.Document{
-		Field:         protoFields,
-		OrderId:       got.OrderId,
-		OrderIdSource: pb.Document_DEFAULTED.Enum(),
-	}
-	if !proto.Equal(got, want) {
-		t.Errorf("\ngot  %v\nwant %v", got, want)
-	}
-}
-
-func TestSaveWithoutMetaUsesDefaultedRank(t *testing.T) {
-	got, err := saveDoc(&FieldListWithMeta{
-		Fields: searchFields,
-	})
-	if err != nil {
-		t.Fatalf("saveDoc: %v", err)
-	}
-	want := &pb.Document{
-		Field:         protoFields,
-		OrderId:       got.OrderId,
-		OrderIdSource: pb.Document_DEFAULTED.Enum(),
+		Field:   protoFields,
+		OrderId: proto.Int32(42),
 	}
 	if !proto.Equal(got, want) {
 		t.Errorf("\ngot  %v\nwant %v", got, want)
@@ -342,8 +291,7 @@ func TestLoadSaveWithStruct(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveDoc: %v", err)
 	}
-	gotPB.OrderId = nil       // Don't test: it's time dependent.
-	gotPB.OrderIdSource = nil // Don't test because it's contingent on OrderId.
+	gotPB.OrderId = nil // Don't test: it's time dependent.
 	if !proto.Equal(gotPB, pb) {
 		t.Errorf("saving doc\ngot  %v\nwant %v", gotPB, pb)
 	}
@@ -538,7 +486,7 @@ func TestPut(t *testing.T) {
 		expectedIn := &pb.IndexDocumentRequest{
 			Params: &pb.IndexDocumentParams{
 				Document: []*pb.Document{
-					{Field: protoFields, OrderId: proto.Int32(42), OrderIdSource: pb.Document_SUPPLIED.Enum()},
+					{Field: protoFields, OrderId: proto.Int32(42)},
 				},
 				IndexSpec: &pb.IndexSpec{
 					Name: proto.String("Doc"),

@@ -22,36 +22,36 @@ import (
 	"sync"
 	"time"
 
-	apierrs "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
-	kubeconfigphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/kubeconfig"
 	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/pkg/apis/certificates"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	certclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/certificates/internalversion"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
+
+// ConnectionDetails represents a master API endpoint connection
+type ConnectionDetails struct {
+	CertClient *certclient.CertificatesClient
+	Endpoint   string
+	CACert     []byte
+	NodeName   types.NodeName
+}
 
 // retryTimeout between the subsequent attempts to connect
 // to an API endpoint
 const retryTimeout = 5
 
-type apiClient struct {
-	clientSet    *clientset.Clientset
-	clientConfig *clientcmdapi.Config
-}
-
 // EstablishMasterConnection establishes a connection with exactly one of the provided API endpoints.
 // The function builds a client for every endpoint and concurrently keeps trying to connect to any one
 // of the provided endpoints. Blocks until at least one connection is established, then it stops the
-// connection attempts for other endpoints and returns the valid client configuration, if any.
-func EstablishMasterConnection(c *kubeadmapi.TokenDiscovery, clusterInfo *kubeadmapi.ClusterInfo) (*clientcmdapi.Config, error) {
+// connection attempts for other endpoints.
+func EstablishMasterConnection(s *kubeadmapi.NodeConfiguration, clusterInfo *kubeadmapi.ClusterInfo) (*ConnectionDetails, error) {
 	hostName, err := os.Hostname()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get node hostname [%v]", err)
+		return nil, fmt.Errorf("<node/bootstrap> failed to get node hostname [%v]", err)
 	}
 	// TODO(phase1+) https://github.com/kubernetes/kubernetes/issues/33641
 	nodeName := types.NodeName(hostName)
@@ -60,81 +60,68 @@ func EstablishMasterConnection(c *kubeadmapi.TokenDiscovery, clusterInfo *kubead
 	caCert := []byte(clusterInfo.CertificateAuthorities[0])
 
 	stopChan := make(chan struct{})
-	var clientConfig *clientcmdapi.Config
-	var once sync.Once
+	result := make(chan *ConnectionDetails)
 	var wg sync.WaitGroup
 	for _, endpoint := range endpoints {
-		ac, err := createClients(caCert, endpoint, kubeadmutil.BearerToken(c), nodeName)
+		clientSet, err := createClients(caCert, endpoint, s.Secrets.BearerToken, nodeName)
 		if err != nil {
-			fmt.Printf("[bootstrap] Warning: %s. Skipping endpoint %s\n", err, endpoint)
+			fmt.Printf("<node/bootstrap> warning: %s. Skipping endpoint %s\n", err, endpoint)
 			continue
 		}
 		wg.Add(1)
 		go func(apiEndpoint string) {
 			defer wg.Done()
 			wait.Until(func() {
-				fmt.Printf("[bootstrap] Trying to connect to endpoint %s\n", apiEndpoint)
-				err := checkAPIEndpoint(ac.clientSet, apiEndpoint)
+				fmt.Printf("<node/bootstrap> trying to connect to endpoint %s\n", apiEndpoint)
+				err := checkAPIEndpoint(clientSet, apiEndpoint)
 				if err != nil {
-					fmt.Printf("[bootstrap] Endpoint check failed [%v]\n", err)
+					fmt.Printf("<node/bootstrap> endpoint check failed [%v]\n", err)
 					return
 				}
-				fmt.Printf("[bootstrap] Successfully established connection with endpoint %q\n", apiEndpoint)
-
+				fmt.Printf("<node/bootstrap> successfully established connection with endpoint %s\n", apiEndpoint)
 				// connection established, stop all wait threads
-				once.Do(func() {
-					close(stopChan)
-					clientConfig = ac.clientConfig
-				})
+				close(stopChan)
+				result <- &ConnectionDetails{
+					CertClient: clientSet.CertificatesClient,
+					Endpoint:   apiEndpoint,
+					CACert:     caCert,
+					NodeName:   nodeName,
+				}
 			}, retryTimeout*time.Second, stopChan)
 		}(endpoint)
 	}
-	wg.Wait()
 
-	if clientConfig == nil {
-		return nil, fmt.Errorf("failed to create bootstrap clients for any of the provided API endpoints")
+	go func() {
+		wg.Wait()
+		// all wait.Until() calls have finished now
+		close(result)
+	}()
+
+	establishedConnection, ok := <-result
+	if !ok {
+		return nil, fmt.Errorf("<node/bootstrap> failed to create bootstrap clients " +
+			"for any of the provided API endpoints")
 	}
-
-	return clientConfig, nil
+	return establishedConnection, nil
 }
 
 // creates a set of clients for this endpoint
-func createClients(caCert []byte, endpoint, token string, nodeName types.NodeName) (*apiClient, error) {
-	clientConfig := kubeconfigphase.MakeClientConfigWithToken(
-		endpoint,
-		"kubernetes",
-		fmt.Sprintf("kubelet-%s", nodeName),
-		caCert,
-		token,
-	)
-
-	bootstrapClientConfig, err := clientcmd.NewDefaultClientConfig(*clientConfig, &clientcmd.ConfigOverrides{}).ClientConfig()
+func createClients(caCert []byte, endpoint, token string, nodeName types.NodeName) (*clientset.Clientset, error) {
+	bareClientConfig := kubeadmutil.CreateBasicClientConfig("kubernetes", endpoint, caCert)
+	bootstrapClientConfig, err := clientcmd.NewDefaultClientConfig(
+		*kubeadmutil.MakeClientConfigWithToken(
+			bareClientConfig, "kubernetes", fmt.Sprintf("kubelet-%s", nodeName), token,
+		),
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client configuration [%v]", err)
 	}
 	clientSet, err := clientset.NewForConfig(bootstrapClientConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create clients for the API endpoint %q: [%v]", endpoint, err)
+		return nil, fmt.Errorf("failed to create clients for the API endpoint %s [%v]", endpoint, err)
 	}
-
-	ac := &apiClient{
-		clientSet:    clientSet,
-		clientConfig: clientConfig,
-	}
-	return ac, nil
-}
-
-// checkForNodeNameDuplicates checks whether there are other nodes in the cluster with identical node names.
-func checkForNodeNameDuplicates(clientSet *clientset.Clientset) error {
-	hostName, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("Failed to get node hostname [%v]", err)
-	}
-	_, err = clientSet.Nodes().Get(hostName, metav1.GetOptions{})
-	if err != nil && !apierrs.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return clientSet, nil
 }
 
 // checks the connection requirements for a specific API endpoint
@@ -142,9 +129,9 @@ func checkAPIEndpoint(clientSet *clientset.Clientset, endpoint string) error {
 	// check general connectivity
 	version, err := clientSet.DiscoveryClient.ServerVersion()
 	if err != nil {
-		return fmt.Errorf("failed to connect to %q [%v]", endpoint, err)
+		return fmt.Errorf("failed to connect to %s [%v]", endpoint, err)
 	}
-	fmt.Printf("[bootstrap] Detected server version: %s\n", version.String())
+	fmt.Printf("<node/bootstrap> detected server version %s\n", version.String())
 
 	// check certificates API
 	serverGroups, err := clientSet.DiscoveryClient.ServerGroups()

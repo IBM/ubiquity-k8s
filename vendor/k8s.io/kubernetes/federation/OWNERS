@@ -1,15 +1,6 @@
-reviewers:
+assignees:
+  - quinton-hoole
+  - madhusudancs
+  - mml
+  - nikhiljindal
   - colhom
-  - csbell
-  - irfanurrehman
-  - madhusudancs
-  - mwielgus
-  - nikhiljindal
-  - quinton-hoole
-  - shashidharatd
-approvers:
-  - csbell
-  - madhusudancs
-  - mwielgus
-  - nikhiljindal
-  - quinton-hoole

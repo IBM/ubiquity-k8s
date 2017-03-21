@@ -17,13 +17,11 @@ limitations under the License.
 // +k8s:openapi-gen=true
 package v0
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
+import "k8s.io/kubernetes/pkg/api/unversioned"
 
 // Policy contains a single ABAC policy rule
 type Policy struct {
-	metav1.TypeMeta `json:",inline"`
+	unversioned.TypeMeta `json:",inline"`
 
 	// User is the username this rule applies to.
 	// Either user or group is required to match the request.

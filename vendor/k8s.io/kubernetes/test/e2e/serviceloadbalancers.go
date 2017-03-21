@@ -18,18 +18,16 @@ package e2e
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
+	utilyaml "k8s.io/kubernetes/pkg/util/yaml"
 	"k8s.io/kubernetes/test/e2e/framework"
-	"k8s.io/kubernetes/test/e2e/generated"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -104,7 +102,7 @@ func (h *haproxyControllerTester) start(namespace string) (err error) {
 	if err != nil {
 		return
 	}
-	if err = framework.WaitForControlledPodsRunning(h.client, namespace, rc.Name, api.Kind("ReplicationController")); err != nil {
+	if err = framework.WaitForRCPodsRunning(h.client, namespace, rc.Name); err != nil {
 		return
 	}
 	h.rcName = rc.Name
@@ -113,7 +111,7 @@ func (h *haproxyControllerTester) start(namespace string) (err error) {
 	// Find the pods of the rc we just created.
 	labelSelector := labels.SelectorFromSet(
 		labels.Set(map[string]string{"name": h.rcName}))
-	options := metav1.ListOptions{LabelSelector: labelSelector.String()}
+	options := api.ListOptions{LabelSelector: labelSelector}
 	pods, err := h.client.Core().Pods(h.rcNamespace).List(options)
 	if err != nil {
 		return err
@@ -171,7 +169,7 @@ func (s *ingManager) start(namespace string) (err error) {
 		if err != nil {
 			return
 		}
-		if err = framework.WaitForControlledPodsRunning(s.client, rc.Namespace, rc.Name, api.Kind("ReplicationController")); err != nil {
+		if err = framework.WaitForRCPodsRunning(s.client, rc.Namespace, rc.Name); err != nil {
 			return
 		}
 	}
@@ -197,7 +195,7 @@ func (s *ingManager) test(path string) error {
 	url := fmt.Sprintf("%v/hostName", path)
 	httpClient := &http.Client{}
 	return wait.Poll(pollInterval, framework.ServiceRespondingTimeout, func() (bool, error) {
-		body, err := framework.SimpleGET(httpClient, url, "")
+		body, err := simpleGET(httpClient, url, "")
 		if err != nil {
 			framework.Logf("%v\n%v\n%v", url, body, err)
 			return false, nil
@@ -239,11 +237,35 @@ var _ = framework.KubeDescribe("ServiceLoadBalancer [Feature:ServiceLoadBalancer
 	})
 })
 
+// simpleGET executes a get on the given url, returns error if non-200 returned.
+func simpleGET(c *http.Client, url, host string) (string, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Host = host
+	res, err := c.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	rawBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	body := string(rawBody)
+	if res.StatusCode != http.StatusOK {
+		err = fmt.Errorf(
+			"GET returned http error %v", res.StatusCode)
+	}
+	return body, err
+}
+
 // rcFromManifest reads a .json/yaml file and returns the rc in it.
-func rcFromManifest(fileName string) *v1.ReplicationController {
-	var controller v1.ReplicationController
+func rcFromManifest(fileName string) *api.ReplicationController {
+	var controller api.ReplicationController
 	framework.Logf("Parsing rc from %v", fileName)
-	data := generated.ReadOrDie(fileName)
+	data := framework.ReadOrDie(fileName)
 
 	json, err := utilyaml.ToJSON(data)
 	Expect(err).NotTo(HaveOccurred())
@@ -253,10 +275,10 @@ func rcFromManifest(fileName string) *v1.ReplicationController {
 }
 
 // svcFromManifest reads a .json/yaml file and returns the rc in it.
-func svcFromManifest(fileName string) *v1.Service {
-	var svc v1.Service
+func svcFromManifest(fileName string) *api.Service {
+	var svc api.Service
 	framework.Logf("Parsing service from %v", fileName)
-	data := generated.ReadOrDie(fileName)
+	data := framework.ReadOrDie(fileName)
 
 	json, err := utilyaml.ToJSON(data)
 	Expect(err).NotTo(HaveOccurred())

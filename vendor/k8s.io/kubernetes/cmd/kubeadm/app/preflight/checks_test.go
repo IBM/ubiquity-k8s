@@ -38,28 +38,28 @@ func (pfct preflightCheckTest) Check() (warning, errors []error) {
 
 func TestRunChecks(t *testing.T) {
 	var tokenTest = []struct {
-		p        []Checker
+		p        []PreFlightCheck
 		expected bool
 		output   string
 	}{
-		{[]Checker{}, true, ""},
-		{[]Checker{preflightCheckTest{"warning"}}, true, "[preflight] WARNING: warning\n"}, // should just print warning
-		{[]Checker{preflightCheckTest{"error"}}, false, ""},
-		{[]Checker{preflightCheckTest{"test"}}, false, ""},
+		{[]PreFlightCheck{}, true, ""},
+		{[]PreFlightCheck{preflightCheckTest{"warning"}}, true, "WARNING: warning\n"}, // should just print warning
+		{[]PreFlightCheck{preflightCheckTest{"error"}}, false, ""},
+		{[]PreFlightCheck{preflightCheckTest{"test"}}, false, ""},
 	}
 	for _, rt := range tokenTest {
 		buf := new(bytes.Buffer)
-		actual := RunChecks(rt.p, buf)
+		actual := runChecks(rt.p, buf)
 		if (actual == nil) != rt.expected {
 			t.Errorf(
-				"failed RunChecks:\n\texpected: %t\n\t  actual: %t",
+				"failed runChecks:\n\texpected: %t\n\t  actual: %t",
 				rt.expected,
 				(actual == nil),
 			)
 		}
 		if buf.String() != rt.output {
 			t.Errorf(
-				"failed RunChecks:\n\texpected: %s\n\t  actual: %s",
+				"failed runChecks:\n\texpected: %s\n\t  actual: %s",
 				rt.output,
 				buf.String(),
 			)

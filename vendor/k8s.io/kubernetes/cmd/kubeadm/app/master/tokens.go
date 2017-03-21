@@ -22,27 +22,43 @@ import (
 	"os"
 	"path"
 
-	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
+	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	"k8s.io/kubernetes/pkg/util/uuid"
 )
 
-const (
-	// TODO: prefix with kubeadm prefix
-	KubeletBootstrapUser = "kubeadm-node-csr"
-
-	KubeletBootstrapGroup = "kubeadm:kubelet-bootstrap"
-)
-
-func CreateTokenAuthFile(bt string) error {
-	tokenAuthFilePath := path.Join(kubeadmapi.GlobalEnvParams.HostPKIPath, "tokens.csv")
-	if err := os.MkdirAll(kubeadmapi.GlobalEnvParams.HostPKIPath, 0700); err != nil {
-		return fmt.Errorf("failed to create directory %q [%v]", kubeadmapi.GlobalEnvParams.HostPKIPath, err)
+func generateTokenIfNeeded(s *kubeadmapi.Secrets) error {
+	ok, err := kubeadmutil.UseGivenTokenIfValid(s)
+	// TODO(phase1+) @krousey: I know it won't happen with the way it is currently implemented, but this doesn't handle case where ok is true and err is non-nil.
+	if !ok {
+		if err != nil {
+			return err
+		}
+		err = kubeadmutil.GenerateToken(s)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("<master/tokens> generated token: %q\n", s.GivenToken)
+	} else {
+		fmt.Println("<master/tokens> accepted provided token")
 	}
-	serialized := []byte(fmt.Sprintf("%s,%s,%s,%s\n", bt, KubeletBootstrapUser, uuid.NewUUID(), KubeletBootstrapGroup))
+
+	return nil
+}
+
+func CreateTokenAuthFile(s *kubeadmapi.Secrets) error {
+	tokenAuthFilePath := path.Join(kubeadmapi.GlobalEnvParams.HostPKIPath, "tokens.csv")
+	if err := generateTokenIfNeeded(s); err != nil {
+		return fmt.Errorf("<master/tokens> failed to generate token(s) [%v]", err)
+	}
+	if err := os.MkdirAll(kubeadmapi.GlobalEnvParams.HostPKIPath, 0700); err != nil {
+		return fmt.Errorf("<master/tokens> failed to create directory %q [%v]", kubeadmapi.GlobalEnvParams.HostPKIPath, err)
+	}
+	serialized := []byte(fmt.Sprintf("%s,kubeadm-node-csr,%s,system:kubelet-bootstrap\n", s.BearerToken, uuid.NewUUID()))
 	// DumpReaderToFile create a file with mode 0600
 	if err := cmdutil.DumpReaderToFile(bytes.NewReader(serialized), tokenAuthFilePath); err != nil {
-		return fmt.Errorf("failed to save token auth file (%q) [%v]", tokenAuthFilePath, err)
+		return fmt.Errorf("<master/tokens> failed to save token auth file (%q) [%v]", tokenAuthFilePath, err)
 	}
 	return nil
 }

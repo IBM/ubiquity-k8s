@@ -21,9 +21,9 @@ import (
 	"os"
 	"path"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -39,9 +39,9 @@ var _ = framework.KubeDescribe("HostPath", func() {
 		_ = os.Remove("/tmp/test-file")
 	})
 
-	It("should give a volume the correct mode [Conformance] [Volume]", func() {
+	It("should give a volume the correct mode [Conformance]", func() {
 		volumePath := "/test-volume"
-		source := &v1.HostPathVolumeSource{
+		source := &api.HostPathVolumeSource{
 			Path: "/tmp",
 		}
 		pod := testPodWithHostVol(volumePath, source)
@@ -56,11 +56,11 @@ var _ = framework.KubeDescribe("HostPath", func() {
 	})
 
 	// This test requires mounting a folder into a container with write privileges.
-	It("should support r/w [Volume]", func() {
+	It("should support r/w", func() {
 		volumePath := "/test-volume"
 		filePath := path.Join(volumePath, "test-file")
 		retryDuration := 180
-		source := &v1.HostPathVolumeSource{
+		source := &api.HostPathVolumeSource{
 			Path: "/tmp",
 		}
 		pod := testPodWithHostVol(volumePath, source)
@@ -81,7 +81,7 @@ var _ = framework.KubeDescribe("HostPath", func() {
 		})
 	})
 
-	It("should support subPath [Volume]", func() {
+	It("should support subPath", func() {
 		volumePath := "/test-volume"
 		subPath := "sub-path"
 		fileName := "test-file"
@@ -90,7 +90,7 @@ var _ = framework.KubeDescribe("HostPath", func() {
 		filePathInWriter := path.Join(volumePath, fileName)
 		filePathInReader := path.Join(volumePath, subPath, fileName)
 
-		source := &v1.HostPathVolumeSource{
+		source := &api.HostPathVolumeSource{
 			Path: "/tmp",
 		}
 		pod := testPodWithHostVol(volumePath, source)
@@ -118,11 +118,11 @@ var _ = framework.KubeDescribe("HostPath", func() {
 const containerName1 = "test-container-1"
 const containerName2 = "test-container-2"
 
-func mount(source *v1.HostPathVolumeSource) []v1.Volume {
-	return []v1.Volume{
+func mount(source *api.HostPathVolumeSource) []api.Volume {
+	return []api.Volume{
 		{
 			Name: volumeName,
-			VolumeSource: v1.VolumeSource{
+			VolumeSource: api.VolumeSource{
 				HostPath: source,
 			},
 		},
@@ -130,48 +130,41 @@ func mount(source *v1.HostPathVolumeSource) []v1.Volume {
 }
 
 //TODO: To merge this with the emptyDir tests, we can make source a lambda.
-func testPodWithHostVol(path string, source *v1.HostPathVolumeSource) *v1.Pod {
+func testPodWithHostVol(path string, source *api.HostPathVolumeSource) *api.Pod {
 	podName := "pod-host-path-test"
-	privileged := true
 
-	return &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+	return &api.Pod{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+			APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: podName,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  containerName1,
-					Image: "gcr.io/google_containers/mounttest:0.8",
-					VolumeMounts: []v1.VolumeMount{
+					Image: "gcr.io/google_containers/mounttest:0.7",
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      volumeName,
 							MountPath: path,
 						},
-					},
-					SecurityContext: &v1.SecurityContext{
-						Privileged: &privileged,
 					},
 				},
 				{
 					Name:  containerName2,
-					Image: "gcr.io/google_containers/mounttest:0.8",
-					VolumeMounts: []v1.VolumeMount{
+					Image: "gcr.io/google_containers/mounttest:0.7",
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      volumeName,
 							MountPath: path,
 						},
 					},
-					SecurityContext: &v1.SecurityContext{
-						Privileged: &privileged,
-					},
 				},
 			},
-			RestartPolicy: v1.RestartPolicyNever,
+			RestartPolicy: api.RestartPolicyNever,
 			Volumes:       mount(source),
 		},
 	}

@@ -129,9 +129,7 @@ import (
 	api "google.golang.org/api/cloudtrace/v1"
 	"google.golang.org/api/gensupport"
 	"google.golang.org/api/option"
-	"google.golang.org/api/support/bundler"
 	"google.golang.org/api/transport"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -148,7 +146,7 @@ const (
 	labelStatusCode     = `trace.cloud.google.com/http/status_code`
 	labelURL            = `trace.cloud.google.com/http/url`
 	labelSamplingPolicy = `trace.cloud.google.com/sampling_policy`
-	labelSamplingWeight = `trace.cloud.google.com/sampling_weight`
+	labelSamplingRate   = `trace.cloud.google.com/sampling_rate`
 )
 
 type contextKey struct{}
@@ -196,28 +194,6 @@ func requestHook(ctx context.Context, req *http.Request) func(resp *http.Respons
 	}
 }
 
-// EnableGRPCTracingDialOption enables tracing of requests that are sent over a
-// gRPC connection.
-// The functionality in gRPC that this relies on is currently experimental.
-var EnableGRPCTracingDialOption grpc.DialOption = grpc.WithUnaryInterceptor(grpc.UnaryClientInterceptor(grpcUnaryInterceptor))
-
-// EnableGRPCTracing enables tracing of requests for clients that use gRPC
-// connections.
-// The functionality in gRPC that this relies on is currently experimental.
-var EnableGRPCTracing option.ClientOption = option.WithGRPCDialOption(EnableGRPCTracingDialOption)
-
-func grpcUnaryInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	// TODO: also intercept streams.
-	span := FromContext(ctx).NewChild(method)
-	err := invoker(ctx, method, req, reply, cc, opts...)
-	if err != nil {
-		// TODO: standardize gRPC label names?
-		span.SetLabel("error", err.Error())
-	}
-	span.Finish()
-	return err
-}
-
 // nextSpanID returns a new span ID.  It will never return zero.
 func nextSpanID() uint64 {
 	var id uint64
@@ -239,7 +215,6 @@ type Client struct {
 	service   *api.Service
 	projectID string
 	policy    SamplingPolicy
-	bundler   *bundler.Bundler
 }
 
 // NewClient creates a new Google Stackdriver Trace client.
@@ -261,25 +236,10 @@ func NewClient(ctx context.Context, projectID string, opts ...option.ClientOptio
 		// An option set a basepath, so override api.New's default.
 		apiService.BasePath = basePath
 	}
-	c := &Client{
+	return &Client{
 		service:   apiService,
 		projectID: projectID,
-	}
-	bundler := bundler.NewBundler((*api.Trace)(nil), func(bundle interface{}) {
-		traces := bundle.([]*api.Trace)
-		err := c.upload(traces)
-		if err != nil {
-			log.Printf("failed to upload %d traces to the Cloud Trace server.", len(traces))
-		}
-	})
-	bundler.DelayThreshold = 2 * time.Second
-	bundler.BundleCountThreshold = 100
-	// We're not measuring bytes here, we're counting traces and spans as one "byte" each.
-	bundler.BundleByteThreshold = 1000
-	bundler.BundleByteLimit = 1000
-	bundler.BufferedByteLimit = 10000
-	c.bundler = bundler
-	return c, nil
+	}, nil
 }
 
 // SetSamplingPolicy sets the SamplingPolicy that determines how often traces
@@ -302,30 +262,27 @@ func (client *Client) SpanFromRequest(r *http.Request) *Span {
 		return nil
 	}
 	span := traceInfoFromRequest(r)
+	var (
+		sample bool
+		reason string
+		rate   float64
+	)
 	if client.policy != nil {
-		d := client.policy.Sample(Parameters{HasTraceHeader: span != nil})
-		if !d.Trace {
-			return nil
-		}
-		if d.Sample {
-			// Include this request in the random sample.
-			if span == nil {
-				// We didn't create a trace from the request's headers, so create one
-				// now.
-				t := &trace{
-					traceID: nextTraceID(),
-					options: optionTrace,
-					client:  client,
-				}
-				span = startNewChildWithRequest(r, t, 0 /* parentSpanID */)
-				span.span.Kind = spanKindServer
-				span.rootSpan = true
+		sample, reason, rate = client.policy.Sample()
+	}
+	if sample {
+		if span == nil {
+			t := &trace{
+				traceID: nextTraceID(),
+				options: optionTrace,
+				client:  client,
 			}
-			// However the trace was initiated, it's in the random sample, so set the
-			// labels.
-			span.SetLabel(labelSamplingPolicy, d.Policy)
-			span.SetLabel(labelSamplingWeight, fmt.Sprint(d.Weight))
+			span = startNewChildWithRequest(r, t, 0 /* parentSpanID */)
+			span.span.Kind = spanKindServer
+			span.rootSpan = true
 		}
+		span.SetLabel(labelSamplingPolicy, reason)
+		span.SetLabel(labelSamplingRate, fmt.Sprint(rate))
 	}
 	if span == nil {
 		return nil
@@ -426,14 +383,10 @@ func (t *trace) finish(s *Span, wait bool, opts ...FinishOption) error {
 	t.mu.Unlock()
 	if s.rootSpan {
 		if wait {
-			return t.client.upload([]*api.Trace{t.constructTrace(spans)})
+			return t.upload(spans)
 		}
 		go func() {
-			tr := t.constructTrace(spans)
-			err := t.client.bundler.Add(tr, 1+len(spans))
-			if err == bundler.ErrOversizedItem {
-				err = t.client.upload([]*api.Trace{tr})
-			}
+			err := t.upload(spans)
 			if err != nil {
 				log.Println("error uploading trace:", err)
 			}
@@ -442,7 +395,7 @@ func (t *trace) finish(s *Span, wait bool, opts ...FinishOption) error {
 	return nil
 }
 
-func (t *trace) constructTrace(spans []*Span) *api.Trace {
+func (t *trace) upload(spans []*Span) error {
 	apiSpans := make([]*api.TraceSpan, len(spans))
 	for i, sp := range spans {
 		sp.span.StartTime = sp.start.In(time.UTC).Format(time.RFC3339Nano)
@@ -459,15 +412,16 @@ func (t *trace) constructTrace(spans []*Span) *api.Trace {
 		apiSpans[i] = &sp.span
 	}
 
-	return &api.Trace{
-		ProjectId: t.client.projectID,
-		TraceId:   t.traceID,
-		Spans:     apiSpans,
+	traces := &api.Traces{
+		Traces: []*api.Trace{
+			{
+				ProjectId: t.client.projectID,
+				TraceId:   t.traceID,
+				Spans:     apiSpans,
+			},
+		},
 	}
-}
-
-func (c *Client) upload(traces []*api.Trace) error {
-	_, err := c.service.Projects.PatchTraces(c.projectID, &api.Traces{Traces: traces}).Do()
+	_, err := t.client.service.Projects.PatchTraces(t.client.projectID, traces).Do()
 	return err
 }
 

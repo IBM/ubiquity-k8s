@@ -22,10 +22,9 @@ import (
 	"path"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
-	storage "k8s.io/kubernetes/pkg/apis/storage/v1beta1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/storage"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/util/mount"
 )
 
@@ -114,12 +113,12 @@ func PathExists(path string) (bool, error) {
 }
 
 // GetSecretForPod locates secret by name in the pod's namespace and returns secret map
-func GetSecretForPod(pod *v1.Pod, secretName string, kubeClient clientset.Interface) (map[string]string, error) {
+func GetSecretForPod(pod *api.Pod, secretName string, kubeClient clientset.Interface) (map[string]string, error) {
 	secret := make(map[string]string)
 	if kubeClient == nil {
 		return secret, fmt.Errorf("Cannot get kube client")
 	}
-	secrets, err := kubeClient.Core().Secrets(pod.Namespace).Get(secretName, metav1.GetOptions{})
+	secrets, err := kubeClient.Core().Secrets(pod.Namespace).Get(secretName)
 	if err != nil {
 		return secret, err
 	}
@@ -135,11 +134,11 @@ func GetSecretForPV(secretNamespace, secretName, volumePluginName string, kubeCl
 	if kubeClient == nil {
 		return secret, fmt.Errorf("Cannot get kube client")
 	}
-	secrets, err := kubeClient.Core().Secrets(secretNamespace).Get(secretName, metav1.GetOptions{})
+	secrets, err := kubeClient.Core().Secrets(secretNamespace).Get(secretName)
 	if err != nil {
 		return secret, err
 	}
-	if secrets.Type != v1.SecretType(volumePluginName) {
+	if secrets.Type != api.SecretType(volumePluginName) {
 		return secret, fmt.Errorf("Cannot get secret of type %s", volumePluginName)
 	}
 	for name, data := range secrets.Data {
@@ -148,17 +147,14 @@ func GetSecretForPV(secretNamespace, secretName, volumePluginName string, kubeCl
 	return secret, nil
 }
 
-func GetClassForVolume(kubeClient clientset.Interface, pv *v1.PersistentVolume) (*storage.StorageClass, error) {
-	if kubeClient == nil {
-		return nil, fmt.Errorf("Cannot get kube client")
-	}
+func GetClassForVolume(kubeClient clientset.Interface, pv *api.PersistentVolume) (*storage.StorageClass, error) {
 	// TODO: replace with a real attribute after beta
 	className, found := pv.Annotations["volume.beta.kubernetes.io/storage-class"]
 	if !found {
 		return nil, fmt.Errorf("Volume has no class annotation")
 	}
 
-	class, err := kubeClient.Storage().StorageClasses().Get(className, metav1.GetOptions{})
+	class, err := kubeClient.Storage().StorageClasses().Get(className)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,7 @@ limitations under the License.
 package internalversion
 
 import (
-	rest "k8s.io/client-go/rest"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
 )
 
 // SelfSubjectAccessReviewsGetter has a method to return a SelfSubjectAccessReviewInterface.
@@ -33,7 +33,7 @@ type SelfSubjectAccessReviewInterface interface {
 
 // selfSubjectAccessReviews implements SelfSubjectAccessReviewInterface
 type selfSubjectAccessReviews struct {
-	client rest.Interface
+	client restclient.Interface
 }
 
 // newSelfSubjectAccessReviews returns a SelfSubjectAccessReviews

@@ -1,10 +1,10 @@
-// Copyright 2016, Google Inc. All rights reserved.
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,10 +22,8 @@ import (
 	"runtime"
 	"time"
 
-	"cloud.google.com/go/iam"
 	gax "github.com/googleapis/gax-go"
 	"golang.org/x/net/context"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/transport"
 	pubsubpb "google.golang.org/genproto/googleapis/pubsub/v1"
@@ -40,7 +38,7 @@ var (
 	subscriberTopicPathTemplate        = gax.MustCompilePathTemplate("projects/{project}/topics/{topic}")
 )
 
-// SubscriberCallOptions contains the retry settings for each method of SubscriberClient.
+// SubscriberCallOptions contains the retry settings for each method of this client.
 type SubscriberCallOptions struct {
 	CreateSubscription []gax.CallOption
 	GetSubscription    []gax.CallOption
@@ -77,6 +75,7 @@ func defaultSubscriberCallOptions() *SubscriberCallOptions {
 			}),
 		},
 	}
+
 	return &SubscriberCallOptions{
 		CreateSubscription: retry[[2]string{"default", "idempotent"}],
 		GetSubscription:    retry[[2]string{"default", "idempotent"}],
@@ -89,22 +88,22 @@ func defaultSubscriberCallOptions() *SubscriberCallOptions {
 	}
 }
 
-// SubscriberClient is a client for interacting with Google Cloud Pub/Sub API.
+// SubscriberClient is a client for interacting with Subscriber.
 type SubscriberClient struct {
 	// The connection to the service.
 	conn *grpc.ClientConn
 
 	// The gRPC API client.
-	subscriberClient pubsubpb.SubscriberClient
+	client pubsubpb.SubscriberClient
 
 	// The call options for this service.
 	CallOptions *SubscriberCallOptions
 
 	// The metadata to be sent with each request.
-	metadata metadata.MD
+	metadata map[string][]string
 }
 
-// NewSubscriberClient creates a new subscriber client.
+// NewSubscriberClient creates a new subscriber service client.
 //
 // The service that an application uses to manipulate subscriptions and to
 // consume messages from a subscription via the `Pull` method.
@@ -115,9 +114,8 @@ func NewSubscriberClient(ctx context.Context, opts ...option.ClientOption) (*Sub
 	}
 	c := &SubscriberClient{
 		conn:        conn,
+		client:      pubsubpb.NewSubscriberClient(conn),
 		CallOptions: defaultSubscriberCallOptions(),
-
-		subscriberClient: pubsubpb.NewSubscriberClient(conn),
 	}
 	c.SetGoogleClientInfo("gax", gax.Version)
 	return c, nil
@@ -138,11 +136,12 @@ func (c *SubscriberClient) Close() error {
 // the `x-goog-api-client` header passed on each request. Intended for
 // use by Google-written clients.
 func (c *SubscriberClient) SetGoogleClientInfo(name, version string) {
-	v := fmt.Sprintf("%s/%s %s gax/%s go/%s", name, version, gapicNameVersion, gax.Version, runtime.Version())
-	c.metadata = metadata.Pairs("x-goog-api-client", v)
+	c.metadata = map[string][]string{
+		"x-goog-api-client": {fmt.Sprintf("%s/%s %s gax/%s go/%s", name, version, gapicNameVersion, gax.Version, runtime.Version())},
+	}
 }
 
-// SubscriberProjectPath returns the path for the project resource.
+// ProjectPath returns the path for the project resource.
 func SubscriberProjectPath(project string) string {
 	path, err := subscriberProjectPathTemplate.Render(map[string]string{
 		"project": project,
@@ -153,8 +152,8 @@ func SubscriberProjectPath(project string) string {
 	return path
 }
 
-// SubscriberSubscriptionPath returns the path for the subscription resource.
-func SubscriberSubscriptionPath(project, subscription string) string {
+// SubscriptionPath returns the path for the subscription resource.
+func SubscriberSubscriptionPath(project string, subscription string) string {
 	path, err := subscriberSubscriptionPathTemplate.Render(map[string]string{
 		"project":      project,
 		"subscription": subscription,
@@ -165,8 +164,8 @@ func SubscriberSubscriptionPath(project, subscription string) string {
 	return path
 }
 
-// SubscriberTopicPath returns the path for the topic resource.
-func SubscriberTopicPath(project, topic string) string {
+// TopicPath returns the path for the topic resource.
+func SubscriberTopicPath(project string, topic string) string {
 	path, err := subscriberTopicPathTemplate.Render(map[string]string{
 		"project": project,
 		"topic":   topic,
@@ -177,28 +176,18 @@ func SubscriberTopicPath(project, topic string) string {
 	return path
 }
 
-func (c *SubscriberClient) SubscriptionIAM(subscription *pubsubpb.Subscription) *iam.Handle {
-	return iam.InternalNewHandle(c.Connection(), subscription.Name)
-}
-
-func (c *SubscriberClient) TopicIAM(topic *pubsubpb.Topic) *iam.Handle {
-	return iam.InternalNewHandle(c.Connection(), topic.Name)
-}
-
-// CreateSubscription creates a subscription to a given topic.
+// CreateSubscription creates a subscription to a given topic for a given subscriber.
 // If the subscription already exists, returns `ALREADY_EXISTS`.
 // If the corresponding topic doesn't exist, returns `NOT_FOUND`.
 //
 // If the name is not provided in the request, the server will assign a random
-// name for this subscription on the same project as the topic. Note that
-// for REST API requests, you must specify a name.
+// name for this subscription on the same project as the topic.
 func (c *SubscriberClient) CreateSubscription(ctx context.Context, req *pubsubpb.Subscription) (*pubsubpb.Subscription, error) {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	var resp *pubsubpb.Subscription
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		resp, err = c.subscriberClient.CreateSubscription(ctx, req)
+		resp, err = c.client.CreateSubscription(ctx, req)
 		return err
 	}, c.CallOptions.CreateSubscription...)
 	if err != nil {
@@ -209,12 +198,11 @@ func (c *SubscriberClient) CreateSubscription(ctx context.Context, req *pubsubpb
 
 // GetSubscription gets the configuration details of a subscription.
 func (c *SubscriberClient) GetSubscription(ctx context.Context, req *pubsubpb.GetSubscriptionRequest) (*pubsubpb.Subscription, error) {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	var resp *pubsubpb.Subscription
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		resp, err = c.subscriberClient.GetSubscription(ctx, req)
+		resp, err = c.client.GetSubscription(ctx, req)
 		return err
 	}, c.CallOptions.GetSubscription...)
 	if err != nil {
@@ -225,33 +213,27 @@ func (c *SubscriberClient) GetSubscription(ctx context.Context, req *pubsubpb.Ge
 
 // ListSubscriptions lists matching subscriptions.
 func (c *SubscriberClient) ListSubscriptions(ctx context.Context, req *pubsubpb.ListSubscriptionsRequest) *SubscriptionIterator {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	it := &SubscriptionIterator{}
-	it.InternalFetch = func(pageSize int, pageToken string) ([]*pubsubpb.Subscription, string, error) {
+	it.apiCall = func() error {
 		var resp *pubsubpb.ListSubscriptionsResponse
-		req.PageToken = pageToken
-		if pageSize > math.MaxInt32 {
-			req.PageSize = math.MaxInt32
-		} else {
-			req.PageSize = int32(pageSize)
-		}
 		err := gax.Invoke(ctx, func(ctx context.Context) error {
 			var err error
-			resp, err = c.subscriberClient.ListSubscriptions(ctx, req)
+			req.PageToken = it.nextPageToken
+			req.PageSize = it.pageSize
+			resp, err = c.client.ListSubscriptions(ctx, req)
 			return err
 		}, c.CallOptions.ListSubscriptions...)
-		return resp.Subscriptions, resp.NextPageToken, err
-	}
-	fetch := func(pageSize int, pageToken string) (string, error) {
-		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
 		if err != nil {
-			return "", err
+			return err
 		}
-		it.items = append(it.items, items...)
-		return nextPageToken, nil
+		if resp.NextPageToken == "" {
+			it.atLastPage = true
+		}
+		it.nextPageToken = resp.NextPageToken
+		it.items = resp.Subscriptions
+		return nil
 	}
-	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
 	return it
 }
 
@@ -261,11 +243,10 @@ func (c *SubscriberClient) ListSubscriptions(ctx context.Context, req *pubsubpb.
 // the same name, but the new one has no association with the old
 // subscription, or its topic unless the same topic is specified.
 func (c *SubscriberClient) DeleteSubscription(ctx context.Context, req *pubsubpb.DeleteSubscriptionRequest) error {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		_, err = c.subscriberClient.DeleteSubscription(ctx, req)
+		_, err = c.client.DeleteSubscription(ctx, req)
 		return err
 	}, c.CallOptions.DeleteSubscription...)
 	return err
@@ -274,14 +255,12 @@ func (c *SubscriberClient) DeleteSubscription(ctx context.Context, req *pubsubpb
 // ModifyAckDeadline modifies the ack deadline for a specific message. This method is useful
 // to indicate that more time is needed to process a message by the
 // subscriber, or to make the message available for redelivery if the
-// processing was interrupted. Note that this does not modify the
-// subscription-level `ackDeadlineSeconds` used for subsequent messages.
+// processing was interrupted.
 func (c *SubscriberClient) ModifyAckDeadline(ctx context.Context, req *pubsubpb.ModifyAckDeadlineRequest) error {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		_, err = c.subscriberClient.ModifyAckDeadline(ctx, req)
+		_, err = c.client.ModifyAckDeadline(ctx, req)
 		return err
 	}, c.CallOptions.ModifyAckDeadline...)
 	return err
@@ -295,11 +274,10 @@ func (c *SubscriberClient) ModifyAckDeadline(ctx context.Context, req *pubsubpb.
 // but such a message may be redelivered later. Acknowledging a message more
 // than once will not result in an error.
 func (c *SubscriberClient) Acknowledge(ctx context.Context, req *pubsubpb.AcknowledgeRequest) error {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		_, err = c.subscriberClient.Acknowledge(ctx, req)
+		_, err = c.client.Acknowledge(ctx, req)
 		return err
 	}, c.CallOptions.Acknowledge...)
 	return err
@@ -310,12 +288,11 @@ func (c *SubscriberClient) Acknowledge(ctx context.Context, req *pubsubpb.Acknow
 // there are too many concurrent pull requests pending for the given
 // subscription.
 func (c *SubscriberClient) Pull(ctx context.Context, req *pubsubpb.PullRequest) (*pubsubpb.PullResponse, error) {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	var resp *pubsubpb.PullResponse
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		resp, err = c.subscriberClient.Pull(ctx, req)
+		resp, err = c.client.Pull(ctx, req)
 		return err
 	}, c.CallOptions.Pull...)
 	if err != nil {
@@ -331,11 +308,10 @@ func (c *SubscriberClient) Pull(ctx context.Context, req *pubsubpb.PullRequest) 
 // attributes of a push subscription. Messages will accumulate for delivery
 // continuously through the call regardless of changes to the `PushConfig`.
 func (c *SubscriberClient) ModifyPushConfig(ctx context.Context, req *pubsubpb.ModifyPushConfigRequest) error {
-	md, _ := metadata.FromContext(ctx)
-	ctx = metadata.NewContext(ctx, metadata.Join(md, c.metadata))
+	ctx = metadata.NewContext(ctx, c.metadata)
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
 		var err error
-		_, err = c.subscriberClient.ModifyPushConfig(ctx, req)
+		_, err = c.client.ModifyPushConfig(ctx, req)
 		return err
 	}, c.CallOptions.ModifyPushConfig...)
 	return err
@@ -343,41 +319,84 @@ func (c *SubscriberClient) ModifyPushConfig(ctx context.Context, req *pubsubpb.M
 
 // SubscriptionIterator manages a stream of *pubsubpb.Subscription.
 type SubscriptionIterator struct {
-	items    []*pubsubpb.Subscription
-	pageInfo *iterator.PageInfo
-	nextFunc func() error
-
-	// InternalFetch is for use by the Google Cloud Libraries only.
-	// It is not part of the stable interface of this package.
-	//
-	// InternalFetch returns results from a single call to the underlying RPC.
-	// The number of results is no greater than pageSize.
-	// If there are no more results, nextPageToken is empty and err is nil.
-	InternalFetch func(pageSize int, pageToken string) (results []*pubsubpb.Subscription, nextPageToken string, err error)
+	// The current page data.
+	items         []*pubsubpb.Subscription
+	atLastPage    bool
+	currentIndex  int
+	pageSize      int32
+	nextPageToken string
+	apiCall       func() error
 }
 
-// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
-func (it *SubscriptionIterator) PageInfo() *iterator.PageInfo {
-	return it.pageInfo
-}
-
-// Next returns the next result. Its second return value is iterator.Done if there are no more
-// results. Once Next returns Done, all subsequent calls will return Done.
-func (it *SubscriptionIterator) Next() (*pubsubpb.Subscription, error) {
-	if err := it.nextFunc(); err != nil {
+// NextPage returns the next page of results.
+// It will return at most the number of results specified by the last call to SetPageSize.
+// If SetPageSize was never called or was called with a value less than 1,
+// the page size is determined by the underlying service.
+//
+// NextPage may return a second return value of Done along with the last page of results. After
+// NextPage returns Done, all subsequent calls to NextPage will return (nil, Done).
+//
+// Next and NextPage should not be used with the same iterator.
+func (it *SubscriptionIterator) NextPage() ([]*pubsubpb.Subscription, error) {
+	if it.atLastPage {
+		// We already returned Done with the last page of items. Continue to
+		// return Done, but with no items.
+		return nil, Done
+	}
+	if err := it.apiCall(); err != nil {
 		return nil, err
 	}
-	item := it.items[0]
-	it.items = it.items[1:]
-	return item, nil
+	if it.atLastPage {
+		return it.items, Done
+	}
+	return it.items, nil
 }
 
-func (it *SubscriptionIterator) bufLen() int {
-	return len(it.items)
+// Next returns the next result. Its second return value is Done if there are no more results.
+// Once next returns Done, all subsequent calls will return Done.
+//
+// Internally, Next retrieves results in bulk. You can call SetPageSize as a performance hint to
+// affect how many results are retrieved in a single RPC.
+//
+// SetPageToken should not be called when using Next.
+//
+// Next and NextPage should not be used with the same iterator.
+func (it *SubscriptionIterator) Next() (*pubsubpb.Subscription, error) {
+	for it.currentIndex >= len(it.items) {
+		if it.atLastPage {
+			return nil, Done
+		}
+		if err := it.apiCall(); err != nil {
+			return nil, err
+		}
+		it.currentIndex = 0
+	}
+	result := it.items[it.currentIndex]
+	it.currentIndex++
+	return result, nil
 }
 
-func (it *SubscriptionIterator) takeBuf() interface{} {
-	b := it.items
-	it.items = nil
-	return b
+// PageSize returns the page size for all subsequent calls to NextPage.
+func (it *SubscriptionIterator) PageSize() int {
+	return int(it.pageSize)
+}
+
+// SetPageSize sets the page size for all subsequent calls to NextPage.
+func (it *SubscriptionIterator) SetPageSize(pageSize int) {
+	if pageSize > math.MaxInt32 {
+		pageSize = math.MaxInt32
+	}
+	it.pageSize = int32(pageSize)
+}
+
+// SetPageToken sets the page token for the next call to NextPage, to resume the iteration from
+// a previous point.
+func (it *SubscriptionIterator) SetPageToken(token string) {
+	it.nextPageToken = token
+}
+
+// NextPageToken returns a page token that can be used with SetPageToken to resume
+// iteration from the next page. It returns the empty string if there are no more pages.
+func (it *SubscriptionIterator) NextPageToken() string {
+	return it.nextPageToken
 }

@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"sync"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/operationexecutor"
 	"k8s.io/kubernetes/pkg/volume/util/types"
@@ -51,7 +51,7 @@ type DesiredStateOfWorld interface {
 	// added.
 	// If a pod with the same unique name already exists under the specified
 	// volume, this is a no-op.
-	AddPodToVolume(podName types.UniquePodName, pod *v1.Pod, volumeSpec *volume.Spec, outerVolumeSpecName string, volumeGidValue string) (v1.UniqueVolumeName, error)
+	AddPodToVolume(podName types.UniquePodName, pod *api.Pod, volumeSpec *volume.Spec, outerVolumeSpecName string, volumeGidValue string) (api.UniqueVolumeName, error)
 
 	// MarkVolumesReportedInUse sets the ReportedInUse value to true for the
 	// reportedVolumes. For volumes not in the reportedVolumes list, the
@@ -62,7 +62,7 @@ type DesiredStateOfWorld interface {
 	// to check this value before issuing the operation.
 	// If a volume in the reportedVolumes list does not exist in the list of
 	// volumes that should be attached to this node, it is skipped without error.
-	MarkVolumesReportedInUse(reportedVolumes []v1.UniqueVolumeName)
+	MarkVolumesReportedInUse(reportedVolumes []api.UniqueVolumeName)
 
 	// DeletePodFromVolume removes the given pod from the given volume in the
 	// cache indicating the specified pod no longer requires the specified
@@ -73,13 +73,13 @@ type DesiredStateOfWorld interface {
 	// attached volumes, this is a no-op.
 	// If after deleting the pod, the specified volume contains no other child
 	// pods, the volume is also deleted.
-	DeletePodFromVolume(podName types.UniquePodName, volumeName v1.UniqueVolumeName)
+	DeletePodFromVolume(podName types.UniquePodName, volumeName api.UniqueVolumeName)
 
 	// VolumeExists returns true if the given volume exists in the list of
 	// volumes that should be attached to this node.
 	// If a pod with the same unique name does not exist under the specified
 	// volume, false is returned.
-	VolumeExists(volumeName v1.UniqueVolumeName) bool
+	VolumeExists(volumeName api.UniqueVolumeName) bool
 
 	// PodExistsInVolume returns true if the given pod exists in the list of
 	// podsToMount for the given volume in the cache.
@@ -87,7 +87,7 @@ type DesiredStateOfWorld interface {
 	// volume, false is returned.
 	// If a volume with the name volumeName does not exist in the list of
 	// attached volumes, false is returned.
-	PodExistsInVolume(podName types.UniquePodName, volumeName v1.UniqueVolumeName) bool
+	PodExistsInVolume(podName types.UniquePodName, volumeName api.UniqueVolumeName) bool
 
 	// GetVolumesToMount generates and returns a list of volumes that should be
 	// attached to this node and the pods they should be mounted to based on the
@@ -109,7 +109,7 @@ type VolumeToMount struct {
 // NewDesiredStateOfWorld returns a new instance of DesiredStateOfWorld.
 func NewDesiredStateOfWorld(volumePluginMgr *volume.VolumePluginMgr) DesiredStateOfWorld {
 	return &desiredStateOfWorld{
-		volumesToMount:  make(map[v1.UniqueVolumeName]volumeToMount),
+		volumesToMount:  make(map[api.UniqueVolumeName]volumeToMount),
 		volumePluginMgr: volumePluginMgr,
 	}
 }
@@ -119,7 +119,7 @@ type desiredStateOfWorld struct {
 	// attached to this node and mounted to the pods referencing it. The key in
 	// the map is the name of the volume and the value is a volume object
 	// containing more information about the volume.
-	volumesToMount map[v1.UniqueVolumeName]volumeToMount
+	volumesToMount map[api.UniqueVolumeName]volumeToMount
 	// volumePluginMgr is the volume plugin manager used to create volume
 	// plugin objects.
 	volumePluginMgr *volume.VolumePluginMgr
@@ -131,7 +131,7 @@ type desiredStateOfWorld struct {
 // and mounted to podsToMount.
 type volumeToMount struct {
 	// volumeName contains the unique identifier for this volume.
-	volumeName v1.UniqueVolumeName
+	volumeName api.UniqueVolumeName
 
 	// podsToMount is a map containing the set of pods that reference this
 	// volume and should mount it once it is attached. The key in the map is
@@ -158,7 +158,7 @@ type podToMount struct {
 	podName types.UniquePodName
 
 	// Pod to mount the volume to. Used to create NewMounter.
-	pod *v1.Pod
+	pod *api.Pod
 
 	// volume spec containing the specification for this volume. Used to
 	// generate the volume plugin object, and passed to plugin methods.
@@ -175,10 +175,10 @@ type podToMount struct {
 
 func (dsw *desiredStateOfWorld) AddPodToVolume(
 	podName types.UniquePodName,
-	pod *v1.Pod,
+	pod *api.Pod,
 	volumeSpec *volume.Spec,
 	outerVolumeSpecName string,
-	volumeGidValue string) (v1.UniqueVolumeName, error) {
+	volumeGidValue string) (api.UniqueVolumeName, error) {
 	dsw.Lock()
 	defer dsw.Unlock()
 
@@ -190,7 +190,7 @@ func (dsw *desiredStateOfWorld) AddPodToVolume(
 			err)
 	}
 
-	var volumeName v1.UniqueVolumeName
+	var volumeName api.UniqueVolumeName
 
 	// The unique volume name used depends on whether the volume is attachable
 	// or not.
@@ -239,12 +239,12 @@ func (dsw *desiredStateOfWorld) AddPodToVolume(
 }
 
 func (dsw *desiredStateOfWorld) MarkVolumesReportedInUse(
-	reportedVolumes []v1.UniqueVolumeName) {
+	reportedVolumes []api.UniqueVolumeName) {
 	dsw.Lock()
 	defer dsw.Unlock()
 
 	reportedVolumesMap := make(
-		map[v1.UniqueVolumeName]bool, len(reportedVolumes) /* capacity */)
+		map[api.UniqueVolumeName]bool, len(reportedVolumes) /* capacity */)
 
 	for _, reportedVolume := range reportedVolumes {
 		reportedVolumesMap[reportedVolume] = true
@@ -258,7 +258,7 @@ func (dsw *desiredStateOfWorld) MarkVolumesReportedInUse(
 }
 
 func (dsw *desiredStateOfWorld) DeletePodFromVolume(
-	podName types.UniquePodName, volumeName v1.UniqueVolumeName) {
+	podName types.UniquePodName, volumeName api.UniqueVolumeName) {
 	dsw.Lock()
 	defer dsw.Unlock()
 
@@ -281,7 +281,7 @@ func (dsw *desiredStateOfWorld) DeletePodFromVolume(
 }
 
 func (dsw *desiredStateOfWorld) VolumeExists(
-	volumeName v1.UniqueVolumeName) bool {
+	volumeName api.UniqueVolumeName) bool {
 	dsw.RLock()
 	defer dsw.RUnlock()
 
@@ -290,7 +290,7 @@ func (dsw *desiredStateOfWorld) VolumeExists(
 }
 
 func (dsw *desiredStateOfWorld) PodExistsInVolume(
-	podName types.UniquePodName, volumeName v1.UniqueVolumeName) bool {
+	podName types.UniquePodName, volumeName api.UniqueVolumeName) bool {
 	dsw.RLock()
 	defer dsw.RUnlock()
 

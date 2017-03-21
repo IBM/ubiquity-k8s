@@ -21,24 +21,24 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	pkgruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/flowcontrol"
-	federationapi "k8s.io/kubernetes/federation/apis/federation/v1beta1"
-	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
+	federation_api "k8s.io/kubernetes/federation/apis/federation/v1beta1"
+	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_release_1_5"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/deletionhelper"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/eventsink"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
+	api_v1 "k8s.io/kubernetes/pkg/api/v1"
 	extensionsv1 "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/client/cache"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/conversion"
+	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/golang/glog"
 )
@@ -64,7 +64,7 @@ type DaemonSetController struct {
 	// Definitions of daemonsets that should be federated.
 	daemonsetInformerStore cache.Store
 	// Informer controller for daemonsets that should be federated.
-	daemonsetInformerController cache.Controller
+	daemonsetInformerController cache.ControllerInterface
 
 	// Client to federated api server.
 	federatedApiClient federationclientset.Interface
@@ -87,7 +87,7 @@ type DaemonSetController struct {
 func NewDaemonSetController(client federationclientset.Interface) *DaemonSetController {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(eventsink.NewFederatedEventSink(client))
-	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "federated-daemonset-controller"})
+	recorder := broadcaster.NewRecorder(api.EventSource{Component: "federated-daemonset-controller"})
 
 	daemonsetcontroller := &DaemonSetController{
 		federatedApiClient:    client,
@@ -106,43 +106,47 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 	// Start informer in federated API servers on daemonsets that should be federated.
 	daemonsetcontroller.daemonsetInformerStore, daemonsetcontroller.daemonsetInformerController = cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-				return client.Extensions().DaemonSets(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Extensions().DaemonSets(api_v1.NamespaceAll).List(versionedOptions)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return client.Extensions().DaemonSets(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Extensions().DaemonSets(api_v1.NamespaceAll).Watch(versionedOptions)
 			},
 		},
 		&extensionsv1.DaemonSet{},
 		controller.NoResyncPeriodFunc(),
-		util.NewTriggerOnAllChanges(func(obj pkgruntime.Object) { daemonsetcontroller.deliverDaemonSetObj(obj, 0, false) }))
+		util.NewTriggerOnAllChanges(func(obj pkg_runtime.Object) { daemonsetcontroller.deliverDaemonSetObj(obj, 0, false) }))
 
 	// Federated informer on daemonsets in members of federation.
 	daemonsetcontroller.daemonsetFederatedInformer = util.NewFederatedInformer(
 		client,
-		func(cluster *federationapi.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.Controller) {
+		func(cluster *federation_api.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.ControllerInterface) {
 			return cache.NewInformer(
 				&cache.ListWatch{
-					ListFunc: func(options metav1.ListOptions) (pkgruntime.Object, error) {
-						return targetClient.Extensions().DaemonSets(metav1.NamespaceAll).List(options)
+					ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Extensions().DaemonSets(api_v1.NamespaceAll).List(versionedOptions)
 					},
-					WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-						return targetClient.Extensions().DaemonSets(metav1.NamespaceAll).Watch(options)
+					WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Extensions().DaemonSets(api_v1.NamespaceAll).Watch(versionedOptions)
 					},
 				},
 				&extensionsv1.DaemonSet{},
 				controller.NoResyncPeriodFunc(),
 				// Trigger reconciliation whenever something in federated cluster is changed. In most cases it
-				// would be just confirmation that some daemonset operation succeeded.
+				// would be just confirmation that some daemonset opration succeeded.
 				util.NewTriggerOnAllChanges(
-					func(obj pkgruntime.Object) {
+					func(obj pkg_runtime.Object) {
 						daemonsetcontroller.deliverDaemonSetObj(obj, daemonsetcontroller.daemonsetReviewDelay, false)
 					},
 				))
 		},
 
 		&util.ClusterLifecycleHandlerFuncs{
-			ClusterAvailable: func(cluster *federationapi.Cluster) {
+			ClusterAvailable: func(cluster *federation_api.Cluster) {
 				// When new cluster becomes available process all the daemonsets again.
 				daemonsetcontroller.clusterDeliverer.DeliverAt(allClustersKey, nil, time.Now().Add(daemonsetcontroller.clusterAvailableDelay))
 			},
@@ -151,7 +155,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 
 	// Federated updater along with Create/Update/Delete operations.
 	daemonsetcontroller.federatedUpdater = util.NewFederatedUpdater(daemonsetcontroller.daemonsetFederatedInformer,
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
 			daemonset := obj.(*extensionsv1.DaemonSet)
 			glog.V(4).Infof("Attempting to create daemonset: %s/%s", daemonset.Namespace, daemonset.Name)
 			_, err := client.Extensions().DaemonSets(daemonset.Namespace).Create(daemonset)
@@ -162,7 +166,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 			}
 			return err
 		},
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
 			daemonset := obj.(*extensionsv1.DaemonSet)
 			glog.V(4).Infof("Attempting to update daemonset: %s/%s", daemonset.Namespace, daemonset.Name)
 			_, err := client.Extensions().DaemonSets(daemonset.Namespace).Update(daemonset)
@@ -173,10 +177,10 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 			}
 			return err
 		},
-		func(client kubeclientset.Interface, obj pkgruntime.Object) error {
+		func(client kubeclientset.Interface, obj pkg_runtime.Object) error {
 			daemonset := obj.(*extensionsv1.DaemonSet)
 			glog.V(4).Infof("Attempting to delete daemonset: %s/%s", daemonset.Namespace, daemonset.Name)
-			err := client.Extensions().DaemonSets(daemonset.Namespace).Delete(daemonset.Name, &metav1.DeleteOptions{})
+			err := client.Extensions().DaemonSets(daemonset.Namespace).Delete(daemonset.Name, &api_v1.DeleteOptions{})
 			if err != nil {
 				glog.Errorf("Error deleting daemonset %s/%s/: %v", daemonset.Namespace, daemonset.Name, err)
 			} else {
@@ -190,7 +194,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 		daemonsetcontroller.removeFinalizerFunc,
 		daemonsetcontroller.addFinalizerFunc,
 		// objNameFunc
-		func(obj pkgruntime.Object) string {
+		func(obj pkg_runtime.Object) string {
 			daemonset := obj.(*extensionsv1.DaemonSet)
 			return daemonset.Name
 		},
@@ -204,7 +208,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 }
 
 // Returns true if the given object has the given finalizer in its ObjectMeta.
-func (daemonsetcontroller *DaemonSetController) hasFinalizerFunc(obj pkgruntime.Object, finalizer string) bool {
+func (daemonsetcontroller *DaemonSetController) hasFinalizerFunc(obj pkg_runtime.Object, finalizer string) bool {
 	daemonset := obj.(*extensionsv1.DaemonSet)
 	for i := range daemonset.ObjectMeta.Finalizers {
 		if string(daemonset.ObjectMeta.Finalizers[i]) == finalizer {
@@ -216,7 +220,7 @@ func (daemonsetcontroller *DaemonSetController) hasFinalizerFunc(obj pkgruntime.
 
 // Removes the finalizer from the given objects ObjectMeta.
 // Assumes that the given object is a daemonset.
-func (daemonsetcontroller *DaemonSetController) removeFinalizerFunc(obj pkgruntime.Object, finalizer string) (pkgruntime.Object, error) {
+func (daemonsetcontroller *DaemonSetController) removeFinalizerFunc(obj pkg_runtime.Object, finalizer string) (pkg_runtime.Object, error) {
 	daemonset := obj.(*extensionsv1.DaemonSet)
 	newFinalizers := []string{}
 	hasFinalizer := false
@@ -239,20 +243,20 @@ func (daemonsetcontroller *DaemonSetController) removeFinalizerFunc(obj pkgrunti
 	return daemonset, nil
 }
 
-// Adds the given finalizers to the given objects ObjectMeta.
+// Adds the given finalizer to the given objects ObjectMeta.
 // Assumes that the given object is a daemonset.
-func (daemonsetcontroller *DaemonSetController) addFinalizerFunc(obj pkgruntime.Object, finalizers []string) (pkgruntime.Object, error) {
+func (daemonsetcontroller *DaemonSetController) addFinalizerFunc(obj pkg_runtime.Object, finalizer string) (pkg_runtime.Object, error) {
 	daemonset := obj.(*extensionsv1.DaemonSet)
-	daemonset.ObjectMeta.Finalizers = append(daemonset.ObjectMeta.Finalizers, finalizers...)
+	daemonset.ObjectMeta.Finalizers = append(daemonset.ObjectMeta.Finalizers, finalizer)
 	daemonset, err := daemonsetcontroller.federatedApiClient.Extensions().DaemonSets(daemonset.Namespace).Update(daemonset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add finalizers %v to daemonset %s: %v", finalizers, daemonset.Name, err)
+		return nil, fmt.Errorf("failed to add finalizer %s to daemonset %s: %v", finalizer, daemonset.Name, err)
 	}
 	return daemonset, nil
 }
 
 func (daemonsetcontroller *DaemonSetController) Run(stopChan <-chan struct{}) {
-	glog.V(1).Infof("Starting daemonset controller")
+	glog.V(1).Infof("Starting daemonset controllr")
 	go daemonsetcontroller.daemonsetInformerController.Run(stopChan)
 
 	glog.V(1).Infof("Starting daemonset federated informer")
@@ -350,7 +354,7 @@ func (daemonsetcontroller *DaemonSetController) reconcileDaemonSet(namespace str
 		// Not federated daemonset, ignoring.
 		return
 	}
-	baseDaemonSetObj, err := api.Scheme.DeepCopy(baseDaemonSetObjFromStore)
+	baseDaemonSetObj, err := conversion.NewCloner().DeepCopy(baseDaemonSetObjFromStore)
 	baseDaemonSet, ok := baseDaemonSetObj.(*extensionsv1.DaemonSet)
 	if err != nil || !ok {
 		glog.Errorf("Error in retrieving obj %s from store: %v, %v", daemonsetName, ok, err)
@@ -400,7 +404,7 @@ func (daemonsetcontroller *DaemonSetController) reconcileDaemonSet(namespace str
 		// Do not modify. Otherwise make a deep copy.
 		desiredDaemonSet := &extensionsv1.DaemonSet{
 			ObjectMeta: util.DeepCopyRelevantObjectMeta(baseDaemonSet.ObjectMeta),
-			Spec:       *(util.DeepCopyApiTypeOrPanic(&baseDaemonSet.Spec).(*extensionsv1.DaemonSetSpec)),
+			Spec:       util.DeepCopyApiTypeOrPanic(baseDaemonSet.Spec).(extensionsv1.DaemonSetSpec),
 		}
 
 		if !found {

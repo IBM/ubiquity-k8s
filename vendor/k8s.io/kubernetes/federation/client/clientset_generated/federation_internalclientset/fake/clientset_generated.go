@@ -17,16 +17,7 @@ limitations under the License.
 package fake
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/discovery"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/testing"
 	clientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset"
-	internalversionautoscaling "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/autoscaling/internalversion"
-	fakeinternalversionautoscaling "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/autoscaling/internalversion/fake"
-	internalversionbatch "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/batch/internalversion"
-	fakeinternalversionbatch "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/batch/internalversion/fake"
 	internalversioncore "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/core/internalversion"
 	fakeinternalversioncore "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/core/internalversion/fake"
 	internalversionextensions "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/extensions/internalversion"
@@ -34,6 +25,12 @@ import (
 	internalversionfederation "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/federation/internalversion"
 	fakeinternalversionfederation "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/typed/federation/internalversion/fake"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/client/typed/discovery"
+	fakediscovery "k8s.io/kubernetes/pkg/client/typed/discovery/fake"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
@@ -41,17 +38,17 @@ import (
 // without applying any validations and/or defaults. It shouldn't be considered a replacement
 // for a real clientset and is mostly useful in simple unit tests.
 func NewSimpleClientset(objects ...runtime.Object) *Clientset {
-	o := testing.NewObjectTracker(api.Registry, api.Scheme, api.Codecs.UniversalDecoder())
+	o := core.NewObjectTracker(api.Scheme, api.Codecs.UniversalDecoder())
 	for _, obj := range objects {
 		if err := o.Add(obj); err != nil {
 			panic(err)
 		}
 	}
 
-	fakePtr := testing.Fake{}
-	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o, api.Registry.RESTMapper()))
+	fakePtr := core.Fake{}
+	fakePtr.AddReactor("*", "*", core.ObjectReaction(o, registered.RESTMapper()))
 
-	fakePtr.AddWatchReactor("*", testing.DefaultWatchReactor(watch.NewFake(), nil))
+	fakePtr.AddWatchReactor("*", core.DefaultWatchReactor(watch.NewFake(), nil))
 
 	return &Clientset{fakePtr}
 }
@@ -60,7 +57,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 // struct to get a default implementation. This makes faking out just the method
 // you want to test easier.
 type Clientset struct {
-	testing.Fake
+	core.Fake
 }
 
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
@@ -72,16 +69,6 @@ var _ clientset.Interface = &Clientset{}
 // Core retrieves the CoreClient
 func (c *Clientset) Core() internalversioncore.CoreInterface {
 	return &fakeinternalversioncore.FakeCore{Fake: &c.Fake}
-}
-
-// Autoscaling retrieves the AutoscalingClient
-func (c *Clientset) Autoscaling() internalversionautoscaling.AutoscalingInterface {
-	return &fakeinternalversionautoscaling.FakeAutoscaling{Fake: &c.Fake}
-}
-
-// Batch retrieves the BatchClient
-func (c *Clientset) Batch() internalversionbatch.BatchInterface {
-	return &fakeinternalversionbatch.FakeBatch{Fake: &c.Fake}
 }
 
 // Extensions retrieves the ExtensionsClient

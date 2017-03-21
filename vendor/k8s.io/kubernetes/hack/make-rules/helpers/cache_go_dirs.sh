@@ -36,11 +36,7 @@ trap "rm -f '${CACHE}'" HUP INT TERM ERR
 # Example:
 #   kfind -type f -name foobar.go
 function kfind() {
-    # include the "special" vendor directories which are actually part
-    # of the Kubernetes source tree - generators will use these for
-    # including certain core API concepts.
-    find -H . ./vendor/k8s.io/apimachinery ./vendor/k8s.io/apiserver \
-        \(                         \
+    find .                         \
         -not \(                    \
             \(                     \
                 -path ./vendor -o  \
@@ -50,7 +46,6 @@ function kfind() {
                 -path ./docs -o    \
                 -path ./examples   \
             \) -prune              \
-        \)                         \
         \)                         \
         "$@"
 }
@@ -65,9 +60,9 @@ fi
 mkdir -p $(dirname "${CACHE}")
 if $("${NEED_FIND}"); then
     kfind -type f -name \*.go  \
-        | sed 's|/[^/]*$||'    \
-        | sed 's|^./||'        \
+        | xargs -n1 dirname    \
         | LC_ALL=C sort -u     \
+        | sed 's|^./||'        \
         > "${CACHE}"
 fi
 cat "${CACHE}"

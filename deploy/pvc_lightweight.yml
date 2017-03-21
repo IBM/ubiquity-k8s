@@ -1,0 +1,12 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "ubiquity-claim-lightweight"
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "spectrum-scale-lightweight"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi

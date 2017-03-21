@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -42,14 +41,14 @@ const (
 )
 
 func createSynthLogger(f *framework.Framework, linesCount int) {
-	f.PodClient().Create(&v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	f.PodClient().Create(&api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:      synthLoggerPodName,
 			Namespace: f.Namespace.Name,
 		},
-		Spec: v1.PodSpec{
-			RestartPolicy: v1.RestartPolicyOnFailure,
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			RestartPolicy: api.RestartPolicyOnFailure,
+			Containers: []api.Container{
 				{
 					Name:  synthLoggerPodName,
 					Image: "gcr.io/google_containers/busybox:1.24",
@@ -62,7 +61,7 @@ func createSynthLogger(f *framework.Framework, linesCount int) {
 }
 
 func reportLogsFromFluentdPod(f *framework.Framework) error {
-	synthLoggerPod, err := f.PodClient().Get(synthLoggerPodName, metav1.GetOptions{})
+	synthLoggerPod, err := f.PodClient().Get(synthLoggerPodName)
 	if err != nil {
 		return fmt.Errorf("Failed to get synth logger pod due to %v", err)
 	}
@@ -73,13 +72,13 @@ func reportLogsFromFluentdPod(f *framework.Framework) error {
 	}
 
 	label := labels.SelectorFromSet(labels.Set(map[string]string{"k8s-app": "fluentd-logging"}))
-	options := metav1.ListOptions{LabelSelector: label.String()}
-	fluentdPods, err := f.ClientSet.Core().Pods(metav1.NamespaceSystem).List(options)
+	options := api.ListOptions{LabelSelector: label}
+	fluentdPods, err := f.ClientSet.Core().Pods(api.NamespaceSystem).List(options)
 
 	for _, fluentdPod := range fluentdPods.Items {
 		if fluentdPod.Spec.NodeName == synthLoggerNodeName {
 			containerName := fluentdPod.Spec.Containers[0].Name
-			logs, err := framework.GetPodLogs(f.ClientSet, metav1.NamespaceSystem, fluentdPod.Name, containerName)
+			logs, err := framework.GetPodLogs(f.ClientSet, api.NamespaceSystem, fluentdPod.Name, containerName)
 			if err != nil {
 				return fmt.Errorf("Failed to get logs from fluentd pod %s due to %v", fluentdPod.Name, err)
 			}

@@ -23,12 +23,20 @@ import (
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
+
+func EtcdUpgrade(targetStorage, targetVersion string) error {
+	switch TestContext.Provider {
+	case "gce":
+		return etcdUpgradeGCE(targetStorage, targetVersion)
+	default:
+		return fmt.Errorf("EtcdUpgrade() is not implemented for provider %s", TestContext.Provider)
+	}
+}
 
 // The following upgrade functions are passed into the framework below and used
 // to do the actual upgrades.
@@ -41,6 +49,17 @@ var MasterUpgrade = func(v string) error {
 	default:
 		return fmt.Errorf("MasterUpgrade() is not implemented for provider %s", TestContext.Provider)
 	}
+}
+
+func etcdUpgradeGCE(targetStorage, targetVersion string) error {
+	env := append(
+		os.Environ(),
+		"TEST_ETCD_VERSION="+targetVersion,
+		"STORAGE_BACKEND="+targetStorage,
+		"TEST_ETCD_IMAGE=3.0.17")
+
+	_, _, err := RunCmdEnv(env, path.Join(TestContext.RepoRoot, "cluster/gce/upgrade.sh"), "-l", "-M")
+	return err
 }
 
 func masterUpgradeGCE(rawV string) error {
@@ -68,7 +87,8 @@ var NodeUpgrade = func(f *Framework, v string, img string) error {
 	var err error
 	switch TestContext.Provider {
 	case "gce":
-		err = nodeUpgradeGCE(v, img)
+		// TODO(maisem): add GCE support for upgrading to different images.
+		err = nodeUpgradeGCE(v)
 	case "gke":
 		err = nodeUpgradeGKE(v, img)
 	default:
@@ -89,13 +109,8 @@ var NodeUpgrade = func(f *Framework, v string, img string) error {
 	return nil
 }
 
-func nodeUpgradeGCE(rawV, img string) error {
+func nodeUpgradeGCE(rawV string) error {
 	v := "v" + rawV
-	if img != "" {
-		env := append(os.Environ(), "KUBE_NODE_OS_DISTRIBUTION="+img)
-		_, _, err := RunCmdEnv(env, path.Join(TestContext.RepoRoot, "cluster/gce/upgrade.sh"), "-N", "-o", v)
-		return err
-	}
 	_, _, err := RunCmd(path.Join(TestContext.RepoRoot, "cluster/gce/upgrade.sh"), "-N", v)
 	return err
 }
@@ -147,15 +162,15 @@ func nodeUpgradeGKE(v string, img string) error {
 // nodes it finds.
 func CheckNodesReady(c clientset.Interface, nt time.Duration, expect int) ([]string, error) {
 	// First, keep getting all of the nodes until we get the number we expect.
-	var nodeList *v1.NodeList
+	var nodeList *api.NodeList
 	var errLast error
 	start := time.Now()
 	found := wait.Poll(Poll, nt, func() (bool, error) {
 		// A rolling-update (GCE/GKE implementation of restart) can complete before the apiserver
 		// knows about all of the nodes. Thus, we retry the list nodes call
 		// until we get the expected number of nodes.
-		nodeList, errLast = c.Core().Nodes().List(metav1.ListOptions{
-			FieldSelector: fields.Set{"spec.unschedulable": "false"}.AsSelector().String()})
+		nodeList, errLast = c.Core().Nodes().List(api.ListOptions{
+			FieldSelector: fields.Set{"spec.unschedulable": "false"}.AsSelector()})
 		if errLast != nil {
 			return false, nil
 		}

@@ -21,86 +21,30 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	core "k8s.io/client-go/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
 )
 
-func TestListVolumesForPod(t *testing.T) {
-	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	kubelet := testKubelet.kubelet
-
-	pod := podWithUidNameNsSpec("12345678", "foo", "test", v1.PodSpec{
-		Volumes: []v1.Volume{
-			{
-				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
-						PDName: "fake-device1",
-					},
-				},
-			},
-			{
-				Name: "vol2",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
-						PDName: "fake-device2",
-					},
-				},
-			},
-		},
-	})
-
-	stopCh := runVolumeManager(kubelet)
-	defer func() {
-		close(stopCh)
-	}()
-
-	kubelet.podManager.SetPods([]*v1.Pod{pod})
-	err := kubelet.volumeManager.WaitForAttachAndMount(pod)
-	assert.NoError(t, err)
-
-	podName := volumehelper.GetUniquePodName(pod)
-
-	volumesToReturn, volumeExsit := kubelet.ListVolumesForPod(types.UID(podName))
-	if !volumeExsit {
-		t.Errorf("Expected to find volumes for pod %q, but ListVolumesForPod find no volume", podName)
-	}
-
-	outerVolumeSpecName1 := "vol1"
-	if volumesToReturn[outerVolumeSpecName1] == nil {
-		t.Errorf("Value of map volumesToReturn is not expected to be nil, which key is : %s", outerVolumeSpecName1)
-	}
-
-	outerVolumeSpecName2 := "vol2"
-	if volumesToReturn[outerVolumeSpecName2] == nil {
-		t.Errorf("Value of map volumesToReturn is not expected to be nil, which key is : %s", outerVolumeSpecName2)
-	}
-
-}
-
 func TestPodVolumesExist(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 
-	pods := []*v1.Pod{
+	pods := []*api.Pod{
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "pod1",
 				UID:  "pod1uid",
 			},
-			Spec: v1.PodSpec{
-				Volumes: []v1.Volume{
+			Spec: api.PodSpec{
+				Volumes: []api.Volume{
 					{
 						Name: "vol1",
-						VolumeSource: v1.VolumeSource{
-							GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+						VolumeSource: api.VolumeSource{
+							GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 								PDName: "fake-device1",
 							},
 						},
@@ -109,16 +53,16 @@ func TestPodVolumesExist(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "pod2",
 				UID:  "pod2uid",
 			},
-			Spec: v1.PodSpec{
-				Volumes: []v1.Volume{
+			Spec: api.PodSpec{
+				Volumes: []api.Volume{
 					{
 						Name: "vol2",
-						VolumeSource: v1.VolumeSource{
-							GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+						VolumeSource: api.VolumeSource{
+							GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 								PDName: "fake-device2",
 							},
 						},
@@ -127,16 +71,16 @@ func TestPodVolumesExist(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "pod3",
 				UID:  "pod3uid",
 			},
-			Spec: v1.PodSpec{
-				Volumes: []v1.Volume{
+			Spec: api.PodSpec{
+				Volumes: []api.Volume{
 					{
 						Name: "vol3",
-						VolumeSource: v1.VolumeSource{
-							GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+						VolumeSource: api.VolumeSource{
+							GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 								PDName: "fake-device3",
 							},
 						},
@@ -171,15 +115,14 @@ func TestPodVolumesExist(t *testing.T) {
 
 func TestVolumeAttachAndMountControllerDisabled(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 
-	pod := podWithUidNameNsSpec("12345678", "foo", "test", v1.PodSpec{
-		Volumes: []v1.Volume{
+	pod := podWithUidNameNsSpec("12345678", "foo", "test", api.PodSpec{
+		Volumes: []api.Volume{
 			{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 						PDName: "fake-device",
 					},
 				},
@@ -192,7 +135,7 @@ func TestVolumeAttachAndMountControllerDisabled(t *testing.T) {
 		close(stopCh)
 	}()
 
-	kubelet.podManager.SetPods([]*v1.Pod{pod})
+	kubelet.podManager.SetPods([]*api.Pod{pod})
 	err := kubelet.volumeManager.WaitForAttachAndMount(pod)
 	assert.NoError(t, err)
 
@@ -217,15 +160,14 @@ func TestVolumeAttachAndMountControllerDisabled(t *testing.T) {
 
 func TestVolumeUnmountAndDetachControllerDisabled(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 
-	pod := podWithUidNameNsSpec("12345678", "foo", "test", v1.PodSpec{
-		Volumes: []v1.Volume{
+	pod := podWithUidNameNsSpec("12345678", "foo", "test", api.PodSpec{
+		Volumes: []api.Volume{
 			{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 						PDName: "fake-device",
 					},
 				},
@@ -239,7 +181,7 @@ func TestVolumeUnmountAndDetachControllerDisabled(t *testing.T) {
 	}()
 
 	// Add pod
-	kubelet.podManager.SetPods([]*v1.Pod{pod})
+	kubelet.podManager.SetPods([]*api.Pod{pod})
 
 	// Verify volumes attached
 	err := kubelet.volumeManager.WaitForAttachAndMount(pod)
@@ -265,7 +207,7 @@ func TestVolumeUnmountAndDetachControllerDisabled(t *testing.T) {
 		1 /* expectedSetUpCallCount */, testKubelet.volumePlugin))
 
 	// Remove pod
-	kubelet.podManager.SetPods([]*v1.Pod{})
+	kubelet.podManager.SetPods([]*api.Pod{})
 
 	assert.NoError(t, waitForVolumeUnmount(kubelet.volumeManager, pod))
 
@@ -280,7 +222,7 @@ func TestVolumeUnmountAndDetachControllerDisabled(t *testing.T) {
 		1 /* expectedTearDownCallCount */, testKubelet.volumePlugin))
 
 	// Verify volumes detached and no longer reported as in use
-	assert.NoError(t, waitForVolumeDetach(v1.UniqueVolumeName("fake/vol1"), kubelet.volumeManager))
+	assert.NoError(t, waitForVolumeDetach(api.UniqueVolumeName("fake/vol1"), kubelet.volumeManager))
 	assert.True(t, testKubelet.volumePlugin.GetNewAttacherCallCount() >= 1, "Expected plugin NewAttacher to be called at least once")
 	assert.NoError(t, volumetest.VerifyDetachCallCount(
 		1 /* expectedDetachCallCount */, testKubelet.volumePlugin))
@@ -288,33 +230,32 @@ func TestVolumeUnmountAndDetachControllerDisabled(t *testing.T) {
 
 func TestVolumeAttachAndMountControllerEnabled(t *testing.T) {
 	testKubelet := newTestKubelet(t, true /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	kubeClient := testKubelet.fakeKubeClient
 	kubeClient.AddReactor("get", "nodes",
 		func(action core.Action) (bool, runtime.Object, error) {
-			return true, &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{Name: testKubeletHostname},
-				Status: v1.NodeStatus{
-					VolumesAttached: []v1.AttachedVolume{
+			return true, &api.Node{
+				ObjectMeta: api.ObjectMeta{Name: testKubeletHostname},
+				Status: api.NodeStatus{
+					VolumesAttached: []api.AttachedVolume{
 						{
 							Name:       "fake/vol1",
 							DevicePath: "fake/path",
 						},
 					}},
-				Spec: v1.NodeSpec{ExternalID: testKubeletHostname},
+				Spec: api.NodeSpec{ExternalID: testKubeletHostname},
 			}, nil
 		})
 	kubeClient.AddReactor("*", "*", func(action core.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("no reaction implemented for %s", action)
 	})
 
-	pod := podWithUidNameNsSpec("12345678", "foo", "test", v1.PodSpec{
-		Volumes: []v1.Volume{
+	pod := podWithUidNameNsSpec("12345678", "foo", "test", api.PodSpec{
+		Volumes: []api.Volume{
 			{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 						PDName: "fake-device",
 					},
 				},
@@ -327,11 +268,11 @@ func TestVolumeAttachAndMountControllerEnabled(t *testing.T) {
 		close(stopCh)
 	}()
 
-	kubelet.podManager.SetPods([]*v1.Pod{pod})
+	kubelet.podManager.SetPods([]*api.Pod{pod})
 
 	// Fake node status update
 	go simulateVolumeInUseUpdate(
-		v1.UniqueVolumeName("fake/vol1"),
+		api.UniqueVolumeName("fake/vol1"),
 		stopCh,
 		kubelet.volumeManager)
 
@@ -357,33 +298,32 @@ func TestVolumeAttachAndMountControllerEnabled(t *testing.T) {
 
 func TestVolumeUnmountAndDetachControllerEnabled(t *testing.T) {
 	testKubelet := newTestKubelet(t, true /* controllerAttachDetachEnabled */)
-	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	kubeClient := testKubelet.fakeKubeClient
 	kubeClient.AddReactor("get", "nodes",
 		func(action core.Action) (bool, runtime.Object, error) {
-			return true, &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{Name: testKubeletHostname},
-				Status: v1.NodeStatus{
-					VolumesAttached: []v1.AttachedVolume{
+			return true, &api.Node{
+				ObjectMeta: api.ObjectMeta{Name: testKubeletHostname},
+				Status: api.NodeStatus{
+					VolumesAttached: []api.AttachedVolume{
 						{
 							Name:       "fake/vol1",
 							DevicePath: "fake/path",
 						},
 					}},
-				Spec: v1.NodeSpec{ExternalID: testKubeletHostname},
+				Spec: api.NodeSpec{ExternalID: testKubeletHostname},
 			}, nil
 		})
 	kubeClient.AddReactor("*", "*", func(action core.Action) (bool, runtime.Object, error) {
 		return true, nil, fmt.Errorf("no reaction implemented for %s", action)
 	})
 
-	pod := podWithUidNameNsSpec("12345678", "foo", "test", v1.PodSpec{
-		Volumes: []v1.Volume{
+	pod := podWithUidNameNsSpec("12345678", "foo", "test", api.PodSpec{
+		Volumes: []api.Volume{
 			{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GCEPersistentDisk: &v1.GCEPersistentDiskVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GCEPersistentDisk: &api.GCEPersistentDiskVolumeSource{
 						PDName: "fake-device",
 					},
 				},
@@ -397,11 +337,11 @@ func TestVolumeUnmountAndDetachControllerEnabled(t *testing.T) {
 	}()
 
 	// Add pod
-	kubelet.podManager.SetPods([]*v1.Pod{pod})
+	kubelet.podManager.SetPods([]*api.Pod{pod})
 
 	// Fake node status update
 	go simulateVolumeInUseUpdate(
-		v1.UniqueVolumeName("fake/vol1"),
+		api.UniqueVolumeName("fake/vol1"),
 		stopCh,
 		kubelet.volumeManager)
 
@@ -427,7 +367,7 @@ func TestVolumeUnmountAndDetachControllerEnabled(t *testing.T) {
 		1 /* expectedSetUpCallCount */, testKubelet.volumePlugin))
 
 	// Remove pod
-	kubelet.podManager.SetPods([]*v1.Pod{})
+	kubelet.podManager.SetPods([]*api.Pod{})
 
 	assert.NoError(t, waitForVolumeUnmount(kubelet.volumeManager, pod))
 
@@ -442,7 +382,7 @@ func TestVolumeUnmountAndDetachControllerEnabled(t *testing.T) {
 		1 /* expectedTearDownCallCount */, testKubelet.volumePlugin))
 
 	// Verify volumes detached and no longer reported as in use
-	assert.NoError(t, waitForVolumeDetach(v1.UniqueVolumeName("fake/vol1"), kubelet.volumeManager))
+	assert.NoError(t, waitForVolumeDetach(api.UniqueVolumeName("fake/vol1"), kubelet.volumeManager))
 	assert.True(t, testKubelet.volumePlugin.GetNewAttacherCallCount() >= 1, "Expected plugin NewAttacher to be called at least once")
 	assert.NoError(t, volumetest.VerifyZeroDetachCallCount(testKubelet.volumePlugin))
 }

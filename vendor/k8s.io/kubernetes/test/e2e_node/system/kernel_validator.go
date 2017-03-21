@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/kubernetes/pkg/util/errors"
 )
 
 var _ Validator = &KernelValidator{}
@@ -39,7 +39,6 @@ var _ Validator = &KernelValidator{}
 // and kernel configuration.
 type KernelValidator struct {
 	kernelRelease string
-	Reporter      Reporter
 }
 
 func (k *KernelValidator) Name() string {
@@ -61,11 +60,11 @@ const (
 )
 
 func (k *KernelValidator) Validate(spec SysSpec) error {
-	release, err := exec.Command("uname", "-r").CombinedOutput()
+	out, err := exec.Command("uname", "-r").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get kernel release: %v", err)
 	}
-	k.kernelRelease = strings.TrimSpace(string(release))
+	k.kernelRelease = strings.TrimSpace(string(out))
 	var errs []error
 	errs = append(errs, k.validateKernelVersion(spec.KernelSpec))
 	errs = append(errs, k.validateKernelConfig(spec.KernelSpec))
@@ -79,11 +78,11 @@ func (k *KernelValidator) validateKernelVersion(kSpec KernelSpec) error {
 	for _, versionRegexp := range versionRegexps {
 		r := regexp.MustCompile(versionRegexp)
 		if r.MatchString(k.kernelRelease) {
-			k.Reporter.Report("KERNEL_VERSION", k.kernelRelease, good)
+			report("KERNEL_VERSION", k.kernelRelease, good)
 			return nil
 		}
 	}
-	k.Reporter.Report("KERNEL_VERSION", k.kernelRelease, bad)
+	report("KERNEL_VERSION", k.kernelRelease, bad)
 	return fmt.Errorf("unsupported kernel release: %s", k.kernelRelease)
 }
 
@@ -102,7 +101,7 @@ func (k *KernelValidator) validateCachedKernelConfig(allConfig map[string]kConfi
 	badConfigs := []string{}
 	// reportAndRecord is a helper function to record bad config when
 	// report.
-	reportAndRecord := func(name, msg, desc string, result ValidationResultType) {
+	reportAndRecord := func(name, msg, desc string, result resultType) {
 		if result == bad {
 			badConfigs = append(badConfigs, name)
 		}
@@ -110,7 +109,7 @@ func (k *KernelValidator) validateCachedKernelConfig(allConfig map[string]kConfi
 		if result != good && desc != "" {
 			msg = msg + " - " + desc
 		}
-		k.Reporter.Report(name, msg, result)
+		report(name, msg, result)
 	}
 	const (
 		required = iota
@@ -118,7 +117,7 @@ func (k *KernelValidator) validateCachedKernelConfig(allConfig map[string]kConfi
 		forbidden
 	)
 	validateOpt := func(config KernelConfig, expect int) {
-		var found, missing ValidationResultType
+		var found, missing resultType
 		switch expect {
 		case required:
 			found, missing = good, bad

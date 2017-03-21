@@ -25,7 +25,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	cmutil "k8s.io/kubernetes/pkg/kubelet/cm/util"
 
@@ -73,7 +72,6 @@ func applyOOMScoreAdj(pid int, oomScoreAdj int) error {
 			}
 
 			glog.V(3).Info(err)
-			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 		return nil

@@ -173,13 +173,9 @@ for pull in "${PULLS[@]}"; do
       exit 1
     fi
   }
-
   # set the subject
   subject=$(grep -m 1 "^Subject" "/tmp/${pull}.patch" | sed -e 's/Subject: \[PATCH//g' | sed 's/.*] //')
   SUBJECTS+=("#${pull}: ${subject}")
-
-  # remove the patch file from /tmp
-  rm -f "/tmp/${pull}.patch"
 done
 gitamcleanup=false
 

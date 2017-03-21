@@ -17,21 +17,22 @@ limitations under the License.
 package internalversion
 
 import (
-	rest "k8s.io/client-go/rest"
 	api "k8s.io/kubernetes/pkg/api"
+	registered "k8s.io/kubernetes/pkg/apimachinery/registered"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
 )
 
 type RbacInterface interface {
-	RESTClient() rest.Interface
+	RESTClient() restclient.Interface
 	ClusterRolesGetter
 	ClusterRoleBindingsGetter
 	RolesGetter
 	RoleBindingsGetter
 }
 
-// RbacClient is used to interact with features provided by the rbac.authorization.k8s.io group.
+// RbacClient is used to interact with features provided by the k8s.io/kubernetes/pkg/apimachinery/registered.Group group.
 type RbacClient struct {
-	restClient rest.Interface
+	restClient restclient.Interface
 }
 
 func (c *RbacClient) ClusterRoles() ClusterRoleInterface {
@@ -51,12 +52,12 @@ func (c *RbacClient) RoleBindings(namespace string) RoleBindingInterface {
 }
 
 // NewForConfig creates a new RbacClient for the given config.
-func NewForConfig(c *rest.Config) (*RbacClient, error) {
+func NewForConfig(c *restclient.Config) (*RbacClient, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	client, err := rest.RESTClientFor(&config)
+	client, err := restclient.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func NewForConfig(c *rest.Config) (*RbacClient, error) {
 
 // NewForConfigOrDie creates a new RbacClient for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *RbacClient {
+func NewForConfigOrDie(c *restclient.Config) *RbacClient {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -74,19 +75,19 @@ func NewForConfigOrDie(c *rest.Config) *RbacClient {
 }
 
 // New creates a new RbacClient for the given RESTClient.
-func New(c rest.Interface) *RbacClient {
+func New(c restclient.Interface) *RbacClient {
 	return &RbacClient{c}
 }
 
-func setConfigDefaults(config *rest.Config) error {
+func setConfigDefaults(config *restclient.Config) error {
 	// if rbac group is not registered, return an error
-	g, err := api.Registry.Group("rbac.authorization.k8s.io")
+	g, err := registered.Group("rbac.authorization.k8s.io")
 	if err != nil {
 		return err
 	}
 	config.APIPath = "/apis"
 	if config.UserAgent == "" {
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
+		config.UserAgent = restclient.DefaultKubernetesUserAgent()
 	}
 	if config.GroupVersion == nil || config.GroupVersion.Group != g.GroupVersion.Group {
 		copyGroupVersion := g.GroupVersion
@@ -105,7 +106,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *RbacClient) RESTClient() rest.Interface {
+func (c *RbacClient) RESTClient() restclient.Interface {
 	if c == nil {
 		return nil
 	}

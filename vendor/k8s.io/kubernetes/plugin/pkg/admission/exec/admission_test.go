@@ -19,13 +19,12 @@ package exec
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/apiserver/pkg/registry/rest"
-	core "k8s.io/client-go/testing"
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 func TestAdmission(t *testing.T) {
@@ -208,7 +207,7 @@ func TestDenyExecOnPrivileged(t *testing.T) {
 
 func validPod(name string) *api.Pod {
 	return &api.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "test"},
+		ObjectMeta: api.ObjectMeta{Name: name, Namespace: "test"},
 		Spec: api.PodSpec{
 			Containers: []api.Container{
 				{Name: "ctr1", Image: "image"},

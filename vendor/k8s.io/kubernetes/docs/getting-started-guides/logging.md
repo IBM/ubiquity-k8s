@@ -1,4 +1,4 @@
-This file has moved to: https://kubernetes.io/docs/user-guide/logging/overview/
+This file has moved to: http://kubernetes.github.io/docs/getting-started-guides/logging/
 
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->

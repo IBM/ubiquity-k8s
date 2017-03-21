@@ -19,7 +19,7 @@ package routes
 import (
 	"net/http"
 
-	"k8s.io/apiserver/pkg/server/mux"
+	"k8s.io/kubernetes/pkg/genericapiserver/mux"
 )
 
 const dashboardPath = "/api/v1/proxy/namespaces/kube-system/services/kubernetes-dashboard"

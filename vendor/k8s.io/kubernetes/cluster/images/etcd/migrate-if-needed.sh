@@ -120,7 +120,6 @@ start_etcd() {
   ${ETCD_CMD} \
     --name="etcd-$(hostname)" \
     --debug \
-    --force-new-cluster \
     --data-dir=${DATA_DIRECTORY} \
     --listen-client-urls http://127.0.0.1:${ETCD_PORT} \
     --advertise-client-urls http://127.0.0.1:${ETCD_PORT} \
@@ -231,6 +230,7 @@ if [ "${CURRENT_STORAGE}" = "etcd3" -a "${TARGET_STORAGE}" = "etcd2" ]; then
   rm -rf "${ROLLBACK_BACKUP_DIR}"
   mkdir -p "${ROLLBACK_BACKUP_DIR}"
   cp -r "${DATA_DIRECTORY}" "${ROLLBACK_BACKUP_DIR}"
+  rm -rf "${DATA_DIRECTORY}"/member/snap/*.snap
   echo "Performing etcd3 -> etcd2 rollback"
   ${ROLLBACK} --data-dir "${DATA_DIRECTORY}"
   if [ "$?" -ne "0" ]; then

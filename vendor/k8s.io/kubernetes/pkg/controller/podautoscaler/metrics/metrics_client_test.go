@@ -23,18 +23,19 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	restclient "k8s.io/client-go/rest"
-	core "k8s.io/client-go/testing"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	_ "k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/runtime"
 
 	heapster "k8s.io/heapster/metrics/api/v1/types"
-	metricsapi "k8s.io/heapster/metrics/apis/metrics/v1alpha1"
+	metrics_api "k8s.io/heapster/metrics/apis/metrics/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -75,7 +76,7 @@ type testCase struct {
 
 	namespace    string
 	selector     labels.Selector
-	resourceName v1.ResourceName
+	resourceName api.ResourceName
 	metricName   string
 }
 
@@ -92,10 +93,10 @@ func (tc *testCase) prepareTestClient(t *testing.T) *fake.Clientset {
 	fakeClient := &fake.Clientset{}
 
 	fakeClient.AddReactor("list", "pods", func(action core.Action) (handled bool, ret runtime.Object, err error) {
-		obj := &v1.PodList{}
+		obj := &api.PodList{}
 		for i := 0; i < tc.replicas; i++ {
 			podName := fmt.Sprintf("%s-%d", podNamePrefix, i)
-			pod := buildPod(namespace, podName, podLabels, v1.PodRunning, "1024")
+			pod := buildPod(namespace, podName, podLabels, api.PodRunning, "1024")
 			obj.Items = append(obj.Items, pod)
 		}
 		return true, obj, nil
@@ -103,18 +104,18 @@ func (tc *testCase) prepareTestClient(t *testing.T) *fake.Clientset {
 
 	if isResource {
 		fakeClient.AddProxyReactor("services", func(action core.Action) (handled bool, ret restclient.ResponseWrapper, err error) {
-			metrics := metricsapi.PodMetricsList{}
+			metrics := metrics_api.PodMetricsList{}
 			for i, containers := range tc.reportedPodMetrics {
-				metric := metricsapi.PodMetrics{
+				metric := metrics_api.PodMetrics{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      fmt.Sprintf("%s-%d", podNamePrefix, i),
 						Namespace: namespace,
 					},
 					Timestamp:  unversioned.Time{Time: fixedTimestamp.Add(time.Duration(tc.targetTimestamp) * time.Minute)},
-					Containers: []metricsapi.ContainerMetrics{},
+					Containers: []metrics_api.ContainerMetrics{},
 				}
 				for j, cpu := range containers {
-					cm := metricsapi.ContainerMetrics{
+					cm := metrics_api.ContainerMetrics{
 						Name: fmt.Sprintf("%s-%d-container-%d", podNamePrefix, i, j),
 						Usage: v1.ResourceList{
 							v1.ResourceCPU: *resource.NewMilliQuantity(
@@ -160,30 +161,30 @@ func (tc *testCase) prepareTestClient(t *testing.T) *fake.Clientset {
 	return fakeClient
 }
 
-func buildPod(namespace, podName string, podLabels map[string]string, phase v1.PodPhase, request string) v1.Pod {
-	return v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func buildPod(namespace, podName string, podLabels map[string]string, phase api.PodPhase, request string) api.Pod {
+	return api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 			Labels:    podLabels,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
-					Resources: v1.ResourceRequirements{
-						Requests: v1.ResourceList{
-							v1.ResourceCPU: resource.MustParse(request),
+					Resources: api.ResourceRequirements{
+						Requests: api.ResourceList{
+							api.ResourceCPU: resource.MustParse(request),
 						},
 					},
 				},
 			},
 		},
-		Status: v1.PodStatus{
+		Status: api.PodStatus{
 			Phase: phase,
-			Conditions: []v1.PodCondition{
+			Conditions: []api.PodCondition{
 				{
-					Type:   v1.PodReady,
-					Status: v1.ConditionTrue,
+					Type:   api.PodReady,
+					Status: api.ConditionTrue,
 				},
 			},
 		},
@@ -230,7 +231,7 @@ func TestCPU(t *testing.T) {
 		desiredResourceValues: PodResourceInfo{
 			"test-pod-0": 5000, "test-pod-1": 5000, "test-pod-2": 5000,
 		},
-		resourceName:       v1.ResourceCPU,
+		resourceName:       api.ResourceCPU,
 		targetTimestamp:    1,
 		reportedPodMetrics: [][]int64{{5000}, {5000}, {5000}},
 	}
@@ -270,7 +271,7 @@ func TestCPUMoreMetrics(t *testing.T) {
 			"test-pod-0": 5000, "test-pod-1": 5000, "test-pod-2": 5000,
 			"test-pod-3": 5000, "test-pod-4": 5000,
 		},
-		resourceName:       v1.ResourceCPU,
+		resourceName:       api.ResourceCPU,
 		targetTimestamp:    10,
 		reportedPodMetrics: [][]int64{{1000, 2000, 2000}, {5000}, {1000, 1000, 1000, 2000}, {4000, 1000}, {5000}},
 	}
@@ -283,7 +284,7 @@ func TestCPUMissingMetrics(t *testing.T) {
 		desiredResourceValues: PodResourceInfo{
 			"test-pod-0": 4000,
 		},
-		resourceName:       v1.ResourceCPU,
+		resourceName:       api.ResourceCPU,
 		reportedPodMetrics: [][]int64{{4000}},
 	}
 	tc.runTest(t)
@@ -313,7 +314,7 @@ func TestQpsSuperfluousMetrics(t *testing.T) {
 func TestCPUEmptyMetrics(t *testing.T) {
 	tc := testCase{
 		replicas:              3,
-		resourceName:          v1.ResourceCPU,
+		resourceName:          api.ResourceCPU,
 		desiredError:          fmt.Errorf("no metrics returned from heapster"),
 		reportedMetricsPoints: [][]metricPoint{},
 		reportedPodMetrics:    [][]int64{},
@@ -337,7 +338,7 @@ func TestQpsEmptyEntries(t *testing.T) {
 func TestCPUZeroReplicas(t *testing.T) {
 	tc := testCase{
 		replicas:           0,
-		resourceName:       v1.ResourceCPU,
+		resourceName:       api.ResourceCPU,
 		desiredError:       fmt.Errorf("no metrics returned from heapster"),
 		reportedPodMetrics: [][]int64{},
 	}
@@ -347,7 +348,7 @@ func TestCPUZeroReplicas(t *testing.T) {
 func TestCPUEmptyMetricsForOnePod(t *testing.T) {
 	tc := testCase{
 		replicas:     3,
-		resourceName: v1.ResourceCPU,
+		resourceName: api.ResourceCPU,
 		desiredResourceValues: PodResourceInfo{
 			"test-pod-0": 100, "test-pod-1": 700,
 		},

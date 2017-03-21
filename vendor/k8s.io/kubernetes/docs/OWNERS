@@ -1,8 +1,5 @@
-reviewers:
-  - brendandburns
-  - smarterclayton
-  - thockin
-approvers:
+assignees:
+  - bgrant0607
   - brendandburns
   - smarterclayton
   - thockin

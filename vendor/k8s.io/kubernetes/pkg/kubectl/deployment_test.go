@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 )
 
@@ -37,19 +37,19 @@ func TestDeploymentGenerate(t *testing.T) {
 				"image": []string{"abc/app:v4"},
 			},
 			expected: &extensions.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:   "foo",
 					Labels: map[string]string{"app": "foo"},
 				},
 				Spec: extensions.DeploymentSpec{
 					Replicas: 1,
-					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "foo"}},
+					Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{"app": "foo"}},
 					Template: api.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Labels: map[string]string{"app": "foo"},
 						},
 						Spec: api.PodSpec{
-							Containers: []api.Container{{Name: "app", Image: "abc/app:v4"}},
+							Containers: []api.Container{{Name: "app:v4", Image: "abc/app:v4"}},
 						},
 					},
 				},
@@ -62,19 +62,19 @@ func TestDeploymentGenerate(t *testing.T) {
 				"image": []string{"abc/app:v4", "zyx/ape"},
 			},
 			expected: &extensions.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name:   "foo",
 					Labels: map[string]string{"app": "foo"},
 				},
 				Spec: extensions.DeploymentSpec{
 					Replicas: 1,
-					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "foo"}},
+					Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{"app": "foo"}},
 					Template: api.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Labels: map[string]string{"app": "foo"},
 						},
 						Spec: api.PodSpec{
-							Containers: []api.Container{{Name: "app", Image: "abc/app:v4"},
+							Containers: []api.Container{{Name: "app:v4", Image: "abc/app:v4"},
 								{Name: "ape", Image: "zyx/ape"}},
 						},
 					},
@@ -114,22 +114,21 @@ func TestDeploymentGenerate(t *testing.T) {
 	}
 	generator := DeploymentBasicGeneratorV1{}
 	for index, test := range tests {
-		t.Logf("running scenario %d", index)
 		obj, err := generator.Generate(test.params)
 		switch {
 		case test.expectErr && err != nil:
 			continue // loop, since there's no output to check
 		case test.expectErr && err == nil:
-			t.Errorf("expected error and didn't get one")
+			t.Errorf("%v: expected error and didn't get one", index)
 			continue // loop, no expected output object
 		case !test.expectErr && err != nil:
-			t.Errorf("unexpected error %v", err)
+			t.Errorf("%v: unexpected error %v", index, err)
 			continue // loop, no output object
 		case !test.expectErr && err == nil:
 			// do nothing and drop through
 		}
 		if !reflect.DeepEqual(obj.(*extensions.Deployment), test.expected) {
-			t.Errorf("expected:\n%#v\nsaw:\n%#v", test.expected, obj.(*extensions.Deployment))
+			t.Errorf("%v\nexpected:\n%#v\nsaw:\n%#v", index, test.expected, obj.(*extensions.Deployment))
 		}
 	}
 }

@@ -17,15 +17,14 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -53,7 +52,7 @@ var _ = framework.KubeDescribe("Cluster level logging using Elasticsearch [Featu
 
 		By("Running synthetic logger")
 		createSynthLogger(f, expectedLinesCount)
-		defer f.PodClient().Delete(synthLoggerPodName, &metav1.DeleteOptions{})
+		defer f.PodClient().Delete(synthLoggerPodName, &api.DeleteOptions{})
 		err = framework.WaitForPodSuccessInNamespace(f.ClientSet, synthLoggerPodName, f.Namespace.Name)
 		framework.ExpectNoError(err, fmt.Sprintf("Should've successfully waited for pod %s to succeed", synthLoggerPodName))
 
@@ -87,12 +86,12 @@ var _ = framework.KubeDescribe("Cluster level logging using Elasticsearch [Featu
 func checkElasticsearchReadiness(f *framework.Framework) error {
 	// Check for the existence of the Elasticsearch service.
 	By("Checking the Elasticsearch service exists.")
-	s := f.ClientSet.Core().Services(metav1.NamespaceSystem)
+	s := f.ClientSet.Core().Services(api.NamespaceSystem)
 	// Make a few attempts to connect. This makes the test robust against
 	// being run as the first e2e test just after the e2e cluster has been created.
 	var err error
 	for start := time.Now(); time.Since(start) < graceTime; time.Sleep(5 * time.Second) {
-		if _, err = s.Get("elasticsearch-logging", metav1.GetOptions{}); err == nil {
+		if _, err = s.Get("elasticsearch-logging"); err == nil {
 			break
 		}
 		framework.Logf("Attempt to check for the existence of the Elasticsearch service failed after %v", time.Since(start))
@@ -102,8 +101,8 @@ func checkElasticsearchReadiness(f *framework.Framework) error {
 	// Wait for the Elasticsearch pods to enter the running state.
 	By("Checking to make sure the Elasticsearch pods are running")
 	label := labels.SelectorFromSet(labels.Set(map[string]string{"k8s-app": "elasticsearch-logging"}))
-	options := metav1.ListOptions{LabelSelector: label.String()}
-	pods, err := f.ClientSet.Core().Pods(metav1.NamespaceSystem).List(options)
+	options := api.ListOptions{LabelSelector: label}
+	pods, err := f.ClientSet.Core().Pods(api.NamespaceSystem).List(options)
 	Expect(err).NotTo(HaveOccurred())
 	for _, pod := range pods.Items {
 		err = framework.WaitForPodRunningInNamespace(f.ClientSet, &pod)
@@ -121,23 +120,14 @@ func checkElasticsearchReadiness(f *framework.Framework) error {
 			framework.Logf("After %v failed to get services proxy request: %v", time.Since(start), errProxy)
 			continue
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-		defer cancel()
-
 		// Query against the root URL for Elasticsearch.
-		response := proxyRequest.Namespace(metav1.NamespaceSystem).
-			Context(ctx).
+		response := proxyRequest.Namespace(api.NamespaceSystem).
 			Name("elasticsearch-logging").
 			Do()
 		err = response.Error()
 		response.StatusCode(&statusCode)
 
 		if err != nil {
-			if ctx.Err() != nil {
-				framework.Failf("After %v proxy call to elasticsearch-loigging failed: %v", time.Since(start), err)
-				continue
-			}
 			framework.Logf("After %v proxy call to elasticsearch-loigging failed: %v", time.Since(start), err)
 			continue
 		}
@@ -162,20 +152,12 @@ func checkElasticsearchReadiness(f *framework.Framework) error {
 			framework.Logf("After %v failed to get services proxy request: %v", time.Since(start), errProxy)
 			continue
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-		defer cancel()
-
-		body, err = proxyRequest.Namespace(metav1.NamespaceSystem).
-			Context(ctx).
+		body, err = proxyRequest.Namespace(api.NamespaceSystem).
 			Name("elasticsearch-logging").
 			Suffix("_cluster/health").
 			Param("level", "indices").
 			DoRaw()
 		if err != nil {
-			if ctx.Err() != nil {
-				framework.Failf("Failed to get cluster health from elasticsearch: %v", err)
-			}
 			continue
 		}
 		health := make(map[string]interface{})
@@ -212,13 +194,9 @@ func getMissingLinesCountElasticsearch(f *framework.Framework, expectedCount int
 		return 0, fmt.Errorf("Failed to get services proxy request: %v", errProxy)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-	defer cancel()
-
 	// Ask Elasticsearch to return all the log lines that were tagged with the
 	// pod name. Ask for ten times as many log lines because duplication is possible.
-	body, err := proxyRequest.Namespace(metav1.NamespaceSystem).
-		Context(ctx).
+	body, err := proxyRequest.Namespace(api.NamespaceSystem).
 		Name("elasticsearch-logging").
 		Suffix("_search").
 		// TODO: Change filter to only match records from current test run
@@ -228,9 +206,6 @@ func getMissingLinesCountElasticsearch(f *framework.Framework, expectedCount int
 		Param("size", strconv.Itoa(expectedCount*10)).
 		DoRaw()
 	if err != nil {
-		if ctx.Err() != nil {
-			framework.Failf("Failed to make proxy call to elasticsearch-logging: %v", err)
-		}
 		return 0, fmt.Errorf("Failed to make proxy call to elasticsearch-logging: %v", err)
 	}
 

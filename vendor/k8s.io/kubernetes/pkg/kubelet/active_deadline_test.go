@@ -20,26 +20,26 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/clock"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/client/record"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/clock"
 )
 
 // mockPodStatusProvider returns the status on the specified pod
 type mockPodStatusProvider struct {
-	pods []*v1.Pod
+	pods []*api.Pod
 }
 
 // GetPodStatus returns the status on the associated pod with matching uid (if found)
-func (m *mockPodStatusProvider) GetPodStatus(uid types.UID) (v1.PodStatus, bool) {
+func (m *mockPodStatusProvider) GetPodStatus(uid types.UID) (api.PodStatus, bool) {
 	for _, pod := range m.pods {
 		if pod.UID == uid {
 			return pod.Status, true
 		}
 	}
-	return v1.PodStatus{}, false
+	return api.PodStatus{}, false
 }
 
 // TestActiveDeadlineHandler verifies the active deadline handler functions as expected.
@@ -53,8 +53,8 @@ func TestActiveDeadlineHandler(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	now := metav1.Now()
-	startTime := metav1.NewTime(now.Time.Add(-1 * time.Minute))
+	now := unversioned.Now()
+	startTime := unversioned.NewTime(now.Time.Add(-1 * time.Minute))
 
 	// this pod has exceeded its active deadline
 	exceededActiveDeadlineSeconds := int64(30)
@@ -71,7 +71,7 @@ func TestActiveDeadlineHandler(t *testing.T) {
 	pods[2].Spec.ActiveDeadlineSeconds = nil
 
 	testCases := []struct {
-		pod      *v1.Pod
+		pod      *api.Pod
 		expected bool
 	}{{pods[0], true}, {pods[1], false}, {pods[2], false}, {pods[3], false}}
 

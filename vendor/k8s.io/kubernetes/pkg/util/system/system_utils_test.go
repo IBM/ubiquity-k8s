@@ -19,8 +19,7 @@ package system
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 func TestIsMasterNode(t *testing.T) {
@@ -38,8 +37,8 @@ func TestIsMasterNode(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		node := v1.Node{ObjectMeta: metav1.ObjectMeta{Name: tc.input}}
-		res := IsMasterNode(node.Name)
+		node := api.Node{ObjectMeta: api.ObjectMeta{Name: tc.input}}
+		res := IsMasterNode(&node)
 		if res != tc.result {
 			t.Errorf("case \"%s\": expected %t, got %t", tc.input, tc.result, res)
 		}

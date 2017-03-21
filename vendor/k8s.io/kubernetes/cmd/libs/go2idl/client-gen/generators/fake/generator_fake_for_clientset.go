@@ -70,11 +70,12 @@ func (g *genClientset) Imports(c *generator.Context) (imports []string) {
 	// imports for the code in commonTemplate
 	imports = append(imports,
 		"k8s.io/kubernetes/pkg/api",
-		"k8s.io/client-go/testing",
-		"k8s.io/client-go/discovery",
-		"fakediscovery \"k8s.io/client-go/discovery/fake\"",
-		"k8s.io/apimachinery/pkg/runtime",
-		"k8s.io/apimachinery/pkg/watch",
+		"k8s.io/kubernetes/pkg/apimachinery/registered",
+		"k8s.io/kubernetes/pkg/client/testing/core",
+		"k8s.io/kubernetes/pkg/client/typed/discovery",
+		"fakediscovery \"k8s.io/kubernetes/pkg/client/typed/discovery/fake\"",
+		"k8s.io/kubernetes/pkg/runtime",
+		"k8s.io/kubernetes/pkg/watch",
 	)
 
 	return
@@ -109,17 +110,17 @@ var common = `
 // without applying any validations and/or defaults. It shouldn't be considered a replacement
 // for a real clientset and is mostly useful in simple unit tests.
 func NewSimpleClientset(objects ...runtime.Object) *Clientset {
-	o := testing.NewObjectTracker(api.Registry, api.Scheme, api.Codecs.UniversalDecoder())
+	o := core.NewObjectTracker(api.Scheme, api.Codecs.UniversalDecoder())
 	for _, obj := range objects {
 		if err := o.Add(obj); err != nil {
 			panic(err)
 		}
 	}
 
-	fakePtr := testing.Fake{}
-	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o, api.Registry.RESTMapper()))
+	fakePtr := core.Fake{}
+	fakePtr.AddReactor("*", "*", core.ObjectReaction(o, registered.RESTMapper()))
 
-	fakePtr.AddWatchReactor("*", testing.DefaultWatchReactor(watch.NewFake(), nil))
+	fakePtr.AddWatchReactor("*", core.DefaultWatchReactor(watch.NewFake(), nil))
 
 	return &Clientset{fakePtr}
 }
@@ -128,7 +129,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 // struct to get a default implementation. This makes faking out just the method
 // you want to test easier.
 type Clientset struct {
-	testing.Fake
+	core.Fake
 }
 
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {

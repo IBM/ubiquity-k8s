@@ -17,12 +17,11 @@ limitations under the License.
 package fake
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
+	api "k8s.io/client-go/pkg/api"
+	unversioned "k8s.io/client-go/pkg/api/unversioned"
 	v1 "k8s.io/client-go/pkg/api/v1"
+	labels "k8s.io/client-go/pkg/labels"
+	watch "k8s.io/client-go/pkg/watch"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,7 +31,7 @@ type FakeReplicationControllers struct {
 	ns   string
 }
 
-var replicationcontrollersResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "replicationcontrollers"}
+var replicationcontrollersResource = unversioned.GroupVersionResource{Group: "", Version: "v1", Resource: "replicationcontrollers"}
 
 func (c *FakeReplicationControllers) Create(replicationController *v1.ReplicationController) (result *v1.ReplicationController, err error) {
 	obj, err := c.Fake.
@@ -64,21 +63,21 @@ func (c *FakeReplicationControllers) UpdateStatus(replicationController *v1.Repl
 	return obj.(*v1.ReplicationController), err
 }
 
-func (c *FakeReplicationControllers) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *FakeReplicationControllers) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(replicationcontrollersResource, c.ns, name), &v1.ReplicationController{})
 
 	return err
 }
 
-func (c *FakeReplicationControllers) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *FakeReplicationControllers) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(replicationcontrollersResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &v1.ReplicationControllerList{})
 	return err
 }
 
-func (c *FakeReplicationControllers) Get(name string, options meta_v1.GetOptions) (result *v1.ReplicationController, err error) {
+func (c *FakeReplicationControllers) Get(name string) (result *v1.ReplicationController, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(replicationcontrollersResource, c.ns, name), &v1.ReplicationController{})
 
@@ -88,7 +87,7 @@ func (c *FakeReplicationControllers) Get(name string, options meta_v1.GetOptions
 	return obj.(*v1.ReplicationController), err
 }
 
-func (c *FakeReplicationControllers) List(opts meta_v1.ListOptions) (result *v1.ReplicationControllerList, err error) {
+func (c *FakeReplicationControllers) List(opts v1.ListOptions) (result *v1.ReplicationControllerList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(replicationcontrollersResource, c.ns, opts), &v1.ReplicationControllerList{})
 
@@ -110,14 +109,14 @@ func (c *FakeReplicationControllers) List(opts meta_v1.ListOptions) (result *v1.
 }
 
 // Watch returns a watch.Interface that watches the requested replicationControllers.
-func (c *FakeReplicationControllers) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *FakeReplicationControllers) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(replicationcontrollersResource, c.ns, opts))
 
 }
 
 // Patch applies the patch and returns the patched replicationController.
-func (c *FakeReplicationControllers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.ReplicationController, err error) {
+func (c *FakeReplicationControllers) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *v1.ReplicationController, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(replicationcontrollersResource, c.ns, name, data, subresources...), &v1.ReplicationController{})
 

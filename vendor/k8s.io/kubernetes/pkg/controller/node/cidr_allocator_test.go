@@ -21,20 +21,18 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
-	"k8s.io/kubernetes/pkg/controller/node/testutil"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 const (
 	nodePollInterval = 100 * time.Millisecond
 )
 
-func waitForUpdatedNodeWithTimeout(nodeHandler *testutil.FakeNodeHandler, number int, timeout time.Duration) error {
+func waitForUpdatedNodeWithTimeout(nodeHandler *FakeNodeHandler, number int, timeout time.Duration) error {
 	return wait.Poll(nodePollInterval, timeout, func() (bool, error) {
-		if len(nodeHandler.GetUpdatedNodesCopy()) >= number {
+		if len(nodeHandler.getUpdatedNodesCopy()) >= number {
 			return true, nil
 		}
 		return false, nil
@@ -44,7 +42,7 @@ func waitForUpdatedNodeWithTimeout(nodeHandler *testutil.FakeNodeHandler, number
 func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 	testCases := []struct {
 		description           string
-		fakeNodeHandler       *testutil.FakeNodeHandler
+		fakeNodeHandler       *FakeNodeHandler
 		clusterCIDR           *net.IPNet
 		serviceCIDR           *net.IPNet
 		subNetMaskSize        int
@@ -53,10 +51,10 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 	}{
 		{
 			description: "When there's no ServiceCIDR return first CIDR in range",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -73,10 +71,10 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 		},
 		{
 			description: "Correctly filter out ServiceCIDR",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -97,10 +95,10 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 		},
 		{
 			description: "Correctly ignore already allocated CIDRs",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -123,7 +121,7 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 
 	testFunc := func(tc struct {
 		description           string
-		fakeNodeHandler       *testutil.FakeNodeHandler
+		fakeNodeHandler       *FakeNodeHandler
 		clusterCIDR           *net.IPNet
 		serviceCIDR           *net.IPNet
 		subNetMaskSize        int
@@ -154,7 +152,7 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 		}
 		found := false
 		seenCIDRs := []string{}
-		for _, updatedNode := range tc.fakeNodeHandler.GetUpdatedNodesCopy() {
+		for _, updatedNode := range tc.fakeNodeHandler.getUpdatedNodesCopy() {
 			seenCIDRs = append(seenCIDRs, updatedNode.Spec.PodCIDR)
 			if updatedNode.Spec.PodCIDR == tc.expectedAllocatedCIDR {
 				found = true
@@ -175,7 +173,7 @@ func TestAllocateOrOccupyCIDRSuccess(t *testing.T) {
 func TestAllocateOrOccupyCIDRFailure(t *testing.T) {
 	testCases := []struct {
 		description     string
-		fakeNodeHandler *testutil.FakeNodeHandler
+		fakeNodeHandler *FakeNodeHandler
 		clusterCIDR     *net.IPNet
 		serviceCIDR     *net.IPNet
 		subNetMaskSize  int
@@ -183,10 +181,10 @@ func TestAllocateOrOccupyCIDRFailure(t *testing.T) {
 	}{
 		{
 			description: "When there's no ServiceCIDR return first CIDR in range",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -205,7 +203,7 @@ func TestAllocateOrOccupyCIDRFailure(t *testing.T) {
 
 	testFunc := func(tc struct {
 		description     string
-		fakeNodeHandler *testutil.FakeNodeHandler
+		fakeNodeHandler *FakeNodeHandler
 		clusterCIDR     *net.IPNet
 		serviceCIDR     *net.IPNet
 		subNetMaskSize  int
@@ -233,11 +231,11 @@ func TestAllocateOrOccupyCIDRFailure(t *testing.T) {
 		}
 		// We don't expect any updates, so just sleep for some time
 		time.Sleep(time.Second)
-		if len(tc.fakeNodeHandler.GetUpdatedNodesCopy()) != 0 {
-			t.Fatalf("%v: unexpected update of nodes: %v", tc.description, tc.fakeNodeHandler.GetUpdatedNodesCopy())
+		if len(tc.fakeNodeHandler.getUpdatedNodesCopy()) != 0 {
+			t.Fatalf("%v: unexpected update of nodes: %v", tc.description, tc.fakeNodeHandler.getUpdatedNodesCopy())
 		}
 		seenCIDRs := []string{}
-		for _, updatedNode := range tc.fakeNodeHandler.GetUpdatedNodesCopy() {
+		for _, updatedNode := range tc.fakeNodeHandler.getUpdatedNodesCopy() {
 			if updatedNode.Spec.PodCIDR != "" {
 				seenCIDRs = append(seenCIDRs, updatedNode.Spec.PodCIDR)
 			}
@@ -255,7 +253,7 @@ func TestAllocateOrOccupyCIDRFailure(t *testing.T) {
 func TestReleaseCIDRSuccess(t *testing.T) {
 	testCases := []struct {
 		description                      string
-		fakeNodeHandler                  *testutil.FakeNodeHandler
+		fakeNodeHandler                  *FakeNodeHandler
 		clusterCIDR                      *net.IPNet
 		serviceCIDR                      *net.IPNet
 		subNetMaskSize                   int
@@ -266,10 +264,10 @@ func TestReleaseCIDRSuccess(t *testing.T) {
 	}{
 		{
 			description: "Correctly release preallocated CIDR",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -289,10 +287,10 @@ func TestReleaseCIDRSuccess(t *testing.T) {
 		},
 		{
 			description: "Correctly recycle CIDR",
-			fakeNodeHandler: &testutil.FakeNodeHandler{
-				Existing: []*v1.Node{
+			fakeNodeHandler: &FakeNodeHandler{
+				Existing: []*api.Node{
 					{
-						ObjectMeta: metav1.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name: "node0",
 						},
 					},
@@ -313,7 +311,7 @@ func TestReleaseCIDRSuccess(t *testing.T) {
 
 	testFunc := func(tc struct {
 		description                      string
-		fakeNodeHandler                  *testutil.FakeNodeHandler
+		fakeNodeHandler                  *FakeNodeHandler
 		clusterCIDR                      *net.IPNet
 		serviceCIDR                      *net.IPNet
 		subNetMaskSize                   int
@@ -353,14 +351,14 @@ func TestReleaseCIDRSuccess(t *testing.T) {
 			}
 			// We don't expect any updates here
 			time.Sleep(time.Second)
-			if len(tc.fakeNodeHandler.GetUpdatedNodesCopy()) != 0 {
-				t.Fatalf("%v: unexpected update of nodes: %v", tc.description, tc.fakeNodeHandler.GetUpdatedNodesCopy())
+			if len(tc.fakeNodeHandler.getUpdatedNodesCopy()) != 0 {
+				t.Fatalf("%v: unexpected update of nodes: %v", tc.description, tc.fakeNodeHandler.getUpdatedNodesCopy())
 			}
 		}
 
 		for _, cidrToRelease := range tc.cidrsToRelease {
-			nodeToRelease := v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
+			nodeToRelease := api.Node{
+				ObjectMeta: api.ObjectMeta{
 					Name: "node0",
 				},
 			}
@@ -380,7 +378,7 @@ func TestReleaseCIDRSuccess(t *testing.T) {
 
 		found := false
 		seenCIDRs := []string{}
-		for _, updatedNode := range tc.fakeNodeHandler.GetUpdatedNodesCopy() {
+		for _, updatedNode := range tc.fakeNodeHandler.getUpdatedNodesCopy() {
 			seenCIDRs = append(seenCIDRs, updatedNode.Spec.PodCIDR)
 			if updatedNode.Spec.PodCIDR == tc.expectedAllocatedCIDRSecondRound {
 				found = true

@@ -24,14 +24,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 func newTestContainerGC(t *testing.T) (*containerGC, *FakeDockerClient) {
-	fakeDocker := NewFakeDockerClient()
+	fakeDocker := new(FakeDockerClient)
 	fakePodGetter := newFakePodGetter()
 	gc := NewContainerGC(fakeDocker, fakePodGetter, "")
 	return gc, fakeDocker
@@ -66,8 +65,8 @@ func makeUndefinedContainer(id string, running bool, created time.Time) *FakeCon
 func addPods(podGetter podGetter, podUIDs ...types.UID) {
 	fakePodGetter := podGetter.(*fakePodGetter)
 	for _, uid := range podUIDs {
-		fakePodGetter.pods[uid] = &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		fakePodGetter.pods[uid] = &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:      "pod" + string(uid),
 				Namespace: "test",
 				UID:       uid,

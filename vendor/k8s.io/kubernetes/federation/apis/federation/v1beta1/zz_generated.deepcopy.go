@@ -21,10 +21,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	conversion "k8s.io/apimachinery/pkg/conversion"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	v1 "k8s.io/kubernetes/pkg/api/v1"
+	conversion "k8s.io/kubernetes/pkg/conversion"
+	runtime "k8s.io/kubernetes/pkg/runtime"
 	reflect "reflect"
 )
 
@@ -49,11 +48,9 @@ func DeepCopy_v1beta1_Cluster(in interface{}, out interface{}, c *conversion.Clo
 	{
 		in := in.(*Cluster)
 		out := out.(*Cluster)
-		*out = *in
-		if newVal, err := c.DeepCopy(&in.ObjectMeta); err != nil {
+		out.TypeMeta = in.TypeMeta
+		if err := v1.DeepCopy_v1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, c); err != nil {
 			return err
-		} else {
-			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
 		if err := DeepCopy_v1beta1_ClusterSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
@@ -69,9 +66,12 @@ func DeepCopy_v1beta1_ClusterCondition(in interface{}, out interface{}, c *conve
 	{
 		in := in.(*ClusterCondition)
 		out := out.(*ClusterCondition)
-		*out = *in
+		out.Type = in.Type
+		out.Status = in.Status
 		out.LastProbeTime = in.LastProbeTime.DeepCopy()
 		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		out.Reason = in.Reason
+		out.Message = in.Message
 		return nil
 	}
 }
@@ -80,7 +80,8 @@ func DeepCopy_v1beta1_ClusterList(in interface{}, out interface{}, c *conversion
 	{
 		in := in.(*ClusterList)
 		out := out.(*ClusterList)
-		*out = *in
+		out.TypeMeta = in.TypeMeta
+		out.ListMeta = in.ListMeta
 		if in.Items != nil {
 			in, out := &in.Items, &out.Items
 			*out = make([]Cluster, len(*in))
@@ -89,6 +90,8 @@ func DeepCopy_v1beta1_ClusterList(in interface{}, out interface{}, c *conversion
 					return err
 				}
 			}
+		} else {
+			out.Items = nil
 		}
 		return nil
 	}
@@ -98,16 +101,21 @@ func DeepCopy_v1beta1_ClusterSpec(in interface{}, out interface{}, c *conversion
 	{
 		in := in.(*ClusterSpec)
 		out := out.(*ClusterSpec)
-		*out = *in
 		if in.ServerAddressByClientCIDRs != nil {
 			in, out := &in.ServerAddressByClientCIDRs, &out.ServerAddressByClientCIDRs
 			*out = make([]ServerAddressByClientCIDR, len(*in))
-			copy(*out, *in)
+			for i := range *in {
+				(*out)[i] = (*in)[i]
+			}
+		} else {
+			out.ServerAddressByClientCIDRs = nil
 		}
 		if in.SecretRef != nil {
 			in, out := &in.SecretRef, &out.SecretRef
-			*out = new(api_v1.LocalObjectReference)
+			*out = new(v1.LocalObjectReference)
 			**out = **in
+		} else {
+			out.SecretRef = nil
 		}
 		return nil
 	}
@@ -117,7 +125,6 @@ func DeepCopy_v1beta1_ClusterStatus(in interface{}, out interface{}, c *conversi
 	{
 		in := in.(*ClusterStatus)
 		out := out.(*ClusterStatus)
-		*out = *in
 		if in.Conditions != nil {
 			in, out := &in.Conditions, &out.Conditions
 			*out = make([]ClusterCondition, len(*in))
@@ -126,12 +133,17 @@ func DeepCopy_v1beta1_ClusterStatus(in interface{}, out interface{}, c *conversi
 					return err
 				}
 			}
+		} else {
+			out.Conditions = nil
 		}
 		if in.Zones != nil {
 			in, out := &in.Zones, &out.Zones
 			*out = make([]string, len(*in))
 			copy(*out, *in)
+		} else {
+			out.Zones = nil
 		}
+		out.Region = in.Region
 		return nil
 	}
 }
@@ -140,7 +152,8 @@ func DeepCopy_v1beta1_ServerAddressByClientCIDR(in interface{}, out interface{},
 	{
 		in := in.(*ServerAddressByClientCIDR)
 		out := out.(*ServerAddressByClientCIDR)
-		*out = *in
+		out.ClientCIDR = in.ClientCIDR
+		out.ServerAddress = in.ServerAddress
 		return nil
 	}
 }

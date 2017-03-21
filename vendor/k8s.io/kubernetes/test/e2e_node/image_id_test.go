@@ -17,8 +17,7 @@ limitations under the License.
 package e2e_node
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/test/e2e/framework"
 
@@ -34,17 +33,17 @@ var _ = framework.KubeDescribe("ImageID", func() {
 	f := framework.NewDefaultFramework("image-id-test")
 
 	It("should be set to the manifest digest (from RepoDigests) when available", func() {
-		podDesc := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		podDesc := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name: "pod-with-repodigest",
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{{
+			Spec: api.PodSpec{
+				Containers: []api.Container{{
 					Name:    "test",
 					Image:   busyBoxImage,
 					Command: []string{"sh"},
 				}},
-				RestartPolicy: v1.RestartPolicyNever,
+				RestartPolicy: api.RestartPolicyNever,
 			},
 		}
 
@@ -52,7 +51,7 @@ var _ = framework.KubeDescribe("ImageID", func() {
 
 		framework.ExpectNoError(framework.WaitTimeoutForPodNoLongerRunningInNamespace(
 			f.ClientSet, pod.Name, f.Namespace.Name, "", framework.PodStartTimeout))
-		runningPod, err := f.PodClient().Get(pod.Name, metav1.GetOptions{})
+		runningPod, err := f.PodClient().Get(pod.Name)
 		framework.ExpectNoError(err)
 
 		status := runningPod.Status

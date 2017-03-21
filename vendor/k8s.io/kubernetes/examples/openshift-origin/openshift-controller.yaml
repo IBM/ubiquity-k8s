@@ -1,14 +1,13 @@
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: v1
+kind: ReplicationController
 metadata: 
   labels: 
     name: openshift
   name: openshift
 spec: 
   replicas: 1
-  selector:
-    matchLabels:
-      name: openshift
+  selector: 
+    name: openshift
   template: 
     metadata: 
       labels: 

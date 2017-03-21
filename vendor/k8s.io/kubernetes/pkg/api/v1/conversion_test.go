@@ -22,22 +22,21 @@ import (
 	"testing"
 	"time"
 
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	versioned "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/diff"
 )
 
 func TestPodLogOptions(t *testing.T) {
 	sinceSeconds := int64(1)
-	sinceTime := metav1.NewTime(time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC).Local())
+	sinceTime := unversioned.NewTime(time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC).Local())
 	tailLines := int64(2)
 	limitBytes := int64(3)
 
-	versionedLogOptions := &v1.PodLogOptions{
+	versionedLogOptions := &versioned.PodLogOptions{
 		Container:    "mycontainer",
 		Follow:       true,
 		Previous:     true,
@@ -72,7 +71,7 @@ func TestPodLogOptions(t *testing.T) {
 
 	// unversioned -> query params
 	{
-		actualParameters, err := codec.EncodeParameters(unversionedLogOptions, v1.SchemeGroupVersion)
+		actualParameters, err := codec.EncodeParameters(unversionedLogOptions, versioned.SchemeGroupVersion)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +82,7 @@ func TestPodLogOptions(t *testing.T) {
 
 	// versioned -> query params
 	{
-		actualParameters, err := codec.EncodeParameters(versionedLogOptions, v1.SchemeGroupVersion)
+		actualParameters, err := codec.EncodeParameters(versionedLogOptions, versioned.SchemeGroupVersion)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,8 +93,8 @@ func TestPodLogOptions(t *testing.T) {
 
 	// query params -> versioned
 	{
-		convertedLogOptions := &v1.PodLogOptions{}
-		err := codec.DecodeParameters(expectedParameters, v1.SchemeGroupVersion, convertedLogOptions)
+		convertedLogOptions := &versioned.PodLogOptions{}
+		err := codec.DecodeParameters(expectedParameters, versioned.SchemeGroupVersion, convertedLogOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,7 +106,7 @@ func TestPodLogOptions(t *testing.T) {
 	// query params -> unversioned
 	{
 		convertedLogOptions := &api.PodLogOptions{}
-		err := codec.DecodeParameters(expectedParameters, v1.SchemeGroupVersion, convertedLogOptions)
+		err := codec.DecodeParameters(expectedParameters, versioned.SchemeGroupVersion, convertedLogOptions)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +126,7 @@ func TestPodSpecConversion(t *testing.T) {
 	i := &api.PodSpec{
 		ServiceAccountName: name,
 	}
-	v := v1.PodSpec{}
+	v := versioned.PodSpec{}
 	if err := api.Scheme.Convert(i, &v, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -141,7 +140,7 @@ func TestPodSpecConversion(t *testing.T) {
 	// Test v1 -> internal. Either DeprecatedServiceAccount, ServiceAccountName,
 	// or both should translate to ServiceAccountName. ServiceAccountName wins
 	// if both are set.
-	testCases := []*v1.PodSpec{
+	testCases := []*versioned.PodSpec{
 		// New
 		{ServiceAccountName: name},
 		// Alias
@@ -168,14 +167,14 @@ func TestResourceListConversion(t *testing.T) {
 	bigMilliQuantity.Add(resource.MustParse("12345m"))
 
 	tests := []struct {
-		input    v1.ResourceList
+		input    versioned.ResourceList
 		expected api.ResourceList
 	}{
 		{ // No changes necessary.
-			input: v1.ResourceList{
-				v1.ResourceMemory:  resource.MustParse("30M"),
-				v1.ResourceCPU:     resource.MustParse("100m"),
-				v1.ResourceStorage: resource.MustParse("1G"),
+			input: versioned.ResourceList{
+				versioned.ResourceMemory:  resource.MustParse("30M"),
+				versioned.ResourceCPU:     resource.MustParse("100m"),
+				versioned.ResourceStorage: resource.MustParse("1G"),
 			},
 			expected: api.ResourceList{
 				api.ResourceMemory:  resource.MustParse("30M"),
@@ -184,9 +183,9 @@ func TestResourceListConversion(t *testing.T) {
 			},
 		},
 		{ // Nano-scale values should be rounded up to milli-scale.
-			input: v1.ResourceList{
-				v1.ResourceCPU:    resource.MustParse("3.000023m"),
-				v1.ResourceMemory: resource.MustParse("500.000050m"),
+			input: versioned.ResourceList{
+				versioned.ResourceCPU:    resource.MustParse("3.000023m"),
+				versioned.ResourceMemory: resource.MustParse("500.000050m"),
 			},
 			expected: api.ResourceList{
 				api.ResourceCPU:    resource.MustParse("4m"),
@@ -194,9 +193,9 @@ func TestResourceListConversion(t *testing.T) {
 			},
 		},
 		{ // Large values should still be accurate.
-			input: v1.ResourceList{
-				v1.ResourceCPU:     *bigMilliQuantity.Copy(),
-				v1.ResourceStorage: *bigMilliQuantity.Copy(),
+			input: versioned.ResourceList{
+				versioned.ResourceCPU:     *bigMilliQuantity.Copy(),
+				versioned.ResourceStorage: *bigMilliQuantity.Copy(),
 			},
 			expected: api.ResourceList{
 				api.ResourceCPU:     *bigMilliQuantity.Copy(),
@@ -211,7 +210,7 @@ func TestResourceListConversion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error for case %d: %v", i, err)
 		}
-		if !apiequality.Semantic.DeepEqual(test.expected, output) {
+		if !api.Semantic.DeepEqual(test.expected, output) {
 			t.Errorf("unexpected conversion for case %d: Expected %+v; Got %+v", i, test.expected, output)
 		}
 	}

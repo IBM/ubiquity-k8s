@@ -182,7 +182,7 @@ func TestClientIntegration(t *testing.T) {
 	// Do a bunch of reads with filters.
 	readTests := []struct {
 		desc   string
-		rr     RowSet
+		rr     RowRange
 		filter Filter // may be nil
 
 		// We do the read, grab all the cells, turn them into "<row>-<col>-<val>",
@@ -219,25 +219,6 @@ func TestClientIntegration(t *testing.T) {
 			rr:     RowRange{},
 			filter: ColumnFilter(".*j.*"), // matches "jadams" and "tjefferson"
 			want:   "gwashington-jadams-1,jadams-tjefferson-1,tjefferson-jadams-1,wmckinley-tjefferson-1",
-		},
-		{
-			desc:   "read range, with ColumnRangeFilter",
-			rr:     RowRange{},
-			filter: ColumnRangeFilter("follows", "h", "k"),
-			want:   "gwashington-jadams-1,tjefferson-jadams-1",
-		},
-		{
-			desc:   "read range from empty, with ColumnRangeFilter",
-			rr:     RowRange{},
-			filter: ColumnRangeFilter("follows", "", "u"),
-			want:   "gwashington-jadams-1,jadams-gwashington-1,jadams-tjefferson-1,tjefferson-gwashington-1,tjefferson-jadams-1,wmckinley-tjefferson-1",
-
-		},
-		{
-			desc:   "read range from start to empty, with ColumnRangeFilter",
-			rr:     RowRange{},
-			filter: ColumnRangeFilter("follows", "h", ""),
-			want:   "gwashington-jadams-1,jadams-tjefferson-1,tjefferson-jadams-1,tjefferson-wmckinley-1,wmckinley-tjefferson-1",
 		},
 	}
 	for _, tc := range readTests {
@@ -428,56 +409,6 @@ func TestClientIntegration(t *testing.T) {
 		t.Errorf("Cell with multiple versions and LatestNFilter(2), after deleting timestamp 2000,\n got %v\nwant %v", r, wantRow)
 	}
 	checkpoint("tested multiple versions in a cell")
-
-	// Check DeleteColumnFamily
-	if err := adminClient.CreateColumnFamily(ctx, table, "status"); err != nil {
-		t.Fatalf("Creating column family: %v", err)
-	}
-
-	mut = NewMutation()
-	mut.Set("status", "start", 0, []byte("1"))
-	mut.Set("status", "end", 0, []byte("2"))
-	mut.Set("ts", "col", 0, []byte("3"))
-	if err := tbl.Apply(ctx, "row1", mut); err != nil {
-		t.Errorf("Mutating row: %v", err)
-	}
-	if err := tbl.Apply(ctx, "row2", mut); err != nil {
-		t.Errorf("Mutating row: %v", err)
-	}
-
-	mut = NewMutation()
-	mut.DeleteCellsInFamily("status")
-	if err := tbl.Apply(ctx, "row1", mut); err != nil {
-		t.Errorf("Delete cf: %v", err)
-	}
-
-	// ColumnFamily removed
-	r, err = tbl.ReadRow(ctx, "row1")
-	if err != nil {
-		t.Fatalf("Reading row: %v", err)
-	}
-	wantRow = Row{"ts": []ReadItem{
-		{Row: "row1", Column: "ts:col", Timestamp: 0, Value: []byte("3")},
-	}}
-	if !reflect.DeepEqual(r, wantRow) {
-		t.Errorf("column family was not deleted.\n got %v\n want %v", r, wantRow)
-	}
-
-	// ColumnFamily not removed
-	r, err = tbl.ReadRow(ctx, "row2")
-	if err != nil {
-		t.Fatalf("Reading row: %v", err)
-	}
-	wantRow = Row{
-		"ts": []ReadItem{
-			{Row: "row2", Column: "ts:col", Timestamp: 0, Value: []byte("3")},
-		},
-		"status": []ReadItem{
-			{Row: "row2", Column: "status:start", Timestamp: 0, Value: []byte("1")},
-			{Row: "row2", Column: "status:end", Timestamp: 0, Value: []byte("2")},
-		},
-	}
-	checkpoint("tested family delete")
 
 	// Do highly concurrent reads/writes.
 	// TODO(dsymonds): Raise this to 1000 when https://github.com/grpc/grpc-go/issues/205 is resolved.

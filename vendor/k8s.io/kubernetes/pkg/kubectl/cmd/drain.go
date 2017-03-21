@@ -28,22 +28,21 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/spf13/cobra"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
+	apierrors "k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/policy"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
 	"k8s.io/kubernetes/pkg/kubelet/types"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 type DrainOptions struct {
@@ -100,7 +99,7 @@ func NewCmdCordon(f cmdutil.Factory, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "cordon NODE",
-		Short:   i18n.T("Mark node as unschedulable"),
+		Short:   "Mark node as unschedulable",
 		Long:    cordon_long,
 		Example: cordon_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -125,7 +124,7 @@ func NewCmdUncordon(f cmdutil.Factory, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "uncordon NODE",
-		Short:   i18n.T("Mark node as schedulable"),
+		Short:   "Mark node as schedulable",
 		Long:    uncordon_long,
 		Example: uncordon_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -174,7 +173,7 @@ func NewCmdDrain(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "drain NODE",
-		Short:   i18n.T("Drain node in preparation for maintenance"),
+		Short:   "Drain node in preparation for maintenance",
 		Long:    drain_long,
 		Example: drain_example,
 		Run: func(cmd *cobra.Command, args []string) {
@@ -268,15 +267,15 @@ func (o *DrainOptions) deleteOrEvictPodsSimple() error {
 func (o *DrainOptions) getController(sr *api.SerializedReference) (interface{}, error) {
 	switch sr.Reference.Kind {
 	case "ReplicationController":
-		return o.client.Core().ReplicationControllers(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{})
+		return o.client.Core().ReplicationControllers(sr.Reference.Namespace).Get(sr.Reference.Name)
 	case "DaemonSet":
-		return o.client.Extensions().DaemonSets(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{})
+		return o.client.Extensions().DaemonSets(sr.Reference.Namespace).Get(sr.Reference.Name)
 	case "Job":
-		return o.client.Batch().Jobs(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{})
+		return o.client.Batch().Jobs(sr.Reference.Namespace).Get(sr.Reference.Name)
 	case "ReplicaSet":
-		return o.client.Extensions().ReplicaSets(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{})
+		return o.client.Extensions().ReplicaSets(sr.Reference.Namespace).Get(sr.Reference.Name)
 	case "StatefulSet":
-		return o.client.Apps().StatefulSets(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{})
+		return o.client.Apps().StatefulSets(sr.Reference.Namespace).Get(sr.Reference.Name)
 	}
 	return nil, fmt.Errorf("Unknown controller kind %q", sr.Reference.Kind)
 }
@@ -331,7 +330,7 @@ func (o *DrainOptions) daemonsetFilter(pod api.Pod) (bool, *warning, *fatal) {
 	if sr == nil || sr.Reference.Kind != "DaemonSet" {
 		return true, nil, nil
 	}
-	if _, err := o.client.Extensions().DaemonSets(sr.Reference.Namespace).Get(sr.Reference.Name, metav1.GetOptions{}); err != nil {
+	if _, err := o.client.Extensions().DaemonSets(sr.Reference.Namespace).Get(sr.Reference.Name); err != nil {
 		return false, nil, &fatal{err.Error()}
 	}
 	if !o.IgnoreDaemonsets {
@@ -382,8 +381,8 @@ func (ps podStatuses) Message() string {
 // getPodsForDeletion returns all the pods we're going to delete.  If there are
 // any pods preventing us from deleting, we return that list in an error.
 func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
-	podList, err := o.client.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeInfo.Name}).String()})
+	podList, err := o.client.Core().Pods(api.NamespaceAll).List(api.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": o.nodeInfo.Name})})
 	if err != nil {
 		return pods, err
 	}
@@ -419,7 +418,7 @@ func (o *DrainOptions) getPodsForDeletion() (pods []api.Pod, err error) {
 }
 
 func (o *DrainOptions) deletePod(pod api.Pod) error {
-	deleteOptions := &metav1.DeleteOptions{}
+	deleteOptions := &api.DeleteOptions{}
 	if o.GracePeriodSeconds >= 0 {
 		gracePeriodSeconds := int64(o.GracePeriodSeconds)
 		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
@@ -428,17 +427,17 @@ func (o *DrainOptions) deletePod(pod api.Pod) error {
 }
 
 func (o *DrainOptions) evictPod(pod api.Pod, policyGroupVersion string) error {
-	deleteOptions := &metav1.DeleteOptions{}
+	deleteOptions := &api.DeleteOptions{}
 	if o.GracePeriodSeconds >= 0 {
 		gracePeriodSeconds := int64(o.GracePeriodSeconds)
 		deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
 	}
 	eviction := &policy.Eviction{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: unversioned.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
 		},
@@ -460,7 +459,7 @@ func (o *DrainOptions) deleteOrEvictPods(pods []api.Pod) error {
 	}
 
 	getPodFn := func(namespace, name string) (*api.Pod, error) {
-		return o.client.Core().Pods(namespace).Get(name, metav1.GetOptions{})
+		return o.client.Core().Pods(namespace).Get(name)
 	}
 
 	if len(policyGroupVersion) > 0 {

@@ -19,9 +19,8 @@ package flocker
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/volume"
 )
 
@@ -53,7 +52,7 @@ type flockerVolumeProvisioner struct {
 
 var _ volume.Provisioner = &flockerVolumeProvisioner{}
 
-func (c *flockerVolumeProvisioner) Provision() (*v1.PersistentVolume, error) {
+func (c *flockerVolumeProvisioner) Provision() (*api.PersistentVolume, error) {
 
 	if len(c.options.Parameters) > 0 {
 		return nil, fmt.Errorf("Provisioning failed: Specified at least one unsupported parameter")
@@ -68,22 +67,22 @@ func (c *flockerVolumeProvisioner) Provision() (*v1.PersistentVolume, error) {
 		return nil, err
 	}
 
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	pv := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name:   c.options.PVName,
 			Labels: map[string]string{},
 			Annotations: map[string]string{
 				"kubernetes.io/createdby": "flocker-dynamic-provisioner",
 			},
 		},
-		Spec: v1.PersistentVolumeSpec{
+		Spec: api.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: c.options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   c.options.PVC.Spec.AccessModes,
-			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): resource.MustParse(fmt.Sprintf("%dGi", sizeGB)),
+			Capacity: api.ResourceList{
+				api.ResourceName(api.ResourceStorage): resource.MustParse(fmt.Sprintf("%dGi", sizeGB)),
 			},
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				Flocker: &v1.FlockerVolumeSource{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				Flocker: &api.FlockerVolumeSource{
 					DatasetUUID: datasetUUID,
 				},
 			},

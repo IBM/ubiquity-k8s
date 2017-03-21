@@ -21,12 +21,11 @@ import (
 	"os"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	utiltesting "k8s.io/client-go/util/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/mount"
+	utiltesting "k8s.io/kubernetes/pkg/util/testing"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
 )
@@ -48,7 +47,7 @@ func TestCanSupport(t *testing.T) {
 	if plug.GetPluginName() != "kubernetes.io/rbd" {
 		t.Errorf("Wrong name: %s", plug.GetPluginName())
 	}
-	if plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{}}}) {
+	if plug.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{}}}) {
 		t.Errorf("Expected false")
 	}
 }
@@ -88,7 +87,7 @@ func (fake *fakeDiskManager) DetachDisk(c rbdUnmounter, mntPath string) error {
 	return nil
 }
 
-func (fake *fakeDiskManager) CreateImage(provisioner *rbdVolumeProvisioner) (r *v1.RBDVolumeSource, volumeSizeGB int, err error) {
+func (fake *fakeDiskManager) CreateImage(provisioner *rbdVolumeProvisioner) (r *api.RBDVolumeSource, volumeSizeGB int, err error) {
 	return nil, 0, fmt.Errorf("not implemented")
 }
 
@@ -156,10 +155,10 @@ func doTestPlugin(t *testing.T, spec *volume.Spec) {
 }
 
 func TestPluginVolume(t *testing.T) {
-	vol := &v1.Volume{
+	vol := &api.Volume{
 		Name: "vol1",
-		VolumeSource: v1.VolumeSource{
-			RBD: &v1.RBDVolumeSource{
+		VolumeSource: api.VolumeSource{
+			RBD: &api.RBDVolumeSource{
 				CephMonitors: []string{"a", "b"},
 				RBDImage:     "bar",
 				FSType:       "ext4",
@@ -169,13 +168,13 @@ func TestPluginVolume(t *testing.T) {
 	doTestPlugin(t, volume.NewSpecFromVolume(vol))
 }
 func TestPluginPersistentVolume(t *testing.T) {
-	vol := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	vol := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name: "vol1",
 		},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				RBD: &v1.RBDVolumeSource{
+		Spec: api.PersistentVolumeSpec{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				RBD: &api.RBDVolumeSource{
 					CephMonitors: []string{"a", "b"},
 					RBDImage:     "bar",
 					FSType:       "ext4",
@@ -194,34 +193,34 @@ func TestPersistentClaimReadOnlyFlag(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	pv := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name: "pvA",
 		},
-		Spec: v1.PersistentVolumeSpec{
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				RBD: &v1.RBDVolumeSource{
+		Spec: api.PersistentVolumeSpec{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				RBD: &api.RBDVolumeSource{
 					CephMonitors: []string{"a", "b"},
 					RBDImage:     "bar",
 					FSType:       "ext4",
 				},
 			},
-			ClaimRef: &v1.ObjectReference{
+			ClaimRef: &api.ObjectReference{
 				Name: "claimA",
 			},
 		},
 	}
 
-	claim := &v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
+	claim := &api.PersistentVolumeClaim{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "claimA",
 			Namespace: "nsA",
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
+		Spec: api.PersistentVolumeClaimSpec{
 			VolumeName: "pvA",
 		},
-		Status: v1.PersistentVolumeClaimStatus{
-			Phase: v1.ClaimBound,
+		Status: api.PersistentVolumeClaimStatus{
+			Phase: api.ClaimBound,
 		},
 	}
 
@@ -233,7 +232,7 @@ func TestPersistentClaimReadOnlyFlag(t *testing.T) {
 
 	// readOnly bool is supplied by persistent-claim volume source when its mounter creates other volumes
 	spec := volume.NewSpecFromPersistentVolume(pv, true)
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	mounter, _ := plug.NewMounter(spec, pod, volume.VolumeOptions{})
 
 	if !mounter.GetAttributes().ReadOnly {

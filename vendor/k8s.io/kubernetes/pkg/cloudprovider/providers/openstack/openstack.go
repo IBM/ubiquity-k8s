@@ -26,19 +26,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
+	"gopkg.in/gcfg.v1"
+
 	"github.com/rackspace/gophercloud"
 	"github.com/rackspace/gophercloud/openstack"
 	"github.com/rackspace/gophercloud/openstack/compute/v2/servers"
 	"github.com/rackspace/gophercloud/openstack/identity/v3/extensions/trust"
 	token3 "github.com/rackspace/gophercloud/openstack/identity/v3/tokens"
 	"github.com/rackspace/gophercloud/pagination"
-	"gopkg.in/gcfg.v1"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/types"
 )
 
 const ProviderName = "openstack"
@@ -90,17 +90,12 @@ type BlockStorageOpts struct {
 	TrustDevicePath bool `gcfg:"trust-device-path"` // See Issue #33128
 }
 
-type RouterOpts struct {
-	RouterId string `gcfg:"router-id"` // required
-}
-
 // OpenStack is an implementation of cloud provider Interface for OpenStack.
 type OpenStack struct {
-	provider  *gophercloud.ProviderClient
-	region    string
-	lbOpts    LoadBalancerOpts
-	bsOpts    BlockStorageOpts
-	routeOpts RouterOpts
+	provider *gophercloud.ProviderClient
+	region   string
+	lbOpts   LoadBalancerOpts
+	bsOpts   BlockStorageOpts
 	// InstanceID of the server where this OpenStack object is instantiated.
 	localInstanceID string
 }
@@ -121,7 +116,6 @@ type Config struct {
 	}
 	LoadBalancer LoadBalancerOpts
 	BlockStorage BlockStorageOpts
-	Route        RouterOpts
 }
 
 func init() {
@@ -164,18 +158,6 @@ func readConfig(config io.Reader) (Config, error) {
 
 	err := gcfg.ReadInto(&cfg, config)
 	return cfg, err
-}
-
-// Tiny helper for conditional unwind logic
-type Caller bool
-
-func NewCaller() Caller   { return Caller(true) }
-func (c *Caller) Disarm() { *c = false }
-
-func (c *Caller) Call(f func()) {
-	if *c {
-		f()
-	}
 }
 
 func readInstanceID() (string, error) {
@@ -229,7 +211,6 @@ func newOpenStack(cfg Config) (*OpenStack, error) {
 		region:          cfg.Global.Region,
 		lbOpts:          cfg.LoadBalancer,
 		bsOpts:          cfg.BlockStorage,
-		routeOpts:       cfg.Route,
 		localInstanceID: id,
 	}
 
@@ -244,29 +225,7 @@ func mapNodeNameToServerName(nodeName types.NodeName) string {
 
 // mapServerToNodeName maps an OpenStack Server to a k8s NodeName
 func mapServerToNodeName(server *servers.Server) types.NodeName {
-	// Node names are always lowercase, and (at least)
-	// routecontroller does case-sensitive string comparisons
-	// assuming this
-	return types.NodeName(strings.ToLower(server.Name))
-}
-
-func foreachServer(client *gophercloud.ServiceClient, opts servers.ListOptsBuilder, handler func(*servers.Server) (bool, error)) error {
-	pager := servers.List(client, opts)
-
-	err := pager.EachPage(func(page pagination.Page) (bool, error) {
-		s, err := servers.ExtractServers(page)
-		if err != nil {
-			return false, err
-		}
-		for _, server := range s {
-			ok, err := handler(&server)
-			if !ok || err != nil {
-				return false, err
-			}
-		}
-		return true, nil
-	})
-	return err
+	return types.NodeName(server.Name)
 }
 
 func getServerByName(client *gophercloud.ServiceClient, name types.NodeName) (*servers.Server, error) {
@@ -295,38 +254,55 @@ func getServerByName(client *gophercloud.ServiceClient, name types.NodeName) (*s
 
 	if len(serverList) == 0 {
 		return nil, ErrNotFound
+	} else if len(serverList) > 1 {
+		return nil, ErrMultipleResults
 	}
 
 	return &serverList[0], nil
 }
 
-func nodeAddresses(srv *servers.Server) ([]v1.NodeAddress, error) {
-	addrs := []v1.NodeAddress{}
-
-	type Address struct {
-		IpType string `mapstructure:"OS-EXT-IPS:type"`
-		Addr   string
-	}
-
-	var addresses map[string][]Address
-	err := mapstructure.Decode(srv.Addresses, &addresses)
+func getAddressesByName(client *gophercloud.ServiceClient, name types.NodeName) ([]api.NodeAddress, error) {
+	srv, err := getServerByName(client, name)
 	if err != nil {
 		return nil, err
 	}
 
-	for network, addrlist := range addresses {
-		for _, props := range addrlist {
-			var addressType v1.NodeAddressType
-			if props.IpType == "floating" || network == "public" {
-				addressType = v1.NodeExternalIP
-			} else {
-				addressType = v1.NodeInternalIP
+	addrs := []api.NodeAddress{}
+
+	for network, netblob := range srv.Addresses {
+		list, ok := netblob.([]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, item := range list {
+			var addressType api.NodeAddressType
+
+			props, ok := item.(map[string]interface{})
+			if !ok {
+				continue
 			}
 
-			v1.AddToNodeAddresses(&addrs,
-				v1.NodeAddress{
+			extIPType, ok := props["OS-EXT-IPS:type"]
+			if (ok && extIPType == "floating") || (!ok && network == "public") {
+				addressType = api.NodeExternalIP
+			} else {
+				addressType = api.NodeInternalIP
+			}
+
+			tmp, ok := props["addr"]
+			if !ok {
+				continue
+			}
+			addr, ok := tmp.(string)
+			if !ok {
+				continue
+			}
+
+			api.AddToNodeAddresses(&addrs,
+				api.NodeAddress{
 					Type:    addressType,
-					Address: props.Addr,
+					Address: addr,
 				},
 			)
 		}
@@ -334,33 +310,24 @@ func nodeAddresses(srv *servers.Server) ([]v1.NodeAddress, error) {
 
 	// AccessIPs are usually duplicates of "public" addresses.
 	if srv.AccessIPv4 != "" {
-		v1.AddToNodeAddresses(&addrs,
-			v1.NodeAddress{
-				Type:    v1.NodeExternalIP,
+		api.AddToNodeAddresses(&addrs,
+			api.NodeAddress{
+				Type:    api.NodeExternalIP,
 				Address: srv.AccessIPv4,
 			},
 		)
 	}
 
 	if srv.AccessIPv6 != "" {
-		v1.AddToNodeAddresses(&addrs,
-			v1.NodeAddress{
-				Type:    v1.NodeExternalIP,
+		api.AddToNodeAddresses(&addrs,
+			api.NodeAddress{
+				Type:    api.NodeExternalIP,
 				Address: srv.AccessIPv6,
 			},
 		)
 	}
 
 	return addrs, nil
-}
-
-func getAddressesByName(client *gophercloud.ServiceClient, name types.NodeName) ([]v1.NodeAddress, error) {
-	srv, err := getServerByName(client, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return nodeAddresses(srv)
 }
 
 func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName) (string, error) {
@@ -372,7 +339,7 @@ func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName) (s
 	}
 
 	for _, addr := range addrs {
-		if addr.Type == v1.NodeInternalIP {
+		if addr.Type == api.NodeInternalIP {
 			return addr.Address, nil
 		}
 	}
@@ -402,7 +369,7 @@ func (os *OpenStack) LoadBalancer() (cloudprovider.LoadBalancer, bool) {
 		Region: os.region,
 	})
 	if err != nil {
-		glog.Warningf("Failed to find network endpoint: %v", err)
+		glog.Warningf("Failed to find neutron endpoint: %v", err)
 		return nil, false
 	}
 
@@ -472,42 +439,5 @@ func (os *OpenStack) GetZone() (cloudprovider.Zone, error) {
 }
 
 func (os *OpenStack) Routes() (cloudprovider.Routes, bool) {
-	glog.V(4).Info("openstack.Routes() called")
-
-	network, err := openstack.NewNetworkV2(os.provider, gophercloud.EndpointOpts{
-		Region: os.region,
-	})
-	if err != nil {
-		glog.Warningf("Failed to find network endpoint: %v", err)
-		return nil, false
-	}
-
-	netExts, err := networkExtensions(network)
-	if err != nil {
-		glog.Warningf("Failed to list neutron extensions: %v", err)
-		return nil, false
-	}
-
-	if !netExts["extraroute"] {
-		glog.V(3).Infof("Neutron extraroute extension not found, required for Routes support")
-		return nil, false
-	}
-
-	compute, err := openstack.NewComputeV2(os.provider, gophercloud.EndpointOpts{
-		Region: os.region,
-	})
-	if err != nil {
-		glog.Warningf("Failed to find compute endpoint: %v", err)
-		return nil, false
-	}
-
-	r, err := NewRoutes(compute, network, os.routeOpts)
-	if err != nil {
-		glog.Warningf("Error initialising Routes support: %v", err)
-		return nil, false
-	}
-
-	glog.V(1).Info("Claiming to support Routes")
-
-	return r, true
+	return nil, false
 }

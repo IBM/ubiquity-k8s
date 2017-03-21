@@ -1,5 +1,3 @@
-approvers:
-- erictune
-- liggitt
-- deads2k
-reviewers:
+assignees:
+  - erictune
+  - liggitt

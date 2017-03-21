@@ -22,5 +22,8 @@ set -o pipefail
 
 KUBE_ROOT=$(dirname "${BASH_SOURCE}")/..
 
-make -C "${KUBE_ROOT}/federation/" build_image
-make -C "${KUBE_ROOT}/federation/" push
+source "${KUBE_ROOT}/build/util.sh"
+
+source "${KUBE_ROOT}/federation/cluster/common.sh"
+
+FEDERATION_IMAGE_TAG="$(kube::release::semantic_image_tag_version)" push-federation-images

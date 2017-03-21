@@ -21,19 +21,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blang/semver"
-	dockertypes "github.com/docker/engine-api/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"k8s.io/client-go/util/clock"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
 	containertest "k8s.io/kubernetes/pkg/kubelet/container/testing"
 	"k8s.io/kubernetes/pkg/kubelet/dockertools"
 	"k8s.io/kubernetes/pkg/kubelet/network"
 	"k8s.io/kubernetes/pkg/kubelet/network/mock_network"
-	"k8s.io/kubernetes/pkg/kubelet/util/cache"
+	"k8s.io/kubernetes/pkg/util/clock"
 )
 
 // newTestNetworkPlugin returns a mock plugin that implements network.NetworkPlugin
@@ -44,33 +40,21 @@ func newTestNetworkPlugin(t *testing.T) *mock_network.MockNetworkPlugin {
 
 func newTestDockerService() (*dockerService, *dockertools.FakeDockerClient, *clock.FakeClock) {
 	fakeClock := clock.NewFakeClock(time.Time{})
-	c := dockertools.NewFakeDockerClient().WithClock(fakeClock).WithVersion("1.11.2", "1.23")
-	return &dockerService{client: c, os: &containertest.FakeOS{}, networkPlugin: &network.NoopNetworkPlugin{},
-		legacyCleanup: legacyCleanupFlag{done: 1}, checkpointHandler: NewTestPersistentCheckpointHandler()}, c, fakeClock
-}
-
-func newTestDockerServiceWithVersionCache() (*dockerService, *dockertools.FakeDockerClient, *clock.FakeClock) {
-	ds, c, fakeClock := newTestDockerService()
-	ds.versionCache = cache.NewObjectCache(
-		func() (interface{}, error) {
-			return ds.getDockerVersion()
-		},
-		time.Hour*10,
-	)
-	return ds, c, fakeClock
+	c := dockertools.NewFakeDockerClientWithClock(fakeClock)
+	return &dockerService{client: c, os: &containertest.FakeOS{}, networkPlugin: &network.NoopNetworkPlugin{}}, c, fakeClock
 }
 
 // TestStatus tests the runtime status logic.
 func TestStatus(t *testing.T) {
 	ds, fDocker, _ := newTestDockerService()
 
-	assertStatus := func(expected map[string]bool, status *runtimeapi.RuntimeStatus) {
+	assertStatus := func(expected map[string]bool, status *runtimeApi.RuntimeStatus) {
 		conditions := status.GetConditions()
 		assert.Equal(t, len(expected), len(conditions))
 		for k, v := range expected {
 			for _, c := range conditions {
-				if k == c.Type {
-					assert.Equal(t, v, c.Status)
+				if k == c.GetType() {
+					assert.Equal(t, v, c.GetStatus())
 				}
 			}
 		}
@@ -80,8 +64,8 @@ func TestStatus(t *testing.T) {
 	status, err := ds.Status()
 	assert.NoError(t, err)
 	assertStatus(map[string]bool{
-		runtimeapi.RuntimeReady: true,
-		runtimeapi.NetworkReady: true,
+		runtimeApi.RuntimeReady: true,
+		runtimeApi.NetworkReady: true,
 	}, status)
 
 	// Should not report ready status if version returns error.
@@ -89,8 +73,8 @@ func TestStatus(t *testing.T) {
 	status, err = ds.Status()
 	assert.NoError(t, err)
 	assertStatus(map[string]bool{
-		runtimeapi.RuntimeReady: false,
-		runtimeapi.NetworkReady: true,
+		runtimeApi.RuntimeReady: false,
+		runtimeApi.NetworkReady: true,
 	}, status)
 
 	// Should not report ready status is network plugin returns error.
@@ -101,30 +85,7 @@ func TestStatus(t *testing.T) {
 	status, err = ds.Status()
 	assert.NoError(t, err)
 	assertStatus(map[string]bool{
-		runtimeapi.RuntimeReady: true,
-		runtimeapi.NetworkReady: false,
+		runtimeApi.RuntimeReady: true,
+		runtimeApi.NetworkReady: false,
 	}, status)
-}
-
-func TestVersion(t *testing.T) {
-	ds, _, _ := newTestDockerService()
-
-	expectedVersion := &dockertypes.Version{Version: "1.11.2", APIVersion: "1.23.0"}
-	v, err := ds.getDockerVersion()
-	require.NoError(t, err)
-	assert.Equal(t, expectedVersion, v)
-
-	expectedAPIVersion := &semver.Version{Major: 1, Minor: 23, Patch: 0}
-	apiVersion, err := ds.getDockerAPIVersion()
-	require.NoError(t, err)
-	assert.Equal(t, expectedAPIVersion, apiVersion)
-}
-
-func TestAPIVersionWithCache(t *testing.T) {
-	ds, _, _ := newTestDockerServiceWithVersionCache()
-
-	expected := &semver.Version{Major: 1, Minor: 23, Patch: 0}
-	version, err := ds.getDockerAPIVersion()
-	require.NoError(t, err)
-	assert.Equal(t, expected, version)
 }

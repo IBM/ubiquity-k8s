@@ -1,9 +1,4 @@
-approvers:
-- Random-Liu
-- dchen1107
-- derekwaynecarr
-- timstclair
-- vishh
-- yujuhong
-reviewers:
-- sig-node-reviewers
+assignees:
+  - dchen1107
+  - vishh
+  - yujuhong

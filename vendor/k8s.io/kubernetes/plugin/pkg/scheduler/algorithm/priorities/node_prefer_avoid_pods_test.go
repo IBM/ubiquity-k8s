@@ -21,15 +21,14 @@ import (
 	"sort"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	schedulerapi "k8s.io/kubernetes/plugin/pkg/scheduler/api"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/schedulercache"
 )
 
 func TestNodePreferAvoidPriority(t *testing.T) {
 	annotations1 := map[string]string{
-		v1.PreferAvoidPodsAnnotationKey: `
+		api.PreferAvoidPodsAnnotationKey: `
 							{
 							    "preferAvoidPods": [
 							        {
@@ -49,7 +48,7 @@ func TestNodePreferAvoidPriority(t *testing.T) {
 							}`,
 	}
 	annotations2 := map[string]string{
-		v1.PreferAvoidPodsAnnotationKey: `
+		api.PreferAvoidPodsAnnotationKey: `
 							{
 							    "preferAvoidPods": [
 							        {
@@ -68,29 +67,29 @@ func TestNodePreferAvoidPriority(t *testing.T) {
 							    ]
 							}`,
 	}
-	testNodes := []*v1.Node{
+	testNodes := []*api.Node{
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "machine1", Annotations: annotations1},
+			ObjectMeta: api.ObjectMeta{Name: "machine1", Annotations: annotations1},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "machine2", Annotations: annotations2},
+			ObjectMeta: api.ObjectMeta{Name: "machine2", Annotations: annotations2},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "machine3"},
+			ObjectMeta: api.ObjectMeta{Name: "machine3"},
 		},
 	}
 	trueVar := true
 	tests := []struct {
-		pod          *v1.Pod
-		nodes        []*v1.Node
+		pod          *api.Pod
+		nodes        []*api.Node
 		expectedList schedulerapi.HostPriorityList
 		test         string
 	}{
 		{
-			pod: &v1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
+			pod: &api.Pod{
+				ObjectMeta: api.ObjectMeta{
 					Namespace: "default",
-					OwnerReferences: []metav1.OwnerReference{
+					OwnerReferences: []api.OwnerReference{
 						{Kind: "ReplicationController", Name: "foo", UID: "abcdef123456", Controller: &trueVar},
 					},
 				},
@@ -100,10 +99,10 @@ func TestNodePreferAvoidPriority(t *testing.T) {
 			test:         "pod managed by ReplicationController should avoid a node, this node get lowest priority score",
 		},
 		{
-			pod: &v1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
+			pod: &api.Pod{
+				ObjectMeta: api.ObjectMeta{
 					Namespace: "default",
-					OwnerReferences: []metav1.OwnerReference{
+					OwnerReferences: []api.OwnerReference{
 						{Kind: "RandomController", Name: "foo", UID: "abcdef123456", Controller: &trueVar},
 					},
 				},
@@ -113,10 +112,10 @@ func TestNodePreferAvoidPriority(t *testing.T) {
 			test:         "ownership by random controller should be ignored",
 		},
 		{
-			pod: &v1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
+			pod: &api.Pod{
+				ObjectMeta: api.ObjectMeta{
 					Namespace: "default",
-					OwnerReferences: []metav1.OwnerReference{
+					OwnerReferences: []api.OwnerReference{
 						{Kind: "ReplicationController", Name: "foo", UID: "abcdef123456"},
 					},
 				},
@@ -126,10 +125,10 @@ func TestNodePreferAvoidPriority(t *testing.T) {
 			test:         "owner without Controller field set should be ignored",
 		},
 		{
-			pod: &v1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
+			pod: &api.Pod{
+				ObjectMeta: api.ObjectMeta{
 					Namespace: "default",
-					OwnerReferences: []metav1.OwnerReference{
+					OwnerReferences: []api.OwnerReference{
 						{Kind: "ReplicaSet", Name: "foo", UID: "qwert12345", Controller: &trueVar},
 					},
 				},

@@ -27,12 +27,11 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/cache"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 type sourceFile struct {
@@ -51,9 +50,9 @@ func NewSourceFile(path string, nodeName types.NodeName, period time.Duration, u
 
 func new(path string, nodeName types.NodeName, period time.Duration, updates chan<- interface{}) *sourceFile {
 	send := func(objs []interface{}) {
-		var pods []*v1.Pod
+		var pods []*api.Pod
 		for _, o := range objs {
-			pods = append(pods, o.(*v1.Pod))
+			pods = append(pods, o.(*api.Pod))
 		}
 		updates <- kubetypes.PodUpdate{Pods: pods, Op: kubetypes.SET, Source: kubetypes.FileSource}
 	}
@@ -85,7 +84,7 @@ func (s *sourceFile) resetStoreFromPath() error {
 			return err
 		}
 		// Emit an update with an empty PodList to allow FileSource to be marked as seen
-		s.updates <- kubetypes.PodUpdate{Pods: []*v1.Pod{}, Op: kubetypes.SET, Source: kubetypes.FileSource}
+		s.updates <- kubetypes.PodUpdate{Pods: []*api.Pod{}, Op: kubetypes.SET, Source: kubetypes.FileSource}
 		return fmt.Errorf("path does not exist, ignoring")
 	}
 
@@ -117,13 +116,13 @@ func (s *sourceFile) resetStoreFromPath() error {
 // Get as many pod configs as we can from a directory. Return an error if and only if something
 // prevented us from reading anything at all. Do not return an error if only some files
 // were problematic.
-func (s *sourceFile) extractFromDir(name string) ([]*v1.Pod, error) {
+func (s *sourceFile) extractFromDir(name string) ([]*api.Pod, error) {
 	dirents, err := filepath.Glob(filepath.Join(name, "[^.]*"))
 	if err != nil {
 		return nil, fmt.Errorf("glob failed: %v", err)
 	}
 
-	pods := make([]*v1.Pod, 0)
+	pods := make([]*api.Pod, 0)
 	if len(dirents) == 0 {
 		return pods, nil
 	}
@@ -153,7 +152,7 @@ func (s *sourceFile) extractFromDir(name string) ([]*v1.Pod, error) {
 	return pods, nil
 }
 
-func (s *sourceFile) extractFromFile(filename string) (pod *v1.Pod, err error) {
+func (s *sourceFile) extractFromFile(filename string) (pod *api.Pod, err error) {
 	glog.V(3).Infof("Reading config file %q", filename)
 	defer func() {
 		if err == nil && pod != nil {
@@ -193,7 +192,7 @@ func (s *sourceFile) extractFromFile(filename string) (pod *v1.Pod, err error) {
 		filename, string(data), podErr)
 }
 
-func (s *sourceFile) replaceStore(pods ...*v1.Pod) (err error) {
+func (s *sourceFile) replaceStore(pods ...*api.Pod) (err error) {
 	objs := []interface{}{}
 	for _, pod := range pods {
 		objs = append(objs, pod)

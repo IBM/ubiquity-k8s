@@ -190,20 +190,6 @@ function mount-master-pd {
   chgrp -R etcd "${mount_point}/var/etcd"
 }
 
-# replace_prefixed_line ensures:
-# 1. the specified file exists
-# 2. existing lines with the specified ${prefix} are removed
-# 3. a new line with the specified ${prefix}${suffix} is appended
-function replace_prefixed_line {
-  local -r file="${1:-}"
-  local -r prefix="${2:-}"
-  local -r suffix="${3:-}"
-
-  touch "${file}"
-  awk "substr(\$0,0,length(\"${prefix}\")) != \"${prefix}\" { print }" "${file}" > "${file}.filtered"  && mv "${file}.filtered" "${file}"
-  echo "${prefix}${suffix}" >> "${file}"
-}
-
 # After the first boot and on upgrade, these files exist on the master-pd
 # and should never be touched again (except perhaps an additional service
 # account, see NB below.)
@@ -215,29 +201,15 @@ function create-master-auth {
     echo "${MASTER_CERT}" | base64 --decode > "${auth_dir}/server.cert"
     echo "${MASTER_KEY}" | base64 --decode > "${auth_dir}/server.key"
   fi
-  if [[ ! -z "${CA_KEY:-}" ]]; then
-    echo "${CA_KEY}" | base64 --decode > "${auth_dir}/ca.key"
-  fi
-  if [ ! -e "${auth_dir}/kubeapiserver.cert" ] && [[ ! -z "${KUBEAPISERVER_CERT:-}" ]] && [[ ! -z "${KUBEAPISERVER_KEY:-}" ]]; then
-    echo "${KUBEAPISERVER_CERT}" | base64 --decode > "${auth_dir}/kubeapiserver.cert"
-    echo "${KUBEAPISERVER_KEY}" | base64 --decode > "${auth_dir}/kubeapiserver.key"
-  fi
   local -r basic_auth_csv="${auth_dir}/basic_auth.csv"
-  if [[ -n "${KUBE_PASSWORD:-}" && -n "${KUBE_USER:-}" ]]; then
-    replace_prefixed_line "${basic_auth_csv}" "${KUBE_PASSWORD},${KUBE_USER}," "admin,system:masters"
+  if [[ ! -e "${basic_auth_csv}" ]]; then
+    echo "${KUBE_PASSWORD},${KUBE_USER},admin" > "${basic_auth_csv}"
   fi
   local -r known_tokens_csv="${auth_dir}/known_tokens.csv"
-  if [[ -n "${KUBE_BEARER_TOKEN:-}" ]]; then
-    replace_prefixed_line "${known_tokens_csv}" "${KUBE_BEARER_TOKEN},"             "admin,admin,system:masters"
-  fi
-  if [[ -n "${KUBE_CONTROLLER_MANAGER_TOKEN:-}" ]]; then
-    replace_prefixed_line "${known_tokens_csv}" "${KUBE_CONTROLLER_MANAGER_TOKEN}," "system:kube-controller-manager,uid:system:kube-controller-manager"
-  fi
-  if [[ -n "${KUBELET_TOKEN:-}" ]]; then
-    replace_prefixed_line "${known_tokens_csv}" "${KUBELET_TOKEN},"                 "system:node:node-name,uid:kubelet,system:nodes"
-  fi
-  if [[ -n "${KUBE_PROXY_TOKEN:-}" ]]; then
-    replace_prefixed_line "${known_tokens_csv}" "${KUBE_PROXY_TOKEN},"              "system:kube-proxy,uid:kube_proxy"
+  if [[ ! -e "${known_tokens_csv}" ]]; then
+    echo "${KUBE_BEARER_TOKEN},admin,admin" > "${known_tokens_csv}"
+    echo "${KUBELET_TOKEN},kubelet,kubelet" >> "${known_tokens_csv}"
+    echo "${KUBE_PROXY_TOKEN},kube_proxy,kube_proxy" >> "${known_tokens_csv}"
   fi
   local use_cloud_config="false"
   cat <<EOF >/etc/gce.conf
@@ -371,24 +343,14 @@ current-context: service-account-context
 EOF
 }
 
-function create-kubelet-auth-ca {
-  if [[ -n "${KUBELET_AUTH_CA_CERT:-}" ]]; then
-    echo "${KUBELET_AUTH_CA_CERT}" | base64 --decode > "/var/lib/kubelet/kubelet_auth_ca.crt"
-  fi
-}
-
 # Uses KUBELET_CA_CERT (falling back to CA_CERT), KUBELET_CERT, and KUBELET_KEY
 # to generate a kubeconfig file for the kubelet to securely connect to the apiserver.
-# Set REGISTER_MASTER_KUBELET to true if kubelet on the master node
-# should register to the apiserver.
 function create-master-kubelet-auth {
   # Only configure the kubelet on the master if the required variables are
   # set in the environment.
   if [[ -n "${KUBELET_APISERVER:-}" && -n "${KUBELET_CERT:-}" && -n "${KUBELET_KEY:-}" ]]; then
-    REGISTER_MASTER_KUBELET="true"
     create-kubelet-kubeconfig
   fi
-  
 }
 
 function create-kubeproxy-kubeconfig {
@@ -408,30 +370,6 @@ contexts:
 - context:
     cluster: local
     user: kube-proxy
-  name: service-account-context
-current-context: service-account-context
-EOF
-}
-
-function create-kubecontrollermanager-kubeconfig {
-  echo "Creating kube-controller-manager kubeconfig file"
-  mkdir -p /etc/srv/kubernetes/kube-controller-manager
-  cat <<EOF >/etc/srv/kubernetes/kube-controller-manager/kubeconfig
-apiVersion: v1
-kind: Config
-users:
-- name: kube-controller-manager
-  user:
-    token: ${KUBE_CONTROLLER_MANAGER_TOKEN}
-clusters:
-- name: local
-  cluster:
-    insecure-skip-tls-verify: true
-    server: https://localhost:443
-contexts:
-- context:
-    cluster: local
-    user: kube-controller-manager
   name: service-account-context
 current-context: service-account-context
 EOF
@@ -504,7 +442,7 @@ function try-load-docker-image {
   local -i attempt_num=1
   until timeout 30 docker load -i "${img}"; do
     if [[ "${attempt_num}" == "${max_attempts}" ]]; then
-      echo "Fail to load docker image file ${img} after ${max_attempts} retries. Exit!!"
+      echo "Fail to load docker image file ${img} after ${max_attempts} retries. Exist!!"
       exit 1
     else
       attempt_num=$((attempt_num+1))
@@ -566,10 +504,9 @@ function start-kubelet {
   if [[ "${KUBERNETES_MASTER:-}" == "true" ]]; then
     flags+=" --enable-debugging-handlers=false"
     flags+=" --hairpin-mode=none"
-    if [[ "${REGISTER_MASTER_KUBELET:-false}" == "true" ]]; then
+    if [[ ! -z "${KUBELET_APISERVER:-}" && ! -z "${KUBELET_CERT:-}" && ! -z "${KUBELET_KEY:-}" ]]; then
       flags+=" --api-servers=https://${KUBELET_APISERVER}"
       flags+=" --register-schedulable=false"
-      flags+=" --register-with-taints=node.alpha.kubernetes.io/ismaster=:NoSchedule"
     else
       # Standalone mode (not widely used?)
       flags+=" --pod-cidr=${MASTER_IP_RANGE}"
@@ -581,9 +518,6 @@ function start-kubelet {
        [[ "${HAIRPIN_MODE:-}" == "hairpin-veth" ]] || \
        [[ "${HAIRPIN_MODE:-}" == "none" ]]; then
       flags+=" --hairpin-mode=${HAIRPIN_MODE}"
-    fi
-    if [ -n "${KUBELET_AUTH_CA_CERT:-}" ]; then
-      flags+=" --anonymous-auth=false --client-ca-file=/var/lib/kubelet/kubelet_auth_ca.crt"
     fi
   fi
   # Network plugin
@@ -697,6 +631,9 @@ function prepare-etcd-manifest {
   local etcd_protocol="http"
   local etcd_creds=""
 
+  if [[ -n "${INITIAL_ETCD_CLUSTER_STATE:-}" ]]; then
+    cluster_state="${INITIAL_ETCD_CLUSTER_STATE}"
+  fi
   if [[ -n "${ETCD_CA_KEY:-}" && -n "${ETCD_CA_CERT:-}" && -n "${ETCD_PEER_KEY:-}" && -n "${ETCD_PEER_CERT:-}" ]]; then
     etcd_creds=" --peer-trusted-ca-file /etc/srv/kubernetes/etcd-ca.crt --peer-cert-file /etc/srv/kubernetes/etcd-peer.crt --peer-key-file /etc/srv/kubernetes/etcd-peer.key -peer-client-cert-auth "
     etcd_protocol="https"
@@ -706,7 +643,6 @@ function prepare-etcd-manifest {
     etcd_host="etcd-${host}=${etcd_protocol}://${host}:$3"
     if [[ -n "${etcd_cluster}" ]]; then
       etcd_cluster+=","
-      cluster_state="existing"
     fi
     etcd_cluster+="${etcd_host}"
   done
@@ -817,11 +753,14 @@ function remove-salt-config-comments {
 function start-kube-apiserver {
   echo "Start kubernetes api-server"
   prepare-log-file /var/log/kube-apiserver.log
+  prepare-log-file /var/log/kube-apiserver-audit.log
 
   # Calculate variables and assemble the command line.
   local params="${API_SERVER_TEST_LOG_LEVEL:-"--v=2"} ${APISERVER_TEST_ARGS:-} ${CLOUD_CONFIG_OPT}"
   params+=" --address=127.0.0.1"
   params+=" --allow-privileged=true"
+  params+=" --authorization-policy-file=/etc/srv/kubernetes/abac-authz-policy.jsonl"
+  params+=" --basic-auth-file=/etc/srv/kubernetes/basic_auth.csv"
   params+=" --cloud-provider=gce"
   params+=" --client-ca-file=/etc/srv/kubernetes/ca.crt"
   params+=" --etcd-servers=http://127.0.0.1:2379"
@@ -829,12 +768,7 @@ function start-kube-apiserver {
   params+=" --secure-port=443"
   params+=" --tls-cert-file=/etc/srv/kubernetes/server.cert"
   params+=" --tls-private-key-file=/etc/srv/kubernetes/server.key"
-  params+=" --kubelet-client-certificate=/etc/srv/kubernetes/kubeapiserver.cert"
-  params+=" --kubelet-client-key=/etc/srv/kubernetes/kubeapiserver.key"
   params+=" --token-auth-file=/etc/srv/kubernetes/known_tokens.csv"
-  if [[ -n "${KUBE_PASSWORD:-}" && -n "${KUBE_USER:-}" ]]; then
-    params+=" --basic-auth-file=/etc/srv/kubernetes/basic_auth.csv"
-  fi
   if [[ -n "${STORAGE_BACKEND:-}" ]]; then
     params+=" --storage-backend=${STORAGE_BACKEND}"
   fi
@@ -844,7 +778,7 @@ function start-kube-apiserver {
   if [[ -n "${NUM_NODES:-}" ]]; then
     # If the cluster is large, increase max-requests-inflight limit in apiserver.
     if [[ "${NUM_NODES}" -ge 1000 ]]; then
-      params+=" --max-requests-inflight=1500 --max-mutating-requests-inflight=500"
+      params+=" --max-requests-inflight=1500"
     fi
     # Set amount of memory available for apiserver based on number of nodes.
     # TODO: Once we start setting proper requests and limits for apiserver
@@ -856,6 +790,21 @@ function start-kube-apiserver {
   fi
   if [[ -n "${ETCD_QUORUM_READ:-}" ]]; then
     params+=" --etcd-quorum-read=${ETCD_QUORUM_READ}"
+  fi
+
+  if [[ "${ENABLE_APISERVER_BASIC_AUDIT:-}" == "true" ]]; then
+    # We currently only support enabling with a fixed path and with built-in log
+    # rotation "disabled" (large value) so it behaves like kube-apiserver.log.
+    # External log rotation should be set up the same as for kube-apiserver.log.
+    params+=" --audit-log-path=/var/log/kube-apiserver-audit.log"
+    params+=" --audit-log-maxage=0"
+    params+=" --audit-log-maxbackup=0"
+    # Lumberjack doesn't offer any way to disable size-based rotation. It also
+    # has an in-memory counter that doesn't notice if you truncate the file.
+    # 2000000000 (in MiB) is a large number that fits in 31 bits. If the log
+    # grows at 10MiB/s (~30K QPS), it will rotate after ~6 years if apiserver
+    # never restarts. Please manually restart apiserver before this time.
+    params+=" --audit-log-maxsize=2000000000"
   fi
 
   local admission_controller_config_mount=""
@@ -901,25 +850,22 @@ function start-kube-apiserver {
     webhook_authn_config_volume="{\"name\": \"webhookauthnconfigmount\",\"hostPath\": {\"path\": \"/etc/gcp_authn.config\"}},"
   fi
 
-
-  local authorization_mode="RBAC"
-  # Load existing ABAC policy files written by versions < 1.6 of this script
-  # TODO: only default to this legacy path when in upgrade mode
-  ABAC_AUTHZ_FILE="${ABAC_AUTHZ_FILE:-/etc/srv/kubernetes/abac-authz-policy.jsonl}"
-  if [[ -n "${ABAC_AUTHZ_FILE:-}" && -e "${ABAC_AUTHZ_FILE}" ]]; then
-    params+=" --authorization-policy-file=${ABAC_AUTHZ_FILE}"
-    authorization_mode+=",ABAC"
-  fi
+  params+=" --authorization-mode=ABAC"
   local webhook_config_mount=""
   local webhook_config_volume=""
   if [[ -n "${GCP_AUTHZ_URL:-}" ]]; then
-    authorization_mode+=",Webhook"
-    params+=" --authorization-webhook-config-file=/etc/gcp_authz.config"
+    params+=",Webhook --authorization-webhook-config-file=/etc/gcp_authz.config"
     webhook_config_mount="{\"name\": \"webhookconfigmount\",\"mountPath\": \"/etc/gcp_authz.config\", \"readOnly\": false},"
     webhook_config_volume="{\"name\": \"webhookconfigmount\",\"hostPath\": {\"path\": \"/etc/gcp_authz.config\"}},"
   fi
   local -r src_dir="${KUBE_HOME}/kube-manifests/kubernetes/gci-trusty"
-  params+=" --authorization-mode=${authorization_mode}"
+
+  if [[ -n "${KUBE_USER:-}" ]]; then
+    local -r abac_policy_json="${src_dir}/abac-authz-policy.jsonl"
+    remove-salt-config-comments "${abac_policy_json}"
+    sed -i -e "s/{{kube_user}}/${KUBE_USER}/g" "${abac_policy_json}"
+    cp "${abac_policy_json}" /etc/srv/kubernetes/
+  fi
 
   src_file="${src_dir}/kube-apiserver.manifest"
   remove-salt-config-comments "${src_file}"
@@ -959,13 +905,11 @@ function start-kube-apiserver {
 #   DOCKER_REGISTRY
 function start-kube-controller-manager {
   echo "Start kubernetes controller-manager"
-  create-kubecontrollermanager-kubeconfig
   prepare-log-file /var/log/kube-controller-manager.log
   # Calculate variables and assemble the command line.
   local params="${CONTROLLER_MANAGER_TEST_LOG_LEVEL:-"--v=2"} ${CONTROLLER_MANAGER_TEST_ARGS:-} ${CLOUD_CONFIG_OPT}"
-  params+=" --use-service-account-credentials"
   params+=" --cloud-provider=gce"
-  params+=" --kubeconfig=/etc/srv/kubernetes/kube-controller-manager/kubeconfig"
+  params+=" --master=127.0.0.1:8080"
   params+=" --root-ca-file=/etc/srv/kubernetes/ca.crt"
   params+=" --service-account-private-key-file=/etc/srv/kubernetes/server.key"
   if [[ -n "${ENABLE_GARBAGE_COLLECTOR:-}" ]]; then
@@ -976,10 +920,6 @@ function start-kube-controller-manager {
   fi
   if [[ -n "${CLUSTER_IP_RANGE:-}" ]]; then
     params+=" --cluster-cidr=${CLUSTER_IP_RANGE}"
-  fi
-  if [[ -n "${CA_KEY:-}" ]]; then
-    params+=" --cluster-signing-cert-file=/etc/srv/kubernetes/ca.crt"
-    params+=" --cluster-signing-key-file=/etc/srv/kubernetes/ca.key"
   fi
   if [[ -n "${SERVICE_CLUSTER_IP_RANGE:-}" ]]; then
     params+=" --service-cluster-ip-range=${SERVICE_CLUSTER_IP_RANGE}"
@@ -1098,10 +1038,6 @@ function start-kube-addons {
   echo "Prepare kube-addons manifests and start kube addon manager"
   local -r src_dir="${KUBE_HOME}/kube-manifests/kubernetes/gci-trusty"
   local -r dst_dir="/etc/kubernetes/addons"
-
-  # prep the additional bindings that are particular to e2e users and groups
-  setup-addon-manifests "addons" "e2e-rbac-bindings"
-
   # Set up manifests of other addons.
   if [[ "${ENABLE_CLUSTER_MONITORING:-}" == "influxdb" ]] || \
      [[ "${ENABLE_CLUSTER_MONITORING:-}" == "google" ]] || \
@@ -1139,12 +1075,12 @@ function start-kube-addons {
   fi
   if [[ "${ENABLE_CLUSTER_DNS:-}" == "true" ]]; then
     setup-addon-manifests "addons" "dns"
-    local -r dns_controller_file="${dst_dir}/dns/kubedns-controller.yaml"
-    local -r dns_svc_file="${dst_dir}/dns/kubedns-svc.yaml"
-    mv "${dst_dir}/dns/kubedns-controller.yaml.in" "${dns_controller_file}"
-    mv "${dst_dir}/dns/kubedns-svc.yaml.in" "${dns_svc_file}"
+    local -r dns_rc_file="${dst_dir}/dns/skydns-rc.yaml"
+    local -r dns_svc_file="${dst_dir}/dns/skydns-svc.yaml"
+    mv "${dst_dir}/dns/skydns-rc.yaml.in" "${dns_rc_file}"
+    mv "${dst_dir}/dns/skydns-svc.yaml.in" "${dns_svc_file}"
     # Replace the salt configurations with variable values.
-    sed -i -e "s@{{ *pillar\['dns_domain'\] *}}@${DNS_DOMAIN}@g" "${dns_controller_file}"
+    sed -i -e "s@{{ *pillar\['dns_domain'\] *}}@${DNS_DOMAIN}@g" "${dns_rc_file}"
     sed -i -e "s@{{ *pillar\['dns_server'\] *}}@${DNS_SERVER_IP}@g" "${dns_svc_file}"
 
     if [[ "${ENABLE_DNS_HORIZONTAL_AUTOSCALER:-}" == "true" ]]; then
@@ -1157,12 +1093,12 @@ function start-kube-addons {
         federations_domain_map="${FEDERATION_NAME}=${DNS_ZONE_NAME}"
       fi
       if [[ -n "${federations_domain_map}" ]]; then
-        sed -i -e "s@{{ *pillar\['federations_domain_map'\] *}}@- --federations=${federations_domain_map}@g" "${dns_controller_file}"
+        sed -i -e "s@{{ *pillar\['federations_domain_map'\] *}}@- --federations=${federations_domain_map}@g" "${dns_rc_file}"
       else
-        sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_controller_file}"
+        sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_rc_file}"
       fi
     else
-      sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_controller_file}"
+      sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_rc_file}"
     fi
   fi
   if [[ "${ENABLE_CLUSTER_REGISTRY:-}" == "true" ]]; then
@@ -1177,17 +1113,10 @@ function start-kube-addons {
     sed -i -e "s@{{ *pillar\['cluster_registry_disk_size'\] *}}@${CLUSTER_REGISTRY_DISK_SIZE}@g" "${registry_pvc_file}"
     sed -i -e "s@{{ *pillar\['cluster_registry_disk_name'\] *}}@${CLUSTER_REGISTRY_DISK}@g" "${registry_pvc_file}"
   fi
-  # TODO(piosz): figure out how to not run fluentd-es pod from fluentd daemon set on master.
-  #              Running fluentd-es on the master is pointless, as it can't communicate
-  #              with elasticsearch from there in the default configuration.
   if [[ "${ENABLE_NODE_LOGGING:-}" == "true" ]] && \
      [[ "${LOGGING_DESTINATION:-}" == "elasticsearch" ]] && \
      [[ "${ENABLE_CLUSTER_LOGGING:-}" == "true" ]]; then
     setup-addon-manifests "addons" "fluentd-elasticsearch"
-  fi
-  if [[ "${ENABLE_NODE_LOGGING:-}" == "true" ]] && \
-     [[ "${LOGGING_DESTINATION:-}" == "gcp" ]]; then
-    setup-addon-manifests "addons" "fluentd-gcp"
   fi
   if [[ "${ENABLE_CLUSTER_UI:-}" == "true" ]]; then
     setup-addon-manifests "addons" "dashboard"
@@ -1201,22 +1130,22 @@ function start-kube-addons {
   if [[ "${NETWORK_POLICY_PROVIDER:-}" == "calico" ]]; then
     setup-addon-manifests "addons" "calico-policy-controller"
   fi
-  if [[ "${ENABLE_DEFAULT_STORAGE_CLASS:-}" == "true" ]]; then
-    setup-addon-manifests "addons" "storage-class/gce"
-  fi
 
   # Place addon manager pod manifest.
   cp "${src_dir}/kube-addon-manager.yaml" /etc/kubernetes/manifests
 }
 
-# Starts a fluentd static pod for logging for gcp in case master is not registered.
-function start-fluentd-static-pod {
+# Starts a fluentd static pod for logging.
+function start-fluentd {
   echo "Start fluentd pod"
-  if [[ "${ENABLE_NODE_LOGGING:-}" == "true" ]] && \
-     [[ "${LOGGING_DESTINATION:-}" == "gcp" ]] && \
-     [[ "${KUBERNETES_MASTER:-}" == "true" ]] && \
-     [[ "${REGISTER_MASTER_KUBELET:-false}" == "false" ]]; then
-    cp "${KUBE_HOME}/kube-manifests/kubernetes/fluentd-gcp.yaml" /etc/kubernetes/manifests/
+  if [[ "${ENABLE_NODE_LOGGING:-}" == "true" ]]; then
+    if [[ "${LOGGING_DESTINATION:-}" == "gcp" ]]; then
+      cp "${KUBE_HOME}/kube-manifests/kubernetes/fluentd-gcp-gci.yaml" /etc/kubernetes/manifests/
+    elif [[ "${LOGGING_DESTINATION:-}" == "elasticsearch" && "${KUBERNETES_MASTER:-}" != "true" ]]; then
+      # Running fluentd-es on the master is pointless, as it can't communicate
+      # with elasticsearch from there in the default configuration.
+      cp "${KUBE_HOME}/kube-manifests/kubernetes/fluentd-es.yaml" /etc/kubernetes/manifests/
+    fi
   fi
 }
 
@@ -1318,19 +1247,12 @@ fi
 
 source "${KUBE_HOME}/kube-env"
 
-if [[ -e "${KUBE_HOME}/kube-master-certs" ]]; then
-  source "${KUBE_HOME}/kube-master-certs"
-fi
-
 if [[ -n "${KUBE_USER:-}" ]]; then
   if ! [[ "${KUBE_USER}" =~ ^[-._@a-zA-Z0-9]+$ ]]; then
     echo "Bad KUBE_USER format."
     exit 1
   fi
 fi
-
-# generate the controller manager token here since its only used on the master.
-KUBE_CONTROLLER_MANAGER_TOKEN=$(dd if=/dev/urandom bs=128 count=1 2>/dev/null | base64 | tr -d "=+/" | dd bs=32 count=1 2>/dev/null)
 
 setup-os-params
 config-ip-firewall
@@ -1345,7 +1267,6 @@ if [[ "${KUBERNETES_MASTER:-}" == "true" ]]; then
   create-master-etcd-auth
 else
   create-kubelet-kubeconfig
-  create-kubelet-auth-ca
   create-kubeproxy-kubeconfig
 fi
 
@@ -1367,7 +1288,6 @@ if [[ "${KUBERNETES_MASTER:-}" == "true" ]]; then
   start-cluster-autoscaler
   start-lb-controller
   start-rescheduler
-  start-fluentd-static-pod
 else
   start-kube-proxy
   # Kube-registry-proxy.
@@ -1378,5 +1298,6 @@ else
     start-image-puller
   fi
 fi
+start-fluentd
 reset-motd
 echo "Done for the configuration for kubernetes"

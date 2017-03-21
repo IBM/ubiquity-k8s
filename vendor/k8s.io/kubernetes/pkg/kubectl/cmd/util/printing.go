@@ -21,10 +21,9 @@ import (
 	"io"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/kubectl"
-	"k8s.io/kubernetes/pkg/kubectl/resource"
 
 	"github.com/spf13/cobra"
 )
@@ -46,11 +45,6 @@ func AddOutputFlagsForMutation(cmd *cobra.Command) {
 	cmd.Flags().StringP("output", "o", "", "Output mode. Use \"-o name\" for shorter output (resource/name).")
 }
 
-// AddOutputVarFlagsForMutation adds output related flags to a command. Used by mutations only.
-func AddOutputVarFlagsForMutation(cmd *cobra.Command, output *string) {
-	cmd.Flags().StringVarP(output, "output", "o", "", "Output mode. Use \"-o name\" for shorter output (resource/name).")
-}
-
 // AddOutputFlags adds output related flags to a command.
 func AddOutputFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("output", "o", "", "Output format. One of: json|yaml|wide|name|custom-columns=...|custom-columns-file=...|go-template=...|go-template-file=...|jsonpath=...|jsonpath-file=... See custom columns [http://kubernetes.io/docs/user-guide/kubectl-overview/#custom-columns], golang template [http://golang.org/pkg/text/template/#pkg-overview] and jsonpath template [http://kubernetes.io/docs/user-guide/jsonpath].")
@@ -59,7 +53,7 @@ func AddOutputFlags(cmd *cobra.Command) {
 
 // AddNoHeadersFlags adds no-headers flags to a command.
 func AddNoHeadersFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers (default print headers).")
+	cmd.Flags().Bool("no-headers", false, "When using the default or custom-column output format, don't print headers.")
 }
 
 // PrintSuccess prints message after finishing mutating operations
@@ -97,17 +91,17 @@ func ValidateOutputArgs(cmd *cobra.Command) error {
 
 // OutputVersion returns the preferred output version for generic content (JSON, YAML, or templates)
 // defaultVersion is never mutated.  Nil simply allows clean passing in common usage from client.Config
-func OutputVersion(cmd *cobra.Command, defaultVersion *schema.GroupVersion) (schema.GroupVersion, error) {
+func OutputVersion(cmd *cobra.Command, defaultVersion *unversioned.GroupVersion) (unversioned.GroupVersion, error) {
 	outputVersionString := GetFlagString(cmd, "output-version")
 	if len(outputVersionString) == 0 {
 		if defaultVersion == nil {
-			return schema.GroupVersion{}, nil
+			return unversioned.GroupVersion{}, nil
 		}
 
 		return *defaultVersion, nil
 	}
 
-	return schema.ParseGroupVersion(outputVersionString)
+	return unversioned.ParseGroupVersion(outputVersionString)
 }
 
 // PrinterForCommand returns the default printer for this command.
@@ -144,24 +138,6 @@ func PrinterForCommand(cmd *cobra.Command) (kubectl.ResourcePrinter, bool, error
 	}
 
 	return maybeWrapSortingPrinter(cmd, printer), generic, nil
-}
-
-// PrintResourceInfoForCommand receives a *cobra.Command and a *resource.Info and
-// attempts to print an info object based on the specified output format. If the
-// object passed is non-generic, it attempts to print the object using a HumanReadablePrinter.
-// Requires that printer flags have been added to cmd (see AddPrinterFlags).
-func PrintResourceInfoForCommand(cmd *cobra.Command, info *resource.Info, f Factory, out io.Writer) error {
-	printer, generic, err := PrinterForCommand(cmd)
-	if err != nil {
-		return err
-	}
-	if !generic || printer == nil {
-		printer, err = f.PrinterForMapping(cmd, nil, false)
-		if err != nil {
-			return err
-		}
-	}
-	return printer.PrintObj(info.Object, out)
 }
 
 func maybeWrapSortingPrinter(cmd *cobra.Command, printer kubectl.ResourcePrinter) kubectl.ResourcePrinter {

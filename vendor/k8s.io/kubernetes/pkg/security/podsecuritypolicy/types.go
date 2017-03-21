@@ -17,7 +17,6 @@ limitations under the License.
 package podsecuritypolicy
 
 import (
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy/apparmor"
@@ -27,6 +26,7 @@ import (
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy/selinux"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy/sysctl"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy/user"
+	"k8s.io/kubernetes/pkg/util/validation/field"
 )
 
 // Provider provides the implementation to generate a new security

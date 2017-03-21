@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
 )
 
@@ -45,7 +44,7 @@ func TestSecretForDockerRegistryGenerate(t *testing.T) {
 				"docker-email":    email,
 			},
 			expected: &api.Secret{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "foo",
 				},
 				Data: map[string][]byte{

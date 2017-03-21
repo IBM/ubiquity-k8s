@@ -23,14 +23,14 @@ import (
 	"reflect"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/api/v1"
-	v1core "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
+	"k8s.io/kubernetes/pkg/labels"
 )
 
 // updateReplicationControllerStatus attempts to update the Status.Replicas of the given controller, with a single GET/PUT retry.
-func updateReplicationControllerStatus(c v1core.ReplicationControllerInterface, rc v1.ReplicationController, newStatus v1.ReplicationControllerStatus) (updateErr error) {
+func updateReplicationControllerStatus(c unversionedcore.ReplicationControllerInterface, rc api.ReplicationController, newStatus api.ReplicationControllerStatus) (*api.ReplicationController, error) {
 	// This is the steady state. It happens when the rc doesn't have any expectations, since
 	// we do a periodic relist every 30s. If the generations differ but the replicas are
 	// the same, a caller might've resized to the same replica count.
@@ -40,7 +40,7 @@ func updateReplicationControllerStatus(c v1core.ReplicationControllerInterface, 
 		rc.Status.AvailableReplicas == newStatus.AvailableReplicas &&
 		rc.Generation == rc.Status.ObservedGeneration &&
 		reflect.DeepEqual(rc.Status.Conditions, newStatus.Conditions) {
-		return nil
+		return &rc, nil
 	}
 	// Save the generation number we acted on, otherwise we might wrongfully indicate
 	// that we've seen a spec update when we retry.
@@ -48,31 +48,38 @@ func updateReplicationControllerStatus(c v1core.ReplicationControllerInterface, 
 	// same status.
 	newStatus.ObservedGeneration = rc.Generation
 
-	var getErr error
+	var getErr, updateErr error
+	var updatedRC *api.ReplicationController
 	for i, rc := 0, &rc; ; i++ {
-		glog.V(4).Infof(fmt.Sprintf("Updating replica count for rc: %s/%s, ", rc.Namespace, rc.Name) +
-			fmt.Sprintf("replicas %d->%d (need %d), ", rc.Status.Replicas, newStatus.Replicas, *(rc.Spec.Replicas)) +
+		glog.V(4).Infof(fmt.Sprintf("Updating status for rc: %s/%s, ", rc.Namespace, rc.Name) +
+			fmt.Sprintf("replicas %d->%d (need %d), ", rc.Status.Replicas, newStatus.Replicas, rc.Spec.Replicas) +
 			fmt.Sprintf("fullyLabeledReplicas %d->%d, ", rc.Status.FullyLabeledReplicas, newStatus.FullyLabeledReplicas) +
 			fmt.Sprintf("readyReplicas %d->%d, ", rc.Status.ReadyReplicas, newStatus.ReadyReplicas) +
 			fmt.Sprintf("availableReplicas %d->%d, ", rc.Status.AvailableReplicas, newStatus.AvailableReplicas) +
 			fmt.Sprintf("sequence No: %v->%v", rc.Status.ObservedGeneration, newStatus.ObservedGeneration))
 
 		rc.Status = newStatus
-		_, updateErr = c.UpdateStatus(rc)
-		if updateErr == nil || i >= statusUpdateRetries {
-			return updateErr
+		updatedRC, updateErr = c.UpdateStatus(rc)
+		if updateErr == nil {
+			return updatedRC, nil
+		}
+		// Stop retrying if we exceed statusUpdateRetries - the replicationController will be requeued with a rate limit.
+		if i >= statusUpdateRetries {
+			break
 		}
 		// Update the controller with the latest resource version for the next poll
-		if rc, getErr = c.Get(rc.Name, metav1.GetOptions{}); getErr != nil {
+		if rc, getErr = c.Get(rc.Name); getErr != nil {
 			// If the GET fails we can't trust status.Replicas anymore. This error
 			// is bound to be more interesting than the update failure.
-			return getErr
+			return nil, getErr
 		}
 	}
+
+	return nil, updateErr
 }
 
 // OverlappingControllers sorts a list of controllers by creation timestamp, using their names as a tie breaker.
-type OverlappingControllers []*v1.ReplicationController
+type OverlappingControllers []*api.ReplicationController
 
 func (o OverlappingControllers) Len() int      { return len(o) }
 func (o OverlappingControllers) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
@@ -84,7 +91,7 @@ func (o OverlappingControllers) Less(i, j int) bool {
 	return o[i].CreationTimestamp.Before(o[j].CreationTimestamp)
 }
 
-func calculateStatus(rc *v1.ReplicationController, filteredPods []*v1.Pod, manageReplicasErr error) v1.ReplicationControllerStatus {
+func calculateStatus(rc api.ReplicationController, filteredPods []*api.Pod, manageReplicasErr error) api.ReplicationControllerStatus {
 	newStatus := rc.Status
 	// Count the number of pods that have labels matching the labels of the pod
 	// template of the replication controller, the matching pods may have more
@@ -99,26 +106,26 @@ func calculateStatus(rc *v1.ReplicationController, filteredPods []*v1.Pod, manag
 		if templateLabel.Matches(labels.Set(pod.Labels)) {
 			fullyLabeledReplicasCount++
 		}
-		if v1.IsPodReady(pod) {
+		if api.IsPodReady(pod) {
 			readyReplicasCount++
-			if v1.IsPodAvailable(pod, rc.Spec.MinReadySeconds, metav1.Now()) {
+			if api.IsPodAvailable(pod, rc.Spec.MinReadySeconds, unversioned.Now()) {
 				availableReplicasCount++
 			}
 		}
 	}
 
-	failureCond := GetCondition(rc.Status, v1.ReplicationControllerReplicaFailure)
+	failureCond := GetCondition(rc.Status, api.ReplicationControllerReplicaFailure)
 	if manageReplicasErr != nil && failureCond == nil {
 		var reason string
-		if diff := len(filteredPods) - int(*(rc.Spec.Replicas)); diff < 0 {
+		if diff := len(filteredPods) - int(rc.Spec.Replicas); diff < 0 {
 			reason = "FailedCreate"
 		} else if diff > 0 {
 			reason = "FailedDelete"
 		}
-		cond := NewReplicationControllerCondition(v1.ReplicationControllerReplicaFailure, v1.ConditionTrue, reason, manageReplicasErr.Error())
+		cond := NewReplicationControllerCondition(api.ReplicationControllerReplicaFailure, api.ConditionTrue, reason, manageReplicasErr.Error())
 		SetCondition(&newStatus, cond)
 	} else if manageReplicasErr == nil && failureCond != nil {
-		RemoveCondition(&newStatus, v1.ReplicationControllerReplicaFailure)
+		RemoveCondition(&newStatus, api.ReplicationControllerReplicaFailure)
 	}
 
 	newStatus.Replicas = int32(len(filteredPods))
@@ -129,18 +136,18 @@ func calculateStatus(rc *v1.ReplicationController, filteredPods []*v1.Pod, manag
 }
 
 // NewReplicationControllerCondition creates a new replication controller condition.
-func NewReplicationControllerCondition(condType v1.ReplicationControllerConditionType, status v1.ConditionStatus, reason, msg string) v1.ReplicationControllerCondition {
-	return v1.ReplicationControllerCondition{
+func NewReplicationControllerCondition(condType api.ReplicationControllerConditionType, status api.ConditionStatus, reason, msg string) api.ReplicationControllerCondition {
+	return api.ReplicationControllerCondition{
 		Type:               condType,
 		Status:             status,
-		LastTransitionTime: metav1.Now(),
+		LastTransitionTime: unversioned.Now(),
 		Reason:             reason,
 		Message:            msg,
 	}
 }
 
 // GetCondition returns a replication controller condition with the provided type if it exists.
-func GetCondition(status v1.ReplicationControllerStatus, condType v1.ReplicationControllerConditionType) *v1.ReplicationControllerCondition {
+func GetCondition(status api.ReplicationControllerStatus, condType api.ReplicationControllerConditionType) *api.ReplicationControllerCondition {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
 		if c.Type == condType {
@@ -151,7 +158,7 @@ func GetCondition(status v1.ReplicationControllerStatus, condType v1.Replication
 }
 
 // SetCondition adds/replaces the given condition in the replication controller status.
-func SetCondition(status *v1.ReplicationControllerStatus, condition v1.ReplicationControllerCondition) {
+func SetCondition(status *api.ReplicationControllerStatus, condition api.ReplicationControllerCondition) {
 	currentCond := GetCondition(*status, condition.Type)
 	if currentCond != nil && currentCond.Status == condition.Status && currentCond.Reason == condition.Reason {
 		return
@@ -161,13 +168,13 @@ func SetCondition(status *v1.ReplicationControllerStatus, condition v1.Replicati
 }
 
 // RemoveCondition removes the condition with the provided type from the replication controller status.
-func RemoveCondition(status *v1.ReplicationControllerStatus, condType v1.ReplicationControllerConditionType) {
+func RemoveCondition(status *api.ReplicationControllerStatus, condType api.ReplicationControllerConditionType) {
 	status.Conditions = filterOutCondition(status.Conditions, condType)
 }
 
 // filterOutCondition returns a new slice of replication controller conditions without conditions with the provided type.
-func filterOutCondition(conditions []v1.ReplicationControllerCondition, condType v1.ReplicationControllerConditionType) []v1.ReplicationControllerCondition {
-	var newConditions []v1.ReplicationControllerCondition
+func filterOutCondition(conditions []api.ReplicationControllerCondition, condType api.ReplicationControllerConditionType) []api.ReplicationControllerCondition {
+	var newConditions []api.ReplicationControllerCondition
 	for _, c := range conditions {
 		if c.Type == condType {
 			continue

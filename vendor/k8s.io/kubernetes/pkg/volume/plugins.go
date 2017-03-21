@@ -23,15 +23,14 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/types"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/util/io"
 	"k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/util/validation"
 )
 
 // VolumeOptions contains option information about a volume.
@@ -41,17 +40,15 @@ type VolumeOptions struct {
 	// many kinds of provisioners.
 
 	// Reclamation policy for a persistent volume
-	PersistentVolumeReclaimPolicy v1.PersistentVolumeReclaimPolicy
-	// Suggested PV.Name of the PersistentVolume to provision.
-	// This is a generated name guaranteed to be unique in Kubernetes cluster.
-	// If you choose not to use it as volume name, ensure uniqueness by either
-	// combining it with your value or create unique values of your own.
+	PersistentVolumeReclaimPolicy api.PersistentVolumeReclaimPolicy
+	// PV.Name of the appropriate PersistentVolume. Used to generate cloud
+	// volume name.
 	PVName string
 	// PVC is reference to the claim that lead to provisioning of a new PV.
 	// Provisioners *must* create a PV that would be matched by this PVC,
 	// i.e. with required capacity, accessMode, labels matching PVC.Selector and
 	// so on.
-	PVC *v1.PersistentVolumeClaim
+	PVC *api.PersistentVolumeClaim
 	// Unique name of Kubernetes cluster.
 	ClusterName string
 	// Tags to attach to the real volume in the cloud provider - e.g. AWS EBS
@@ -93,12 +90,12 @@ type VolumePlugin interface {
 
 	// NewMounter creates a new volume.Mounter from an API specification.
 	// Ownership of the spec pointer in *not* transferred.
-	// - spec: The v1.Volume spec
+	// - spec: The api.Volume spec
 	// - pod: The enclosing pod
-	NewMounter(spec *Spec, podRef *v1.Pod, opts VolumeOptions) (Mounter, error)
+	NewMounter(spec *Spec, podRef *api.Pod, opts VolumeOptions) (Mounter, error)
 
 	// NewUnmounter creates a new volume.Unmounter from recoverable state.
-	// - name: The volume name, as per the v1.Volume spec.
+	// - name: The volume name, as per the api.Volume spec.
 	// - podUID: The UID of the enclosing pod
 	NewUnmounter(name string, podUID types.UID) (Unmounter, error)
 
@@ -114,7 +111,7 @@ type VolumePlugin interface {
 type PersistentVolumePlugin interface {
 	VolumePlugin
 	// GetAccessModes describes the ways a given volume can be accessed/mounted.
-	GetAccessModes() []v1.PersistentVolumeAccessMode
+	GetAccessModes() []api.PersistentVolumeAccessMode
 }
 
 // RecyclableVolumePlugin is an extended interface of VolumePlugin and is used
@@ -193,7 +190,7 @@ type VolumeHost interface {
 	// the provided spec.  This is used to implement volume plugins which
 	// "wrap" other plugins.  For example, the "secret" volume is
 	// implemented in terms of the "emptyDir" volume.
-	NewWrapperMounter(volName string, spec Spec, pod *v1.Pod, opts VolumeOptions) (Mounter, error)
+	NewWrapperMounter(volName string, spec Spec, pod *api.Pod, opts VolumeOptions) (Mounter, error)
 
 	// NewWrapperUnmounter finds an appropriate plugin with which to handle
 	// the provided spec.  See comments on NewWrapperMounter for more
@@ -215,11 +212,8 @@ type VolumeHost interface {
 	// Returns host IP or nil in the case of error.
 	GetHostIP() (net.IP, error)
 
-	// Returns node allocatable.
-	GetNodeAllocatable() (v1.ResourceList, error)
-
-	// Returns a function that returns a secret.
-	GetSecretFunc() func(namespace, name string) (*v1.Secret, error)
+	// Returns node allocatable
+	GetNodeAllocatable() (api.ResourceList, error)
 }
 
 // VolumePluginMgr tracks registered plugins.
@@ -230,8 +224,8 @@ type VolumePluginMgr struct {
 
 // Spec is an internal representation of a volume.  All API volume types translate to Spec.
 type Spec struct {
-	Volume           *v1.Volume
-	PersistentVolume *v1.PersistentVolume
+	Volume           *api.Volume
+	PersistentVolume *api.PersistentVolume
 	ReadOnly         bool
 }
 
@@ -275,7 +269,7 @@ type VolumeConfig struct {
 	// which override specific properties of the pod in accordance with that
 	// plugin. See NewPersistentVolumeRecyclerPodTemplate for the properties
 	// that are expected to be overridden.
-	RecyclerPodTemplate *v1.Pod
+	RecyclerPodTemplate *api.Pod
 
 	// RecyclerMinimumTimeout is the minimum amount of time in seconds for the
 	// recycler pod's ActiveDeadlineSeconds attribute. Added to the minimum
@@ -302,15 +296,15 @@ type VolumeConfig struct {
 	ProvisioningEnabled bool
 }
 
-// NewSpecFromVolume creates an Spec from an v1.Volume
-func NewSpecFromVolume(vs *v1.Volume) *Spec {
+// NewSpecFromVolume creates an Spec from an api.Volume
+func NewSpecFromVolume(vs *api.Volume) *Spec {
 	return &Spec{
 		Volume: vs,
 	}
 }
 
-// NewSpecFromPersistentVolume creates an Spec from an v1.PersistentVolume
-func NewSpecFromPersistentVolume(pv *v1.PersistentVolume, readOnly bool) *Spec {
+// NewSpecFromPersistentVolume creates an Spec from an api.PersistentVolume
+func NewSpecFromPersistentVolume(pv *api.PersistentVolume, readOnly bool) *Spec {
 	return &Spec{
 		PersistentVolume: pv,
 		ReadOnly:         readOnly,
@@ -532,32 +526,32 @@ func (pm *VolumePluginMgr) FindAttachablePluginByName(name string) (AttachableVo
 //     before failing.  Recommended.  Default is 60 seconds.
 //
 // See HostPath and NFS for working recycler examples
-func NewPersistentVolumeRecyclerPodTemplate() *v1.Pod {
+func NewPersistentVolumeRecyclerPodTemplate() *api.Pod {
 	timeout := int64(60)
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			GenerateName: "pv-recycler-",
-			Namespace:    metav1.NamespaceDefault,
+			Namespace:    api.NamespaceDefault,
 		},
-		Spec: v1.PodSpec{
+		Spec: api.PodSpec{
 			ActiveDeadlineSeconds: &timeout,
-			RestartPolicy:         v1.RestartPolicyNever,
-			Volumes: []v1.Volume{
+			RestartPolicy:         api.RestartPolicyNever,
+			Volumes: []api.Volume{
 				{
 					Name: "vol",
 					// IMPORTANT!  All plugins using this template MUST
 					// override pod.Spec.Volumes[0].VolumeSource Recycler
 					// implementations without a valid VolumeSource will fail.
-					VolumeSource: v1.VolumeSource{},
+					VolumeSource: api.VolumeSource{},
 				},
 			},
-			Containers: []v1.Container{
+			Containers: []api.Container{
 				{
 					Name:    "pv-recycler",
 					Image:   "gcr.io/google_containers/busybox",
 					Command: []string{"/bin/sh"},
 					Args:    []string{"-c", "test -e /scrub && rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  && test -z \"$(ls -A /scrub)\" || exit 1"},
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      "vol",
 							MountPath: "/scrub",
@@ -568,16 +562,4 @@ func NewPersistentVolumeRecyclerPodTemplate() *v1.Pod {
 		},
 	}
 	return pod
-}
-
-// Check validity of recycle pod template
-// List of checks:
-// - at least one volume is defined in the recycle pod template
-// If successful, returns nil
-// if unsuccessful, returns an error.
-func ValidateRecyclerPodTemplate(pod *v1.Pod) error {
-	if len(pod.Spec.Volumes) < 1 {
-		return fmt.Errorf("does not contain any volume(s)")
-	}
-	return nil
 }

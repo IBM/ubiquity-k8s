@@ -18,10 +18,9 @@ package flocker
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
 
@@ -32,16 +31,14 @@ func TestFlockerUtil_CreateVolume(t *testing.T) {
 	assert := assert.New(t)
 
 	// test CreateVolume happy path
-	pvc := volumetest.CreateTestPVC("3Gi", []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce})
+	pvc := volumetest.CreateTestPVC("3Gi", []api.PersistentVolumeAccessMode{api.ReadWriteOnce})
 	options := volume.VolumeOptions{
 		PVC: pvc,
-		PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
+		PersistentVolumeReclaimPolicy: api.PersistentVolumeReclaimDelete,
 	}
 
 	fakeFlockerClient := newFakeFlockerClient()
-	dir, p := newTestableProvisioner(assert, options)
-	provisioner := p.(*flockerVolumeProvisioner)
-	defer os.RemoveAll(dir)
+	provisioner := newTestableProvisioner(assert, options).(*flockerVolumeProvisioner)
 	provisioner.flockerClient = fakeFlockerClient
 
 	flockerUtil := &FlockerUtil{}

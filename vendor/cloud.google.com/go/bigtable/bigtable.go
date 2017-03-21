@@ -52,8 +52,6 @@ func NewClient(ctx context.Context, project, instance string, opts ...option.Cli
 	if err != nil {
 		return nil, err
 	}
-	// Default to a small connection pool that can be overridden.
-	o = append(o, option.WithGRPCConnectionPool(4))
 	o = append(o, opts...)
 	conn, err := transport.DialGRPC(ctx, o...)
 	if err != nil {
@@ -120,7 +118,7 @@ func (c *Client) Open(table string) *Table {
 // By default, the yielded rows will contain all values in all cells.
 // Use RowFilter to limit the cells returned.
 func (t *Table) ReadRows(ctx context.Context, arg RowSet, f func(Row) bool, opts ...ReadOption) error {
-	ctx = mergeMetadata(ctx, t.md)
+	ctx = metadata.NewContext(ctx, t.md)
 
 	var prevRowKey string
 	err := gax.Invoke(ctx, func(ctx context.Context) error {
@@ -277,19 +275,15 @@ func (r RowRange) String() string {
 }
 
 func (r RowRange) proto() *btpb.RowSet {
-	rr := &btpb.RowRange{
-		StartKey: &btpb.RowRange_StartKeyClosed{[]byte(r.start)},
-	}
+	var rr *btpb.RowRange
+	rr = &btpb.RowRange{StartKey: &btpb.RowRange_StartKeyClosed{StartKeyClosed: []byte(r.start)}}
 	if !r.Unbounded() {
-		rr.EndKey = &btpb.RowRange_EndKeyOpen{[]byte(r.limit)}
+		rr.EndKey = &btpb.RowRange_EndKeyOpen{EndKeyOpen: []byte(r.limit)}
 	}
 	return &btpb.RowSet{RowRanges: []*btpb.RowRange{rr}}
 }
 
 func (r RowRange) retainRowsAfter(lastRowKey string) RowSet {
-	if lastRowKey == "" {
-		return r
-	}
 	// Set the beginning of the range to the row after the last scanned.
 	start := lastRowKey + "\x00"
 	if r.Unbounded() {
@@ -298,9 +292,12 @@ func (r RowRange) retainRowsAfter(lastRowKey string) RowSet {
 	return NewRange(start, r.limit)
 }
 
-// SingleRow returns a RowSet for reading a single row.
-func SingleRow(row string) RowSet {
-	return RowList{row}
+// SingleRow returns a RowRange for reading a single row.
+func SingleRow(row string) RowRange {
+	return RowRange{
+		start: row,
+		limit: row + "\x00",
+	}
 }
 
 // PrefixRange returns a RowRange consisting of all keys starting with the prefix.
@@ -373,7 +370,7 @@ func mutationsAreRetryable(muts []*btpb.Mutation) bool {
 
 // Apply applies a Mutation to a specific row.
 func (t *Table) Apply(ctx context.Context, row string, m *Mutation, opts ...ApplyOption) error {
-	ctx = mergeMetadata(ctx, t.md)
+	ctx = metadata.NewContext(ctx, t.md)
 	after := func(res proto.Message) {
 		for _, o := range opts {
 			o.after(res)
@@ -539,7 +536,7 @@ type entryErr struct {
 //
 // Conditional mutations cannot be applied in bulk and providing one will result in an error.
 func (t *Table) ApplyBulk(ctx context.Context, rowKeys []string, muts []*Mutation, opts ...ApplyOption) ([]error, error) {
-	ctx = mergeMetadata(ctx, t.md)
+	ctx = metadata.NewContext(ctx, t.md)
 	if len(rowKeys) != len(muts) {
 		return nil, fmt.Errorf("mismatched rowKeys and mutation array lengths: %d, %d", len(rowKeys), len(muts))
 	}
@@ -665,7 +662,7 @@ func (ts Timestamp) Time() time.Time { return time.Unix(0, int64(ts)*1e3) }
 // ApplyReadModifyWrite applies a ReadModifyWrite to a specific row.
 // It returns the newly written cells.
 func (t *Table) ApplyReadModifyWrite(ctx context.Context, row string, m *ReadModifyWrite) (Row, error) {
-	ctx = mergeMetadata(ctx, t.md)
+	ctx = metadata.NewContext(ctx, t.md)
 	req := &btpb.ReadModifyWriteRowRequest{
 		TableName: t.c.fullTableName(t.table),
 		RowKey:    []byte(row),
@@ -674,9 +671,6 @@ func (t *Table) ApplyReadModifyWrite(ctx context.Context, row string, m *ReadMod
 	res, err := t.c.client.ReadModifyWriteRow(ctx, req)
 	if err != nil {
 		return nil, err
-	}
-	if res.Row == nil {
-		return nil, errors.New("unable to apply ReadModifyWrite: res.Row=nil")
 	}
 	r := make(Row)
 	for _, fam := range res.Row.Families { // res is *btpb.Row, fam is *btpb.Family
@@ -720,11 +714,4 @@ func (m *ReadModifyWrite) Increment(family, column string, delta int64) {
 		ColumnQualifier: []byte(column),
 		Rule:            &btpb.ReadModifyWriteRule_IncrementAmount{delta},
 	})
-}
-
-// mergeMetadata returns a context populated by the existing metadata, if any,
-// joined with internal metadata.
-func mergeMetadata(ctx context.Context, md metadata.MD) context.Context {
-	mdCopy, _ := metadata.FromContext(ctx)
-	return metadata.NewContext(ctx, metadata.Join(mdCopy, md))
 }

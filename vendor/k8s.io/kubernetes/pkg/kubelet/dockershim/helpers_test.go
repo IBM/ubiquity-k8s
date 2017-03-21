@@ -19,12 +19,11 @@ package dockershim
 import (
 	"testing"
 
-	"github.com/blang/semver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"k8s.io/kubernetes/pkg/api/v1"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	"k8s.io/kubernetes/pkg/api"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/security/apparmor"
 )
 
@@ -44,13 +43,13 @@ func TestLabelsAndAnnotationsRoundTrip(t *testing.T) {
 // TODO: Migrate the corresponding test to dockershim.
 func TestGetContainerSecurityOpts(t *testing.T) {
 	containerName := "bar"
-	makeConfig := func(annotations map[string]string) *runtimeapi.PodSandboxConfig {
+	makeConfig := func(annotations map[string]string) *runtimeApi.PodSandboxConfig {
 		return makeSandboxConfigWithLabelsAndAnnotations("pod", "ns", "1234", 1, nil, annotations)
 	}
 
 	tests := []struct {
 		msg          string
-		config       *runtimeapi.PodSandboxConfig
+		config       *runtimeApi.PodSandboxConfig
 		expectedOpts []string
 	}{{
 		msg:          "No security annotations",
@@ -59,19 +58,19 @@ func TestGetContainerSecurityOpts(t *testing.T) {
 	}, {
 		msg: "Seccomp unconfined",
 		config: makeConfig(map[string]string{
-			v1.SeccompContainerAnnotationKeyPrefix + containerName: "unconfined",
+			api.SeccompContainerAnnotationKeyPrefix + containerName: "unconfined",
 		}),
 		expectedOpts: []string{"seccomp=unconfined"},
 	}, {
 		msg: "Seccomp default",
 		config: makeConfig(map[string]string{
-			v1.SeccompContainerAnnotationKeyPrefix + containerName: "docker/default",
+			api.SeccompContainerAnnotationKeyPrefix + containerName: "docker/default",
 		}),
 		expectedOpts: nil,
 	}, {
 		msg: "Seccomp pod default",
 		config: makeConfig(map[string]string{
-			v1.SeccompPodAnnotationKey: "docker/default",
+			api.SeccompPodAnnotationKey: "docker/default",
 		}),
 		expectedOpts: nil,
 	}, {
@@ -89,14 +88,14 @@ func TestGetContainerSecurityOpts(t *testing.T) {
 	}, {
 		msg: "AppArmor and seccomp profile",
 		config: makeConfig(map[string]string{
-			v1.SeccompContainerAnnotationKeyPrefix + containerName: "docker/default",
-			apparmor.ContainerAnnotationKeyPrefix + containerName:  apparmor.ProfileNamePrefix + "foo",
+			api.SeccompContainerAnnotationKeyPrefix + containerName: "docker/default",
+			apparmor.ContainerAnnotationKeyPrefix + containerName:   apparmor.ProfileNamePrefix + "foo",
 		}),
 		expectedOpts: []string{"apparmor=foo"},
 	}}
 
 	for i, test := range tests {
-		opts, err := getContainerSecurityOpts(containerName, test.config, "test/seccomp/profile/root", '=')
+		opts, err := getContainerSecurityOpts(containerName, test.config, "test/seccomp/profile/root")
 		assert.NoError(t, err, "TestCase[%d]: %s", i, test.msg)
 		assert.Len(t, opts, len(test.expectedOpts), "TestCase[%d]: %s", i, test.msg)
 		for _, opt := range test.expectedOpts {
@@ -107,13 +106,13 @@ func TestGetContainerSecurityOpts(t *testing.T) {
 
 // TestGetSandboxSecurityOpts tests the logic of generating sandbox security options from sandbox annotations.
 func TestGetSandboxSecurityOpts(t *testing.T) {
-	makeConfig := func(annotations map[string]string) *runtimeapi.PodSandboxConfig {
+	makeConfig := func(annotations map[string]string) *runtimeApi.PodSandboxConfig {
 		return makeSandboxConfigWithLabelsAndAnnotations("pod", "ns", "1234", 1, nil, annotations)
 	}
 
 	tests := []struct {
 		msg          string
-		config       *runtimeapi.PodSandboxConfig
+		config       *runtimeApi.PodSandboxConfig
 		expectedOpts []string
 	}{{
 		msg:          "No security annotations",
@@ -122,26 +121,26 @@ func TestGetSandboxSecurityOpts(t *testing.T) {
 	}, {
 		msg: "Seccomp default",
 		config: makeConfig(map[string]string{
-			v1.SeccompPodAnnotationKey: "docker/default",
+			api.SeccompPodAnnotationKey: "docker/default",
 		}),
 		expectedOpts: nil,
 	}, {
 		msg: "Seccomp unconfined",
 		config: makeConfig(map[string]string{
-			v1.SeccompPodAnnotationKey: "unconfined",
+			api.SeccompPodAnnotationKey: "unconfined",
 		}),
 		expectedOpts: []string{"seccomp=unconfined"},
 	}, {
 		msg: "Seccomp pod and container profile",
 		config: makeConfig(map[string]string{
-			v1.SeccompContainerAnnotationKeyPrefix + "test-container": "unconfined",
-			v1.SeccompPodAnnotationKey:                                "docker/default",
+			api.SeccompContainerAnnotationKeyPrefix + "test-container": "unconfined",
+			api.SeccompPodAnnotationKey:                                "docker/default",
 		}),
 		expectedOpts: nil,
 	}}
 
 	for i, test := range tests {
-		opts, err := getSandboxSecurityOpts(test.config, "test/seccomp/profile/root", '=')
+		opts, err := getSandboxSecurityOpts(test.config, "test/seccomp/profile/root")
 		assert.NoError(t, err, "TestCase[%d]: %s", i, test.msg)
 		assert.Len(t, opts, len(test.expectedOpts), "TestCase[%d]: %s", i, test.msg)
 		for _, opt := range test.expectedOpts {
@@ -157,8 +156,8 @@ func TestGetSystclsFromAnnotations(t *testing.T) {
 		expectedSysctls map[string]string
 	}{{
 		annotations: map[string]string{
-			v1.SysctlsPodAnnotationKey:       "kernel.shmmni=32768,kernel.shmmax=1000000000",
-			v1.UnsafeSysctlsPodAnnotationKey: "knet.ipv4.route.min_pmtu=1000",
+			api.SysctlsPodAnnotationKey:       "kernel.shmmni=32768,kernel.shmmax=1000000000",
+			api.UnsafeSysctlsPodAnnotationKey: "knet.ipv4.route.min_pmtu=1000",
 		},
 		expectedSysctls: map[string]string{
 			"kernel.shmmni":            "32768",
@@ -167,7 +166,7 @@ func TestGetSystclsFromAnnotations(t *testing.T) {
 		},
 	}, {
 		annotations: map[string]string{
-			v1.SysctlsPodAnnotationKey: "kernel.shmmni=32768,kernel.shmmax=1000000000",
+			api.SysctlsPodAnnotationKey: "kernel.shmmni=32768,kernel.shmmax=1000000000",
 		},
 		expectedSysctls: map[string]string{
 			"kernel.shmmni": "32768",
@@ -175,7 +174,7 @@ func TestGetSystclsFromAnnotations(t *testing.T) {
 		},
 	}, {
 		annotations: map[string]string{
-			v1.UnsafeSysctlsPodAnnotationKey: "knet.ipv4.route.min_pmtu=1000",
+			api.UnsafeSysctlsPodAnnotationKey: "knet.ipv4.route.min_pmtu=1000",
 		},
 		expectedSysctls: map[string]string{
 			"knet.ipv4.route.min_pmtu": "1000",
@@ -193,10 +192,11 @@ func TestGetSystclsFromAnnotations(t *testing.T) {
 // TestGetUserFromImageUser tests the logic of getting image uid or user name of image user.
 func TestGetUserFromImageUser(t *testing.T) {
 	newI64 := func(i int64) *int64 { return &i }
+	newStr := func(s string) *string { return &s }
 	for c, test := range map[string]struct {
 		user string
 		uid  *int64
-		name string
+		name *string
 	}{
 		"no gid": {
 			user: "0",
@@ -215,11 +215,11 @@ func TestGetUserFromImageUser(t *testing.T) {
 		},
 		"root username": {
 			user: "root:root",
-			name: "root",
+			name: newStr("root"),
 		},
 		"username": {
 			user: "test:test",
-			name: "test",
+			name: newStr("test"),
 		},
 	} {
 		t.Logf("TestCase - %q", c)
@@ -236,28 +236,4 @@ func TestParsingCreationConflictError(t *testing.T) {
 	matches := conflictRE.FindStringSubmatch(msg)
 	require.Len(t, matches, 2)
 	require.Equal(t, matches[1], "24666ab8c814d16f986449e504ea0159468ddf8da01897144a770f66dce0e14e")
-}
-
-func TestGetSecurityOptSeparator(t *testing.T) {
-	for c, test := range map[string]struct {
-		desc     string
-		version  *semver.Version
-		expected rune
-	}{
-		"older docker version": {
-			version:  &semver.Version{Major: 1, Minor: 22, Patch: 0},
-			expected: ':',
-		},
-		"changed docker version": {
-			version:  &semver.Version{Major: 1, Minor: 23, Patch: 0},
-			expected: '=',
-		},
-		"newer docker version": {
-			version:  &semver.Version{Major: 1, Minor: 24, Patch: 0},
-			expected: '=',
-		},
-	} {
-		actual := getSecurityOptSeparator(test.version)
-		assert.Equal(t, test.expected, actual, c)
-	}
 }

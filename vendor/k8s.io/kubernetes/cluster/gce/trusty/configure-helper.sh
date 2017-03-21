@@ -152,7 +152,9 @@ assemble_kubelet_flags() {
   fi
   if [ "${KUBERNETES_MASTER:-}" = "true" ]; then
     KUBELET_CMD_FLAGS="${KUBELET_CMD_FLAGS} --enable-debugging-handlers=false --hairpin-mode=none"
-    if [ "${REGISTER_MASTER_KUBELET:-false}" == "true" ]; then
+    if [ ! -z "${KUBELET_APISERVER:-}" ] && \
+       [ ! -z "${KUBELET_CERT:-}" ] && \
+       [ ! -z "${KUBELET_KEY:-}" ]; then
       KUBELET_CMD_FLAGS="${KUBELET_CMD_FLAGS} --api-servers=https://${KUBELET_APISERVER} --register-schedulable=false"
     else
       KUBELET_CMD_FLAGS="${KUBELET_CMD_FLAGS} --pod-cidr=${MASTER_IP_RANGE}"
@@ -418,13 +420,10 @@ EOF
 
 # Uses KUBELET_CA_CERT (falling back to CA_CERT), KUBELET_CERT, and KUBELET_KEY
 # to generate a kubeconfig file for the kubelet to securely connect to the apiserver.
-# Set REGISTER_MASTER_KUBELET to true if kubelet on the master node
-# should register to the apiserver.
 create_master_kubelet_auth() {
   # Only configure the kubelet on the master if the required variables are
   # set in the environment.
   if [ -n "${KUBELET_APISERVER:-}" ] && [ -n "${KUBELET_CERT:-}" ] && [ -n "${KUBELET_KEY:-}" ]; then
-    REGISTER_MASTER_KUBELET="true"
     create_kubelet_kubeconfig
   fi
 }
@@ -452,6 +451,9 @@ prepare_etcd_manifest() {
   local etcd_protocol="http"
   local etcd_creds=""
 
+  if [[ -n "${INITIAL_ETCD_CLUSTER_STATE:-}" ]]; then
+    cluster_state="${INITIAL_ETCD_CLUSTER_STATE}"
+  fi
   if [[ -n "${ETCD_CA_KEY:-}" && -n "${ETCD_CA_CERT:-}" && -n "${ETCD_PEER_KEY:-}" && -n "${ETCD_PEER_CERT:-}" ]]; then
     etcd_creds=" --peer-trusted-ca-file /etc/srv/kubernetes/etcd-ca.crt --peer-cert-file /etc/srv/kubernetes/etcd-peer.crt --peer-key-file /etc/srv/kubernetes/etcd-peer.key -peer-client-cert-auth "
     etcd_protocol="https"
@@ -461,7 +463,6 @@ prepare_etcd_manifest() {
     etcd_host="etcd-${host}=${etcd_protocol}://${host}:$3"
     if [[ -n "${etcd_cluster}" ]]; then
       etcd_cluster+=","
-      cluster_state="existing"
     fi
     etcd_cluster+="${etcd_host}"
   done
@@ -565,6 +566,7 @@ remove_salt_config_comments() {
 #   DOCKER_REGISTRY
 start_kube_apiserver() {
   prepare_log_file /var/log/kube-apiserver.log
+  prepare_log_file /var/log/kube-apiserver-audit.log
   # Load the docker image from file.
   echo "Try to load docker image file kube-apiserver.tar"
   timeout 30 docker load -i /home/kubernetes/kube-docker-files/kube-apiserver.tar
@@ -590,7 +592,7 @@ start_kube_apiserver() {
   if [ -n "${NUM_NODES:-}" ]; then
     # If the cluster is large, increase max-requests-inflight limit in apiserver.
     if [[ "${NUM_NODES}" -ge 1000 ]]; then
-      params+=" --max-requests-inflight=1500 --max-mutating-requests-inflight=500"
+      params+=" --max-requests-inflight=1500"
     fi
     # Set amount of memory available for apiserver based on number of nodes.
     # TODO: Once we start setting proper requests and limits for apiserver
@@ -602,6 +604,21 @@ start_kube_apiserver() {
   fi
   if [ -n "${ETCD_QUORUM_READ:-}" ]; then
     params="${params} --etcd-quorum-read=${ETCD_QUORUM_READ}"
+  fi
+
+  if [[ "${ENABLE_APISERVER_BASIC_AUDIT:-}" == "true" ]]; then
+    # We currently only support enabling with a fixed path and with built-in log
+    # rotation "disabled" (large value) so it behaves like kube-apiserver.log.
+    # External log rotation should be set up the same as for kube-apiserver.log.
+    params="${params} --audit-log-path=/var/log/kube-apiserver-audit.log"
+    params="${params} --audit-log-maxage=0"
+    params="${params} --audit-log-maxbackup=0"
+    # Lumberjack doesn't offer any way to disable size-based rotation. It also
+    # has an in-memory counter that doesn't notice if you truncate the file.
+    # 2000000000 (in MiB) is a large number that fits in 31 bits. If the log
+    # grows at 10MiB/s (~30K QPS), it will rotate after ~6 years if apiserver
+    # never restarts. Please manually restart apiserver before this time.
+    params="${params} --audit-log-maxsize=2000000000"
   fi
 
   local admission_controller_config_mount=""
@@ -807,13 +824,14 @@ start-rescheduler() {
   fi
 }
 
-# Starts a fluentd static pod for logging for gcp in case master is not registered.
-start_fluentd_static_pod() {
-  if [[ "${ENABLE_NODE_LOGGING:-}" == "true" ]] && \
-     [[ "${LOGGING_DESTINATION:-}" == "gcp" ]] && \
-     [[ "${KUBERNETES_MASTER:-}" == "true" ]] && \
-     [[ "${REGISTER_MASTER_KUBELET:-false}" == "false" ]]; then
-    cp /home/kubernetes/kube-manifests/kubernetes/fluentd-gcp.yaml /etc/kubernetes/manifests/
+# Starts a fluentd static pod for logging.
+start_fluentd() {
+  if [ "${ENABLE_NODE_LOGGING:-}" = "true" ]; then
+    if [ "${LOGGING_DESTINATION:-}" = "gcp" ]; then
+      cp /home/kubernetes/kube-manifests/kubernetes/fluentd-gcp.yaml /etc/kubernetes/manifests/
+    elif [ "${LOGGING_DESTINATION:-}" = "elasticsearch" ]; then
+      cp /home/kubernetes/kube-manifests/kubernetes/fluentd-es.yaml /etc/kubernetes/manifests/
+    fi
   fi
 }
 
@@ -891,12 +909,12 @@ start_kube_addons() {
   fi
   if [ "${ENABLE_CLUSTER_DNS:-}" = "true" ]; then
     setup_addon_manifests "addons" "dns"
-    dns_controller_file="${addon_dst_dir}/dns/kubedns-controller.yaml"
-    dns_svc_file="${addon_dst_dir}/dns/kubedns-svc.yaml"
-    mv "${addon_dst_dir}/dns/kubedns-controller.yaml.in" "${dns_controller_file}"
-    mv "${addon_dst_dir}/dns/kubedns-svc.yaml.in" "${dns_svc_file}"
+    dns_rc_file="${addon_dst_dir}/dns/skydns-rc.yaml"
+    dns_svc_file="${addon_dst_dir}/dns/skydns-svc.yaml"
+    mv "${addon_dst_dir}/dns/skydns-rc.yaml.in" "${dns_rc_file}"
+    mv "${addon_dst_dir}/dns/skydns-svc.yaml.in" "${dns_svc_file}"
     # Replace the salt configurations with variable values.
-    sed -i -e "s@{{ *pillar\['dns_domain'\] *}}@${DNS_DOMAIN}@g" "${dns_controller_file}"
+    sed -i -e "s@{{ *pillar\['dns_domain'\] *}}@${DNS_DOMAIN}@g" "${dns_rc_file}"
     sed -i -e "s@{{ *pillar\['dns_server'\] *}}@${DNS_SERVER_IP}@g" "${dns_svc_file}"
 
     if [[ "${ENABLE_DNS_HORIZONTAL_AUTOSCALER:-}" == "true" ]]; then
@@ -909,12 +927,12 @@ start_kube_addons() {
         FEDERATIONS_DOMAIN_MAP="${FEDERATION_NAME}=${DNS_ZONE_NAME}"
       fi
       if [[ -n "${FEDERATIONS_DOMAIN_MAP}" ]]; then
-        sed -i -e "s@{{ *pillar\['federations_domain_map'\] *}}@- --federations=${FEDERATIONS_DOMAIN_MAP}@g" "${dns_controller_file}"
+        sed -i -e "s@{{ *pillar\['federations_domain_map'\] *}}@- --federations=${FEDERATIONS_DOMAIN_MAP}@g" "${dns_rc_file}"
       else
-        sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_controller_file}"
+        sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_rc_file}"
       fi
     else
-      sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_controller_file}"
+      sed -i -e "/{{ *pillar\['federations_domain_map'\] *}}/d" "${dns_rc_file}"
     fi
   fi
   if [ "${ENABLE_CLUSTER_REGISTRY:-}" = "true" ]; then
@@ -934,18 +952,11 @@ start_kube_addons() {
      [ "${ENABLE_CLUSTER_LOGGING:-}" = "true" ]; then
     setup_addon_manifests "addons" "fluentd-elasticsearch"
   fi
-  if [ "${ENABLE_NODE_LOGGING:-}" = "true" ] && \
-     [ "${LOGGING_DESTINATION:-}" = "gcp" ] ; then
-    setup_addon_manifests "addons" "fluentd-gcp"
-  fi
   if [ "${ENABLE_CLUSTER_UI:-}" = "true" ]; then
     setup_addon_manifests "addons" "dashboard"
   fi
   if echo "${ADMISSION_CONTROL:-}" | grep -q "LimitRanger"; then
     setup_addon_manifests "admission-controls" "limit-range"
-  fi
-  if [[ "${ENABLE_DEFAULT_STORAGE_CLASS:-}" == "true" ]]; then
-    setup-addon-manifests "addons" "storage-class/gce"
   fi
 
   # Place addon manager pod manifest

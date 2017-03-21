@@ -26,19 +26,16 @@ import (
 	"path/filepath"
 	"time"
 
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/api/validation"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/runtime"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
+	"k8s.io/kubernetes/pkg/util/yaml"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 const (
@@ -84,9 +81,9 @@ type Info struct {
 	// Optional, this is the provided object in a versioned type before defaulting
 	// and conversions into its corresponding internal type. This is useful for
 	// reflecting on user intent which may be lost after defaulting and conversions.
-	VersionedObject runtime.Object
+	VersionedObject interface{}
 	// Optional, this is the most recent value returned by the server if available
-	Object runtime.Object
+	runtime.Object
 	// Optional, this is the most recent resource version the server knows about for
 	// this type of resource. It may not match the resource version of the object,
 	// but if set it should be equal to or newer than the resource version of the
@@ -116,7 +113,7 @@ func (i *Info) Visit(fn VisitorFunc) error {
 func (i *Info) Get() (err error) {
 	obj, err := NewHelper(i.Client, i.Mapping).Get(i.Namespace, i.Name, i.Export)
 	if err != nil {
-		if errors.IsNotFound(err) && len(i.Namespace) > 0 && i.Namespace != metav1.NamespaceDefault && i.Namespace != metav1.NamespaceAll {
+		if errors.IsNotFound(err) && len(i.Namespace) > 0 && i.Namespace != api.NamespaceDefault && i.Namespace != api.NamespaceAll {
 			err2 := i.Client.Get().AbsPath("api", "v1", "namespaces", i.Namespace).Do().Error()
 			if err2 != nil && errors.IsNotFound(err2) {
 				return err2
@@ -266,7 +263,7 @@ func readHttpWithRetries(get httpget, duration time.Duration, u string, attempts
 		}
 
 		// Error - Set the error condition from the StatusCode
-		if statusCode != http.StatusOK {
+		if statusCode != 200 {
 			err = fmt.Errorf("unable to read URL %q, server reported %s, status code=%d", u, status, statusCode)
 		}
 
@@ -396,7 +393,7 @@ func (v FlattenListVisitor) Visit(fn VisitorFunc) error {
 		}
 
 		// If we have a GroupVersionKind on the list, prioritize that when asking for info on the objects contained in the list
-		var preferredGVKs []schema.GroupVersionKind
+		var preferredGVKs []unversioned.GroupVersionKind
 		if info.Mapping != nil && !info.Mapping.GroupVersionKind.Empty() {
 			preferredGVKs = append(preferredGVKs, info.Mapping.GroupVersionKind)
 		}
@@ -492,11 +489,7 @@ func (v *FileVisitor) Visit(fn VisitorFunc) error {
 		}
 	}
 	defer f.Close()
-
-	// TODO: Consider adding a flag to force to UTF16, apparently some
-	// Windows tools don't write the BOM
-	utf16bom := unicode.BOMOverride(unicode.UTF8.NewDecoder())
-	v.StreamVisitor.Reader = transform.NewReader(f, utf16bom)
+	v.StreamVisitor.Reader = f
 
 	return v.StreamVisitor.Visit(fn)
 }

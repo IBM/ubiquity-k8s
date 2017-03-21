@@ -27,17 +27,16 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	utiltesting "k8s.io/client-go/util/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/io"
 	"k8s.io/kubernetes/pkg/util/mount"
 	utilstrings "k8s.io/kubernetes/pkg/util/strings"
+	utiltesting "k8s.io/kubernetes/pkg/util/testing"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	. "k8s.io/kubernetes/pkg/volume"
 )
 
@@ -87,7 +86,7 @@ func (f *fakeVolumeHost) GetWriter() io.Writer {
 	return f.writer
 }
 
-func (f *fakeVolumeHost) NewWrapperMounter(volName string, spec Spec, pod *v1.Pod, opts VolumeOptions) (Mounter, error) {
+func (f *fakeVolumeHost) NewWrapperMounter(volName string, spec Spec, pod *api.Pod, opts VolumeOptions) (Mounter, error) {
 	// The name of wrapper volume is set to "wrapped_{wrapped_volume_name}"
 	wrapperVolumeName := "wrapped_" + volName
 	if spec.Volume != nil {
@@ -123,14 +122,8 @@ func (f *fakeVolumeHost) GetHostIP() (net.IP, error) {
 	return nil, fmt.Errorf("GetHostIP() not implemented")
 }
 
-func (f *fakeVolumeHost) GetNodeAllocatable() (v1.ResourceList, error) {
-	return v1.ResourceList{}, nil
-}
-
-func (f *fakeVolumeHost) GetSecretFunc() func(namespace, name string) (*v1.Secret, error) {
-	return func(namespace, name string) (*v1.Secret, error) {
-		return f.kubeClient.Core().Secrets(namespace).Get(name, metav1.GetOptions{})
-	}
+func (f *fakeVolumeHost) GetNodeAllocatable() (api.ResourceList, error) {
+	return api.ResourceList{}, nil
 }
 
 func ProbeVolumePlugins(config VolumeConfig) []VolumePlugin {
@@ -203,7 +196,7 @@ func (plugin *FakeVolumePlugin) RequiresRemount() bool {
 	return false
 }
 
-func (plugin *FakeVolumePlugin) NewMounter(spec *Spec, pod *v1.Pod, opts VolumeOptions) (Mounter, error) {
+func (plugin *FakeVolumePlugin) NewMounter(spec *Spec, pod *api.Pod, opts VolumeOptions) (Mounter, error) {
 	plugin.Lock()
 	defer plugin.Unlock()
 	volume := plugin.getFakeVolume(&plugin.Mounters)
@@ -290,8 +283,8 @@ func (plugin *FakeVolumePlugin) NewProvisioner(options VolumeOptions) (Provision
 	return &FakeProvisioner{options, plugin.Host}, nil
 }
 
-func (plugin *FakeVolumePlugin) GetAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{}
+func (plugin *FakeVolumePlugin) GetAccessModes() []api.PersistentVolumeAccessMode {
+	return []api.PersistentVolumeAccessMode{}
 }
 
 func (plugin *FakeVolumePlugin) ConstructVolumeSpec(volumeName, mountPath string) (*Spec, error) {
@@ -480,24 +473,24 @@ type FakeProvisioner struct {
 	Host    VolumeHost
 }
 
-func (fc *FakeProvisioner) Provision() (*v1.PersistentVolume, error) {
+func (fc *FakeProvisioner) Provision() (*api.PersistentVolume, error) {
 	fullpath := fmt.Sprintf("/tmp/hostpath_pv/%s", uuid.NewUUID())
 
-	pv := &v1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
+	pv := &api.PersistentVolume{
+		ObjectMeta: api.ObjectMeta{
 			Name: fc.Options.PVName,
 			Annotations: map[string]string{
 				"kubernetes.io/createdby": "fakeplugin-provisioner",
 			},
 		},
-		Spec: v1.PersistentVolumeSpec{
+		Spec: api.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: fc.Options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   fc.Options.PVC.Spec.AccessModes,
-			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): fc.Options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
+			Capacity: api.ResourceList{
+				api.ResourceName(api.ResourceStorage): fc.Options.PVC.Spec.Resources.Requests[api.ResourceName(api.ResourceStorage)],
 			},
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
+			PersistentVolumeSource: api.PersistentVolumeSource{
+				HostPath: &api.HostPathVolumeSource{
 					Path: fullpath,
 				},
 			},
@@ -514,7 +507,6 @@ func FindEmptyDirectoryUsageOnTmpfs() (*resource.Quantity, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tmpDir)
 	out, err := exec.Command("nice", "-n", "19", "du", "-s", "-B", "1", tmpDir).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed command 'du' on %s with error %v", tmpDir, err)
@@ -743,17 +735,17 @@ func GetTestVolumePluginMgr(
 }
 
 // CreateTestPVC returns a provisionable PVC for tests
-func CreateTestPVC(capacity string, accessModes []v1.PersistentVolumeAccessMode) *v1.PersistentVolumeClaim {
-	claim := v1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
+func CreateTestPVC(capacity string, accessModes []api.PersistentVolumeAccessMode) *api.PersistentVolumeClaim {
+	claim := api.PersistentVolumeClaim{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "dummy",
 			Namespace: "default",
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
+		Spec: api.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,
-			Resources: v1.ResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceName(v1.ResourceStorage): resource.MustParse(capacity),
+			Resources: api.ResourceRequirements{
+				Requests: api.ResourceList{
+					api.ResourceName(api.ResourceStorage): resource.MustParse(capacity),
 				},
 			},
 		},

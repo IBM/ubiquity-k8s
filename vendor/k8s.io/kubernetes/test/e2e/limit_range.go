@@ -19,9 +19,8 @@ package e2e
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -38,8 +37,8 @@ var _ = framework.KubeDescribe("LimitRange", func() {
 		max := getResourceList("500m", "500Mi")
 		defaultLimit := getResourceList("500m", "500Mi")
 		defaultRequest := getResourceList("100m", "200Mi")
-		maxLimitRequestRatio := v1.ResourceList{}
-		limitRange := newLimitRange("limit-range", v1.LimitTypeContainer,
+		maxLimitRequestRatio := api.ResourceList{}
+		limitRange := newLimitRange("limit-range", api.LimitTypeContainer,
 			min, max,
 			defaultLimit, defaultRequest,
 			maxLimitRequestRatio)
@@ -47,19 +46,19 @@ var _ = framework.KubeDescribe("LimitRange", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Fetching the LimitRange to ensure it has proper values")
-		limitRange, err = f.ClientSet.Core().LimitRanges(f.Namespace.Name).Get(limitRange.Name, metav1.GetOptions{})
-		expected := v1.ResourceRequirements{Requests: defaultRequest, Limits: defaultLimit}
-		actual := v1.ResourceRequirements{Requests: limitRange.Spec.Limits[0].DefaultRequest, Limits: limitRange.Spec.Limits[0].Default}
+		limitRange, err = f.ClientSet.Core().LimitRanges(f.Namespace.Name).Get(limitRange.Name)
+		expected := api.ResourceRequirements{Requests: defaultRequest, Limits: defaultLimit}
+		actual := api.ResourceRequirements{Requests: limitRange.Spec.Limits[0].DefaultRequest, Limits: limitRange.Spec.Limits[0].Default}
 		err = equalResourceRequirement(expected, actual)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Creating a Pod with no resource requirements")
-		pod := newTestPod(f, "pod-no-resources", v1.ResourceList{}, v1.ResourceList{})
+		pod := newTestPod(f, "pod-no-resources", api.ResourceList{}, api.ResourceList{})
 		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Create(pod)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Ensuring Pod has resource requirements applied from LimitRange")
-		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Get(pod.Name, metav1.GetOptions{})
+		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Get(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
 		for i := range pod.Spec.Containers {
 			err = equalResourceRequirement(expected, pod.Spec.Containers[i].Resources)
@@ -76,12 +75,12 @@ var _ = framework.KubeDescribe("LimitRange", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Ensuring Pod has merged resource requirements applied from LimitRange")
-		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Get(pod.Name, metav1.GetOptions{})
+		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Get(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
 		// This is an interesting case, so it's worth a comment
 		// If you specify a Limit, and no Request, the Limit will default to the Request
 		// This means that the LimitRange.DefaultRequest will ONLY take affect if a container.resources.limit is not supplied
-		expected = v1.ResourceRequirements{Requests: getResourceList("300m", "150Mi"), Limits: getResourceList("300m", "500Mi")}
+		expected = api.ResourceRequirements{Requests: getResourceList("300m", "150Mi"), Limits: getResourceList("300m", "500Mi")}
 		for i := range pod.Spec.Containers {
 			err = equalResourceRequirement(expected, pod.Spec.Containers[i].Resources)
 			if err != nil {
@@ -92,19 +91,19 @@ var _ = framework.KubeDescribe("LimitRange", func() {
 		}
 
 		By("Failing to create a Pod with less than min resources")
-		pod = newTestPod(f, podName, getResourceList("10m", "50Mi"), v1.ResourceList{})
+		pod = newTestPod(f, podName, getResourceList("10m", "50Mi"), api.ResourceList{})
 		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Create(pod)
 		Expect(err).To(HaveOccurred())
 
 		By("Failing to create a Pod with more than max resources")
-		pod = newTestPod(f, podName, getResourceList("600m", "600Mi"), v1.ResourceList{})
+		pod = newTestPod(f, podName, getResourceList("600m", "600Mi"), api.ResourceList{})
 		pod, err = f.ClientSet.Core().Pods(f.Namespace.Name).Create(pod)
 		Expect(err).To(HaveOccurred())
 	})
 
 })
 
-func equalResourceRequirement(expected v1.ResourceRequirements, actual v1.ResourceRequirements) error {
+func equalResourceRequirement(expected api.ResourceRequirements, actual api.ResourceRequirements) error {
 	framework.Logf("Verifying requests: expected %v with actual %v", expected.Requests, actual.Requests)
 	err := equalResourceList(expected.Requests, actual.Requests)
 	if err != nil {
@@ -118,7 +117,7 @@ func equalResourceRequirement(expected v1.ResourceRequirements, actual v1.Resour
 	return nil
 }
 
-func equalResourceList(expected v1.ResourceList, actual v1.ResourceList) error {
+func equalResourceList(expected api.ResourceList, actual api.ResourceList) error {
 	for k, v := range expected {
 		if actualValue, found := actual[k]; !found || (v.Cmp(actualValue) != 0) {
 			return fmt.Errorf("resource %v expected %v actual %v", k, v.String(), actualValue.String())
@@ -132,28 +131,28 @@ func equalResourceList(expected v1.ResourceList, actual v1.ResourceList) error {
 	return nil
 }
 
-func getResourceList(cpu, memory string) v1.ResourceList {
-	res := v1.ResourceList{}
+func getResourceList(cpu, memory string) api.ResourceList {
+	res := api.ResourceList{}
 	if cpu != "" {
-		res[v1.ResourceCPU] = resource.MustParse(cpu)
+		res[api.ResourceCPU] = resource.MustParse(cpu)
 	}
 	if memory != "" {
-		res[v1.ResourceMemory] = resource.MustParse(memory)
+		res[api.ResourceMemory] = resource.MustParse(memory)
 	}
 	return res
 }
 
 // newLimitRange returns a limit range with specified data
-func newLimitRange(name string, limitType v1.LimitType,
+func newLimitRange(name string, limitType api.LimitType,
 	min, max,
 	defaultLimit, defaultRequest,
-	maxLimitRequestRatio v1.ResourceList) *v1.LimitRange {
-	return &v1.LimitRange{
-		ObjectMeta: metav1.ObjectMeta{
+	maxLimitRequestRatio api.ResourceList) *api.LimitRange {
+	return &api.LimitRange{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.LimitRangeSpec{
-			Limits: []v1.LimitRangeItem{
+		Spec: api.LimitRangeSpec{
+			Limits: []api.LimitRangeItem{
 				{
 					Type:                 limitType,
 					Min:                  min,
@@ -168,17 +167,17 @@ func newLimitRange(name string, limitType v1.LimitType,
 }
 
 // newTestPod returns a pod that has the specified requests and limits
-func newTestPod(f *framework.Framework, name string, requests v1.ResourceList, limits v1.ResourceList) *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func newTestPod(f *framework.Framework, name string, requests api.ResourceList, limits api.ResourceList) *api.Pod {
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  "pause",
 					Image: framework.GetPauseImageName(f.ClientSet),
-					Resources: v1.ResourceRequirements{
+					Resources: api.ResourceRequirements{
 						Requests: requests,
 						Limits:   limits,
 					},

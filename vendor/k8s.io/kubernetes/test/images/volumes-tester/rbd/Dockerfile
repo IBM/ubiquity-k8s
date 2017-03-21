@@ -16,6 +16,7 @@
 # Based on image by Ricardo Rocha, ricardo@catalyst.net.nz
 
 FROM fedora
+MAINTAINER Jan Safranek jsafrane@redhat.com
 
 # Base Packages
 RUN yum install -y wget ceph ceph-fuse strace && yum clean all

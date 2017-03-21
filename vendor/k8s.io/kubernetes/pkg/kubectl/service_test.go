@@ -20,9 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/util/intstr"
 )
 
 func TestGenerateService(t *testing.T) {
@@ -41,7 +40,7 @@ func TestGenerateService(t *testing.T) {
 				"container-port": "1234",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -70,7 +69,7 @@ func TestGenerateService(t *testing.T) {
 				"container-port": "foobar",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -99,7 +98,7 @@ func TestGenerateService(t *testing.T) {
 				"container-port": "1234",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 					Labels: map[string]string{
 						"key1": "value1",
@@ -132,7 +131,7 @@ func TestGenerateService(t *testing.T) {
 				"external-ip":    "1.2.3.4",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -154,16 +153,16 @@ func TestGenerateService(t *testing.T) {
 		{
 			generator: ServiceGeneratorV2{},
 			params: map[string]interface{}{
-				"selector":       "foo=bar,baz=blah",
-				"name":           "test",
-				"port":           "80",
-				"protocol":       "UDP",
-				"container-port": "foobar",
-				"external-ip":    "1.2.3.4",
-				"type":           "LoadBalancer",
+				"selector":                      "foo=bar,baz=blah",
+				"name":                          "test",
+				"port":                          "80",
+				"protocol":                      "UDP",
+				"container-port":                "foobar",
+				"external-ip":                   "1.2.3.4",
+				"create-external-load-balancer": "true",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -194,7 +193,7 @@ func TestGenerateService(t *testing.T) {
 				"type":           string(api.ServiceTypeNodePort),
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -225,7 +224,7 @@ func TestGenerateService(t *testing.T) {
 				"type": string(api.ServiceTypeNodePort),
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -254,7 +253,7 @@ func TestGenerateService(t *testing.T) {
 				"container-port": "1234",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -284,7 +283,7 @@ func TestGenerateService(t *testing.T) {
 				"session-affinity": "ClientIP",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -315,7 +314,7 @@ func TestGenerateService(t *testing.T) {
 				"cluster-ip":     "10.10.10.10",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -345,7 +344,7 @@ func TestGenerateService(t *testing.T) {
 				"cluster-ip":     "None",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -374,7 +373,7 @@ func TestGenerateService(t *testing.T) {
 				"container-port": "foobar",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -408,7 +407,7 @@ func TestGenerateService(t *testing.T) {
 				"target-port": "1234",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -441,7 +440,7 @@ func TestGenerateService(t *testing.T) {
 				"protocol": "TCP",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -474,7 +473,7 @@ func TestGenerateService(t *testing.T) {
 				"protocols": "8080/UDP",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -507,7 +506,7 @@ func TestGenerateService(t *testing.T) {
 				"protocols": "8080/UDP,8081/TCP",
 			},
 			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: api.ObjectMeta{
 					Name: "test",
 				},
 				Spec: api.ServiceSpec{
@@ -534,29 +533,6 @@ func TestGenerateService(t *testing.T) {
 							TargetPort: intstr.FromInt(8081),
 						},
 					},
-				},
-			},
-		},
-		{
-			generator: ServiceGeneratorV2{},
-			params: map[string]interface{}{
-				"selector":       "foo=bar,baz=blah",
-				"name":           "test",
-				"protocol":       "TCP",
-				"container-port": "1234",
-				"cluster-ip":     "None",
-			},
-			expected: api.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-				Spec: api.ServiceSpec{
-					Selector: map[string]string{
-						"foo": "bar",
-						"baz": "blah",
-					},
-					Ports:     []api.ServicePort{},
-					ClusterIP: api.ClusterIPNone,
 				},
 			},
 		},
