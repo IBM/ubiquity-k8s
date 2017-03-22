@@ -7,7 +7,7 @@ import:
   - lib/controller
   - lib/leaderelection
 - package: github.ibm.com/almaden-containers/ubiquity
-  version: 654e0cb16e167206a87d8e51a78a60757bda14c2
+  version: e507bed23ec67b2caa4ed3ebd6619782f9568a18
   subpackages:
   - remote
   - resources

@@ -1,5 +1,5 @@
-hash: d541f9bba9f243e7159978cf45a55aaf852766e5e1cf91abe161e62c1fd7e087
-updated: 2017-03-21T14:35:48.268871618-07:00
+hash: 8044a17169a9b26116a2e5f72f5e3fa69fe71dd08d92cfc9cf6d34bac4f2d1fb
+updated: 2017-03-22T08:00:10.142253637-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -121,7 +121,7 @@ imports:
   - interfaces
   - services
 - name: github.ibm.com/almaden-containers/ubiquity
-  version: 654e0cb16e167206a87d8e51a78a60757bda14c2
+  version: e507bed23ec67b2caa4ed3ebd6619782f9568a18
   subpackages:
   - fakes
   - local/softlayer
@@ -305,7 +305,7 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 7243c69eb523aa4377bce883e7c0dd76b84709a1
+  version: 894ff23729bbc0055907dd3a496afb725396adda
   subpackages:
   - pkg/cloudprovider
   - pkg/util/goroutinemap
