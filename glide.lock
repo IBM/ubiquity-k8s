@@ -1,5 +1,5 @@
-hash: 8044a17169a9b26116a2e5f72f5e3fa69fe71dd08d92cfc9cf6d34bac4f2d1fb
-updated: 2017-03-22T08:00:10.142253637-07:00
+hash: 5b8fe8907b8f0922fcf8ef401ffc859c0924f166e6105618ddc8e0506f6f5aa9
+updated: 2017-03-27T10:14:55.136681881-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -9,7 +9,7 @@ imports:
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
 - name: github.com/BurntSushi/toml
-  version: 99064174e013895bbd9b025c31100bd1d9b590ca
+  version: bbd5bb678321a0d6e58f1099321dfa73391c1b6f
 - name: github.com/coreos/go-oidc
   version: 5644a2f50e2d2d5ba0b474bc5bc55fea1925936d
   subpackages:
@@ -113,25 +113,16 @@ imports:
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
-- name: github.ibm.com/alchemy-containers/armada-slclient-lib
-  version: 683a1654bf32f888fbf24efb0dfec12647b665e2
-  subpackages:
-  - client
-  - datatypes
-  - interfaces
-  - services
 - name: github.ibm.com/almaden-containers/ubiquity
-  version: e507bed23ec67b2caa4ed3ebd6619782f9568a18
+  version: 5aa646be17908032fdc4479c322cd27e79b6755b
   subpackages:
   - fakes
-  - local/softlayer
   - local/spectrumscale
   - local/spectrumscale/connectors
   - model
   - remote
   - remote/mounter
   - resources
-  - service_broker
   - utils
 - name: golang.org/x/crypto
   version: 1f22c0103821b9390939b6776727195525381532
@@ -311,7 +302,6 @@ imports:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
   - pkg/util/runtime
-  - staging/src/k8s.io/client-go/_vendor/github.com/golang/glog
 testImports:
 - name: github.com/onsi/ginkgo
   version: 74c678d97c305753605c338c6c78c49ec104b5e7
