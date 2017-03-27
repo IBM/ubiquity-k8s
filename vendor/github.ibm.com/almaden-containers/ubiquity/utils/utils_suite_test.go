@@ -1,4 +1,4 @@
-package softlayer_test
+package utils_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSpectrum(t *testing.T) {
+func TestLocalStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Softlayer NFS Test Suite")
+	RunSpecs(t, "Utils Test Suite")
 }
