@@ -7,7 +7,7 @@ import:
   - lib/controller
   - lib/leaderelection
 - package: github.ibm.com/almaden-containers/ubiquity
-  version: 5aa646be17908032fdc4479c322cd27e79b6755b
+  version: 577b531946d08f7c5ec665b11e92b3b711f42d7f  
   subpackages:
   - remote
   - resources
@@ -19,6 +19,9 @@ import:
   - pkg/util/wait
   - rest
   - tools/clientcmd
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/types
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega

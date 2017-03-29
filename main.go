@@ -40,14 +40,14 @@ const (
 func main() {
 
 	flag.Parse()
-	logger, logFile := utils.SetupLogger("/tmp", "ubiquity-provisioner")
-	defer utils.CloseLogs(logFile)
 	var ubiquityConfig resources.UbiquityPluginConfig
 	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
 	if _, err := toml.DecodeFile(*configFile, &ubiquityConfig); err != nil {
 		fmt.Println(err)
 		return
 	}
+	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
+	defer utils.CloseLogs(logFile)
 
 	logger.Printf("Provisioner %s specified", *provisioner)
 
@@ -83,7 +83,7 @@ func main() {
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
 	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
-	flexProvisioner, err := volume.NewFlexProvisioner(logger, clientset, remoteClient)
+	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig.LogPath)
 	if err != nil {
 		panic("Error starting ubiquity client")
 	}

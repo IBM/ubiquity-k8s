@@ -2,11 +2,16 @@ package volume
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -14,7 +19,10 @@ const (
 
 	// are we allowed to set this? else make up our own
 	annCreatedBy = "kubernetes.io/createdby"
-	createdBy    = "flex-dynamic-provisioner"
+	createdBy    = "ubiquity-provisioner"
+
+	// Name of the file where an nfsProvisioner will store its identity
+	identityFile = "ubiquity-provisioner.identity"
 
 	// VolumeGidAnnotationKey is the key of the annotation on the PersistentVolume
 	// object that specifies a supplemental GID.
@@ -29,16 +37,30 @@ const (
 	nodeEnv      = "NODE_NAME"
 )
 
-func NewFlexProvisioner(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
-	return newFlexProvisionerInternal(logger, client, flexClient)
+func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClient, configPath string) (controller.Provisioner, error) {
+	return newFlexProvisionerInternal(logger, ubiquityClient, configPath)
 }
 
-func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
-
+func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.StorageClient, configPath string) (*flexProvisioner, error) {
+	var identity types.UID
+	identityPath := path.Join(configPath, identityFile)
+	if _, err := os.Stat(identityPath); os.IsNotExist(err) {
+		identity = uuid.NewUUID()
+		err := ioutil.WriteFile(identityPath, []byte(identity), 0600)
+		if err != nil {
+			logger.Printf("Error writing identity file %s! %v", identityPath, err)
+		}
+	} else {
+		read, err := ioutil.ReadFile(identityPath)
+		if err != nil {
+			logger.Printf("Error reading identity file %s! %v", configPath, err)
+		}
+		identity = types.UID(strings.TrimSpace(string(read)))
+	}
 	provisioner := &flexProvisioner{
 		logger:         logger,
-		client:         client,
-		ubiquityClient: flexClient,
+		identity:       identity,
+		ubiquityClient: ubiquityClient,
 		podIPEnv:       podIPEnv,
 		serviceEnv:     serviceEnv,
 		namespaceEnv:   namespaceEnv,
@@ -50,11 +72,8 @@ func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface,
 }
 
 type flexProvisioner struct {
-	logger *log.Logger
-	// Client, needed for getting a service cluster IP to put as the NFS server of
-	// provisioned PVs
-	client kubernetes.Interface
-
+	logger   *log.Logger
+	identity types.UID
 	// Whether the provisioner is running out of cluster and so cannot rely on
 	// the existence of any of the pod, service, namespace, node env variables.
 	outOfCluster bool
@@ -70,12 +89,17 @@ type flexProvisioner struct {
 	nodeEnv      string
 }
 
-var _ controller.Provisioner = &flexProvisioner{}
-
 // Provision creates a volume i.e. the storage asset and returns a PV object for
 // the volume.
 func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
-	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+	if options.PVC == nil {
+		return nil, fmt.Errorf("options missing PVC %#v", options)
+	}
+	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+	if !exists {
+		return nil, fmt.Errorf("options.PVC.Spec.Resources.Requests does not contain capacity")
+	}
+	fmt.Printf("PVC with capacity %d", capacity.Value())
 	capacityMB := capacity.Value() / (1024 * 1024)
 
 	volume_details, err := p.createVolume(options, capacityMB)
@@ -85,6 +109,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
+	annotations[annProvisionerId] = "ubiquity-provisioner"
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: v1.ObjectMeta{
@@ -116,6 +141,18 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // Delete removes the directory that was created by Provision backing the given
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
+	if volume.Name == "" {
+		return fmt.Errorf("volume name cannot be empty %#v", volume)
+	}
+	if volume.Spec.PersistentVolumeReclaimPolicy == v1.PersistentVolumeReclaimRetain {
+
+		err := p.ubiquityClient.RemoveVolume(volume.Name, false)
+		if err != nil {
+			return err
+		}
+		return nil
+
+	}
 	err := p.ubiquityClient.RemoveVolume(volume.Name, true)
 
 	if err != nil {
@@ -126,7 +163,9 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 
 func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64) (map[string]string, error) {
 	ubiquityParams := make(map[string]interface{})
-	ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)
+	if capacity != 0 {
+		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)
+	}
 	for key, value := range options.Parameters {
 		ubiquityParams[key] = value
 	}

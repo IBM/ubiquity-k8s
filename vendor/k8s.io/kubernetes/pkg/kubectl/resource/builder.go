@@ -23,14 +23,14 @@ import (
 	"os"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/api/validation"
-	"k8s.io/kubernetes/pkg/labels"
-	"k8s.io/kubernetes/pkg/runtime"
-	utilerrors "k8s.io/kubernetes/pkg/util/errors"
-	"k8s.io/kubernetes/pkg/util/sets"
 )
 
 var FileExtensions = []string{".json", ".yaml", ".yml"}
@@ -291,11 +291,11 @@ func (b *Builder) DefaultNamespace() *Builder {
 	return b
 }
 
-// AllNamespaces instructs the builder to use NamespaceAll as a namespace to request resources
+// AllNamespaces instructs the builder to metav1.NamespaceAll as a namespace to request resources
 // across all of the namespace. This overrides the namespace set by NamespaceParam().
 func (b *Builder) AllNamespaces(allNamespace bool) *Builder {
 	if allNamespace {
-		b.namespace = api.NamespaceAll
+		b.namespace = metav1.NamespaceAll
 	}
 	b.allNamespace = allNamespace
 	return b
@@ -477,8 +477,8 @@ func (b *Builder) SingleResourceType() *Builder {
 // mappingFor returns the RESTMapping for the Kind referenced by the resource.
 // prefers a fully specified GroupVersionResource match.  If we don't have one match on GroupResource
 func (b *Builder) mappingFor(resourceArg string) (*meta.RESTMapping, error) {
-	fullySpecifiedGVR, groupResource := unversioned.ParseResourceArg(resourceArg)
-	gvk := unversioned.GroupVersionKind{}
+	fullySpecifiedGVR, groupResource := schema.ParseResourceArg(resourceArg)
+	gvk := schema.GroupVersionKind{}
 	if fullySpecifiedGVR != nil {
 		gvk, _ = b.mapper.KindFor(*fullySpecifiedGVR)
 	}
@@ -802,4 +802,38 @@ func HasNames(args []string) (bool, error) {
 		return false, err
 	}
 	return hasCombinedTypes || len(args) > 1, nil
+}
+
+// MultipleTypesRequested returns true if the provided args contain multiple resource kinds
+func MultipleTypesRequested(args []string) bool {
+	if len(args) == 1 && args[0] == "all" {
+		return true
+	}
+
+	args = normalizeMultipleResourcesArgs(args)
+	rKinds := sets.NewString()
+	for _, arg := range args {
+		rTuple, found, err := splitResourceTypeName(arg)
+		if err != nil {
+			continue
+		}
+
+		// if tuple not found, assume arg is of the form "type1,type2,...".
+		// Since SplitResourceArgument returns a unique list of kinds,
+		// return true here if len(uniqueList) > 1
+		if !found {
+			if strings.Contains(arg, ",") {
+				splitArgs := SplitResourceArgument(arg)
+				if len(splitArgs) > 1 {
+					return true
+				}
+			}
+			continue
+		}
+		if rKinds.Has(rTuple.Resource) {
+			continue
+		}
+		rKinds.Insert(rTuple.Resource)
+	}
+	return (rKinds.Len() > 1)
 }

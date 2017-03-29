@@ -16,9 +16,7 @@ import (
 ```
 You need to implement the `Provisioner` interface then pass your implementation to a `ProvisionController` and run the controller. The controller takes care of deciding when to call your implementation's `Provision` or `Delete`. The interface and controller are defined in the above package.
 
-You will want to import a specific version of the library to ensure compatibility with certain versions of Kubernetes and to avoid breaking changes. This repo will be tagged according to the library's version (individual provisioners will need to version themselves independently, e.g. by in their documentation pointing to Docker Hub and using Docker tags), so to keep track of releases, go to this repo's [releases page](https://github.com/kubernetes-incubator/external-storage/releases).
-
-Note that because your provisioner needs to depend also on [client-go](https://github.com/kubernetes/client-go) and the library itself depends on a specific version of client-go, to avoid a dependency conflict you must ensure you use the exact same version of client-go as the library. You can check what version of client-go the library depends on by looking at its [glide.yaml](lib/glide.yaml).
+Note that because your provisioner needs to depend also on [client-go](https://github.com/kubernetes/client-go) and the library itself depends on a specific version of client-go, to avoid a dependency conflict you must ensure you use the exact same version of client-go as the library.
 
 For a full guide on how to write an external provisioner using the library that demonstrates the above, see [here](docs/demo/hostpath-provisioner/).
 
@@ -42,7 +40,7 @@ You can reach the maintainers of this project at:
 This is a [Kubernetes Incubator project](https://github.com/kubernetes/community/blob/master/incubator.md). The project was established 2016-11-15 (as nfs-provisioner). The incubator team for the project is:
 
 - Sponsor: Clayton (@smarterclayton)
-- Champion: Jan (@jsafrane)
+- Champion: Brad (@childsb)
 - SIG: sig-storage
 
 ### Code of conduct
