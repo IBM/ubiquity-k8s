@@ -21,30 +21,29 @@ import (
 	"reflect"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	schedulerapi "k8s.io/kubernetes/plugin/pkg/scheduler/api"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/schedulercache"
 )
 
-func nodeWithTaints(nodeName string, taints []v1.Taint) *v1.Node {
+func nodeWithTaints(nodeName string, taints []api.Taint) *api.Node {
 	taintsData, _ := json.Marshal(taints)
-	return &v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
+	return &api.Node{
+		ObjectMeta: api.ObjectMeta{
 			Name: nodeName,
 			Annotations: map[string]string{
-				v1.TaintsAnnotationKey: string(taintsData),
+				api.TaintsAnnotationKey: string(taintsData),
 			},
 		},
 	}
 }
 
-func podWithTolerations(tolerations []v1.Toleration) *v1.Pod {
+func podWithTolerations(tolerations []api.Toleration) *api.Pod {
 	tolerationData, _ := json.Marshal(tolerations)
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Annotations: map[string]string{
-				v1.TolerationsAnnotationKey: string(tolerationData),
+				api.TolerationsAnnotationKey: string(tolerationData),
 			},
 		},
 	}
@@ -56,30 +55,30 @@ func podWithTolerations(tolerations []v1.Toleration) *v1.Pod {
 
 func TestTaintAndToleration(t *testing.T) {
 	tests := []struct {
-		pod          *v1.Pod
-		nodes        []*v1.Node
+		pod          *api.Pod
+		nodes        []*api.Node
 		expectedList schedulerapi.HostPriorityList
 		test         string
 	}{
 		// basic test case
 		{
 			test: "node with taints tolerated by the pod, gets a higher score than those node with intolerable taints",
-			pod: podWithTolerations([]v1.Toleration{{
+			pod: podWithTolerations([]api.Toleration{{
 				Key:      "foo",
-				Operator: v1.TolerationOpEqual,
+				Operator: api.TolerationOpEqual,
 				Value:    "bar",
-				Effect:   v1.TaintEffectPreferNoSchedule,
+				Effect:   api.TaintEffectPreferNoSchedule,
 			}}),
-			nodes: []*v1.Node{
-				nodeWithTaints("nodeA", []v1.Taint{{
+			nodes: []*api.Node{
+				nodeWithTaints("nodeA", []api.Taint{{
 					Key:    "foo",
 					Value:  "bar",
-					Effect: v1.TaintEffectPreferNoSchedule,
+					Effect: api.TaintEffectPreferNoSchedule,
 				}}),
-				nodeWithTaints("nodeB", []v1.Taint{{
+				nodeWithTaints("nodeB", []api.Taint{{
 					Key:    "foo",
 					Value:  "blah",
-					Effect: v1.TaintEffectPreferNoSchedule,
+					Effect: api.TaintEffectPreferNoSchedule,
 				}}),
 			},
 			expectedList: []schedulerapi.HostPriority{
@@ -90,37 +89,37 @@ func TestTaintAndToleration(t *testing.T) {
 		// the count of taints that are tolerated by pod, does not matter.
 		{
 			test: "the nodes that all of their taints are tolerated by the pod, get the same score, no matter how many tolerable taints a node has",
-			pod: podWithTolerations([]v1.Toleration{
+			pod: podWithTolerations([]api.Toleration{
 				{
 					Key:      "cpu-type",
-					Operator: v1.TolerationOpEqual,
+					Operator: api.TolerationOpEqual,
 					Value:    "arm64",
-					Effect:   v1.TaintEffectPreferNoSchedule,
+					Effect:   api.TaintEffectPreferNoSchedule,
 				}, {
 					Key:      "disk-type",
-					Operator: v1.TolerationOpEqual,
+					Operator: api.TolerationOpEqual,
 					Value:    "ssd",
-					Effect:   v1.TaintEffectPreferNoSchedule,
+					Effect:   api.TaintEffectPreferNoSchedule,
 				},
 			}),
-			nodes: []*v1.Node{
-				nodeWithTaints("nodeA", []v1.Taint{}),
-				nodeWithTaints("nodeB", []v1.Taint{
+			nodes: []*api.Node{
+				nodeWithTaints("nodeA", []api.Taint{}),
+				nodeWithTaints("nodeB", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					},
 				}),
-				nodeWithTaints("nodeC", []v1.Taint{
+				nodeWithTaints("nodeC", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					}, {
 						Key:    "disk-type",
 						Value:  "ssd",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					},
 				}),
 			},
@@ -133,30 +132,30 @@ func TestTaintAndToleration(t *testing.T) {
 		// the count of taints on a node that are not tolerated by pod, matters.
 		{
 			test: "the more intolerable taints a node has, the lower score it gets.",
-			pod: podWithTolerations([]v1.Toleration{{
+			pod: podWithTolerations([]api.Toleration{{
 				Key:      "foo",
-				Operator: v1.TolerationOpEqual,
+				Operator: api.TolerationOpEqual,
 				Value:    "bar",
-				Effect:   v1.TaintEffectPreferNoSchedule,
+				Effect:   api.TaintEffectPreferNoSchedule,
 			}}),
-			nodes: []*v1.Node{
-				nodeWithTaints("nodeA", []v1.Taint{}),
-				nodeWithTaints("nodeB", []v1.Taint{
+			nodes: []*api.Node{
+				nodeWithTaints("nodeA", []api.Taint{}),
+				nodeWithTaints("nodeB", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					},
 				}),
-				nodeWithTaints("nodeC", []v1.Taint{
+				nodeWithTaints("nodeC", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					}, {
 						Key:    "disk-type",
 						Value:  "ssd",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					},
 				}),
 			},
@@ -169,37 +168,37 @@ func TestTaintAndToleration(t *testing.T) {
 		// taints-tolerations priority only takes care about the taints and tolerations that have effect PreferNoSchedule
 		{
 			test: "only taints and tolerations that have effect PreferNoSchedule are checked by taints-tolerations priority function",
-			pod: podWithTolerations([]v1.Toleration{
+			pod: podWithTolerations([]api.Toleration{
 				{
 					Key:      "cpu-type",
-					Operator: v1.TolerationOpEqual,
+					Operator: api.TolerationOpEqual,
 					Value:    "arm64",
-					Effect:   v1.TaintEffectNoSchedule,
+					Effect:   api.TaintEffectNoSchedule,
 				}, {
 					Key:      "disk-type",
-					Operator: v1.TolerationOpEqual,
+					Operator: api.TolerationOpEqual,
 					Value:    "ssd",
-					Effect:   v1.TaintEffectNoSchedule,
+					Effect:   api.TaintEffectNoSchedule,
 				},
 			}),
-			nodes: []*v1.Node{
-				nodeWithTaints("nodeA", []v1.Taint{}),
-				nodeWithTaints("nodeB", []v1.Taint{
+			nodes: []*api.Node{
+				nodeWithTaints("nodeA", []api.Taint{}),
+				nodeWithTaints("nodeB", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectNoSchedule,
+						Effect: api.TaintEffectNoSchedule,
 					},
 				}),
-				nodeWithTaints("nodeC", []v1.Taint{
+				nodeWithTaints("nodeC", []api.Taint{
 					{
 						Key:    "cpu-type",
 						Value:  "arm64",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					}, {
 						Key:    "disk-type",
 						Value:  "ssd",
-						Effect: v1.TaintEffectPreferNoSchedule,
+						Effect: api.TaintEffectPreferNoSchedule,
 					},
 				}),
 			},

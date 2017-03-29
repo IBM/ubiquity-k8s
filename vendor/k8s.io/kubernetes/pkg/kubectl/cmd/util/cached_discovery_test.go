@@ -25,13 +25,12 @@ import (
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/discovery"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/rest/fake"
+	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/client/restclient/fake"
+	"k8s.io/kubernetes/pkg/client/typed/discovery"
+	"k8s.io/kubernetes/pkg/version"
 )
 
 func TestCachedDiscoveryClient_Fresh(t *testing.T) {
@@ -101,8 +100,6 @@ type fakeDiscoveryClient struct {
 	resourceCalls int
 	versionCalls  int
 	swaggerCalls  int
-
-	serverResourcesHandler func() ([]*metav1.APIResourceList, error)
 }
 
 var _ discovery.DiscoveryInterface = &fakeDiscoveryClient{}
@@ -111,19 +108,19 @@ func (c *fakeDiscoveryClient) RESTClient() restclient.Interface {
 	return &fake.RESTClient{}
 }
 
-func (c *fakeDiscoveryClient) ServerGroups() (*metav1.APIGroupList, error) {
+func (c *fakeDiscoveryClient) ServerGroups() (*unversioned.APIGroupList, error) {
 	c.groupCalls = c.groupCalls + 1
-	return &metav1.APIGroupList{
-		Groups: []metav1.APIGroup{
+	return &unversioned.APIGroupList{
+		Groups: []unversioned.APIGroup{
 			{
 				Name: "a",
-				Versions: []metav1.GroupVersionForDiscovery{
+				Versions: []unversioned.GroupVersionForDiscovery{
 					{
 						GroupVersion: "a/v1",
 						Version:      "v1",
 					},
 				},
-				PreferredVersion: metav1.GroupVersionForDiscovery{
+				PreferredVersion: unversioned.GroupVersionForDiscovery{
 					GroupVersion: "a/v1",
 					Version:      "v1",
 				},
@@ -132,31 +129,28 @@ func (c *fakeDiscoveryClient) ServerGroups() (*metav1.APIGroupList, error) {
 	}, nil
 }
 
-func (c *fakeDiscoveryClient) ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error) {
+func (c *fakeDiscoveryClient) ServerResourcesForGroupVersion(groupVersion string) (*unversioned.APIResourceList, error) {
 	c.resourceCalls = c.resourceCalls + 1
 	if groupVersion == "a/v1" {
-		return &metav1.APIResourceList{}, nil
+		return &unversioned.APIResourceList{}, nil
 	}
 
-	return nil, errors.NewNotFound(schema.GroupResource{}, "")
+	return nil, errors.NewNotFound(unversioned.GroupResource{}, "")
 }
 
-func (c *fakeDiscoveryClient) ServerResources() ([]*metav1.APIResourceList, error) {
+func (c *fakeDiscoveryClient) ServerResources() (map[string]*unversioned.APIResourceList, error) {
 	c.resourceCalls = c.resourceCalls + 1
-	if c.serverResourcesHandler != nil {
-		return c.serverResourcesHandler()
-	}
-	return []*metav1.APIResourceList{}, nil
+	return map[string]*unversioned.APIResourceList{}, nil
 }
 
-func (c *fakeDiscoveryClient) ServerPreferredResources() ([]*metav1.APIResourceList, error) {
+func (c *fakeDiscoveryClient) ServerPreferredResources() ([]unversioned.GroupVersionResource, error) {
 	c.resourceCalls = c.resourceCalls + 1
-	return nil, nil
+	return []unversioned.GroupVersionResource{}, nil
 }
 
-func (c *fakeDiscoveryClient) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
+func (c *fakeDiscoveryClient) ServerPreferredNamespacedResources() ([]unversioned.GroupVersionResource, error) {
 	c.resourceCalls = c.resourceCalls + 1
-	return nil, nil
+	return []unversioned.GroupVersionResource{}, nil
 }
 
 func (c *fakeDiscoveryClient) ServerVersion() (*version.Info, error) {
@@ -164,7 +158,7 @@ func (c *fakeDiscoveryClient) ServerVersion() (*version.Info, error) {
 	return &version.Info{}, nil
 }
 
-func (c *fakeDiscoveryClient) SwaggerSchema(version schema.GroupVersion) (*swagger.ApiDeclaration, error) {
+func (c *fakeDiscoveryClient) SwaggerSchema(version unversioned.GroupVersion) (*swagger.ApiDeclaration, error) {
 	c.swaggerCalls = c.swaggerCalls + 1
 	return &swagger.ApiDeclaration{}, nil
 }

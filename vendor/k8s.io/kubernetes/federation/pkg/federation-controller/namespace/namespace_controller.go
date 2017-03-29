@@ -20,25 +20,22 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/flowcontrol"
-	federationapi "k8s.io/kubernetes/federation/apis/federation/v1beta1"
-	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
+	federation_api "k8s.io/kubernetes/federation/apis/federation/v1beta1"
+	federationclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_release_1_5"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/deletionhelper"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/eventsink"
 	"k8s.io/kubernetes/pkg/api"
-	apiv1 "k8s.io/kubernetes/pkg/api/v1"
-	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api/errors"
+	api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/cache"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/namespace/deletion"
+	"k8s.io/kubernetes/pkg/conversion"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/golang/glog"
 )
@@ -64,7 +61,7 @@ type NamespaceController struct {
 	// Definitions of namespaces that should be federated.
 	namespaceInformerStore cache.Store
 	// Informer controller for namespaces that should be federated.
-	namespaceInformerController cache.Controller
+	namespaceInformerController cache.ControllerInterface
 
 	// Client to federated api server.
 	federatedApiClient federationclientset.Interface
@@ -77,9 +74,6 @@ type NamespaceController struct {
 
 	deletionHelper *deletionhelper.DeletionHelper
 
-	// Helper to delete all resources in a namespace.
-	namespacedResourcesDeleter deletion.NamespacedResourcesDeleterInterface
-
 	namespaceReviewDelay  time.Duration
 	clusterAvailableDelay time.Duration
 	smallDelay            time.Duration
@@ -87,10 +81,10 @@ type NamespaceController struct {
 }
 
 // NewNamespaceController returns a new namespace controller
-func NewNamespaceController(client federationclientset.Interface, dynamicClientPool dynamic.ClientPool) *NamespaceController {
+func NewNamespaceController(client federationclientset.Interface) *NamespaceController {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(eventsink.NewFederatedEventSink(client))
-	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "federated-namespace-controller"})
+	recorder := broadcaster.NewRecorder(api.EventSource{Component: "federated-namespace-controller"})
 
 	nc := &NamespaceController{
 		federatedApiClient:    client,
@@ -102,68 +96,72 @@ func NewNamespaceController(client federationclientset.Interface, dynamicClientP
 		eventRecorder:         recorder,
 	}
 
-	// Build deliverers for triggering reconciliations.
+	// Build delivereres for triggering reconciliations.
 	nc.namespaceDeliverer = util.NewDelayingDeliverer()
 	nc.clusterDeliverer = util.NewDelayingDeliverer()
 
 	// Start informer in federated API servers on namespaces that should be federated.
 	nc.namespaceInformerStore, nc.namespaceInformerController = cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return client.Core().Namespaces().List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Core().Namespaces().List(versionedOptions)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return client.Core().Namespaces().Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				versionedOptions := util.VersionizeV1ListOptions(options)
+				return client.Core().Namespaces().Watch(versionedOptions)
 			},
 		},
-		&apiv1.Namespace{},
+		&api_v1.Namespace{},
 		controller.NoResyncPeriodFunc(),
 		util.NewTriggerOnAllChanges(func(obj runtime.Object) { nc.deliverNamespaceObj(obj, 0, false) }))
 
 	// Federated informer on namespaces in members of federation.
 	nc.namespaceFederatedInformer = util.NewFederatedInformer(
 		client,
-		func(cluster *federationapi.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.Controller) {
+		func(cluster *federation_api.Cluster, targetClient kubeclientset.Interface) (cache.Store, cache.ControllerInterface) {
 			return cache.NewInformer(
 				&cache.ListWatch{
-					ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-						return targetClient.Core().Namespaces().List(options)
+					ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Core().Namespaces().List(versionedOptions)
 					},
-					WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-						return targetClient.Core().Namespaces().Watch(options)
+					WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+						versionedOptions := util.VersionizeV1ListOptions(options)
+						return targetClient.Core().Namespaces().Watch(versionedOptions)
 					},
 				},
-				&apiv1.Namespace{},
+				&api_v1.Namespace{},
 				controller.NoResyncPeriodFunc(),
 				// Trigger reconciliation whenever something in federated cluster is changed. In most cases it
-				// would be just confirmation that some namespace operation succeeded.
+				// would be just confirmation that some namespace opration succeeded.
 				util.NewTriggerOnMetaAndSpecChanges(
 					func(obj runtime.Object) { nc.deliverNamespaceObj(obj, nc.namespaceReviewDelay, false) },
 				))
 		},
 		&util.ClusterLifecycleHandlerFuncs{
-			ClusterAvailable: func(cluster *federationapi.Cluster) {
+			ClusterAvailable: func(cluster *federation_api.Cluster) {
 				// When new cluster becomes available process all the namespaces again.
 				nc.clusterDeliverer.DeliverAfter(allClustersKey, nil, nc.clusterAvailableDelay)
 			},
 		},
 	)
 
-	// Federated updater along with Create/Update/Delete operations.
+	// Federated updeater along with Create/Update/Delete operations.
 	nc.federatedUpdater = util.NewFederatedUpdater(nc.namespaceFederatedInformer,
 		func(client kubeclientset.Interface, obj runtime.Object) error {
-			namespace := obj.(*apiv1.Namespace)
+			namespace := obj.(*api_v1.Namespace)
 			_, err := client.Core().Namespaces().Create(namespace)
 			return err
 		},
 		func(client kubeclientset.Interface, obj runtime.Object) error {
-			namespace := obj.(*apiv1.Namespace)
+			namespace := obj.(*api_v1.Namespace)
 			_, err := client.Core().Namespaces().Update(namespace)
 			return err
 		},
 		func(client kubeclientset.Interface, obj runtime.Object) error {
-			namespace := obj.(*apiv1.Namespace)
-			err := client.Core().Namespaces().Delete(namespace.Name, &metav1.DeleteOptions{})
+			namespace := obj.(*api_v1.Namespace)
+			err := client.Core().Namespaces().Delete(namespace.Name, &api_v1.DeleteOptions{})
 			// IsNotFound error is fine since that means the object is deleted already.
 			if errors.IsNotFound(err) {
 				return nil
@@ -177,7 +175,7 @@ func NewNamespaceController(client federationclientset.Interface, dynamicClientP
 		nc.addFinalizerFunc,
 		// objNameFunc
 		func(obj runtime.Object) string {
-			namespace := obj.(*apiv1.Namespace)
+			namespace := obj.(*api_v1.Namespace)
 			return namespace.Name
 		},
 		nc.updateTimeout,
@@ -185,17 +183,12 @@ func NewNamespaceController(client federationclientset.Interface, dynamicClientP
 		nc.namespaceFederatedInformer,
 		nc.federatedUpdater,
 	)
-
-	discoverResourcesFn := nc.federatedApiClient.Discovery().ServerPreferredNamespacedResources
-	nc.namespacedResourcesDeleter = deletion.NewNamespacedResourcesDeleter(
-		client.Core().Namespaces(), dynamicClientPool, nil,
-		discoverResourcesFn, apiv1.FinalizerKubernetes, false)
 	return nc
 }
 
 // Returns true if the given object has the given finalizer in its ObjectMeta.
 func (nc *NamespaceController) hasFinalizerFunc(obj runtime.Object, finalizer string) bool {
-	namespace := obj.(*apiv1.Namespace)
+	namespace := obj.(*api_v1.Namespace)
 	for i := range namespace.ObjectMeta.Finalizers {
 		if string(namespace.ObjectMeta.Finalizers[i]) == finalizer {
 			return true
@@ -207,7 +200,7 @@ func (nc *NamespaceController) hasFinalizerFunc(obj runtime.Object, finalizer st
 // Removes the finalizer from the given objects ObjectMeta.
 // Assumes that the given object is a namespace.
 func (nc *NamespaceController) removeFinalizerFunc(obj runtime.Object, finalizer string) (runtime.Object, error) {
-	namespace := obj.(*apiv1.Namespace)
+	namespace := obj.(*api_v1.Namespace)
 	newFinalizers := []string{}
 	hasFinalizer := false
 	for i := range namespace.ObjectMeta.Finalizers {
@@ -229,21 +222,21 @@ func (nc *NamespaceController) removeFinalizerFunc(obj runtime.Object, finalizer
 	return namespace, nil
 }
 
-// Adds the given finalizers to the given objects ObjectMeta.
+// Adds the given finalizer to the given objects ObjectMeta.
 // Assumes that the given object is a namespace.
-func (nc *NamespaceController) addFinalizerFunc(obj runtime.Object, finalizers []string) (runtime.Object, error) {
-	namespace := obj.(*apiv1.Namespace)
-	namespace.ObjectMeta.Finalizers = append(namespace.ObjectMeta.Finalizers, finalizers...)
+func (nc *NamespaceController) addFinalizerFunc(obj runtime.Object, finalizer string) (runtime.Object, error) {
+	namespace := obj.(*api_v1.Namespace)
+	namespace.ObjectMeta.Finalizers = append(namespace.ObjectMeta.Finalizers, finalizer)
 	namespace, err := nc.federatedApiClient.Core().Namespaces().Finalize(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add finalizers %v to namespace %s: %v", finalizers, namespace.Name, err)
+		return nil, fmt.Errorf("failed to add finalizer %s to namespace %s: %v", finalizer, namespace.Name, err)
 	}
 	return namespace, nil
 }
 
 // Returns true if the given object has the given finalizer in its NamespaceSpec.
-func (nc *NamespaceController) hasFinalizerFuncInSpec(obj runtime.Object, finalizer apiv1.FinalizerName) bool {
-	namespace := obj.(*apiv1.Namespace)
+func (nc *NamespaceController) hasFinalizerFuncInSpec(obj runtime.Object, finalizer api_v1.FinalizerName) bool {
+	namespace := obj.(*api_v1.Namespace)
 	for i := range namespace.Spec.Finalizers {
 		if namespace.Spec.Finalizers[i] == finalizer {
 			return true
@@ -253,8 +246,8 @@ func (nc *NamespaceController) hasFinalizerFuncInSpec(obj runtime.Object, finali
 }
 
 // Removes the finalizer from the given objects NamespaceSpec.
-func (nc *NamespaceController) removeFinalizerFromSpec(namespace *apiv1.Namespace, finalizer apiv1.FinalizerName) (*apiv1.Namespace, error) {
-	updatedFinalizers := []apiv1.FinalizerName{}
+func (nc *NamespaceController) removeFinalizerFromSpec(namespace *api_v1.Namespace, finalizer api_v1.FinalizerName) (*api_v1.Namespace, error) {
+	updatedFinalizers := []api_v1.FinalizerName{}
 	for i := range namespace.Spec.Finalizers {
 		if namespace.Spec.Finalizers[i] != finalizer {
 			updatedFinalizers = append(updatedFinalizers, namespace.Spec.Finalizers[i])
@@ -286,7 +279,7 @@ func (nc *NamespaceController) Run(stopChan <-chan struct{}) {
 }
 
 func (nc *NamespaceController) deliverNamespaceObj(obj interface{}, delay time.Duration, failed bool) {
-	namespace := obj.(*apiv1.Namespace)
+	namespace := obj.(*api_v1.Namespace)
 	nc.deliverNamespace(namespace.Name, delay, failed)
 }
 
@@ -325,7 +318,7 @@ func (nc *NamespaceController) reconcileNamespacesOnClusterChange() {
 		nc.clusterDeliverer.DeliverAfter(allClustersKey, nil, nc.clusterAvailableDelay)
 	}
 	for _, obj := range nc.namespaceInformerStore.List() {
-		namespace := obj.(*apiv1.Namespace)
+		namespace := obj.(*api_v1.Namespace)
 		nc.deliverNamespace(namespace.Name, nc.smallDelay, false)
 	}
 }
@@ -349,8 +342,8 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 	}
 	// Create a copy before modifying the namespace to prevent race condition with
 	// other readers of namespace from store.
-	namespaceObj, err := api.Scheme.DeepCopy(namespaceObjFromStore)
-	baseNamespace, ok := namespaceObj.(*apiv1.Namespace)
+	namespaceObj, err := conversion.NewCloner().DeepCopy(namespaceObjFromStore)
+	baseNamespace, ok := namespaceObj.(*api_v1.Namespace)
 	if err != nil || !ok {
 		glog.Errorf("Error in retrieving obj from store: %v, %v", ok, err)
 		nc.deliverNamespace(namespace, 0, true)
@@ -379,7 +372,7 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 		nc.deliverNamespace(namespace, 0, false)
 		return
 	}
-	baseNamespace = updatedNamespaceObj.(*apiv1.Namespace)
+	baseNamespace = updatedNamespaceObj.(*api_v1.Namespace)
 
 	glog.V(3).Infof("Syncing namespace %s in underlying clusters", baseNamespace.Name)
 	// Sync the namespace in all underlying clusters.
@@ -399,9 +392,9 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 			return
 		}
 		// The object should not be modified.
-		desiredNamespace := &apiv1.Namespace{
+		desiredNamespace := &api_v1.Namespace{
 			ObjectMeta: util.DeepCopyRelevantObjectMeta(baseNamespace.ObjectMeta),
-			Spec:       *(util.DeepCopyApiTypeOrPanic(&baseNamespace.Spec).(*apiv1.NamespaceSpec)),
+			Spec:       util.DeepCopyApiTypeOrPanic(baseNamespace.Spec).(api_v1.NamespaceSpec),
 		}
 		glog.V(5).Infof("Desired namespace in underlying clusters: %+v", desiredNamespace)
 
@@ -415,7 +408,7 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 				ClusterName: cluster.Name,
 			})
 		} else {
-			clusterNamespace := clusterNamespaceObj.(*apiv1.Namespace)
+			clusterNamespace := clusterNamespaceObj.(*api_v1.Namespace)
 
 			// Update existing namespace, if needed.
 			if !util.ObjectMetaAndSpecEquivalent(desiredNamespace, clusterNamespace) {
@@ -447,22 +440,22 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 		return
 	}
 
-	// Everything is in order but lets be double sure
+	// Evertyhing is in order but lets be double sure
 	nc.deliverNamespace(namespace, nc.namespaceReviewDelay, false)
 }
 
 // delete  deletes the given namespace or returns error if the deletion was not complete.
-func (nc *NamespaceController) delete(namespace *apiv1.Namespace) error {
+func (nc *NamespaceController) delete(namespace *api_v1.Namespace) error {
 	// Set Terminating status.
-	updatedNamespace := &apiv1.Namespace{
+	updatedNamespace := &api_v1.Namespace{
 		ObjectMeta: namespace.ObjectMeta,
 		Spec:       namespace.Spec,
-		Status: apiv1.NamespaceStatus{
-			Phase: apiv1.NamespaceTerminating,
+		Status: api_v1.NamespaceStatus{
+			Phase: api_v1.NamespaceTerminating,
 		},
 	}
 	var err error
-	if namespace.Status.Phase != apiv1.NamespaceTerminating {
+	if namespace.Status.Phase != api_v1.NamespaceTerminating {
 		glog.V(2).Infof("Marking ns %s as terminating", namespace.Name)
 		nc.eventRecorder.Event(namespace, api.EventTypeNormal, "DeleteNamespace", fmt.Sprintf("Marking for deletion"))
 		_, err = nc.federatedApiClient.Core().Namespaces().Update(updatedNamespace)
@@ -471,18 +464,13 @@ func (nc *NamespaceController) delete(namespace *apiv1.Namespace) error {
 		}
 	}
 
-	if nc.hasFinalizerFuncInSpec(updatedNamespace, apiv1.FinalizerKubernetes) {
+	if nc.hasFinalizerFuncInSpec(updatedNamespace, api_v1.FinalizerKubernetes) {
 		// Delete resources in this namespace.
-		err = nc.namespacedResourcesDeleter.Delete(updatedNamespace.Name)
+		updatedNamespace, err = nc.removeKubernetesFinalizer(updatedNamespace)
 		if err != nil {
 			return fmt.Errorf("error in deleting resources in namespace %s: %v", namespace.Name, err)
 		}
 		glog.V(2).Infof("Removed kubernetes finalizer from ns %s", namespace.Name)
-		// Fetch the updated Namespace.
-		updatedNamespace, err = nc.federatedApiClient.Core().Namespaces().Get(updatedNamespace.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error in fetching updated namespace %s: %s", updatedNamespace.Name, err)
-		}
 	}
 
 	// Delete the namespace from all underlying clusters.
@@ -501,4 +489,45 @@ func (nc *NamespaceController) delete(namespace *apiv1.Namespace) error {
 		}
 	}
 	return nil
+}
+
+// Ensures that all resources in this namespace are deleted and then removes the kubernetes finalizer.
+func (nc *NamespaceController) removeKubernetesFinalizer(namespace *api_v1.Namespace) (*api_v1.Namespace, error) {
+	// Right now there are just 7 types of objects: Deployments, DaemonSets, ReplicaSet, Secret, Ingress, Events and Service.
+	// Temporarly these items are simply deleted one by one to squeeze this code into 1.4.
+	// TODO: Make it generic (like in the regular namespace controller) and parallel.
+	err := nc.federatedApiClient.Core().Services(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete service list: %v", err)
+	}
+	err = nc.federatedApiClient.Extensions().ReplicaSets(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete replicaset list from namespace: %v", err)
+	}
+	err = nc.federatedApiClient.Core().Secrets(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete secret list from namespace: %v", err)
+	}
+	err = nc.federatedApiClient.Extensions().Ingresses(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete ingresses list from namespace: %v", err)
+	}
+	err = nc.federatedApiClient.Extensions().DaemonSets(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete daemonsets list from namespace: %v", err)
+	}
+	err = nc.federatedApiClient.Extensions().Deployments(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete deployments list from namespace: %v", err)
+	}
+	err = nc.federatedApiClient.Core().Events(namespace.Name).DeleteCollection(&api_v1.DeleteOptions{}, api_v1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete events list from namespace: %v", err)
+	}
+
+	// Remove kube_api.FinalizerKubernetes
+	if len(namespace.Spec.Finalizers) != 0 {
+		return nc.removeFinalizerFromSpec(namespace, api_v1.FinalizerKubernetes)
+	}
+	return namespace, nil
 }

@@ -20,89 +20,89 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 func TestGeneratePodReadyCondition(t *testing.T) {
 	tests := []struct {
-		spec              *v1.PodSpec
-		containerStatuses []v1.ContainerStatus
-		podPhase          v1.PodPhase
-		expected          v1.PodCondition
+		spec              *api.PodSpec
+		containerStatuses []api.ContainerStatus
+		podPhase          api.PodPhase
+		expected          api.PodCondition
 	}{
 		{
 			spec:              nil,
 			containerStatuses: nil,
-			podPhase:          v1.PodRunning,
+			podPhase:          api.PodRunning,
 			expected:          getReadyCondition(false, "UnknownContainerStatuses", ""),
 		},
 		{
-			spec:              &v1.PodSpec{},
-			containerStatuses: []v1.ContainerStatus{},
-			podPhase:          v1.PodRunning,
+			spec:              &api.PodSpec{},
+			containerStatuses: []api.ContainerStatus{},
+			podPhase:          api.PodRunning,
 			expected:          getReadyCondition(true, "", ""),
 		},
 		{
-			spec: &v1.PodSpec{
-				Containers: []v1.Container{
+			spec: &api.PodSpec{
+				Containers: []api.Container{
 					{Name: "1234"},
 				},
 			},
-			containerStatuses: []v1.ContainerStatus{},
-			podPhase:          v1.PodRunning,
+			containerStatuses: []api.ContainerStatus{},
+			podPhase:          api.PodRunning,
 			expected:          getReadyCondition(false, "ContainersNotReady", "containers with unknown status: [1234]"),
 		},
 		{
-			spec: &v1.PodSpec{
-				Containers: []v1.Container{
+			spec: &api.PodSpec{
+				Containers: []api.Container{
 					{Name: "1234"},
 					{Name: "5678"},
 				},
 			},
-			containerStatuses: []v1.ContainerStatus{
+			containerStatuses: []api.ContainerStatus{
 				getReadyStatus("1234"),
 				getReadyStatus("5678"),
 			},
-			podPhase: v1.PodRunning,
+			podPhase: api.PodRunning,
 			expected: getReadyCondition(true, "", ""),
 		},
 		{
-			spec: &v1.PodSpec{
-				Containers: []v1.Container{
+			spec: &api.PodSpec{
+				Containers: []api.Container{
 					{Name: "1234"},
 					{Name: "5678"},
 				},
 			},
-			containerStatuses: []v1.ContainerStatus{
+			containerStatuses: []api.ContainerStatus{
 				getReadyStatus("1234"),
 			},
-			podPhase: v1.PodRunning,
+			podPhase: api.PodRunning,
 			expected: getReadyCondition(false, "ContainersNotReady", "containers with unknown status: [5678]"),
 		},
 		{
-			spec: &v1.PodSpec{
-				Containers: []v1.Container{
+			spec: &api.PodSpec{
+				Containers: []api.Container{
 					{Name: "1234"},
 					{Name: "5678"},
 				},
 			},
-			containerStatuses: []v1.ContainerStatus{
+			containerStatuses: []api.ContainerStatus{
 				getReadyStatus("1234"),
 				getNotReadyStatus("5678"),
 			},
-			podPhase: v1.PodRunning,
+			podPhase: api.PodRunning,
 			expected: getReadyCondition(false, "ContainersNotReady", "containers with unready status: [5678]"),
 		},
 		{
-			spec: &v1.PodSpec{
-				Containers: []v1.Container{
+			spec: &api.PodSpec{
+				Containers: []api.Container{
 					{Name: "1234"},
 				},
 			},
-			containerStatuses: []v1.ContainerStatus{
+			containerStatuses: []api.ContainerStatus{
 				getNotReadyStatus("1234"),
 			},
-			podPhase: v1.PodSucceeded,
+			podPhase: api.PodSucceeded,
 			expected: getReadyCondition(false, "PodCompleted", ""),
 		},
 	}
@@ -115,28 +115,28 @@ func TestGeneratePodReadyCondition(t *testing.T) {
 	}
 }
 
-func getReadyCondition(ready bool, reason, message string) v1.PodCondition {
-	status := v1.ConditionFalse
+func getReadyCondition(ready bool, reason, message string) api.PodCondition {
+	status := api.ConditionFalse
 	if ready {
-		status = v1.ConditionTrue
+		status = api.ConditionTrue
 	}
-	return v1.PodCondition{
-		Type:    v1.PodReady,
+	return api.PodCondition{
+		Type:    api.PodReady,
 		Status:  status,
 		Reason:  reason,
 		Message: message,
 	}
 }
 
-func getReadyStatus(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func getReadyStatus(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name:  cName,
 		Ready: true,
 	}
 }
 
-func getNotReadyStatus(cName string) v1.ContainerStatus {
-	return v1.ContainerStatus{
+func getNotReadyStatus(cName string) api.ContainerStatus {
+	return api.ContainerStatus{
 		Name:  cName,
 		Ready: false,
 	}

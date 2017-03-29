@@ -23,9 +23,8 @@ set -o pipefail
 
 KUBE_ROOT=$(dirname "${BASH_SOURCE}")/..
 
-# Build a dev release
-make -f ${KUBE_ROOT}/Makefile quick-release
-
+# Then build a release
+"${KUBE_ROOT}/build/release.sh"
 if [ "$?" != "0" ]; then
         echo "Building the release failed!"
         exit 1

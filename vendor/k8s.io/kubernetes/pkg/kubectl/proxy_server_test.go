@@ -22,12 +22,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	restclient "k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/client/restclient"
 )
 
 func TestAccept(t *testing.T) {
@@ -41,15 +40,6 @@ func TestAccept(t *testing.T) {
 		expectAccept bool
 	}{
 
-		{
-			acceptPaths:  DefaultPathAcceptRE,
-			rejectPaths:  DefaultPathRejectRE,
-			acceptHosts:  DefaultHostAcceptRE,
-			path:         "",
-			host:         "127.0.0.1",
-			method:       "GET",
-			expectAccept: true,
-		},
 		{
 			acceptPaths:  DefaultPathAcceptRE,
 			rejectPaths:  DefaultPathRejectRE,
@@ -235,7 +225,6 @@ func TestFileServing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating tmp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
 	if err := ioutil.WriteFile(filepath.Join(dir, fname), []byte(data), 0755); err != nil {
 		t.Fatalf("error writing tmp file: %v", err)
 	}

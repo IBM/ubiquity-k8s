@@ -1,8 +1,4 @@
-approvers:
-- bprashanth
-- deads2k
-- derekwaynecarr
-- mikedanese
-- janetkuo
-reviewers:
-- deads2k
+assignees:
+  - bprashanth
+  - derekwaynecarr
+  - mikedanese

@@ -21,26 +21,16 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/util/i18n"
-)
-
-var (
-	get_clusters_example = templates.Examples(`
-		# List the clusters kubectl knows about
-		kubectl config get-clusters`)
 )
 
 // NewCmdConfigGetClusters creates a command object for the "get-clusters" action, which
 // lists all clusters defined in the kubeconfig.
 func NewCmdConfigGetClusters(out io.Writer, configAccess clientcmd.ConfigAccess) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "get-clusters",
-		Short:   i18n.T("Display clusters defined in the kubeconfig"),
-		Long:    "Display clusters defined in the kubeconfig.",
-		Example: get_clusters_example,
+		Use:   "get-clusters",
+		Short: "Display clusters defined in the kubeconfig",
 		Run: func(cmd *cobra.Command, args []string) {
 			err := runGetClusters(out, configAccess)
 			cmdutil.CheckErr(err)

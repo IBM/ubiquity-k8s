@@ -1,4 +1,5 @@
-approvers:
-- test-infra-maintainers
-reviewers:
-- test-infra-maintainers
+assignees:
+  - fejta
+  - ixdy
+  - rmmh
+  - spxtr

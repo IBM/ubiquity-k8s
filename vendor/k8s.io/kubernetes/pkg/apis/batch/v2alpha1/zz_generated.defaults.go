@@ -21,8 +21,8 @@ limitations under the License.
 package v2alpha1
 
 import (
-	runtime "k8s.io/apimachinery/pkg/runtime"
 	v1 "k8s.io/kubernetes/pkg/api/v1"
+	runtime "k8s.io/kubernetes/pkg/runtime"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.
@@ -66,20 +66,6 @@ func SetObjectDefaults_CronJob(in *CronJob) {
 		}
 		if a.VolumeSource.AzureDisk != nil {
 			v1.SetDefaults_AzureDiskVolumeSource(a.VolumeSource.AzureDisk)
-		}
-		if a.VolumeSource.Projected != nil {
-			v1.SetDefaults_ProjectedVolumeSource(a.VolumeSource.Projected)
-			for j := range a.VolumeSource.Projected.Sources {
-				b := &a.VolumeSource.Projected.Sources[j]
-				if b.DownwardAPI != nil {
-					for k := range b.DownwardAPI.Items {
-						c := &b.DownwardAPI.Items[k]
-						if c.FieldRef != nil {
-							v1.SetDefaults_ObjectFieldSelector(c.FieldRef)
-						}
-					}
-				}
-			}
 		}
 	}
 	for i := range in.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
@@ -205,20 +191,6 @@ func SetObjectDefaults_Job(in *Job) {
 		if a.VolumeSource.AzureDisk != nil {
 			v1.SetDefaults_AzureDiskVolumeSource(a.VolumeSource.AzureDisk)
 		}
-		if a.VolumeSource.Projected != nil {
-			v1.SetDefaults_ProjectedVolumeSource(a.VolumeSource.Projected)
-			for j := range a.VolumeSource.Projected.Sources {
-				b := &a.VolumeSource.Projected.Sources[j]
-				if b.DownwardAPI != nil {
-					for k := range b.DownwardAPI.Items {
-						c := &b.DownwardAPI.Items[k]
-						if c.FieldRef != nil {
-							v1.SetDefaults_ObjectFieldSelector(c.FieldRef)
-						}
-					}
-				}
-			}
-		}
 	}
 	for i := range in.Spec.Template.Spec.InitContainers {
 		a := &in.Spec.Template.Spec.InitContainers[i]
@@ -341,20 +313,6 @@ func SetObjectDefaults_JobTemplate(in *JobTemplate) {
 		}
 		if a.VolumeSource.AzureDisk != nil {
 			v1.SetDefaults_AzureDiskVolumeSource(a.VolumeSource.AzureDisk)
-		}
-		if a.VolumeSource.Projected != nil {
-			v1.SetDefaults_ProjectedVolumeSource(a.VolumeSource.Projected)
-			for j := range a.VolumeSource.Projected.Sources {
-				b := &a.VolumeSource.Projected.Sources[j]
-				if b.DownwardAPI != nil {
-					for k := range b.DownwardAPI.Items {
-						c := &b.DownwardAPI.Items[k]
-						if c.FieldRef != nil {
-							v1.SetDefaults_ObjectFieldSelector(c.FieldRef)
-						}
-					}
-				}
-			}
 		}
 	}
 	for i := range in.Template.Spec.Template.Spec.InitContainers {

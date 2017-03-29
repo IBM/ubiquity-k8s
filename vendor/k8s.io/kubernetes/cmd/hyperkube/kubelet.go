@@ -26,7 +26,6 @@ import (
 func NewKubelet() *Server {
 	s := options.NewKubeletServer()
 	hks := Server{
-		name:        "kubelet",
 		SimpleUsage: "kubelet",
 		Long: `The kubelet binary is responsible for maintaining a set of containers on a
 		particular node. It syncs data from a variety of sources including a

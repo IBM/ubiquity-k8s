@@ -22,32 +22,34 @@ import (
 
 	"github.com/golang/glog"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apiserver/pkg/registry/generic"
-	"k8s.io/apiserver/pkg/registry/rest"
-	genericapiserver "k8s.io/apiserver/pkg/server"
-	serverstorage "k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	extensionsapiv1beta1 "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	extensionsclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion"
-	expcontrollerstore "k8s.io/kubernetes/pkg/registry/extensions/controller/storage"
-	daemonstore "k8s.io/kubernetes/pkg/registry/extensions/daemonset/storage"
-	deploymentstore "k8s.io/kubernetes/pkg/registry/extensions/deployment/storage"
-	ingressstore "k8s.io/kubernetes/pkg/registry/extensions/ingress/storage"
-	networkpolicystore "k8s.io/kubernetes/pkg/registry/extensions/networkpolicy/storage"
-	pspstore "k8s.io/kubernetes/pkg/registry/extensions/podsecuritypolicy/storage"
-	replicasetstore "k8s.io/kubernetes/pkg/registry/extensions/replicaset/storage"
-	thirdpartyresourcestore "k8s.io/kubernetes/pkg/registry/extensions/thirdpartyresource/storage"
+	"k8s.io/kubernetes/pkg/genericapiserver"
+	horizontalpodautoscaleretcd "k8s.io/kubernetes/pkg/registry/autoscaling/horizontalpodautoscaler/etcd"
+	jobetcd "k8s.io/kubernetes/pkg/registry/batch/job/etcd"
+	expcontrolleretcd "k8s.io/kubernetes/pkg/registry/extensions/controller/etcd"
+	daemonetcd "k8s.io/kubernetes/pkg/registry/extensions/daemonset/etcd"
+	deploymentetcd "k8s.io/kubernetes/pkg/registry/extensions/deployment/etcd"
+	ingressetcd "k8s.io/kubernetes/pkg/registry/extensions/ingress/etcd"
+	networkpolicyetcd "k8s.io/kubernetes/pkg/registry/extensions/networkpolicy/etcd"
+	pspetcd "k8s.io/kubernetes/pkg/registry/extensions/podsecuritypolicy/etcd"
+	replicasetetcd "k8s.io/kubernetes/pkg/registry/extensions/replicaset/etcd"
+	thirdpartyresourceetcd "k8s.io/kubernetes/pkg/registry/extensions/thirdpartyresource/etcd"
+	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 type RESTStorageProvider struct {
 	ResourceInterface ResourceInterface
 }
 
-func (p RESTStorageProvider) NewRESTStorage(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) (genericapiserver.APIGroupInfo, bool) {
-	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(extensions.GroupName, api.Registry, api.Scheme, api.ParameterCodec, api.Codecs)
+var _ genericapiserver.RESTStorageProvider = &RESTStorageProvider{}
+
+func (p RESTStorageProvider) NewRESTStorage(apiResourceConfigSource genericapiserver.APIResourceConfigSource, restOptionsGetter genericapiserver.RESTOptionsGetter) (genericapiserver.APIGroupInfo, bool) {
+	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(extensions.GroupName)
 
 	if apiResourceConfigSource.AnyResourcesForVersionEnabled(extensionsapiv1beta1.SchemeGroupVersion) {
 		apiGroupInfo.VersionedResourcesStorageMap[extensionsapiv1beta1.SchemeGroupVersion.Version] = p.v1beta1Storage(apiResourceConfigSource, restOptionsGetter)
@@ -57,51 +59,59 @@ func (p RESTStorageProvider) NewRESTStorage(apiResourceConfigSource serverstorag
 	return apiGroupInfo, true
 }
 
-func (p RESTStorageProvider) v1beta1Storage(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) map[string]rest.Storage {
+func (p RESTStorageProvider) v1beta1Storage(apiResourceConfigSource genericapiserver.APIResourceConfigSource, restOptionsGetter genericapiserver.RESTOptionsGetter) map[string]rest.Storage {
 	version := extensionsapiv1beta1.SchemeGroupVersion
 
 	storage := map[string]rest.Storage{}
 
-	// This is a dummy replication controller for scale subresource purposes.
-	// TODO: figure out how to enable this only if needed as a part of scale subresource GA.
-	controllerStorage := expcontrollerstore.NewStorage(restOptionsGetter)
-	storage["replicationcontrollers"] = controllerStorage.ReplicationController
-	storage["replicationcontrollers/scale"] = controllerStorage.Scale
+	if apiResourceConfigSource.ResourceEnabled(version.WithResource("horizontalpodautoscalers")) {
+		hpaStorage, hpaStatusStorage := horizontalpodautoscaleretcd.NewREST(restOptionsGetter(extensions.Resource("horizontalpodautoscalers")))
+		storage["horizontalpodautoscalers"] = hpaStorage
+		storage["horizontalpodautoscalers/status"] = hpaStatusStorage
 
+		controllerStorage := expcontrolleretcd.NewStorage(restOptionsGetter(api.Resource("replicationControllers")))
+		storage["replicationcontrollers"] = controllerStorage.ReplicationController
+		storage["replicationcontrollers/scale"] = controllerStorage.Scale
+	}
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("thirdpartyresources")) {
-		thirdPartyResourceStorage := thirdpartyresourcestore.NewREST(restOptionsGetter)
+		thirdPartyResourceStorage := thirdpartyresourceetcd.NewREST(restOptionsGetter(extensions.Resource("thirdpartyresources")))
 		storage["thirdpartyresources"] = thirdPartyResourceStorage
 	}
 
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("daemonsets")) {
-		daemonSetStorage, daemonSetStatusStorage := daemonstore.NewREST(restOptionsGetter)
+		daemonSetStorage, daemonSetStatusStorage := daemonetcd.NewREST(restOptionsGetter(extensions.Resource("daemonsets")))
 		storage["daemonsets"] = daemonSetStorage
 		storage["daemonsets/status"] = daemonSetStatusStorage
 	}
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("deployments")) {
-		deploymentStorage := deploymentstore.NewStorage(restOptionsGetter)
+		deploymentStorage := deploymentetcd.NewStorage(restOptionsGetter(extensions.Resource("deployments")))
 		storage["deployments"] = deploymentStorage.Deployment
 		storage["deployments/status"] = deploymentStorage.Status
 		storage["deployments/rollback"] = deploymentStorage.Rollback
 		storage["deployments/scale"] = deploymentStorage.Scale
 	}
+	if apiResourceConfigSource.ResourceEnabled(version.WithResource("jobs")) {
+		jobsStorage, jobsStatusStorage := jobetcd.NewREST(restOptionsGetter(extensions.Resource("jobs")))
+		storage["jobs"] = jobsStorage
+		storage["jobs/status"] = jobsStatusStorage
+	}
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("ingresses")) {
-		ingressStorage, ingressStatusStorage := ingressstore.NewREST(restOptionsGetter)
+		ingressStorage, ingressStatusStorage := ingressetcd.NewREST(restOptionsGetter(extensions.Resource("ingresses")))
 		storage["ingresses"] = ingressStorage
 		storage["ingresses/status"] = ingressStatusStorage
 	}
-	if apiResourceConfigSource.ResourceEnabled(version.WithResource("podsecuritypolicy")) || apiResourceConfigSource.ResourceEnabled(version.WithResource("podsecuritypolicies")) {
-		podSecurityExtensionsStorage := pspstore.NewREST(restOptionsGetter)
+	if apiResourceConfigSource.ResourceEnabled(version.WithResource("podsecuritypolicy")) {
+		podSecurityExtensionsStorage := pspetcd.NewREST(restOptionsGetter(extensions.Resource("podsecuritypolicy")))
 		storage["podSecurityPolicies"] = podSecurityExtensionsStorage
 	}
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("replicasets")) {
-		replicaSetStorage := replicasetstore.NewStorage(restOptionsGetter)
+		replicaSetStorage := replicasetetcd.NewStorage(restOptionsGetter(extensions.Resource("replicasets")))
 		storage["replicasets"] = replicaSetStorage.ReplicaSet
 		storage["replicasets/status"] = replicaSetStorage.Status
 		storage["replicasets/scale"] = replicaSetStorage.Scale
 	}
 	if apiResourceConfigSource.ResourceEnabled(version.WithResource("networkpolicies")) {
-		networkExtensionsStorage := networkpolicystore.NewREST(restOptionsGetter)
+		networkExtensionsStorage := networkpolicyetcd.NewREST(restOptionsGetter(extensions.Resource("networkpolicies")))
 		storage["networkpolicies"] = networkExtensionsStorage
 	}
 

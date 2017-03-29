@@ -24,16 +24,17 @@ import (
 	"net/url"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	apiutil "k8s.io/kubernetes/pkg/api/util"
 	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/yaml"
+	"k8s.io/kubernetes/pkg/watch/versioned"
 )
 
 type thirdPartyObjectConverter struct {
@@ -72,17 +73,17 @@ type thirdPartyResourceDataMapper struct {
 
 var _ meta.RESTMapper = &thirdPartyResourceDataMapper{}
 
-func (t *thirdPartyResourceDataMapper) getResource() schema.GroupVersionResource {
+func (t *thirdPartyResourceDataMapper) getResource() unversioned.GroupVersionResource {
 	plural, _ := meta.KindToResource(t.getKind())
 
 	return plural
 }
 
-func (t *thirdPartyResourceDataMapper) getKind() schema.GroupVersionKind {
-	return schema.GroupVersionKind{Group: t.group, Version: t.version, Kind: t.kind}
+func (t *thirdPartyResourceDataMapper) getKind() unversioned.GroupVersionKind {
+	return unversioned.GroupVersionKind{Group: t.group, Version: t.version, Kind: t.kind}
 }
 
-func (t *thirdPartyResourceDataMapper) isThirdPartyResource(partialResource schema.GroupVersionResource) bool {
+func (t *thirdPartyResourceDataMapper) isThirdPartyResource(partialResource unversioned.GroupVersionResource) bool {
 	actualResource := t.getResource()
 	if strings.ToLower(partialResource.Resource) != strings.ToLower(actualResource.Resource) {
 		return false
@@ -97,35 +98,35 @@ func (t *thirdPartyResourceDataMapper) isThirdPartyResource(partialResource sche
 	return true
 }
 
-func (t *thirdPartyResourceDataMapper) ResourcesFor(resource schema.GroupVersionResource) ([]schema.GroupVersionResource, error) {
+func (t *thirdPartyResourceDataMapper) ResourcesFor(resource unversioned.GroupVersionResource) ([]unversioned.GroupVersionResource, error) {
 	if t.isThirdPartyResource(resource) {
-		return []schema.GroupVersionResource{t.getResource()}, nil
+		return []unversioned.GroupVersionResource{t.getResource()}, nil
 	}
 	return t.mapper.ResourcesFor(resource)
 }
 
-func (t *thirdPartyResourceDataMapper) KindsFor(resource schema.GroupVersionResource) ([]schema.GroupVersionKind, error) {
+func (t *thirdPartyResourceDataMapper) KindsFor(resource unversioned.GroupVersionResource) ([]unversioned.GroupVersionKind, error) {
 	if t.isThirdPartyResource(resource) {
-		return []schema.GroupVersionKind{t.getKind()}, nil
+		return []unversioned.GroupVersionKind{t.getKind()}, nil
 	}
 	return t.mapper.KindsFor(resource)
 }
 
-func (t *thirdPartyResourceDataMapper) ResourceFor(resource schema.GroupVersionResource) (schema.GroupVersionResource, error) {
+func (t *thirdPartyResourceDataMapper) ResourceFor(resource unversioned.GroupVersionResource) (unversioned.GroupVersionResource, error) {
 	if t.isThirdPartyResource(resource) {
 		return t.getResource(), nil
 	}
 	return t.mapper.ResourceFor(resource)
 }
 
-func (t *thirdPartyResourceDataMapper) KindFor(resource schema.GroupVersionResource) (schema.GroupVersionKind, error) {
+func (t *thirdPartyResourceDataMapper) KindFor(resource unversioned.GroupVersionResource) (unversioned.GroupVersionKind, error) {
 	if t.isThirdPartyResource(resource) {
 		return t.getKind(), nil
 	}
 	return t.mapper.KindFor(resource)
 }
 
-func (t *thirdPartyResourceDataMapper) RESTMapping(gk schema.GroupKind, versions ...string) (*meta.RESTMapping, error) {
+func (t *thirdPartyResourceDataMapper) RESTMapping(gk unversioned.GroupKind, versions ...string) (*meta.RESTMapping, error) {
 	if len(versions) != 1 {
 		return nil, fmt.Errorf("unexpected set of versions: %v", versions)
 	}
@@ -140,9 +141,9 @@ func (t *thirdPartyResourceDataMapper) RESTMapping(gk schema.GroupKind, versions
 	}
 
 	// TODO figure out why we're doing this rewriting
-	extensionGK := schema.GroupKind{Group: extensions.GroupName, Kind: "ThirdPartyResourceData"}
+	extensionGK := unversioned.GroupKind{Group: extensions.GroupName, Kind: "ThirdPartyResourceData"}
 
-	mapping, err := t.mapper.RESTMapping(extensionGK, api.Registry.GroupOrDie(extensions.GroupName).GroupVersion.Version)
+	mapping, err := t.mapper.RESTMapping(extensionGK, registered.GroupOrDie(extensions.GroupName).GroupVersion.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +151,7 @@ func (t *thirdPartyResourceDataMapper) RESTMapping(gk schema.GroupKind, versions
 	return mapping, nil
 }
 
-func (t *thirdPartyResourceDataMapper) RESTMappings(gk schema.GroupKind, versions ...string) ([]*meta.RESTMapping, error) {
+func (t *thirdPartyResourceDataMapper) RESTMappings(gk unversioned.GroupKind) ([]*meta.RESTMapping, error) {
 	if gk.Group != t.group {
 		return nil, fmt.Errorf("unknown group %q expected %s", gk.Group, t.group)
 	}
@@ -159,9 +160,9 @@ func (t *thirdPartyResourceDataMapper) RESTMappings(gk schema.GroupKind, version
 	}
 
 	// TODO figure out why we're doing this rewriting
-	extensionGK := schema.GroupKind{Group: extensions.GroupName, Kind: "ThirdPartyResourceData"}
+	extensionGK := unversioned.GroupKind{Group: extensions.GroupName, Kind: "ThirdPartyResourceData"}
 
-	mappings, err := t.mapper.RESTMappings(extensionGK, versions...)
+	mappings, err := t.mapper.RESTMappings(extensionGK)
 	if err != nil {
 		return nil, err
 	}
@@ -191,11 +192,11 @@ func NewMapper(mapper meta.RESTMapper, kind, version, group string) meta.RESTMap
 type thirdPartyResourceDataCodecFactory struct {
 	delegate runtime.NegotiatedSerializer
 	kind     string
-	encodeGV schema.GroupVersion
-	decodeGV schema.GroupVersion
+	encodeGV unversioned.GroupVersion
+	decodeGV unversioned.GroupVersion
 }
 
-func NewNegotiatedSerializer(s runtime.NegotiatedSerializer, kind string, encodeGV, decodeGV schema.GroupVersion) runtime.NegotiatedSerializer {
+func NewNegotiatedSerializer(s runtime.NegotiatedSerializer, kind string, encodeGV, decodeGV unversioned.GroupVersion) runtime.NegotiatedSerializer {
 	return &thirdPartyResourceDataCodecFactory{
 		delegate: s,
 		kind:     kind,
@@ -221,7 +222,7 @@ func (t *thirdPartyResourceDataCodecFactory) DecoderToVersion(s runtime.Decoder,
 	return NewDecoder(t.delegate.DecoderToVersion(s, gv), t.kind)
 }
 
-func NewCodec(delegate runtime.Codec, gvk schema.GroupVersionKind) runtime.Codec {
+func NewCodec(delegate runtime.Codec, gvk unversioned.GroupVersionKind) runtime.Codec {
 	return runtime.NewCodec(NewEncoder(delegate, gvk), NewDecoder(delegate, gvk.Kind))
 }
 
@@ -248,7 +249,7 @@ func parseObject(data []byte) (map[string]interface{}, error) {
 	return mapObj, nil
 }
 
-func (t *thirdPartyResourceDataDecoder) populate(data []byte) (runtime.Object, *schema.GroupVersionKind, error) {
+func (t *thirdPartyResourceDataDecoder) populate(data []byte) (runtime.Object, *unversioned.GroupVersionKind, error) {
 	mapObj, err := parseObject(data)
 	if err != nil {
 		return nil, nil, err
@@ -256,13 +257,13 @@ func (t *thirdPartyResourceDataDecoder) populate(data []byte) (runtime.Object, *
 	return t.populateFromObject(mapObj, data)
 }
 
-func (t *thirdPartyResourceDataDecoder) populateFromObject(mapObj map[string]interface{}, data []byte) (runtime.Object, *schema.GroupVersionKind, error) {
-	typeMeta := metav1.TypeMeta{}
+func (t *thirdPartyResourceDataDecoder) populateFromObject(mapObj map[string]interface{}, data []byte) (runtime.Object, *unversioned.GroupVersionKind, error) {
+	typeMeta := unversioned.TypeMeta{}
 	if err := json.Unmarshal(data, &typeMeta); err != nil {
 		return nil, nil, err
 	}
 
-	gv, err := schema.ParseGroupVersion(typeMeta.APIVersion)
+	gv, err := unversioned.ParseGroupVersion(typeMeta.APIVersion)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -309,22 +310,22 @@ func (t *thirdPartyResourceDataDecoder) populateResource(objIn *extensions.Third
 	return nil
 }
 
-func IsThirdPartyObject(rawData []byte, gvk *schema.GroupVersionKind) (isThirdParty bool, gvkOut *schema.GroupVersionKind, err error) {
-	var gv schema.GroupVersion
+func IsThirdPartyObject(rawData []byte, gvk *unversioned.GroupVersionKind) (isThirdParty bool, gvkOut *unversioned.GroupVersionKind, err error) {
+	var gv unversioned.GroupVersion
 	if gvk == nil {
 		data, err := yaml.ToJSON(rawData)
 		if err != nil {
 			return false, nil, err
 		}
-		metadata := metav1.TypeMeta{}
+		metadata := unversioned.TypeMeta{}
 		if err = json.Unmarshal(data, &metadata); err != nil {
 			return false, nil, err
 		}
-		gv, err = schema.ParseGroupVersion(metadata.APIVersion)
+		gv, err = unversioned.ParseGroupVersion(metadata.APIVersion)
 		if err != nil {
 			return false, nil, err
 		}
-		gvkOut = &schema.GroupVersionKind{
+		gvkOut = &unversioned.GroupVersionKind{
 			Group:   gv.Group,
 			Version: gv.Version,
 			Kind:    metadata.Kind,
@@ -333,10 +334,10 @@ func IsThirdPartyObject(rawData []byte, gvk *schema.GroupVersionKind) (isThirdPa
 		gv = gvk.GroupVersion()
 		gvkOut = gvk
 	}
-	return api.Registry.IsThirdPartyAPIGroupVersion(gv), gvkOut, nil
+	return registered.IsThirdPartyAPIGroupVersion(gv), gvkOut, nil
 }
 
-func (t *thirdPartyResourceDataDecoder) Decode(data []byte, gvk *schema.GroupVersionKind, into runtime.Object) (runtime.Object, *schema.GroupVersionKind, error) {
+func (t *thirdPartyResourceDataDecoder) Decode(data []byte, gvk *unversioned.GroupVersionKind, into runtime.Object) (runtime.Object, *unversioned.GroupVersionKind, error) {
 	if into == nil {
 		if gvk == nil || gvk.Kind != t.kind {
 			if isThirdParty, _, err := IsThirdPartyObject(data, gvk); err != nil {
@@ -368,7 +369,7 @@ func (t *thirdPartyResourceDataDecoder) Decode(data []byte, gvk *schema.GroupVer
 		}
 		return o, outGVK, nil
 	default:
-		if gvk != nil && api.Registry.IsThirdPartyAPIGroupVersion(gvk.GroupVersion()) {
+		if gvk != nil && registered.IsThirdPartyAPIGroupVersion(gvk.GroupVersion()) {
 			// delegate won't recognize a thirdparty group version
 			gvk = nil
 		}
@@ -388,7 +389,7 @@ func (t *thirdPartyResourceDataDecoder) Decode(data []byte, gvk *schema.GroupVer
 	/*if gvk.Kind != "ThirdPartyResourceData" {
 		return nil, nil, fmt.Errorf("unexpected kind: %s", gvk.Kind)
 	}*/
-	actual := &schema.GroupVersionKind{}
+	actual := &unversioned.GroupVersionKind{}
 	if kindObj, found := mapObj["kind"]; !found {
 		if gvk == nil {
 			return nil, nil, runtime.NewMissingKindErr(string(data))
@@ -419,7 +420,7 @@ func (t *thirdPartyResourceDataDecoder) Decode(data []byte, gvk *schema.GroupVer
 		if gvk != nil && versionStr != gvk.GroupVersion().String() {
 			return nil, nil, fmt.Errorf("version doesn't match, expecting: %v, got %s", gvk.GroupVersion(), versionStr)
 		}
-		gv, err := schema.ParseGroupVersion(versionStr)
+		gv, err := unversioned.ParseGroupVersion(versionStr)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -460,10 +461,10 @@ func (t *thirdPartyResourceDataDecoder) populateListResource(objIn *extensions.T
 
 type thirdPartyResourceDataEncoder struct {
 	delegate runtime.Encoder
-	gvk      schema.GroupVersionKind
+	gvk      unversioned.GroupVersionKind
 }
 
-func NewEncoder(delegate runtime.Encoder, gvk schema.GroupVersionKind) runtime.Encoder {
+func NewEncoder(delegate runtime.Encoder, gvk unversioned.GroupVersionKind) runtime.Encoder {
 	return &thirdPartyResourceDataEncoder{delegate: delegate, gvk: gvk}
 }
 
@@ -478,8 +479,7 @@ func encodeToJSON(obj *extensions.ThirdPartyResourceData, stream io.Writer) erro
 	if !ok {
 		return fmt.Errorf("unexpected type: %v", objOut)
 	}
-
-	objMap["metadata"] = &obj.ObjectMeta
+	objMap["metadata"] = obj.ObjectMeta
 	encoder := json.NewEncoder(stream)
 	return encoder.Encode(objMap)
 }
@@ -510,7 +510,7 @@ func (t *thirdPartyResourceDataEncoder) Encode(obj runtime.Object, stream io.Wri
 			Kind  string            `json:"kind,omitempty"`
 			Items []json.RawMessage `json:"items"`
 			// +optional
-			Metadata metav1.ListMeta `json:"metadata,omitempty"`
+			Metadata unversioned.ListMeta `json:"metadata,omitempty"`
 			// +optional
 			APIVersion string `json:"apiVersion,omitempty"`
 		}{
@@ -527,9 +527,9 @@ func (t *thirdPartyResourceDataEncoder) Encode(obj runtime.Object, stream io.Wri
 
 		_, err = stream.Write(encBytes)
 		return err
-	case *metav1.InternalEvent:
-		event := &metav1.WatchEvent{}
-		err := metav1.Convert_versioned_InternalEvent_to_versioned_Event(obj, event, nil)
+	case *versioned.InternalEvent:
+		event := &versioned.Event{}
+		err := versioned.Convert_versioned_InternalEvent_to_versioned_Event(obj, event, nil)
 		if err != nil {
 			return err
 		}
@@ -541,7 +541,7 @@ func (t *thirdPartyResourceDataEncoder) Encode(obj runtime.Object, stream io.Wri
 		}
 
 		return nil
-	case *metav1.Status, *metav1.APIResourceList:
+	case *unversioned.Status, *unversioned.APIResourceList:
 		return t.delegate.Encode(obj, stream)
 	default:
 		return fmt.Errorf("unexpected object to encode: %#v", obj)
@@ -558,7 +558,7 @@ type thirdPartyResourceDataCreator struct {
 	delegate runtime.ObjectCreater
 }
 
-func (t *thirdPartyResourceDataCreator) New(kind schema.GroupVersionKind) (out runtime.Object, err error) {
+func (t *thirdPartyResourceDataCreator) New(kind unversioned.GroupVersionKind) (out runtime.Object, err error) {
 	switch kind.Kind {
 	case "ThirdPartyResourceData":
 		if apiutil.GetGroupVersion(t.group, t.version) != kind.GroupVersion().String() {
@@ -574,7 +574,7 @@ func (t *thirdPartyResourceDataCreator) New(kind schema.GroupVersionKind) (out r
 	case "ListOptions", "WatchEvent":
 		if apiutil.GetGroupVersion(t.group, t.version) == kind.GroupVersion().String() {
 			// Translate third party group to external group.
-			gvk := api.Registry.EnabledVersionsForGroup(api.GroupName)[0].WithKind(kind.Kind)
+			gvk := registered.EnabledVersionsForGroup(api.GroupName)[0].WithKind(kind.Kind)
 			return t.delegate.New(gvk)
 		}
 		return t.delegate.New(kind)
@@ -591,10 +591,10 @@ type thirdPartyParameterCodec struct {
 	delegate runtime.ParameterCodec
 }
 
-func (t *thirdPartyParameterCodec) DecodeParameters(parameters url.Values, from schema.GroupVersion, into runtime.Object) error {
+func (t *thirdPartyParameterCodec) DecodeParameters(parameters url.Values, from unversioned.GroupVersion, into runtime.Object) error {
 	return t.delegate.DecodeParameters(parameters, v1.SchemeGroupVersion, into)
 }
 
-func (t *thirdPartyParameterCodec) EncodeParameters(obj runtime.Object, to schema.GroupVersion) (url.Values, error) {
+func (t *thirdPartyParameterCodec) EncodeParameters(obj runtime.Object, to unversioned.GroupVersion) (url.Values, error) {
 	return t.delegate.EncodeParameters(obj, v1.SchemeGroupVersion)
 }

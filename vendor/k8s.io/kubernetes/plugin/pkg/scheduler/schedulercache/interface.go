@@ -17,8 +17,8 @@ limitations under the License.
 package schedulercache
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/labels"
 )
 
 // Cache collects pods' information and provides node-level aggregated information.
@@ -59,32 +59,29 @@ type Cache interface {
 	// AssumePod assumes a pod scheduled and aggregates the pod's information into its node.
 	// The implementation also decides the policy to expire pod before being confirmed (receiving Add event).
 	// After expiration, its information would be subtracted.
-	AssumePod(pod *v1.Pod) error
-
-	// FinishBinding signals that cache for assumed pod can be expired
-	FinishBinding(pod *v1.Pod) error
+	AssumePod(pod *api.Pod) error
 
 	// ForgetPod removes an assumed pod from cache.
-	ForgetPod(pod *v1.Pod) error
+	ForgetPod(pod *api.Pod) error
 
 	// AddPod either confirms a pod if it's assumed, or adds it back if it's expired.
 	// If added back, the pod's information would be added again.
-	AddPod(pod *v1.Pod) error
+	AddPod(pod *api.Pod) error
 
 	// UpdatePod removes oldPod's information and adds newPod's information.
-	UpdatePod(oldPod, newPod *v1.Pod) error
+	UpdatePod(oldPod, newPod *api.Pod) error
 
 	// RemovePod removes a pod. The pod's information would be subtracted from assigned node.
-	RemovePod(pod *v1.Pod) error
+	RemovePod(pod *api.Pod) error
 
 	// AddNode adds overall information about node.
-	AddNode(node *v1.Node) error
+	AddNode(node *api.Node) error
 
 	// UpdateNode updates overall information about node.
-	UpdateNode(oldNode, newNode *v1.Node) error
+	UpdateNode(oldNode, newNode *api.Node) error
 
 	// RemoveNode removes overall information about node.
-	RemoveNode(node *v1.Node) error
+	RemoveNode(node *api.Node) error
 
 	// UpdateNodeNameToInfoMap updates the passed infoMap to the current contents of Cache.
 	// The node info contains aggregated information of pods scheduled (including assumed to be)
@@ -92,5 +89,5 @@ type Cache interface {
 	UpdateNodeNameToInfoMap(infoMap map[string]*NodeInfo) error
 
 	// List lists all cached pods (including assumed ones).
-	List(labels.Selector) ([]*v1.Pod, error)
+	List(labels.Selector) ([]*api.Pod, error)
 }

@@ -144,20 +144,16 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 	if volume.Name == "" {
 		return fmt.Errorf("volume name cannot be empty %#v", volume)
 	}
-	if volume.Spec.PersistentVolumeReclaimPolicy == v1.PersistentVolumeReclaimRetain {
+	if volume.Spec.PersistentVolumeReclaimPolicy != v1.PersistentVolumeReclaimRetain {
 
-		err := p.ubiquityClient.RemoveVolume(volume.Name, false)
+		err := p.ubiquityClient.RemoveVolume(volume.Name)
 		if err != nil {
 			return err
 		}
 		return nil
 
 	}
-	err := p.ubiquityClient.RemoveVolume(volume.Name, true)
 
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/controller/replicaset"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util/uuid"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -37,18 +37,18 @@ import (
 func newRS(rsName string, replicas int32, rsPodLabels map[string]string, imageName string, image string) *extensions.ReplicaSet {
 	zero := int64(0)
 	return &extensions.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: rsName,
 		},
 		Spec: extensions.ReplicaSetSpec{
-			Replicas: func(i int32) *int32 { return &i }(replicas),
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Replicas: replicas,
+			Template: api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: rsPodLabels,
 				},
-				Spec: v1.PodSpec{
+				Spec: api.PodSpec{
 					TerminationGracePeriodSeconds: &zero,
-					Containers: []v1.Container{
+					Containers: []api.Container{
 						{
 							Name:  imageName,
 							Image: image,
@@ -60,14 +60,14 @@ func newRS(rsName string, replicas int32, rsPodLabels map[string]string, imageNa
 	}
 }
 
-func newPodQuota(name, number string) *v1.ResourceQuota {
-	return &v1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
+func newPodQuota(name, number string) *api.ResourceQuota {
+	return &api.ResourceQuota{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.ResourceQuotaSpec{
-			Hard: v1.ResourceList{
-				v1.ResourcePods: resource.MustParse(number),
+		Spec: api.ResourceQuotaSpec{
+			Hard: api.ResourceList{
+				api.ResourcePods: resource.MustParse(number),
 			},
 		},
 	}
@@ -103,24 +103,24 @@ func ReplicaSetServeImageOrFail(f *framework.Framework, test string, image strin
 	// in contrib/for-demos/serve_hostname
 	By(fmt.Sprintf("Creating ReplicaSet %s", name))
 	rs, err := f.ClientSet.Extensions().ReplicaSets(f.Namespace.Name).Create(&extensions.ReplicaSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: name,
 		},
 		Spec: extensions.ReplicaSetSpec{
-			Replicas: func(i int32) *int32 { return &i }(replicas),
-			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
+			Replicas: replicas,
+			Selector: &unversioned.LabelSelector{MatchLabels: map[string]string{
 				"name": name,
 			}},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+			Template: api.PodTemplateSpec{
+				ObjectMeta: api.ObjectMeta{
 					Labels: map[string]string{"name": name},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: api.PodSpec{
+					Containers: []api.Container{
 						{
 							Name:  name,
 							Image: image,
-							Ports: []v1.ContainerPort{{ContainerPort: 9376}},
+							Ports: []api.ContainerPort{{ContainerPort: 9376}},
 						},
 					},
 				},
@@ -131,7 +131,7 @@ func ReplicaSetServeImageOrFail(f *framework.Framework, test string, image strin
 	// Cleanup the ReplicaSet when we are done.
 	defer func() {
 		// Resize the ReplicaSet to zero to get rid of pods.
-		if err := framework.DeleteReplicaSet(f.ClientSet, f.InternalClientset, f.Namespace.Name, rs.Name); err != nil {
+		if err := framework.DeleteReplicaSet(f.ClientSet, f.Namespace.Name, rs.Name); err != nil {
 			framework.Logf("Failed to cleanup ReplicaSet %v: %v.", rs.Name, err)
 		}
 	}()
@@ -179,12 +179,12 @@ func rsConditionCheck(f *framework.Framework) {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		quota, err = c.Core().ResourceQuotas(namespace).Get(name, metav1.GetOptions{})
+		quota, err = c.Core().ResourceQuotas(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
 		quantity := resource.MustParse("2")
-		podQuota := quota.Status.Hard[v1.ResourcePods]
+		podQuota := quota.Status.Hard[api.ResourcePods]
 		return (&podQuota).Cmp(quantity) == 0, nil
 	})
 	if err == wait.ErrWaitTimeout {
@@ -201,7 +201,7 @@ func rsConditionCheck(f *framework.Framework) {
 	generation := rs.Generation
 	conditions := rs.Status.Conditions
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		rs, err = c.Extensions().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
+		rs, err = c.Extensions().ReplicaSets(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}
@@ -222,8 +222,7 @@ func rsConditionCheck(f *framework.Framework) {
 
 	By(fmt.Sprintf("Scaling down replica set %q to satisfy pod quota", name))
 	rs, err = framework.UpdateReplicaSetWithRetries(c, namespace, name, func(update *extensions.ReplicaSet) {
-		x := int32(2)
-		update.Spec.Replicas = &x
+		update.Spec.Replicas = 2
 	})
 	Expect(err).NotTo(HaveOccurred())
 
@@ -231,7 +230,7 @@ func rsConditionCheck(f *framework.Framework) {
 	generation = rs.Generation
 	conditions = rs.Status.Conditions
 	err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
-		rs, err = c.Extensions().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
+		rs, err = c.Extensions().ReplicaSets(namespace).Get(name)
 		if err != nil {
 			return false, err
 		}

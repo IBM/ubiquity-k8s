@@ -24,7 +24,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
 )
 
 var (
@@ -56,7 +55,7 @@ func NewCmdStop(f cmdutil.Factory, out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:        "stop (-f FILENAME | TYPE (NAME | -l label | --all))",
-		Short:      i18n.T("Deprecated: Gracefully shut down a resource by name or filename"),
+		Short:      "Deprecated: Gracefully shut down a resource by name or filename",
 		Long:       stop_long,
 		Example:    stop_example,
 		Deprecated: fmt.Sprintf("use %q instead.", "delete"),

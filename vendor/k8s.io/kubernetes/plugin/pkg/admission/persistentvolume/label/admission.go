@@ -21,9 +21,11 @@ import (
 	"io"
 	"sync"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apiserver/pkg/admission"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+
+	"k8s.io/kubernetes/pkg/admission"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/gce"
@@ -31,7 +33,7 @@ import (
 )
 
 func init() {
-	admission.RegisterPlugin("PersistentVolumeLabel", func(config io.Reader) (admission.Interface, error) {
+	admission.RegisterPlugin("PersistentVolumeLabel", func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
 		persistentVolumeLabelAdmission := NewPersistentVolumeLabel()
 		return persistentVolumeLabelAdmission, nil
 	})
@@ -122,7 +124,7 @@ func (l *persistentVolumeLabel) findAWSEBSLabels(volume *api.PersistentVolume) (
 		return nil, err
 	}
 
-	return labels, nil
+	return labels, err
 }
 
 // getEBSVolumes returns the AWS Volumes interface for ebs
@@ -160,14 +162,14 @@ func (l *persistentVolumeLabel) findGCEPDLabels(volume *api.PersistentVolume) (m
 	}
 
 	// If the zone is already labeled, honor the hint
-	zone := volume.Labels[metav1.LabelZoneFailureDomain]
+	zone := volume.Labels[unversioned.LabelZoneFailureDomain]
 
 	labels, err := provider.GetAutoLabelsForPD(volume.Spec.GCEPersistentDisk.PDName, zone)
 	if err != nil {
 		return nil, err
 	}
 
-	return labels, nil
+	return labels, err
 }
 
 // getGCECloudProvider returns the GCE cloud provider, for use for querying volume labels

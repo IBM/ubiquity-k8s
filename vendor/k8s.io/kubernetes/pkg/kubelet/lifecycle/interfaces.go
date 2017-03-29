@@ -16,15 +16,15 @@ limitations under the License.
 
 package lifecycle
 
-import "k8s.io/kubernetes/pkg/api/v1"
+import "k8s.io/kubernetes/pkg/api"
 
 // PodAdmitAttributes is the context for a pod admission decision.
 // The member fields of this struct should never be mutated.
 type PodAdmitAttributes struct {
 	// the pod to evaluate for admission
-	Pod *v1.Pod
+	Pod *api.Pod
 	// all pods bound to the kubelet excluding the pod being evaluated
-	OtherPods []*v1.Pod
+	OtherPods []*api.Pod
 }
 
 // PodAdmitResult provides the result of a pod admission decision.
@@ -54,7 +54,7 @@ type PodSyncLoopHandler interface {
 	// ShouldSync returns true if the pod needs to be synced.
 	// This operation must return immediately as its called for each pod.
 	// The provided pod should never be modified.
-	ShouldSync(pod *v1.Pod) bool
+	ShouldSync(pod *api.Pod) bool
 }
 
 // PodSyncLoopTarget maintains a list of handlers to pod sync loop.
@@ -81,7 +81,7 @@ type PodSyncHandler interface {
 	// and the pod is immediately killed.
 	// This operation must return immediately as its called for each sync pod.
 	// The provided pod should never be modified.
-	ShouldEvict(pod *v1.Pod) ShouldEvictResponse
+	ShouldEvict(pod *api.Pod) ShouldEvictResponse
 }
 
 // PodSyncTarget maintains a list of handlers to pod sync.

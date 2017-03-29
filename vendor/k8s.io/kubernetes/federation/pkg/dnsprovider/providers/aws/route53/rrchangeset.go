@@ -17,12 +17,8 @@ limitations under the License.
 package route53
 
 import (
-	"bytes"
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
-	"github.com/golang/glog"
 	"k8s.io/kubernetes/federation/pkg/dnsprovider"
 )
 
@@ -35,7 +31,6 @@ type ResourceRecordChangeset struct {
 
 	additions []dnsprovider.ResourceRecordSet
 	removals  []dnsprovider.ResourceRecordSet
-	upserts   []dnsprovider.ResourceRecordSet
 }
 
 func (c *ResourceRecordChangeset) Add(rrset dnsprovider.ResourceRecordSet) dnsprovider.ResourceRecordChangeset {
@@ -45,11 +40,6 @@ func (c *ResourceRecordChangeset) Add(rrset dnsprovider.ResourceRecordSet) dnspr
 
 func (c *ResourceRecordChangeset) Remove(rrset dnsprovider.ResourceRecordSet) dnsprovider.ResourceRecordChangeset {
 	c.removals = append(c.removals, rrset)
-	return c
-}
-
-func (c *ResourceRecordChangeset) Upsert(rrset dnsprovider.ResourceRecordSet) dnsprovider.ResourceRecordChangeset {
-	c.upserts = append(c.upserts, rrset)
 	return c
 }
 
@@ -88,22 +78,8 @@ func (c *ResourceRecordChangeset) Apply() error {
 		changes = append(changes, change)
 	}
 
-	for _, upsert := range c.upserts {
-		change := buildChange(route53.ChangeActionUpsert, upsert)
-		changes = append(changes, change)
-	}
-
 	if len(changes) == 0 {
 		return nil
-	}
-
-	if glog.V(8) {
-		var sb bytes.Buffer
-		for _, change := range changes {
-			sb.WriteString(fmt.Sprintf("\t%s %s %s\n", aws.StringValue(change.Action), aws.StringValue(change.ResourceRecordSet.Type), aws.StringValue(change.ResourceRecordSet.Name)))
-		}
-
-		glog.V(8).Infof("Route53 Changeset:\n%s", sb.String())
 	}
 
 	service := c.zone.zones.interface_.service
@@ -122,13 +98,4 @@ func (c *ResourceRecordChangeset) Apply() error {
 		return err
 	}
 	return nil
-}
-
-func (c *ResourceRecordChangeset) IsEmpty() bool {
-	return len(c.removals) == 0 && len(c.additions) == 0
-}
-
-// ResourceRecordSets returns the parent ResourceRecordSets
-func (c *ResourceRecordChangeset) ResourceRecordSets() dnsprovider.ResourceRecordSets {
-	return c.rrsets
 }

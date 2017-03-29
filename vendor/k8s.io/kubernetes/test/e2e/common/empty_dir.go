@@ -20,18 +20,18 @@ import (
 	"fmt"
 	"path"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
 )
 
 const (
-	testImageRootUid    = "gcr.io/google_containers/mounttest:0.8"
-	testImageNonRootUid = "gcr.io/google_containers/mounttest-user:0.5"
+	testImageRootUid    = "gcr.io/google_containers/mounttest:0.7"
+	testImageNonRootUid = "gcr.io/google_containers/mounttest-user:0.3"
 )
 
 var _ = framework.KubeDescribe("EmptyDir volumes", func() {
@@ -39,81 +39,81 @@ var _ = framework.KubeDescribe("EmptyDir volumes", func() {
 	f := framework.NewDefaultFramework("emptydir")
 
 	Context("when FSGroup is specified [Feature:FSGroup]", func() {
-		It("new files should be created with FSGroup ownership when container is root [Volume]", func() {
-			doTestSetgidFSGroup(f, testImageRootUid, v1.StorageMediumMemory)
+		It("new files should be created with FSGroup ownership when container is root", func() {
+			doTestSetgidFSGroup(f, testImageRootUid, api.StorageMediumMemory)
 		})
 
-		It("new files should be created with FSGroup ownership when container is non-root [Volume]", func() {
-			doTestSetgidFSGroup(f, testImageNonRootUid, v1.StorageMediumMemory)
+		It("new files should be created with FSGroup ownership when container is non-root", func() {
+			doTestSetgidFSGroup(f, testImageNonRootUid, api.StorageMediumMemory)
 		})
 
-		It("files with FSGroup ownership should support (root,0644,tmpfs) [Volume]", func() {
-			doTest0644FSGroup(f, testImageRootUid, v1.StorageMediumMemory)
+		It("files with FSGroup ownership should support (root,0644,tmpfs)", func() {
+			doTest0644FSGroup(f, testImageRootUid, api.StorageMediumMemory)
 		})
 
-		It("volume on default medium should have the correct mode using FSGroup [Volume]", func() {
-			doTestVolumeModeFSGroup(f, testImageRootUid, v1.StorageMediumDefault)
+		It("volume on default medium should have the correct mode using FSGroup", func() {
+			doTestVolumeModeFSGroup(f, testImageRootUid, api.StorageMediumDefault)
 		})
 
-		It("volume on tmpfs should have the correct mode using FSGroup [Volume]", func() {
-			doTestVolumeModeFSGroup(f, testImageRootUid, v1.StorageMediumMemory)
+		It("volume on tmpfs should have the correct mode using FSGroup", func() {
+			doTestVolumeModeFSGroup(f, testImageRootUid, api.StorageMediumMemory)
 		})
 	})
 
-	It("volume on tmpfs should have the correct mode [Conformance] [Volume]", func() {
-		doTestVolumeMode(f, testImageRootUid, v1.StorageMediumMemory)
+	It("volume on tmpfs should have the correct mode [Conformance]", func() {
+		doTestVolumeMode(f, testImageRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (root,0644,tmpfs) [Conformance] [Volume]", func() {
-		doTest0644(f, testImageRootUid, v1.StorageMediumMemory)
+	It("should support (root,0644,tmpfs) [Conformance]", func() {
+		doTest0644(f, testImageRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (root,0666,tmpfs) [Conformance] [Volume]", func() {
-		doTest0666(f, testImageRootUid, v1.StorageMediumMemory)
+	It("should support (root,0666,tmpfs) [Conformance]", func() {
+		doTest0666(f, testImageRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (root,0777,tmpfs) [Conformance] [Volume]", func() {
-		doTest0777(f, testImageRootUid, v1.StorageMediumMemory)
+	It("should support (root,0777,tmpfs) [Conformance]", func() {
+		doTest0777(f, testImageRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (non-root,0644,tmpfs) [Conformance] [Volume]", func() {
-		doTest0644(f, testImageNonRootUid, v1.StorageMediumMemory)
+	It("should support (non-root,0644,tmpfs) [Conformance]", func() {
+		doTest0644(f, testImageNonRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (non-root,0666,tmpfs) [Conformance] [Volume]", func() {
-		doTest0666(f, testImageNonRootUid, v1.StorageMediumMemory)
+	It("should support (non-root,0666,tmpfs) [Conformance]", func() {
+		doTest0666(f, testImageNonRootUid, api.StorageMediumMemory)
 	})
 
-	It("should support (non-root,0777,tmpfs) [Conformance] [Volume]", func() {
-		doTest0777(f, testImageNonRootUid, v1.StorageMediumMemory)
+	It("should support (non-root,0777,tmpfs) [Conformance]", func() {
+		doTest0777(f, testImageNonRootUid, api.StorageMediumMemory)
 	})
 
-	It("volume on default medium should have the correct mode [Conformance] [Volume]", func() {
-		doTestVolumeMode(f, testImageRootUid, v1.StorageMediumDefault)
+	It("volume on default medium should have the correct mode [Conformance]", func() {
+		doTestVolumeMode(f, testImageRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (root,0644,default) [Conformance] [Volume]", func() {
-		doTest0644(f, testImageRootUid, v1.StorageMediumDefault)
+	It("should support (root,0644,default) [Conformance]", func() {
+		doTest0644(f, testImageRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (root,0666,default) [Conformance] [Volume]", func() {
-		doTest0666(f, testImageRootUid, v1.StorageMediumDefault)
+	It("should support (root,0666,default) [Conformance]", func() {
+		doTest0666(f, testImageRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (root,0777,default) [Conformance] [Volume]", func() {
-		doTest0777(f, testImageRootUid, v1.StorageMediumDefault)
+	It("should support (root,0777,default) [Conformance]", func() {
+		doTest0777(f, testImageRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (non-root,0644,default) [Conformance] [Volume]", func() {
-		doTest0644(f, testImageNonRootUid, v1.StorageMediumDefault)
+	It("should support (non-root,0644,default) [Conformance]", func() {
+		doTest0644(f, testImageNonRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (non-root,0666,default) [Conformance] [Volume]", func() {
-		doTest0666(f, testImageNonRootUid, v1.StorageMediumDefault)
+	It("should support (non-root,0666,default) [Conformance]", func() {
+		doTest0666(f, testImageNonRootUid, api.StorageMediumDefault)
 	})
 
-	It("should support (non-root,0777,default) [Conformance] [Volume]", func() {
-		doTest0777(f, testImageNonRootUid, v1.StorageMediumDefault)
+	It("should support (non-root,0777,default) [Conformance]", func() {
+		doTest0777(f, testImageNonRootUid, api.StorageMediumDefault)
 	})
 })
 
@@ -122,11 +122,11 @@ const (
 	volumeName    = "test-volume"
 )
 
-func doTestSetgidFSGroup(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTestSetgidFSGroup(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
 		filePath   = path.Join(volumePath, "test-file")
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(testImageRootUid, volumePath, source)
 	)
 
@@ -146,16 +146,16 @@ func doTestSetgidFSGroup(f *framework.Framework, image string, medium v1.Storage
 		"content of file \"/test-volume/test-file\": mount-tester new file",
 		"owner GID of \"/test-volume/test-file\": 123",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTestVolumeModeFSGroup(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTestVolumeModeFSGroup(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(testImageRootUid, volumePath, source)
 	)
 
@@ -171,17 +171,17 @@ func doTestVolumeModeFSGroup(f *framework.Framework, image string, medium v1.Sto
 	out := []string{
 		"perms of file \"/test-volume\": -rwxrwxrwx",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTest0644FSGroup(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTest0644FSGroup(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
 		filePath   = path.Join(volumePath, "test-file")
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(image, volumePath, source)
 	)
 
@@ -199,16 +199,16 @@ func doTest0644FSGroup(f *framework.Framework, image string, medium v1.StorageMe
 		"perms of file \"/test-volume/test-file\": -rw-r--r--",
 		"content of file \"/test-volume/test-file\": mount-tester new file",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTestVolumeMode(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTestVolumeMode(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(testImageRootUid, volumePath, source)
 	)
 
@@ -221,17 +221,17 @@ func doTestVolumeMode(f *framework.Framework, image string, medium v1.StorageMed
 	out := []string{
 		"perms of file \"/test-volume\": -rwxrwxrwx",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTest0644(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTest0644(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
 		filePath   = path.Join(volumePath, "test-file")
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(image, volumePath, source)
 	)
 
@@ -246,17 +246,17 @@ func doTest0644(f *framework.Framework, image string, medium v1.StorageMedium) {
 		"perms of file \"/test-volume/test-file\": -rw-r--r--",
 		"content of file \"/test-volume/test-file\": mount-tester new file",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTest0666(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTest0666(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
 		filePath   = path.Join(volumePath, "test-file")
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(image, volumePath, source)
 	)
 
@@ -271,17 +271,17 @@ func doTest0666(f *framework.Framework, image string, medium v1.StorageMedium) {
 		"perms of file \"/test-volume/test-file\": -rw-rw-rw-",
 		"content of file \"/test-volume/test-file\": mount-tester new file",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func doTest0777(f *framework.Framework, image string, medium v1.StorageMedium) {
+func doTest0777(f *framework.Framework, image string, medium api.StorageMedium) {
 	var (
 		volumePath = "/test-volume"
 		filePath   = path.Join(volumePath, "test-file")
-		source     = &v1.EmptyDirVolumeSource{Medium: medium}
+		source     = &api.EmptyDirVolumeSource{Medium: medium}
 		pod        = testPodWithVolume(image, volumePath, source)
 	)
 
@@ -296,36 +296,36 @@ func doTest0777(f *framework.Framework, image string, medium v1.StorageMedium) {
 		"perms of file \"/test-volume/test-file\": -rwxrwxrwx",
 		"content of file \"/test-volume/test-file\": mount-tester new file",
 	}
-	if medium == v1.StorageMediumMemory {
+	if medium == api.StorageMediumMemory {
 		out = append(out, "mount type of \"/test-volume\": tmpfs")
 	}
 	f.TestContainerOutput(msg, pod, 0, out)
 }
 
-func formatMedium(medium v1.StorageMedium) string {
-	if medium == v1.StorageMediumMemory {
+func formatMedium(medium api.StorageMedium) string {
+	if medium == api.StorageMediumMemory {
 		return "tmpfs"
 	}
 
 	return "node default medium"
 }
 
-func testPodWithVolume(image, path string, source *v1.EmptyDirVolumeSource) *v1.Pod {
+func testPodWithVolume(image, path string, source *api.EmptyDirVolumeSource) *api.Pod {
 	podName := "pod-" + string(uuid.NewUUID())
-	return &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
+	return &api.Pod{
+		TypeMeta: unversioned.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
+			APIVersion: registered.GroupOrDie(api.GroupName).GroupVersion.String(),
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: podName,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:  containerName,
 					Image: image,
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      volumeName,
 							MountPath: path,
@@ -333,16 +333,16 @@ func testPodWithVolume(image, path string, source *v1.EmptyDirVolumeSource) *v1.
 					},
 				},
 			},
-			SecurityContext: &v1.PodSecurityContext{
-				SELinuxOptions: &v1.SELinuxOptions{
+			SecurityContext: &api.PodSecurityContext{
+				SELinuxOptions: &api.SELinuxOptions{
 					Level: "s0",
 				},
 			},
-			RestartPolicy: v1.RestartPolicyNever,
-			Volumes: []v1.Volume{
+			RestartPolicy: api.RestartPolicyNever,
+			Volumes: []api.Volume{
 				{
 					Name: volumeName,
-					VolumeSource: v1.VolumeSource{
+					VolumeSource: api.VolumeSource{
 						EmptyDir: source,
 					},
 				},

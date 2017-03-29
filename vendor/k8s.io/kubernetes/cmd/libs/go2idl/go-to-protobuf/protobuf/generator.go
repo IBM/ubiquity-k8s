@@ -630,12 +630,7 @@ func membersToFields(locator ProtobufLocator, t *types.Type, localPackage types.
 			Extras: make(map[string]string),
 		}
 
-		protobufTag := tags.Get("protobuf")
-		if protobufTag == "-" {
-			continue
-		}
-
-		if err := protobufTagToField(protobufTag, &field, m, t, localPackage); err != nil {
+		if err := protobufTagToField(tags.Get("protobuf"), &field, m, t, localPackage); err != nil {
 			return nil, err
 		}
 

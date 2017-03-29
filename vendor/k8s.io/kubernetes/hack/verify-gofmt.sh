@@ -23,14 +23,9 @@ set -o pipefail
 KUBE_ROOT=$(dirname "${BASH_SOURCE}")/..
 source "${KUBE_ROOT}/hack/lib/init.sh"
 
-cd "${KUBE_ROOT}"
+kube::golang::verify_go_version
 
-# Prefer bazel's gofmt.
-gofmt="external/io_bazel_rules_go_toolchain/bin/gofmt"
-if [[ ! -x "${gofmt}" ]]; then
-  gofmt=$(which gofmt)
-  kube::golang::verify_go_version
-fi
+cd "${KUBE_ROOT}"
 
 find_files() {
   find . -not \( \
@@ -42,14 +37,15 @@ find_files() {
         -o -wholename './target' \
         -o -wholename '*/third_party/*' \
         -o -wholename '*/vendor/*' \
-        -o -wholename './staging/src/k8s.io/client-go/*vendor/*' \
-        -o -wholename '*/bindata.go' \
+        -o -wholename './staging' \
       \) -prune \
     \) -name '*.go'
 }
 
-diff=$(find_files | xargs ${gofmt} -d -s 2>&1)
-if [[ -n "${diff}" ]]; then
-  echo "${diff}"
+GOFMT="gofmt -s -w"
+bad_files=$(find_files | xargs $GOFMT -l)
+if [[ -n "${bad_files}" ]]; then
+  echo "!!! '$GOFMT' needs to be run on the following files: "
+  echo "${bad_files}"
   exit 1
 fi

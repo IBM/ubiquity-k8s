@@ -23,9 +23,7 @@ import (
 )
 
 func TestValidateOS(t *testing.T) {
-	v := &OSValidator{
-		Reporter: DefaultReporter,
-	}
+	v := &OSValidator{}
 	specOS := "Linux"
 	for _, test := range []struct {
 		os  string

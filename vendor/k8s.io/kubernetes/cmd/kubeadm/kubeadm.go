@@ -17,13 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"k8s.io/kubernetes/cmd/kubeadm/app"
+	"k8s.io/kubernetes/cmd/kubeadm/app/util"
 )
 
 func main() {
 	if err := app.Run(); err != nil {
+		fmt.Printf(util.AlphaWarningOnExit)
 		os.Exit(1)
 	}
 	os.Exit(0)

@@ -22,20 +22,19 @@ import (
 	"net/url"
 	"path"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
-	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
-	genericrest "k8s.io/apiserver/pkg/registry/generic/rest"
-	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/rest"
 	"k8s.io/kubernetes/pkg/capabilities"
 	"k8s.io/kubernetes/pkg/kubelet/client"
 	"k8s.io/kubernetes/pkg/registry/core/pod"
+	"k8s.io/kubernetes/pkg/registry/generic/registry"
+	genericrest "k8s.io/kubernetes/pkg/registry/generic/rest"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 // ProxyREST implements the proxy subresource for a Pod
 type ProxyREST struct {
-	Store          *genericregistry.Store
+	Store          *registry.Store
 	ProxyTransport http.RoundTripper
 }
 
@@ -60,7 +59,7 @@ func (r *ProxyREST) NewConnectOptions() (runtime.Object, bool, string) {
 }
 
 // Connect returns a handler for the pod proxy
-func (r *ProxyREST) Connect(ctx genericapirequest.Context, id string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
+func (r *ProxyREST) Connect(ctx api.Context, id string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
 	proxyOpts, ok := opts.(*api.PodProxyOptions)
 	if !ok {
 		return nil, fmt.Errorf("Invalid options object: %#v", opts)
@@ -79,7 +78,7 @@ var upgradeableMethods = []string{"GET", "POST"}
 
 // AttachREST implements the attach subresource for a Pod
 type AttachREST struct {
-	Store       *genericregistry.Store
+	Store       *registry.Store
 	KubeletConn client.ConnectionInfoGetter
 }
 
@@ -92,7 +91,7 @@ func (r *AttachREST) New() runtime.Object {
 }
 
 // Connect returns a handler for the pod exec proxy
-func (r *AttachREST) Connect(ctx genericapirequest.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
+func (r *AttachREST) Connect(ctx api.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
 	attachOpts, ok := opts.(*api.PodAttachOptions)
 	if !ok {
 		return nil, fmt.Errorf("Invalid options object: %#v", opts)
@@ -116,7 +115,7 @@ func (r *AttachREST) ConnectMethods() []string {
 
 // ExecREST implements the exec subresource for a Pod
 type ExecREST struct {
-	Store       *genericregistry.Store
+	Store       *registry.Store
 	KubeletConn client.ConnectionInfoGetter
 }
 
@@ -129,7 +128,7 @@ func (r *ExecREST) New() runtime.Object {
 }
 
 // Connect returns a handler for the pod exec proxy
-func (r *ExecREST) Connect(ctx genericapirequest.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
+func (r *ExecREST) Connect(ctx api.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
 	execOpts, ok := opts.(*api.PodExecOptions)
 	if !ok {
 		return nil, fmt.Errorf("invalid options object: %#v", opts)
@@ -153,7 +152,7 @@ func (r *ExecREST) ConnectMethods() []string {
 
 // PortForwardREST implements the portforward subresource for a Pod
 type PortForwardREST struct {
-	Store       *genericregistry.Store
+	Store       *registry.Store
 	KubeletConn client.ConnectionInfoGetter
 }
 
@@ -165,10 +164,9 @@ func (r *PortForwardREST) New() runtime.Object {
 	return &api.Pod{}
 }
 
-// NewConnectOptions returns the versioned object that represents the
-// portforward parameters
+// NewConnectOptions returns nil since portforward doesn't take additional parameters
 func (r *PortForwardREST) NewConnectOptions() (runtime.Object, bool, string) {
-	return &api.PodPortForwardOptions{}, false, ""
+	return nil, false, ""
 }
 
 // ConnectMethods returns the methods supported by portforward
@@ -177,12 +175,8 @@ func (r *PortForwardREST) ConnectMethods() []string {
 }
 
 // Connect returns a handler for the pod portforward proxy
-func (r *PortForwardREST) Connect(ctx genericapirequest.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
-	portForwardOpts, ok := opts.(*api.PodPortForwardOptions)
-	if !ok {
-		return nil, fmt.Errorf("invalid options object: %#v", opts)
-	}
-	location, transport, err := pod.PortForwardLocation(r.Store, r.KubeletConn, ctx, name, portForwardOpts)
+func (r *PortForwardREST) Connect(ctx api.Context, name string, opts runtime.Object, responder rest.Responder) (http.Handler, error) {
+	location, transport, err := pod.PortForwardLocation(r.Store, r.KubeletConn, ctx, name)
 	if err != nil {
 		return nil, err
 	}

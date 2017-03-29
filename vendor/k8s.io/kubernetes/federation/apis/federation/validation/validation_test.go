@@ -19,7 +19,6 @@ package validation
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/federation/apis/federation"
 	"k8s.io/kubernetes/pkg/api"
 )
@@ -27,7 +26,7 @@ import (
 func TestValidateCluster(t *testing.T) {
 	successCases := []federation.Cluster{
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+			ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 			Spec: federation.ClusterSpec{
 				ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 					{
@@ -47,15 +46,15 @@ func TestValidateCluster(t *testing.T) {
 
 	errorCases := map[string]federation.Cluster{
 		"missing cluster addresses": {
-			ObjectMeta: metav1.ObjectMeta{Name: "cluster-f"},
+			ObjectMeta: api.ObjectMeta{Name: "cluster-f"},
 		},
 		"empty cluster addresses": {
-			ObjectMeta: metav1.ObjectMeta{Name: "cluster-f"},
+			ObjectMeta: api.ObjectMeta{Name: "cluster-f"},
 			Spec: federation.ClusterSpec{
 				ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{},
 			}},
 		"invalid_label": {
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "cluster-f",
 				Labels: map[string]string{
 					"NoUppercaseOrSpecialCharsLike=Equals": "bar",
@@ -63,7 +62,7 @@ func TestValidateCluster(t *testing.T) {
 			},
 		},
 		"invalid cluster name (is a subdomain)": {
-			ObjectMeta: metav1.ObjectMeta{Name: "mycluster.mycompany"},
+			ObjectMeta: api.ObjectMeta{Name: "mycluster.mycompany"},
 			Spec: federation.ClusterSpec{
 				ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 					{
@@ -77,7 +76,7 @@ func TestValidateCluster(t *testing.T) {
 	for testName, errorCase := range errorCases {
 		errs := ValidateCluster(&errorCase)
 		if len(errs) == 0 {
-			t.Errorf("expected failure for %s", testName)
+			t.Errorf("expected failur for %s", testName)
 		}
 	}
 }
@@ -90,7 +89,7 @@ func TestValidateClusterUpdate(t *testing.T) {
 	successCases := []clusterUpdateTest{
 		{
 			old: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{
@@ -101,7 +100,7 @@ func TestValidateClusterUpdate(t *testing.T) {
 				},
 			},
 			update: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{
@@ -125,7 +124,7 @@ func TestValidateClusterUpdate(t *testing.T) {
 	errorCases := map[string]clusterUpdateTest{
 		"cluster name changed": {
 			old: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{
@@ -136,7 +135,7 @@ func TestValidateClusterUpdate(t *testing.T) {
 				},
 			},
 			update: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-newname"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-newname"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{
@@ -164,7 +163,7 @@ func TestValidateClusterStatusUpdate(t *testing.T) {
 	successCases := []clusterUpdateTest{
 		{
 			old: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{
@@ -180,7 +179,7 @@ func TestValidateClusterStatusUpdate(t *testing.T) {
 				},
 			},
 			update: federation.Cluster{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster-s"},
+				ObjectMeta: api.ObjectMeta{Name: "cluster-s"},
 				Spec: federation.ClusterSpec{
 					ServerAddressByClientCIDRs: []federation.ServerAddressByClientCIDR{
 						{

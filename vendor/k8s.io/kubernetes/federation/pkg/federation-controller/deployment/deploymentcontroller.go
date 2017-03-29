@@ -25,29 +25,28 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/client-go/util/workqueue"
 	fed "k8s.io/kubernetes/federation/apis/federation"
 	fedv1 "k8s.io/kubernetes/federation/apis/federation/v1beta1"
-	fedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
+	fedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_release_1_5"
 	fedutil "k8s.io/kubernetes/federation/pkg/federation-controller/util"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/deletionhelper"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/eventsink"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/planner"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/podanalyzer"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
 	apiv1 "k8s.io/kubernetes/pkg/api/v1"
 	extensionsv1 "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/client/cache"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/conversion"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	"k8s.io/kubernetes/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/util/workqueue"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 const (
@@ -82,7 +81,7 @@ func parseFederationDeploymentPreference(fd *extensionsv1.Deployment) (*fed.Fede
 type DeploymentController struct {
 	fedClient fedclientset.Interface
 
-	deploymentController cache.Controller
+	deploymentController *cache.Controller
 	deploymentStore      cache.Store
 
 	fedDeploymentInformer fedutil.FederatedInformer
@@ -105,7 +104,7 @@ type DeploymentController struct {
 func NewDeploymentController(federationClient fedclientset.Interface) *DeploymentController {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(eventsink.NewFederatedEventSink(federationClient))
-	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "federated-deployment-controller"})
+	recorder := broadcaster.NewRecorder(api.EventSource{Component: "federated-deployment-controller"})
 
 	fdc := &DeploymentController{
 		fedClient:           federationClient,
@@ -121,14 +120,16 @@ func NewDeploymentController(federationClient fedclientset.Interface) *Deploymen
 		eventRecorder: recorder,
 	}
 
-	deploymentFedInformerFactory := func(cluster *fedv1.Cluster, clientset kubeclientset.Interface) (cache.Store, cache.Controller) {
+	deploymentFedInformerFactory := func(cluster *fedv1.Cluster, clientset kubeclientset.Interface) (cache.Store, cache.ControllerInterface) {
 		return cache.NewInformer(
 			&cache.ListWatch{
-				ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-					return clientset.Extensions().Deployments(metav1.NamespaceAll).List(options)
+				ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+					versionedOptions := fedutil.VersionizeV1ListOptions(options)
+					return clientset.Extensions().Deployments(apiv1.NamespaceAll).List(versionedOptions)
 				},
-				WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-					return clientset.Extensions().Deployments(metav1.NamespaceAll).Watch(options)
+				WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+					versionedOptions := fedutil.VersionizeV1ListOptions(options)
+					return clientset.Extensions().Deployments(apiv1.NamespaceAll).Watch(versionedOptions)
 				},
 			},
 			&extensionsv1.Deployment{},
@@ -148,14 +149,16 @@ func NewDeploymentController(federationClient fedclientset.Interface) *Deploymen
 	}
 	fdc.fedDeploymentInformer = fedutil.NewFederatedInformer(federationClient, deploymentFedInformerFactory, &clusterLifecycle)
 
-	podFedInformerFactory := func(cluster *fedv1.Cluster, clientset kubeclientset.Interface) (cache.Store, cache.Controller) {
+	podFedInformerFactory := func(cluster *fedv1.Cluster, clientset kubeclientset.Interface) (cache.Store, cache.ControllerInterface) {
 		return cache.NewInformer(
 			&cache.ListWatch{
-				ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-					return clientset.Core().Pods(metav1.NamespaceAll).List(options)
+				ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+					versionedOptions := fedutil.VersionizeV1ListOptions(options)
+					return clientset.Core().Pods(apiv1.NamespaceAll).List(versionedOptions)
 				},
-				WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-					return clientset.Core().Pods(metav1.NamespaceAll).Watch(options)
+				WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+					versionedOptions := fedutil.VersionizeV1ListOptions(options)
+					return clientset.Core().Pods(apiv1.NamespaceAll).Watch(versionedOptions)
 				},
 			},
 			&apiv1.Pod{},
@@ -171,11 +174,13 @@ func NewDeploymentController(federationClient fedclientset.Interface) *Deploymen
 
 	fdc.deploymentStore, fdc.deploymentController = cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return fdc.fedClient.Extensions().Deployments(metav1.NamespaceAll).List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				versionedOptions := fedutil.VersionizeV1ListOptions(options)
+				return fdc.fedClient.Extensions().Deployments(apiv1.NamespaceAll).List(versionedOptions)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return fdc.fedClient.Extensions().Deployments(metav1.NamespaceAll).Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				versionedOptions := fedutil.VersionizeV1ListOptions(options)
+				return fdc.fedClient.Extensions().Deployments(apiv1.NamespaceAll).Watch(versionedOptions)
 			},
 		},
 		&extensionsv1.Deployment{},
@@ -198,7 +203,7 @@ func NewDeploymentController(federationClient fedclientset.Interface) *Deploymen
 		},
 		func(client kubeclientset.Interface, obj runtime.Object) error {
 			rs := obj.(*extensionsv1.Deployment)
-			err := client.Extensions().Deployments(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{})
+			err := client.Extensions().Deployments(rs.Namespace).Delete(rs.Name, &apiv1.DeleteOptions{})
 			return err
 		})
 
@@ -256,14 +261,14 @@ func (fdc *DeploymentController) removeFinalizerFunc(obj runtime.Object, finaliz
 	return deployment, nil
 }
 
-// Adds the given finalizers to the given objects ObjectMeta.
+// Adds the given finalizer to the given objects ObjectMeta.
 // Assumes that the given object is a deployment.
-func (fdc *DeploymentController) addFinalizerFunc(obj runtime.Object, finalizers []string) (runtime.Object, error) {
+func (fdc *DeploymentController) addFinalizerFunc(obj runtime.Object, finalizer string) (runtime.Object, error) {
 	deployment := obj.(*extensionsv1.Deployment)
-	deployment.ObjectMeta.Finalizers = append(deployment.ObjectMeta.Finalizers, finalizers...)
+	deployment.ObjectMeta.Finalizers = append(deployment.ObjectMeta.Finalizers, finalizer)
 	deployment, err := fdc.fedClient.Extensions().Deployments(deployment.Namespace).Update(deployment)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add finalizers %v to deployment %s: %v", finalizers, deployment.Name, err)
+		return nil, fmt.Errorf("failed to add finalizer %s to deployment %s: %v", finalizer, deployment.Name, err)
 	}
 	return deployment, nil
 }
@@ -420,10 +425,8 @@ func (fdc *DeploymentController) schedule(fd *extensionsv1.Deployment, clusters 
 	if fdPref != nil { // create a new planner if user specified a preference
 		plannerToBeUsed = planner.NewPlanner(fdPref)
 	}
-	replicas := int64(0)
-	if fd.Spec.Replicas != nil {
-		replicas = int64(*fd.Spec.Replicas)
-	}
+
+	replicas := int64(*fd.Spec.Replicas)
 	var clusterNames []string
 	for _, cluster := range clusters {
 		clusterNames = append(clusterNames, cluster.Name)
@@ -487,7 +490,7 @@ func (fdc *DeploymentController) reconcileDeployment(key string) (reconciliation
 		// don't delete local deployments for now. Do not reconcile it anymore.
 		return statusAllOk, nil
 	}
-	obj, err := api.Scheme.DeepCopy(objFromStore)
+	obj, err := conversion.NewCloner().DeepCopy(objFromStore)
 	fd, ok := obj.(*extensionsv1.Deployment)
 	if err != nil || !ok {
 		glog.Errorf("Error in retrieving obj from store: %v, %v", ok, err)
@@ -575,7 +578,7 @@ func (fdc *DeploymentController) reconcileDeployment(key string) (reconciliation
 				})
 			}
 		} else {
-			// TODO: Update only one deployment at a time if update strategy is rolling update.
+			// TODO: Update only one deployment at a time if update strategy is rolling udpate.
 
 			currentLd := ldObj.(*extensionsv1.Deployment)
 			// Update existing replica set, if needed.

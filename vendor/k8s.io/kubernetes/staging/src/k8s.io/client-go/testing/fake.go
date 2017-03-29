@@ -20,13 +20,11 @@ import (
 	"fmt"
 	"sync"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/apimachinery/pkg/watch"
-	kubeversion "k8s.io/client-go/pkg/version"
-	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/pkg/api/unversioned"
+	"k8s.io/client-go/pkg/runtime"
+	"k8s.io/client-go/pkg/version"
+	"k8s.io/client-go/pkg/watch"
+	"k8s.io/client-go/rest"
 )
 
 // Fake implements client.Interface. Meant to be embedded into a struct to get
@@ -46,7 +44,7 @@ type Fake struct {
 	// for every request in the order they are tried.
 	ProxyReactionChain []ProxyReactor
 
-	Resources []*metav1.APIResourceList
+	Resources map[string]*unversioned.APIResourceList
 }
 
 // Reactor is an interface to allow the composition of reaction functions.
@@ -77,7 +75,7 @@ type ProxyReactor interface {
 	Handles(action Action) bool
 	// React handles a watch action and returns results.  It may choose to
 	// delegate by indicating handled=false.
-	React(action Action) (handled bool, ret restclient.ResponseWrapper, err error)
+	React(action Action) (handled bool, ret rest.ResponseWrapper, err error)
 }
 
 // ReactionFunc is a function that returns an object or error for a given
@@ -95,7 +93,7 @@ type WatchReactionFunc func(action Action) (handled bool, ret watch.Interface, e
 // ProxyReactionFunc is a function that returns a ResponseWrapper interface
 // for a given Action.  If "handled" is false, then the test client will
 // ignore the results and continue to the next ProxyReactionFunc.
-type ProxyReactionFunc func(action Action) (handled bool, ret restclient.ResponseWrapper, err error)
+type ProxyReactionFunc func(action Action) (handled bool, ret rest.ResponseWrapper, err error)
 
 // AddReactor appends a reactor to the end of the chain.
 func (c *Fake) AddReactor(verb, resource string, reaction ReactionFunc) {
@@ -176,7 +174,7 @@ func (c *Fake) InvokesWatch(action Action) (watch.Interface, error) {
 
 // InvokesProxy records the provided Action and then invokes the ReactionFunc
 // that handles the action if one exists.
-func (c *Fake) InvokesProxy(action Action) restclient.ResponseWrapper {
+func (c *Fake) InvokesProxy(action Action) rest.ResponseWrapper {
 	c.Lock()
 	defer c.Unlock()
 
@@ -220,40 +218,34 @@ type FakeDiscovery struct {
 	*Fake
 }
 
-func (c *FakeDiscovery) ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error) {
+func (c *FakeDiscovery) ServerResourcesForGroupVersion(groupVersion string) (*unversioned.APIResourceList, error) {
 	action := ActionImpl{
 		Verb:     "get",
-		Resource: schema.GroupVersionResource{Resource: "resource"},
+		Resource: unversioned.GroupVersionResource{Resource: "resource"},
 	}
 	c.Invokes(action, nil)
-	for _, rl := range c.Resources {
-		if rl.GroupVersion == groupVersion {
-			return rl, nil
-		}
-	}
-
-	return nil, fmt.Errorf("GroupVersion %q not found", groupVersion)
+	return c.Resources[groupVersion], nil
 }
 
-func (c *FakeDiscovery) ServerResources() ([]*metav1.APIResourceList, error) {
+func (c *FakeDiscovery) ServerResources() (map[string]*unversioned.APIResourceList, error) {
 	action := ActionImpl{
 		Verb:     "get",
-		Resource: schema.GroupVersionResource{Resource: "resource"},
+		Resource: unversioned.GroupVersionResource{Resource: "resource"},
 	}
 	c.Invokes(action, nil)
 	return c.Resources, nil
 }
 
-func (c *FakeDiscovery) ServerGroups() (*metav1.APIGroupList, error) {
+func (c *FakeDiscovery) ServerGroups() (*unversioned.APIGroupList, error) {
 	return nil, nil
 }
 
 func (c *FakeDiscovery) ServerVersion() (*version.Info, error) {
 	action := ActionImpl{}
 	action.Verb = "get"
-	action.Resource = schema.GroupVersionResource{Resource: "version"}
+	action.Resource = unversioned.GroupVersionResource{Resource: "version"}
 
 	c.Invokes(action, nil)
-	versionInfo := kubeversion.Get()
+	versionInfo := version.Get()
 	return &versionInfo, nil
 }

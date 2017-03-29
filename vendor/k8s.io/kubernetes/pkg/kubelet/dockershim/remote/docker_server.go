@@ -25,7 +25,7 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
 
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
+	runtimeApi "k8s.io/kubernetes/pkg/kubelet/api/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim"
 	"k8s.io/kubernetes/pkg/util/interrupt"
 )
@@ -69,8 +69,8 @@ func (s *DockerServer) Start() error {
 	}
 	// Create the grpc server and register runtime and image services.
 	s.server = grpc.NewServer()
-	runtimeapi.RegisterRuntimeServiceServer(s.server, s.service)
-	runtimeapi.RegisterImageServiceServer(s.server, s.service)
+	runtimeApi.RegisterRuntimeServiceServer(s.server, s.service)
+	runtimeApi.RegisterImageServiceServer(s.server, s.service)
 	go func() {
 		// Use interrupt handler to make sure the server to be stopped properly.
 		h := interrupt.New(nil, s.Stop)

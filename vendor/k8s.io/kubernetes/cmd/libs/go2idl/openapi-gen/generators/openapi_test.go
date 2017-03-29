@@ -33,7 +33,7 @@ import (
 func construct(t *testing.T, files map[string]string, testNamer namer.Namer) (*parser.Builder, types.Universe, []*types.Type) {
 	b := parser.New()
 	for name, src := range files {
-		if err := b.AddFileForTest(filepath.Dir(name), name, []byte(src)); err != nil {
+		if err := b.AddFile(filepath.Dir(name), name, []byte(src)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -70,9 +70,13 @@ func TestSimple(t *testing.T) {
 	err, assert, buffer := testOpenAPITypeWritter(t, `
 package foo
 
+import (
+	"time"
+	"k8s.io/kubernetes/pkg/util/intstr"
+)
+
 // Blah is a test.
-// +k8s:openapi-gen=true
-// +k8s:openapi-gen=x-kubernetes-type-tag:type_test
+// +k8s:openapi=true
 type Blah struct {
 	// A simple string
 	String string
@@ -106,17 +110,18 @@ type Blah struct {
 	Float64 float64
 	// A simple float32
 	Float32 float32
+	// A simple time
+	Time time.Time
 	// a base64 encoded characters
 	ByteArray []byte
-	// a member with an extension
-	// +k8s:openapi-gen=x-kubernetes-member-tag:member_test
-	WithExtension string
+	// an int or string type
+	IntOrString intstr.IntOrString
 }
 		`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(`"base/foo.Blah": {
+	assert.Equal(`"foo.Blah": {
 Schema: spec.Schema{
 SchemaProps: spec.SchemaProps{
 Description: "Blah is a test.",
@@ -219,6 +224,13 @@ Type: []string{"number"},
 Format: "float",
 },
 },
+"Time": {
+SchemaProps: spec.SchemaProps{
+Description: "A simple time",
+Type: []string{"string"},
+Format: "date-time",
+},
+},
 "ByteArray": {
 SchemaProps: spec.SchemaProps{
 Description: "a base64 encoded characters",
@@ -226,29 +238,18 @@ Type: []string{"string"},
 Format: "byte",
 },
 },
-"WithExtension": {
-spec.VendorExtensible: {
-Extensions: spec.Extensions{
-"x-kubernetes-member-tag": "member_test",
-},
-},
+"IntOrString": {
 SchemaProps: spec.SchemaProps{
-Description: "a member with an extension",
-Type: []string{"string"},
-Format: "",
+Description: "an int or string type",
+Ref: spec.MustCreateRef("#/definitions/intstr.IntOrString"),
 },
 },
 },
-Required: []string{"String","Int64","Int32","Int16","Int8","Uint","Uint64","Uint32","Uint16","Uint8","Byte","Bool","Float64","Float32","ByteArray","WithExtension"},
+Required: []string{"String","Int64","Int32","Int16","Int8","Uint","Uint64","Uint32","Uint16","Uint8","Byte","Bool","Float64","Float32","Time","ByteArray","IntOrString"},
 },
 },
 Dependencies: []string{
-},
-spec.VendorExtensible: {
-Extensions: spec.Extensions{
-"x-kubernetes-type-tag": "type_test",
-},
-},
+"intstr.IntOrString",},
 },
 `, buffer.String())
 }
@@ -301,7 +302,7 @@ type Blah struct {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(`"base/foo.Blah": {
+	assert.Equal(`"foo.Blah": {
 Schema: spec.Schema{
 SchemaProps: spec.SchemaProps{
 Description: "PointerSample demonstrate pointer's properties",
@@ -316,7 +317,7 @@ Format: "",
 "StructPointer": {
 SchemaProps: spec.SchemaProps{
 Description: "A struct pointer",
-Ref: ref("base/foo.Blah"),
+Ref: spec.MustCreateRef("#/definitions/foo.Blah"),
 },
 },
 "SlicePointer": {
@@ -352,7 +353,7 @@ Required: []string{"StringPointer","StructPointer","SlicePointer","MapPointer"},
 },
 },
 Dependencies: []string{
-"base/foo.Blah",},
+"foo.Blah",},
 },
 `, buffer.String())
 }

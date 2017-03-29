@@ -21,11 +21,11 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 // ResourceList returns a string representation of a resource list in a human readable format.
-func ResourceList(resources v1.ResourceList) string {
+func ResourceList(resources api.ResourceList) string {
 	resourceStrings := make([]string, 0, len(resources))
 	for key, value := range resources {
 		resourceStrings = append(resourceStrings, fmt.Sprintf("%v=%v", key, value.String()))

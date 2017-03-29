@@ -22,8 +22,7 @@ import (
 
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	api "k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -35,8 +34,8 @@ const (
 )
 
 type KubeletManagedHostConfig struct {
-	hostNetworkPod *v1.Pod
-	pod            *v1.Pod
+	hostNetworkPod *api.Pod
+	pod            *api.Pod
 	f              *framework.Framework
 }
 
@@ -129,17 +128,17 @@ func (config *KubeletManagedHostConfig) getEtcHostsContent(podName, containerNam
 	return config.f.ExecCommandInContainer(podName, containerName, "cat", "/etc/hosts")
 }
 
-func (config *KubeletManagedHostConfig) createPodSpec(podName string) *v1.Pod {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func (config *KubeletManagedHostConfig) createPodSpec(podName string) *api.Pod {
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: podName,
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:            "busybox-1",
 					Image:           etcHostsImageName,
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: api.PullIfNotPresent,
 					Command: []string{
 						"sleep",
 						"900",
@@ -148,7 +147,7 @@ func (config *KubeletManagedHostConfig) createPodSpec(podName string) *v1.Pod {
 				{
 					Name:            "busybox-2",
 					Image:           etcHostsImageName,
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: api.PullIfNotPresent,
 					Command: []string{
 						"sleep",
 						"900",
@@ -157,12 +156,12 @@ func (config *KubeletManagedHostConfig) createPodSpec(podName string) *v1.Pod {
 				{
 					Name:            "busybox-3",
 					Image:           etcHostsImageName,
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: api.PullIfNotPresent,
 					Command: []string{
 						"sleep",
 						"900",
 					},
-					VolumeMounts: []v1.VolumeMount{
+					VolumeMounts: []api.VolumeMount{
 						{
 							Name:      "host-etc-hosts",
 							MountPath: "/etc/hosts",
@@ -170,11 +169,11 @@ func (config *KubeletManagedHostConfig) createPodSpec(podName string) *v1.Pod {
 					},
 				},
 			},
-			Volumes: []v1.Volume{
+			Volumes: []api.Volume{
 				{
 					Name: "host-etc-hosts",
-					VolumeSource: v1.VolumeSource{
-						HostPath: &v1.HostPathVolumeSource{
+					VolumeSource: api.VolumeSource{
+						HostPath: &api.HostPathVolumeSource{
 							Path: "/etc/hosts",
 						},
 					},
@@ -185,19 +184,20 @@ func (config *KubeletManagedHostConfig) createPodSpec(podName string) *v1.Pod {
 	return pod
 }
 
-func (config *KubeletManagedHostConfig) createPodSpecWithHostNetwork(podName string) *v1.Pod {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func (config *KubeletManagedHostConfig) createPodSpecWithHostNetwork(podName string) *api.Pod {
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name: podName,
 		},
-		Spec: v1.PodSpec{
-			HostNetwork:     true,
-			SecurityContext: &v1.PodSecurityContext{},
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			SecurityContext: &api.PodSecurityContext{
+				HostNetwork: true,
+			},
+			Containers: []api.Container{
 				{
 					Name:            "busybox-1",
 					Image:           etcHostsImageName,
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: api.PullIfNotPresent,
 					Command: []string{
 						"sleep",
 						"900",
@@ -206,7 +206,7 @@ func (config *KubeletManagedHostConfig) createPodSpecWithHostNetwork(podName str
 				{
 					Name:            "busybox-2",
 					Image:           etcHostsImageName,
-					ImagePullPolicy: v1.PullIfNotPresent,
+					ImagePullPolicy: api.PullIfNotPresent,
 					Command: []string{
 						"sleep",
 						"900",

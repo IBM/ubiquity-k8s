@@ -23,20 +23,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	"k8s.io/kubernetes/pkg/runtime"
 )
-
-type CreateOptions struct {
-	FilenameOptions  resource.FilenameOptions
-	Selector         string
-	EditBeforeCreate bool
-}
 
 var (
 	create_long = templates.LongDesc(`
@@ -56,36 +49,35 @@ var (
 )
 
 func NewCmdCreate(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
-	var options CreateOptions
+	options := &resource.FilenameOptions{}
 
 	cmd := &cobra.Command{
 		Use:     "create -f FILENAME",
-		Short:   i18n.T("Create a resource by filename or stdin"),
+		Short:   "Create a resource by filename or stdin",
 		Long:    create_long,
 		Example: create_example,
 		Run: func(cmd *cobra.Command, args []string) {
-			if cmdutil.IsFilenameEmpty(options.FilenameOptions.Filenames) {
+			if cmdutil.IsFilenameEmpty(options.Filenames) {
 				defaultRunFunc := cmdutil.DefaultSubCommandRun(errOut)
 				defaultRunFunc(cmd, args)
 				return
 			}
 			cmdutil.CheckErr(ValidateArgs(cmd, args))
-			cmdutil.CheckErr(RunCreate(f, cmd, out, errOut, &options))
+			cmdutil.CheckErr(RunCreate(f, cmd, out, errOut, options))
 		},
 	}
 
 	usage := "to use to create the resource"
-	cmdutil.AddFilenameOptionFlags(cmd, &options.FilenameOptions, usage)
+	cmdutil.AddFilenameOptionFlags(cmd, options, usage)
 	cmd.MarkFlagRequired("filename")
 	cmdutil.AddValidateFlags(cmd)
 	cmdutil.AddPrinterFlags(cmd)
-	cmd.Flags().BoolVar(&options.EditBeforeCreate, "edit", false, "Edit the API resource before creating")
+	cmd.Flags().Bool("edit", false, "Edit the API resource before creating")
 	cmd.Flags().Bool("windows-line-endings", gruntime.GOOS == "windows", "Only relevant if --edit=true. Use Windows line-endings (default Unix line-endings)")
 	cmdutil.AddApplyAnnotationFlags(cmd)
 	cmdutil.AddRecordFlag(cmd)
 	cmdutil.AddDryRunFlag(cmd)
 	cmdutil.AddInclude3rdPartyFlags(cmd)
-	cmd.Flags().StringVarP(&options.Selector, "selector", "l", "", "Selector (label query) to filter on, supports '=', '==', and '!='.")
 
 	// create subcommands
 	cmd.AddCommand(NewCmdCreateNamespace(f, out))
@@ -95,10 +87,6 @@ func NewCmdCreate(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 	cmd.AddCommand(NewCmdCreateServiceAccount(f, out))
 	cmd.AddCommand(NewCmdCreateService(f, out, errOut))
 	cmd.AddCommand(NewCmdCreateDeployment(f, out))
-	cmd.AddCommand(NewCmdCreateClusterRoleBinding(f, out))
-	cmd.AddCommand(NewCmdCreateRole(f, out))
-	cmd.AddCommand(NewCmdCreateRoleBinding(f, out))
-	cmd.AddCommand(NewCmdCreatePodDisruptionBudget(f, out))
 	return cmd
 }
 
@@ -109,9 +97,9 @@ func ValidateArgs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func RunCreate(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, options *CreateOptions) error {
-	if options.EditBeforeCreate {
-		return RunEditOnCreate(f, out, errOut, cmd, &options.FilenameOptions)
+func RunCreate(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, options *resource.FilenameOptions) error {
+	if cmdutil.GetFlagBool(cmd, "edit") {
+		return RunEditOnCreate(f, out, errOut, cmd, options)
 	}
 	schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"), cmdutil.GetFlagString(cmd, "schema-cache-dir"))
 	if err != nil {
@@ -127,12 +115,11 @@ func RunCreate(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opt
 	if err != nil {
 		return err
 	}
-	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	r := resource.NewBuilder(mapper, typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), runtime.UnstructuredJSONScheme).
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
-		FilenameParam(enforceNamespace, &options.FilenameOptions).
-		SelectorParam(options.Selector).
+		FilenameParam(enforceNamespace, options).
 		Flatten().
 		Do()
 	err = r.Err()
@@ -141,7 +128,6 @@ func RunCreate(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opt
 	}
 
 	dryRun := cmdutil.GetFlagBool(cmd, "dry-run")
-	output := cmdutil.GetFlagString(cmd, "output")
 
 	count := 0
 	err = r.Visit(func(info *resource.Info, err error) error {
@@ -165,11 +151,7 @@ func RunCreate(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opt
 		}
 
 		count++
-
-		shortOutput := output == "name"
-		if len(output) > 0 && !shortOutput {
-			return cmdutil.PrintResourceInfoForCommand(cmd, info, f, out)
-		}
+		shortOutput := cmdutil.GetFlagString(cmd, "output") == "name"
 		if !shortOutput {
 			f.PrintObjectSpecificMessage(info.Object, out)
 		}
@@ -236,7 +218,7 @@ func RunCreateSubcommand(f cmdutil.Factory, cmd *cobra.Command, out io.Writer, o
 		return err
 	}
 	gvk := gvks[0]
-	mapping, err := mapper.RESTMapping(schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, gvk.Version)
+	mapping, err := mapper.RESTMapping(unversioned.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, gvk.Version)
 	if err != nil {
 		return err
 	}
@@ -253,11 +235,9 @@ func RunCreateSubcommand(f cmdutil.Factory, cmd *cobra.Command, out io.Writer, o
 	if err != nil {
 		return err
 	}
-	if err := kubectl.CreateOrUpdateAnnotation(cmdutil.GetFlagBool(cmd, cmdutil.ApplyAnnotationsFlag), info, f.JSONEncoder()); err != nil {
+	if err := kubectl.UpdateApplyAnnotation(info, f.JSONEncoder()); err != nil {
 		return err
 	}
-	obj = info.Object
-
 	if !options.DryRun {
 		obj, err = resource.NewHelper(client, mapping).Create(namespace, false, info.Object)
 		if err != nil {

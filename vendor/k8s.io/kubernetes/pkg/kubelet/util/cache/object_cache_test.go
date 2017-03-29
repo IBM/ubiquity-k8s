@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	expirationcache "k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/clock"
+	expirationCache "k8s.io/kubernetes/pkg/client/cache"
+	"k8s.io/kubernetes/pkg/util/clock"
 )
 
 type testObject struct {
@@ -32,11 +32,11 @@ type testObject struct {
 
 // A fake objectCache for unit test.
 func NewFakeObjectCache(f func() (interface{}, error), ttl time.Duration, clock clock.Clock) *ObjectCache {
-	ttlPolicy := &expirationcache.TTLPolicy{Ttl: ttl, Clock: clock}
+	ttlPolicy := &expirationCache.TTLPolicy{Ttl: ttl, Clock: clock}
 	deleteChan := make(chan string, 1)
 	return &ObjectCache{
 		updater: f,
-		cache:   expirationcache.NewFakeExpirationStore(stringKeyFunc, deleteChan, ttlPolicy, clock),
+		cache:   expirationCache.NewFakeExpirationStore(stringKeyFunc, deleteChan, ttlPolicy, clock),
 	}
 }
 

@@ -62,6 +62,4 @@ for generated_file in ${generated_files[@]}; do
 
 done
 
-if [ "${ret}" -ne "0" ]; then
-  exit $ret
-fi
+exit $ret

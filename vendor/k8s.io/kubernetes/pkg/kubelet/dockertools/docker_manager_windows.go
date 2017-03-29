@@ -24,7 +24,7 @@ import (
 	dockertypes "github.com/docker/engine-api/types"
 	dockercontainer "github.com/docker/engine-api/types/container"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 )
 
@@ -65,16 +65,11 @@ func getNetworkingMode() string {
 
 // Infrastructure containers are not supported on Windows. For this reason, we
 // make sure to not grab the infra container's IP for the pod.
-func containerProvidesPodIP(containerName string) bool {
-	return containerName != PodInfraContainerName
-}
-
-// All containers in Windows need networking setup/teardown
-func containerIsNetworked(containerName string) bool {
-	return true
+func containerProvidesPodIP(name *KubeletContainerName) bool {
+	return name.ContainerName != PodInfraContainerName
 }
 
 // Returns nil as both Seccomp and AppArmor security options are not valid on Windows
-func (dm *DockerManager) getSecurityOpts(pod *v1.Pod, ctrName string) ([]dockerOpt, error) {
+func (dm *DockerManager) getSecurityOpts(pod *api.Pod, ctrName string) ([]dockerOpt, error) {
 	return nil, nil
 }

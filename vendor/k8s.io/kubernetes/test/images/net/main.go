@@ -122,7 +122,7 @@ func executeRunner(name string, rawOptions string) (logOutput, error) {
 		return output, runner.Run(logger, options)
 	}
 
-	return logOutput{}, fmt.Errorf("Invalid runner: '%v', see --help", runner)
+	return logOutput{}, fmt.Errorf("Invalid runner: '%v', see --help\n", runner)
 }
 
 // handleRunRequest handles a request JSON to the network tester.

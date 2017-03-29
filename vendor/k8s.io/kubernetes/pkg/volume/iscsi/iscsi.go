@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
 	utilstrings "k8s.io/kubernetes/pkg/util/strings"
@@ -82,14 +82,14 @@ func (plugin *iscsiPlugin) RequiresRemount() bool {
 	return false
 }
 
-func (plugin *iscsiPlugin) GetAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{
-		v1.ReadWriteOnce,
-		v1.ReadOnlyMany,
+func (plugin *iscsiPlugin) GetAccessModes() []api.PersistentVolumeAccessMode {
+	return []api.PersistentVolumeAccessMode{
+		api.ReadWriteOnce,
+		api.ReadOnlyMany,
 	}
 }
 
-func (plugin *iscsiPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
+func (plugin *iscsiPlugin) NewMounter(spec *volume.Spec, pod *api.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
 	// Inject real implementations here, test through the internal function.
 	return plugin.newMounterInternal(spec, pod.UID, &ISCSIUtil{}, plugin.host.GetMounter())
 }
@@ -104,18 +104,14 @@ func (plugin *iscsiPlugin) newMounterInternal(spec *volume.Spec, podUID types.UI
 
 	lun := strconv.Itoa(int(iscsi.Lun))
 	portal := portalMounter(iscsi.TargetPortal)
-	var bkportal []string
-	bkportal = append(bkportal, portal)
-	for _, tp := range iscsi.Portals {
-		bkportal = append(bkportal, portalMounter(string(tp)))
-	}
+
 	iface := iscsi.ISCSIInterface
 
 	return &iscsiDiskMounter{
 		iscsiDisk: &iscsiDisk{
 			podUID:  podUID,
 			volName: spec.Name(),
-			portals: bkportal,
+			portal:  portal,
 			iqn:     iscsi.IQN,
 			lun:     lun,
 			iface:   iface,
@@ -151,10 +147,10 @@ func (plugin *iscsiPlugin) execCommand(command string, args []string) ([]byte, e
 }
 
 func (plugin *iscsiPlugin) ConstructVolumeSpec(volumeName, mountPath string) (*volume.Spec, error) {
-	iscsiVolume := &v1.Volume{
+	iscsiVolume := &api.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			ISCSI: &v1.ISCSIVolumeSource{
+		VolumeSource: api.VolumeSource{
+			ISCSI: &api.ISCSIVolumeSource{
 				TargetPortal: volumeName,
 				IQN:          volumeName,
 			},
@@ -166,7 +162,7 @@ func (plugin *iscsiPlugin) ConstructVolumeSpec(volumeName, mountPath string) (*v
 type iscsiDisk struct {
 	volName string
 	podUID  types.UID
-	portals []string
+	portal  string
 	iqn     string
 	lun     string
 	iface   string
@@ -250,7 +246,7 @@ func portalMounter(portal string) string {
 	return portal
 }
 
-func getVolumeSource(spec *volume.Spec) (*v1.ISCSIVolumeSource, bool, error) {
+func getVolumeSource(spec *volume.Spec) (*api.ISCSIVolumeSource, bool, error) {
 	if spec.Volume != nil && spec.Volume.ISCSI != nil {
 		return spec.Volume.ISCSI, spec.Volume.ISCSI.ReadOnly, nil
 	} else if spec.PersistentVolume != nil &&

@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/client-go/util/clock"
+	"k8s.io/kubernetes/pkg/util/clock"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

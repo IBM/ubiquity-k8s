@@ -22,17 +22,15 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	admission "k8s.io/apiserver/pkg/admission"
-	"k8s.io/client-go/tools/cache"
+	admission "k8s.io/kubernetes/pkg/admission"
 	api "k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/apis/storage"
 	storageutil "k8s.io/kubernetes/pkg/apis/storage/util"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	kubeapiserveradmission "k8s.io/kubernetes/pkg/kubeapiserver/admission"
+	"k8s.io/kubernetes/pkg/client/cache"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 const (
@@ -40,8 +38,9 @@ const (
 )
 
 func init() {
-	admission.RegisterPlugin(PluginName, func(config io.Reader) (admission.Interface, error) {
-		plugin := newPlugin()
+	admission.RegisterPlugin(PluginName, func(client clientset.Interface, config io.Reader) (admission.Interface, error) {
+		plugin := newPlugin(client)
+		plugin.Run()
 		return plugin, nil
 	})
 }
@@ -49,7 +48,7 @@ func init() {
 // claimDefaulterPlugin holds state for and implements the admission plugin.
 type claimDefaulterPlugin struct {
 	*admission.Handler
-	client internalclientset.Interface
+	client clientset.Interface
 
 	reflector *cache.Reflector
 	stopChan  chan struct{}
@@ -57,49 +56,30 @@ type claimDefaulterPlugin struct {
 }
 
 var _ admission.Interface = &claimDefaulterPlugin{}
-var _ = kubeapiserveradmission.WantsInternalClientSet(&claimDefaulterPlugin{})
 
 // newPlugin creates a new admission plugin.
-func newPlugin() *claimDefaulterPlugin {
-	return &claimDefaulterPlugin{
-		Handler: admission.NewHandler(admission.Create),
-	}
-}
-
-func (a *claimDefaulterPlugin) SetInternalClientSet(client internalclientset.Interface) {
-	a.client = client
-	a.store = cache.NewStore(cache.MetaNamespaceKeyFunc)
-	a.reflector = cache.NewReflector(
+func newPlugin(kclient clientset.Interface) *claimDefaulterPlugin {
+	store := cache.NewStore(cache.MetaNamespaceKeyFunc)
+	reflector := cache.NewReflector(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return client.Storage().StorageClasses().List(options)
+			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+				return kclient.Storage().StorageClasses().List(options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return client.Storage().StorageClasses().Watch(options)
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+				return kclient.Storage().StorageClasses().Watch(options)
 			},
 		},
 		&storage.StorageClass{},
-		a.store,
+		store,
 		0,
 	)
 
-	if client != nil {
-		a.Run()
+	return &claimDefaulterPlugin{
+		Handler:   admission.NewHandler(admission.Create),
+		client:    kclient,
+		store:     store,
+		reflector: reflector,
 	}
-}
-
-// Validate ensures an authorizer is set.
-func (a *claimDefaulterPlugin) Validate() error {
-	if a.client == nil {
-		return fmt.Errorf("missing client")
-	}
-	if a.reflector == nil {
-		return fmt.Errorf("missing reflector")
-	}
-	if a.store == nil {
-		return fmt.Errorf("missing store")
-	}
-	return nil
 }
 
 func (a *claimDefaulterPlugin) Run() {

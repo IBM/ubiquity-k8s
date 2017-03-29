@@ -19,10 +19,9 @@ package common
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/util/uuid"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -33,11 +32,11 @@ var _ = framework.KubeDescribe("Downward API", func() {
 
 	It("should provide pod name and namespace as env vars [Conformance]", func() {
 		podName := "downward-api-" + string(uuid.NewUUID())
-		env := []v1.EnvVar{
+		env := []api.EnvVar{
 			{
 				Name: "POD_NAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					FieldRef: &api.ObjectFieldSelector{
 						APIVersion: "v1",
 						FieldPath:  "metadata.name",
 					},
@@ -45,8 +44,8 @@ var _ = framework.KubeDescribe("Downward API", func() {
 			},
 			{
 				Name: "POD_NAMESPACE",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					FieldRef: &api.ObjectFieldSelector{
 						APIVersion: "v1",
 						FieldPath:  "metadata.namespace",
 					},
@@ -64,11 +63,11 @@ var _ = framework.KubeDescribe("Downward API", func() {
 
 	It("should provide pod IP as an env var [Conformance]", func() {
 		podName := "downward-api-" + string(uuid.NewUUID())
-		env := []v1.EnvVar{
+		env := []api.EnvVar{
 			{
 				Name: "POD_IP",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					FieldRef: &api.ObjectFieldSelector{
 						APIVersion: "v1",
 						FieldPath:  "status.podIP",
 					},
@@ -85,35 +84,35 @@ var _ = framework.KubeDescribe("Downward API", func() {
 
 	It("should provide container's limits.cpu/memory and requests.cpu/memory as env vars [Conformance]", func() {
 		podName := "downward-api-" + string(uuid.NewUUID())
-		env := []v1.EnvVar{
+		env := []api.EnvVar{
 			{
 				Name: "CPU_LIMIT",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "limits.cpu",
 					},
 				},
 			},
 			{
 				Name: "MEMORY_LIMIT",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "limits.memory",
 					},
 				},
 			},
 			{
 				Name: "CPU_REQUEST",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "requests.cpu",
 					},
 				},
 			},
 			{
 				Name: "MEMORY_REQUEST",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "requests.memory",
 					},
 				},
@@ -131,19 +130,19 @@ var _ = framework.KubeDescribe("Downward API", func() {
 
 	It("should provide default limits.cpu/memory from node allocatable [Conformance]", func() {
 		podName := "downward-api-" + string(uuid.NewUUID())
-		env := []v1.EnvVar{
+		env := []api.EnvVar{
 			{
 				Name: "CPU_LIMIT",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "limits.cpu",
 					},
 				},
 			},
 			{
 				Name: "MEMORY_LIMIT",
-				ValueFrom: &v1.EnvVarSource{
-					ResourceFieldRef: &v1.ResourceFieldSelector{
+				ValueFrom: &api.EnvVarSource{
+					ResourceFieldRef: &api.ResourceFieldSelector{
 						Resource: "limits.memory",
 					},
 				},
@@ -153,13 +152,13 @@ var _ = framework.KubeDescribe("Downward API", func() {
 			fmt.Sprintf("CPU_LIMIT=[1-9]"),
 			fmt.Sprintf("MEMORY_LIMIT=[1-9]"),
 		}
-		pod := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		pod := &api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:   podName,
 				Labels: map[string]string{"name": podName},
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{
+			Spec: api.PodSpec{
+				Containers: []api.Container{
 					{
 						Name:    "dapi-container",
 						Image:   "gcr.io/google_containers/busybox:1.24",
@@ -167,7 +166,7 @@ var _ = framework.KubeDescribe("Downward API", func() {
 						Env:     env,
 					},
 				},
-				RestartPolicy: v1.RestartPolicyNever,
+				RestartPolicy: api.RestartPolicyNever,
 			},
 		}
 
@@ -175,38 +174,38 @@ var _ = framework.KubeDescribe("Downward API", func() {
 	})
 })
 
-func testDownwardAPI(f *framework.Framework, podName string, env []v1.EnvVar, expectations []string) {
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func testDownwardAPI(f *framework.Framework, podName string, env []api.EnvVar, expectations []string) {
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:   podName,
 			Labels: map[string]string{"name": podName},
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{
+		Spec: api.PodSpec{
+			Containers: []api.Container{
 				{
 					Name:    "dapi-container",
 					Image:   "gcr.io/google_containers/busybox:1.24",
 					Command: []string{"sh", "-c", "env"},
-					Resources: v1.ResourceRequirements{
-						Requests: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("250m"),
-							v1.ResourceMemory: resource.MustParse("32Mi"),
+					Resources: api.ResourceRequirements{
+						Requests: api.ResourceList{
+							api.ResourceCPU:    resource.MustParse("250m"),
+							api.ResourceMemory: resource.MustParse("32Mi"),
 						},
-						Limits: v1.ResourceList{
-							v1.ResourceCPU:    resource.MustParse("1250m"),
-							v1.ResourceMemory: resource.MustParse("64Mi"),
+						Limits: api.ResourceList{
+							api.ResourceCPU:    resource.MustParse("1250m"),
+							api.ResourceMemory: resource.MustParse("64Mi"),
 						},
 					},
 					Env: env,
 				},
 			},
-			RestartPolicy: v1.RestartPolicyNever,
+			RestartPolicy: api.RestartPolicyNever,
 		},
 	}
 
 	testDownwardAPIUsingPod(f, pod, env, expectations)
 }
 
-func testDownwardAPIUsingPod(f *framework.Framework, pod *v1.Pod, env []v1.EnvVar, expectations []string) {
+func testDownwardAPIUsingPod(f *framework.Framework, pod *api.Pod, env []api.EnvVar, expectations []string) {
 	f.TestContainerOutputRegexp("downward api env vars", pod, 0, expectations)
 }

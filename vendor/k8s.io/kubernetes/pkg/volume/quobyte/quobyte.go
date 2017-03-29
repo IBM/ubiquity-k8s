@@ -20,14 +20,13 @@ import (
 	"fmt"
 	"os"
 	"path"
-	gostrings "strings"
+	goStrings "strings"
 
 	"github.com/golang/glog"
 	"github.com/pborman/uuid"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/strings"
@@ -118,15 +117,15 @@ func (plugin *quobytePlugin) RequiresRemount() bool {
 	return false
 }
 
-func (plugin *quobytePlugin) GetAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{
-		v1.ReadWriteOnce,
-		v1.ReadOnlyMany,
-		v1.ReadWriteMany,
+func (plugin *quobytePlugin) GetAccessModes() []api.PersistentVolumeAccessMode {
+	return []api.PersistentVolumeAccessMode{
+		api.ReadWriteOnce,
+		api.ReadOnlyMany,
+		api.ReadWriteMany,
 	}
 }
 
-func getVolumeSource(spec *volume.Spec) (*v1.QuobyteVolumeSource, bool, error) {
+func getVolumeSource(spec *volume.Spec) (*api.QuobyteVolumeSource, bool, error) {
 	if spec.Volume != nil && spec.Volume.Quobyte != nil {
 		return spec.Volume.Quobyte, spec.Volume.Quobyte.ReadOnly, nil
 	} else if spec.PersistentVolume != nil &&
@@ -138,10 +137,10 @@ func getVolumeSource(spec *volume.Spec) (*v1.QuobyteVolumeSource, bool, error) {
 }
 
 func (plugin *quobytePlugin) ConstructVolumeSpec(volumeName, mountPath string) (*volume.Spec, error) {
-	quobyteVolume := &v1.Volume{
+	quobyteVolume := &api.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			Quobyte: &v1.QuobyteVolumeSource{
+		VolumeSource: api.VolumeSource{
+			Quobyte: &api.QuobyteVolumeSource{
 				Volume: volumeName,
 			},
 		},
@@ -149,11 +148,11 @@ func (plugin *quobytePlugin) ConstructVolumeSpec(volumeName, mountPath string) (
 	return volume.NewSpecFromVolume(quobyteVolume), nil
 }
 
-func (plugin *quobytePlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
+func (plugin *quobytePlugin) NewMounter(spec *volume.Spec, pod *api.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
 	return plugin.newMounterInternal(spec, pod, plugin.host.GetMounter())
 }
 
-func (plugin *quobytePlugin) newMounterInternal(spec *volume.Spec, pod *v1.Pod, mounter mount.Interface) (volume.Mounter, error) {
+func (plugin *quobytePlugin) newMounterInternal(spec *volume.Spec, pod *api.Pod, mounter mount.Interface) (volume.Mounter, error) {
 	source, readOnly, err := getVolumeSource(spec)
 	if err != nil {
 		return nil, err
@@ -183,7 +182,7 @@ func (plugin *quobytePlugin) newUnmounterInternal(volName string, podUID types.U
 		&quobyte{
 			volName: volName,
 			mounter: mounter,
-			pod:     &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: podUID}},
+			pod:     &api.Pod{ObjectMeta: api.ObjectMeta{UID: podUID}},
 			plugin:  plugin,
 		},
 	}, nil
@@ -192,7 +191,7 @@ func (plugin *quobytePlugin) newUnmounterInternal(volName string, podUID types.U
 // Quobyte volumes represent a bare host directory mount of an quobyte export.
 type quobyte struct {
 	volName string
-	pod     *v1.Pod
+	pod     *api.Pod
 	user    string
 	group   string
 	volume  string
@@ -294,7 +293,7 @@ func (unmounter *quobyteUnmounter) TearDownAt(dir string) error {
 
 type quobyteVolumeDeleter struct {
 	*quobyteMounter
-	pv *v1.PersistentVolume
+	pv *api.PersistentVolume
 }
 
 func (plugin *quobytePlugin) NewDeleter(spec *volume.Spec) (volume.Deleter, error) {
@@ -347,7 +346,7 @@ type quobyteVolumeProvisioner struct {
 	options volume.VolumeOptions
 }
 
-func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, error) {
+func (provisioner *quobyteVolumeProvisioner) Provision() (*api.PersistentVolume, error) {
 	if provisioner.options.PVC.Spec.Selector != nil {
 		return nil, fmt.Errorf("claim Selector is not supported")
 	}
@@ -359,7 +358,7 @@ func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, 
 		return nil, err
 	}
 	for k, v := range provisioner.options.Parameters {
-		switch gostrings.ToLower(k) {
+		switch goStrings.ToLower(k) {
 		case "registry":
 			provisioner.registry = v
 		case "user":
@@ -394,15 +393,15 @@ func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, 
 	if err != nil {
 		return nil, err
 	}
-	pv := new(v1.PersistentVolume)
+	pv := new(api.PersistentVolume)
 	pv.Spec.PersistentVolumeSource.Quobyte = vol
 	pv.Spec.PersistentVolumeReclaimPolicy = provisioner.options.PersistentVolumeReclaimPolicy
 	pv.Spec.AccessModes = provisioner.options.PVC.Spec.AccessModes
 	if len(pv.Spec.AccessModes) == 0 {
 		pv.Spec.AccessModes = provisioner.plugin.GetAccessModes()
 	}
-	pv.Spec.Capacity = v1.ResourceList{
-		v1.ResourceName(v1.ResourceStorage): resource.MustParse(fmt.Sprintf("%dGi", sizeGB)),
+	pv.Spec.Capacity = api.ResourceList{
+		api.ResourceName(api.ResourceStorage): resource.MustParse(fmt.Sprintf("%dGi", sizeGB)),
 	}
 	return pv, nil
 }
@@ -435,7 +434,7 @@ func parseAPIConfig(plugin *quobytePlugin, params map[string]string) (*quobyteAP
 	deleteKeys := []string{}
 
 	for k, v := range params {
-		switch gostrings.ToLower(k) {
+		switch goStrings.ToLower(k) {
 		case "adminsecretname":
 			secretName = v
 			deleteKeys = append(deleteKeys, k)

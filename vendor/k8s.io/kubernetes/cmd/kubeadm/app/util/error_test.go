@@ -35,7 +35,7 @@ func TestCheckErr(t *testing.T) {
 	}{
 		{nil, 0},
 		{fmt.Errorf(""), DefaultErrorExitCode},
-		{&preflight.Error{}, PreFlightExitCode},
+		{&preflight.PreFlightError{}, PreFlight},
 	}
 
 	for _, rt := range tokenTest {

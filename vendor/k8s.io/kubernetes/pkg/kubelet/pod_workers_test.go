@@ -22,15 +22,14 @@ import (
 	"testing"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/clock"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/record"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	containertest "k8s.io/kubernetes/pkg/kubelet/container/testing"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/queue"
+	"k8s.io/kubernetes/pkg/types"
+	"k8s.io/kubernetes/pkg/util/clock"
 )
 
 // fakePodWorkers runs sync pod function in serial, so we can have
@@ -65,9 +64,9 @@ type TestingInterface interface {
 	Errorf(format string, args ...interface{})
 }
 
-func newPod(uid, name string) *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func newPod(uid, name string) *api.Pod {
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:  types.UID(uid),
 			Name: name,
 		},
@@ -240,8 +239,8 @@ func TestForgetNonExistingPodWorkers(t *testing.T) {
 }
 
 type simpleFakeKubelet struct {
-	pod       *v1.Pod
-	mirrorPod *v1.Pod
+	pod       *api.Pod
+	mirrorPod *api.Pod
 	podStatus *kubecontainer.PodStatus
 	wg        sync.WaitGroup
 }
@@ -284,12 +283,12 @@ func TestFakePodWorkers(t *testing.T) {
 	fakePodWorkers := &fakePodWorkers{kubeletForFakeWorkers.syncPod, fakeCache, t}
 
 	tests := []struct {
-		pod       *v1.Pod
-		mirrorPod *v1.Pod
+		pod       *api.Pod
+		mirrorPod *api.Pod
 	}{
 		{
-			&v1.Pod{},
-			&v1.Pod{},
+			&api.Pod{},
+			&api.Pod{},
 		},
 		{
 			podWithUidNameNs("12345678", "foo", "new"),
@@ -337,7 +336,7 @@ func TestKillPodNowFunc(t *testing.T) {
 	killPodFunc := killPodNow(podWorkers, fakeRecorder)
 	pod := newPod("test", "test")
 	gracePeriodOverride := int64(0)
-	err := killPodFunc(pod, v1.PodStatus{Phase: v1.PodFailed, Reason: "reason", Message: "message"}, &gracePeriodOverride)
+	err := killPodFunc(pod, api.PodStatus{Phase: api.PodFailed, Reason: "reason", Message: "message"}, &gracePeriodOverride)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}

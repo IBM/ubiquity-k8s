@@ -17,11 +17,9 @@ limitations under the License.
 package internalversion
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
 	api "k8s.io/kubernetes/pkg/api"
+	restclient "k8s.io/kubernetes/pkg/client/restclient"
+	watch "k8s.io/kubernetes/pkg/watch"
 )
 
 // ComponentStatusesGetter has a method to return a ComponentStatusInterface.
@@ -34,18 +32,18 @@ type ComponentStatusesGetter interface {
 type ComponentStatusInterface interface {
 	Create(*api.ComponentStatus) (*api.ComponentStatus, error)
 	Update(*api.ComponentStatus) (*api.ComponentStatus, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*api.ComponentStatus, error)
-	List(opts v1.ListOptions) (*api.ComponentStatusList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.ComponentStatus, err error)
+	Delete(name string, options *api.DeleteOptions) error
+	DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error
+	Get(name string) (*api.ComponentStatus, error)
+	List(opts api.ListOptions) (*api.ComponentStatusList, error)
+	Watch(opts api.ListOptions) (watch.Interface, error)
+	Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.ComponentStatus, err error)
 	ComponentStatusExpansion
 }
 
 // componentStatuses implements ComponentStatusInterface
 type componentStatuses struct {
-	client rest.Interface
+	client restclient.Interface
 }
 
 // newComponentStatuses returns a ComponentStatuses
@@ -79,7 +77,7 @@ func (c *componentStatuses) Update(componentStatus *api.ComponentStatus) (result
 }
 
 // Delete takes name of the componentStatus and deletes it. Returns an error if one occurs.
-func (c *componentStatuses) Delete(name string, options *v1.DeleteOptions) error {
+func (c *componentStatuses) Delete(name string, options *api.DeleteOptions) error {
 	return c.client.Delete().
 		Resource("componentstatuses").
 		Name(name).
@@ -89,7 +87,7 @@ func (c *componentStatuses) Delete(name string, options *v1.DeleteOptions) error
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *componentStatuses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *componentStatuses) DeleteCollection(options *api.DeleteOptions, listOptions api.ListOptions) error {
 	return c.client.Delete().
 		Resource("componentstatuses").
 		VersionedParams(&listOptions, api.ParameterCodec).
@@ -99,19 +97,18 @@ func (c *componentStatuses) DeleteCollection(options *v1.DeleteOptions, listOpti
 }
 
 // Get takes name of the componentStatus, and returns the corresponding componentStatus object, and an error if there is any.
-func (c *componentStatuses) Get(name string, options v1.GetOptions) (result *api.ComponentStatus, err error) {
+func (c *componentStatuses) Get(name string) (result *api.ComponentStatus, err error) {
 	result = &api.ComponentStatus{}
 	err = c.client.Get().
 		Resource("componentstatuses").
 		Name(name).
-		VersionedParams(&options, api.ParameterCodec).
 		Do().
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of ComponentStatuses that match those selectors.
-func (c *componentStatuses) List(opts v1.ListOptions) (result *api.ComponentStatusList, err error) {
+func (c *componentStatuses) List(opts api.ListOptions) (result *api.ComponentStatusList, err error) {
 	result = &api.ComponentStatusList{}
 	err = c.client.Get().
 		Resource("componentstatuses").
@@ -122,7 +119,7 @@ func (c *componentStatuses) List(opts v1.ListOptions) (result *api.ComponentStat
 }
 
 // Watch returns a watch.Interface that watches the requested componentStatuses.
-func (c *componentStatuses) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *componentStatuses) Watch(opts api.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Resource("componentstatuses").
@@ -131,7 +128,7 @@ func (c *componentStatuses) Watch(opts v1.ListOptions) (watch.Interface, error) 
 }
 
 // Patch applies the patch and returns the patched componentStatus.
-func (c *componentStatuses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *api.ComponentStatus, err error) {
+func (c *componentStatuses) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *api.ComponentStatus, err error) {
 	result = &api.ComponentStatus{}
 	err = c.client.Patch(pt).
 		Resource("componentstatuses").

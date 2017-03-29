@@ -24,15 +24,13 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/diff"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/security/apparmor"
 	"k8s.io/kubernetes/pkg/security/podsecuritypolicy/seccomp"
 	psputil "k8s.io/kubernetes/pkg/security/podsecuritypolicy/util"
+	"k8s.io/kubernetes/pkg/util/diff"
+	"k8s.io/kubernetes/pkg/util/validation/field"
 )
 
 const defaultContainerName = "test-c"
@@ -50,7 +48,7 @@ func TestCreatePodSecurityContextNonmutating(t *testing.T) {
 	// Create a PSP with strategies that will populate a blank psc
 	createPSP := func() *extensions.PodSecurityPolicy {
 		return &extensions.PodSecurityPolicy{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "psp-sa",
 				Annotations: map[string]string{
 					seccomp.AllowedProfilesAnnotationKey: "*",
@@ -126,7 +124,7 @@ func TestCreateContainerSecurityContextNonmutating(t *testing.T) {
 	createPSP := func() *extensions.PodSecurityPolicy {
 		var uid int64 = 1
 		return &extensions.PodSecurityPolicy{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: api.ObjectMeta{
 				Name: "psp-sa",
 				Annotations: map[string]string{
 					seccomp.AllowedProfilesAnnotationKey: "*",
@@ -375,11 +373,8 @@ func TestValidateContainerSecurityContextFailures(t *testing.T) {
 	}
 
 	failNilAppArmorPod := defaultPod()
-	v1FailInvalidAppArmorPod := defaultV1Pod()
-	apparmor.SetProfileName(v1FailInvalidAppArmorPod, defaultContainerName, apparmor.ProfileNamePrefix+"foo")
-	failInvalidAppArmorPod := &api.Pod{}
-	v1.Convert_v1_Pod_To_api_Pod(v1FailInvalidAppArmorPod, failInvalidAppArmorPod, nil)
-
+	failInvalidAppArmorPod := defaultPod()
+	apparmor.SetProfileName(failInvalidAppArmorPod, defaultContainerName, apparmor.ProfileNamePrefix+"foo")
 	failAppArmorPSP := defaultPSP()
 	failAppArmorPSP.Annotations = map[string]string{
 		apparmor.AllowedProfilesAnnotationKey: apparmor.ProfileRuntimeDefault,
@@ -674,10 +669,8 @@ func TestValidateContainerSecurityContextSuccess(t *testing.T) {
 	appArmorPSP.Annotations = map[string]string{
 		apparmor.AllowedProfilesAnnotationKey: apparmor.ProfileRuntimeDefault,
 	}
-	v1AppArmorPod := defaultV1Pod()
-	apparmor.SetProfileName(v1AppArmorPod, defaultContainerName, apparmor.ProfileRuntimeDefault)
-	appArmorPod := &api.Pod{}
-	v1.Convert_v1_Pod_To_api_Pod(v1AppArmorPod, appArmorPod, nil)
+	appArmorPod := defaultPod()
+	apparmor.SetProfileName(appArmorPod, defaultContainerName, apparmor.ProfileRuntimeDefault)
 
 	privPSP := defaultPSP()
 	privPSP.Spec.Privileged = true
@@ -892,7 +885,7 @@ func TestGenerateContainerSecurityContextReadOnlyRootFS(t *testing.T) {
 
 func defaultPSP() *extensions.PodSecurityPolicy {
 	return &extensions.PodSecurityPolicy{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:        "psp-sa",
 			Annotations: map[string]string{},
 		},
@@ -916,7 +909,7 @@ func defaultPSP() *extensions.PodSecurityPolicy {
 func defaultPod() *api.Pod {
 	var notPriv bool = false
 	return &api.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Annotations: map[string]string{},
 		},
 		Spec: api.PodSpec{
@@ -927,30 +920,6 @@ func defaultPod() *api.Pod {
 				{
 					Name: defaultContainerName,
 					SecurityContext: &api.SecurityContext{
-						// expected to be set by defaulting mechanisms
-						Privileged: &notPriv,
-						// fill in the rest for test cases
-					},
-				},
-			},
-		},
-	}
-}
-
-func defaultV1Pod() *v1.Pod {
-	var notPriv bool = false
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{},
-		},
-		Spec: v1.PodSpec{
-			SecurityContext: &v1.PodSecurityContext{
-			// fill in for test cases
-			},
-			Containers: []v1.Container{
-				{
-					Name: defaultContainerName,
-					SecurityContext: &v1.SecurityContext{
 						// expected to be set by defaulting mechanisms
 						Privileged: &notPriv,
 						// fill in the rest for test cases

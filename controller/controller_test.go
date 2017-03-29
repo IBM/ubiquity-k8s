@@ -73,29 +73,29 @@ var _ = Describe("Controller", func() {
 			})
 
 		})
-
-		Context(".Detach", func() {
-			It("does not error when existing volume name is given", func() {
-				fakeClient.RemoveVolumeReturns(nil)
-				detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
-				detachResponse := controller.Detach(detachRequest)
-				Expect(detachResponse.Status).To(Equal("Success"))
-				Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
-				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
-			})
-
-			It("error when client fails to detach volume", func() {
-				err := fmt.Errorf("error detaching volume")
-				fakeClient.RemoveVolumeReturns(err)
-				detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
-				detachResponse := controller.Detach(detachRequest)
-				Expect(detachResponse.Status).To(Equal("Failure"))
-				Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
-				Expect(detachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
-			})
-		})
+		//
+		//Context(".Detach", func() {
+		//	It("does not error when existing volume name is given", func() {
+		//		fakeClient.RemoveVolumeReturns(nil)
+		//		detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
+		//		detachResponse := controller.Detach(detachRequest)
+		//		Expect(detachResponse.Status).To(Equal("Success"))
+		//		Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
+		//		Expect(detachResponse.Device).To(Equal("vol1"))
+		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
+		//	})
+		//
+		//	It("error when client fails to detach volume", func() {
+		//		err := fmt.Errorf("error detaching volume")
+		//		fakeClient.RemoveVolumeReturns(err)
+		//		detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
+		//		detachResponse := controller.Detach(detachRequest)
+		//		Expect(detachResponse.Status).To(Equal("Failure"))
+		//		Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
+		//		Expect(detachResponse.Device).To(Equal("vol1"))
+		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
+		//	})
+		//})
 		Context(".Mount", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
 				fakeClient.AttachReturns("/tmp/mnt1", nil)

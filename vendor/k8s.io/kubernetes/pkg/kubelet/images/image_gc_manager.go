@@ -24,16 +24,15 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/container"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
+	"k8s.io/kubernetes/pkg/util/errors"
+	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 // Manages lifecycle of all images.
@@ -45,7 +44,7 @@ type ImageGCManager interface {
 	GarbageCollect() error
 
 	// Start async garbage collection of images.
-	Start()
+	Start() error
 
 	GetImageList() ([]kubecontainer.Image, error)
 
@@ -86,7 +85,7 @@ type realImageGCManager struct {
 	recorder record.EventRecorder
 
 	// Reference to this node.
-	nodeRef *clientv1.ObjectReference
+	nodeRef *api.ObjectReference
 
 	// Track initialization
 	initialized bool
@@ -129,7 +128,7 @@ type imageRecord struct {
 	size int64
 }
 
-func NewImageGCManager(runtime container.Runtime, cadvisorInterface cadvisor.Interface, recorder record.EventRecorder, nodeRef *clientv1.ObjectReference, policy ImageGCPolicy) (ImageGCManager, error) {
+func NewImageGCManager(runtime container.Runtime, cadvisorInterface cadvisor.Interface, recorder record.EventRecorder, nodeRef *api.ObjectReference, policy ImageGCPolicy) (ImageGCManager, error) {
 	// Validate policy.
 	if policy.HighThresholdPercent < 0 || policy.HighThresholdPercent > 100 {
 		return nil, fmt.Errorf("invalid HighThresholdPercent %d, must be in range [0-100]", policy.HighThresholdPercent)
@@ -153,7 +152,7 @@ func NewImageGCManager(runtime container.Runtime, cadvisorInterface cadvisor.Int
 	return im, nil
 }
 
-func (im *realImageGCManager) Start() {
+func (im *realImageGCManager) Start() error {
 	go wait.Until(func() {
 		// Initial detection make detected time "unknown" in the past.
 		var ts time.Time
@@ -179,6 +178,7 @@ func (im *realImageGCManager) Start() {
 		}
 	}, 30*time.Second, wait.NeverStop)
 
+	return nil
 }
 
 // Get a list of images on this node
@@ -259,7 +259,7 @@ func (im *realImageGCManager) GarbageCollect() error {
 	// Check valid capacity.
 	if capacity == 0 {
 		err := fmt.Errorf("invalid capacity %d on device %q at mount point %q", capacity, fsInfo.Device, fsInfo.Mountpoint)
-		im.recorder.Eventf(im.nodeRef, v1.EventTypeWarning, events.InvalidDiskCapacity, err.Error())
+		im.recorder.Eventf(im.nodeRef, api.EventTypeWarning, events.InvalidDiskCapacity, err.Error())
 		return err
 	}
 
@@ -275,7 +275,7 @@ func (im *realImageGCManager) GarbageCollect() error {
 
 		if freed < amountToFree {
 			err := fmt.Errorf("failed to garbage collect required amount of images. Wanted to free %d, but freed %d", amountToFree, freed)
-			im.recorder.Eventf(im.nodeRef, v1.EventTypeWarning, events.FreeDiskSpaceFailed, err.Error())
+			im.recorder.Eventf(im.nodeRef, api.EventTypeWarning, events.FreeDiskSpaceFailed, err.Error())
 			return err
 		}
 	}

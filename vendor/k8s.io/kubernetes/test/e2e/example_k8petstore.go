@@ -17,7 +17,6 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,7 +25,7 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -53,25 +52,16 @@ func readTransactions(c clientset.Interface, ns string) (error, int) {
 	if errProxy != nil {
 		return errProxy, -1
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), framework.SingleCallTimeout)
-	defer cancel()
-
 	body, err := proxyRequest.Namespace(ns).
-		Context(ctx).
 		Name("frontend").
 		Suffix("llen").
 		DoRaw()
 	if err != nil {
-		if ctx.Err() != nil {
-			framework.Failf("Failed to read petstore transactions: %v", err)
-		}
 		return err, -1
+	} else {
+		totalTrans, err := strconv.Atoi(string(body))
+		return err, totalTrans
 	}
-
-	totalTrans, err := strconv.Atoi(string(body))
-	return err, totalTrans
-
 }
 
 // runK8petstore runs the k8petstore application, bound to external nodeport, and
@@ -160,7 +150,7 @@ T:
 	// We should have exceeded the finalTransactionsExpected num of transactions.
 	// If this fails, but there are transactions being created, we may need to recalibrate
 	// the finalTransactionsExpected value - or else - your cluster is broken/slow !
-	Expect(totalTransactions).To(BeNumerically(">", finalTransactionsExpected))
+	Ω(totalTransactions).Should(BeNumerically(">", finalTransactionsExpected))
 }
 
 var _ = framework.KubeDescribe("Pet Store [Feature:Example]", func() {

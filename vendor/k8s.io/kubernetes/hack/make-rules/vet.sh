@@ -46,5 +46,4 @@ if [[ ${#targets[@]} -eq 0 ]]; then
   targets=$(go list -e ./... | egrep -v "/(third_party|vendor|staging|clientset_generated)/")
 fi
 
-set -x
 go vet "${goflags[@]:+${goflags[@]}}" ${targets[@]}

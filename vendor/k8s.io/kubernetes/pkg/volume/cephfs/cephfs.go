@@ -22,9 +22,8 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/mount"
 	utilstrings "k8s.io/kubernetes/pkg/util/strings"
 	"k8s.io/kubernetes/pkg/volume"
@@ -72,15 +71,15 @@ func (plugin *cephfsPlugin) RequiresRemount() bool {
 	return false
 }
 
-func (plugin *cephfsPlugin) GetAccessModes() []v1.PersistentVolumeAccessMode {
-	return []v1.PersistentVolumeAccessMode{
-		v1.ReadWriteOnce,
-		v1.ReadOnlyMany,
-		v1.ReadWriteMany,
+func (plugin *cephfsPlugin) GetAccessModes() []api.PersistentVolumeAccessMode {
+	return []api.PersistentVolumeAccessMode{
+		api.ReadWriteOnce,
+		api.ReadOnlyMany,
+		api.ReadWriteMany,
 	}
 }
 
-func (plugin *cephfsPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
+func (plugin *cephfsPlugin) NewMounter(spec *volume.Spec, pod *api.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
 	cephvs, _, err := getVolumeSource(spec)
 	if err != nil {
 		return nil, err
@@ -92,7 +91,7 @@ func (plugin *cephfsPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.
 			return nil, fmt.Errorf("Cannot get kube client")
 		}
 
-		secretName, err := kubeClient.Core().Secrets(pod.Namespace).Get(cephvs.SecretRef.Name, metav1.GetOptions{})
+		secretName, err := kubeClient.Core().Secrets(pod.Namespace).Get(cephvs.SecretRef.Name)
 		if err != nil {
 			err = fmt.Errorf("Couldn't get secret %v/%v err: %v", pod.Namespace, cephvs.SecretRef, err)
 			return nil, err
@@ -157,10 +156,10 @@ func (plugin *cephfsPlugin) newUnmounterInternal(volName string, podUID types.UI
 }
 
 func (plugin *cephfsPlugin) ConstructVolumeSpec(volumeName, mountPath string) (*volume.Spec, error) {
-	cephfsVolume := &v1.Volume{
+	cephfsVolume := &api.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			CephFS: &v1.CephFSVolumeSource{
+		VolumeSource: api.VolumeSource{
+			CephFS: &api.CephFSVolumeSource{
 				Monitors: []string{},
 				Path:     volumeName,
 			},
@@ -201,7 +200,7 @@ func (cephfsVolume *cephfsMounter) GetAttributes() volume.Attributes {
 // Checks prior to mount operations to verify that the required components (binaries, etc.)
 // to mount the volume are available on the underlying node.
 // If not, it returns an error
-func (cephfsMounter *cephfsMounter) CanMount() error {
+func (caphfsMounter *cephfsMounter) CanMount() error {
 	return nil
 }
 
@@ -289,7 +288,7 @@ func (cephfsVolume *cephfs) execMount(mountpoint string) error {
 	return nil
 }
 
-func getVolumeSource(spec *volume.Spec) (*v1.CephFSVolumeSource, bool, error) {
+func getVolumeSource(spec *volume.Spec) (*api.CephFSVolumeSource, bool, error) {
 	if spec.Volume != nil && spec.Volume.CephFS != nil {
 		return spec.Volume.CephFS, spec.Volume.CephFS.ReadOnly, nil
 	} else if spec.PersistentVolume != nil &&

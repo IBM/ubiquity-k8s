@@ -17,12 +17,11 @@ limitations under the License.
 package fake
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
+	api "k8s.io/client-go/pkg/api"
+	unversioned "k8s.io/client-go/pkg/api/unversioned"
 	v1 "k8s.io/client-go/pkg/api/v1"
+	labels "k8s.io/client-go/pkg/labels"
+	watch "k8s.io/client-go/pkg/watch"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,7 +31,7 @@ type FakeEvents struct {
 	ns   string
 }
 
-var eventsResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "events"}
+var eventsResource = unversioned.GroupVersionResource{Group: "", Version: "v1", Resource: "events"}
 
 func (c *FakeEvents) Create(event *v1.Event) (result *v1.Event, err error) {
 	obj, err := c.Fake.
@@ -54,21 +53,21 @@ func (c *FakeEvents) Update(event *v1.Event) (result *v1.Event, err error) {
 	return obj.(*v1.Event), err
 }
 
-func (c *FakeEvents) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *FakeEvents) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(eventsResource, c.ns, name), &v1.Event{})
 
 	return err
 }
 
-func (c *FakeEvents) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *FakeEvents) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(eventsResource, c.ns, listOptions)
 
 	_, err := c.Fake.Invokes(action, &v1.EventList{})
 	return err
 }
 
-func (c *FakeEvents) Get(name string, options meta_v1.GetOptions) (result *v1.Event, err error) {
+func (c *FakeEvents) Get(name string) (result *v1.Event, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(eventsResource, c.ns, name), &v1.Event{})
 
@@ -78,7 +77,7 @@ func (c *FakeEvents) Get(name string, options meta_v1.GetOptions) (result *v1.Ev
 	return obj.(*v1.Event), err
 }
 
-func (c *FakeEvents) List(opts meta_v1.ListOptions) (result *v1.EventList, err error) {
+func (c *FakeEvents) List(opts v1.ListOptions) (result *v1.EventList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(eventsResource, c.ns, opts), &v1.EventList{})
 
@@ -100,14 +99,14 @@ func (c *FakeEvents) List(opts meta_v1.ListOptions) (result *v1.EventList, err e
 }
 
 // Watch returns a watch.Interface that watches the requested events.
-func (c *FakeEvents) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *FakeEvents) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(eventsResource, c.ns, opts))
 
 }
 
 // Patch applies the patch and returns the patched event.
-func (c *FakeEvents) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.Event, err error) {
+func (c *FakeEvents) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *v1.Event, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(eventsResource, c.ns, name, data, subresources...), &v1.Event{})
 

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/net"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/util/net"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 var (
@@ -57,7 +57,7 @@ func newPortAllocator(r net.PortRange) PortAllocator {
 	if r.Base == 0 {
 		return &randomAllocator{}
 	}
-	return newPortRangeAllocator(r, true)
+	return newPortRangeAllocator(r)
 }
 
 const (
@@ -74,7 +74,7 @@ type rangeAllocator struct {
 	rand  *rand.Rand
 }
 
-func newPortRangeAllocator(r net.PortRange, autoFill bool) PortAllocator {
+func newPortRangeAllocator(r net.PortRange) PortAllocator {
 	if r.Base == 0 || r.Size == 0 {
 		panic("illegal argument: may not specify an empty port range")
 	}
@@ -83,29 +83,24 @@ func newPortRangeAllocator(r net.PortRange, autoFill bool) PortAllocator {
 		ports:     make(chan int, portsBufSize),
 		rand:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
-	if autoFill {
-		go wait.Forever(func() { ra.fillPorts() }, nextFreePortCooldown)
-	}
+	go wait.Until(func() { ra.fillPorts(wait.NeverStop) }, nextFreePortCooldown, wait.NeverStop)
 	return ra
 }
 
 // fillPorts loops, always searching for the next free port and, if found, fills the ports buffer with it.
-// this func blocks unless there are no remaining free ports.
-func (r *rangeAllocator) fillPorts() {
+// this func blocks until either there are no remaining free ports, or else the stopCh chan is closed.
+func (r *rangeAllocator) fillPorts(stopCh <-chan struct{}) {
 	for {
-		if !r.fillPortsOnce() {
+		port := r.nextFreePort()
+		if port == -1 {
 			return
 		}
+		select {
+		case <-stopCh:
+			return
+		case r.ports <- port:
+		}
 	}
-}
-
-func (r *rangeAllocator) fillPortsOnce() bool {
-	port := r.nextFreePort()
-	if port == -1 {
-		return false
-	}
-	r.ports <- port
-	return true
 }
 
 // nextFreePort finds a free port, first picking a random port. if that port is already in use

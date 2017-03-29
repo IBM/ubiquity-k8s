@@ -22,8 +22,9 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/client-go/rest/fake"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/restclient/fake"
+	"k8s.io/kubernetes/pkg/client/typed/dynamic"
 	cmdtesting "k8s.io/kubernetes/pkg/kubectl/cmd/testing"
 )
 
@@ -31,11 +32,11 @@ func TestReplaceObject(t *testing.T) {
 	_, _, rc := testData()
 
 	f, tf, codec, _ := cmdtesting.NewAPIFactory()
+	ns := dynamic.ContentConfig().NegotiatedSerializer
 	tf.Printer = &testPrinter{}
 	deleted := false
-	tf.UnstructuredClient = &fake.RESTClient{
-		APIRegistry:          api.Registry,
-		NegotiatedSerializer: unstructuredSerializer,
+	tf.Client = &fake.RESTClient{
+		NegotiatedSerializer: ns,
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 			switch p, m := req.URL.Path, req.Method; {
 			case p == "/api/v1/namespaces/test" && m == http.MethodGet:
@@ -87,12 +88,12 @@ func TestReplaceMultipleObject(t *testing.T) {
 	_, svc, rc := testData()
 
 	f, tf, codec, _ := cmdtesting.NewAPIFactory()
+	ns := dynamic.ContentConfig().NegotiatedSerializer
 	tf.Printer = &testPrinter{}
 	redisMasterDeleted := false
 	frontendDeleted := false
-	tf.UnstructuredClient = &fake.RESTClient{
-		APIRegistry:          api.Registry,
-		NegotiatedSerializer: unstructuredSerializer,
+	tf.Client = &fake.RESTClient{
+		NegotiatedSerializer: ns,
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 			switch p, m := req.URL.Path, req.Method; {
 			case p == "/api/v1/namespaces/test" && m == http.MethodGet:
@@ -157,11 +158,11 @@ func TestReplaceDirectory(t *testing.T) {
 	_, _, rc := testData()
 
 	f, tf, codec, _ := cmdtesting.NewAPIFactory()
+	ns := dynamic.ContentConfig().NegotiatedSerializer
 	tf.Printer = &testPrinter{}
 	created := map[string]bool{}
-	tf.UnstructuredClient = &fake.RESTClient{
-		APIRegistry:          api.Registry,
-		NegotiatedSerializer: unstructuredSerializer,
+	tf.Client = &fake.RESTClient{
+		NegotiatedSerializer: ns,
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 			switch p, m := req.URL.Path, req.Method; {
 			case p == "/api/v1/namespaces/test" && m == http.MethodGet:
@@ -214,10 +215,10 @@ func TestForceReplaceObjectNotFound(t *testing.T) {
 	_, _, rc := testData()
 
 	f, tf, codec, _ := cmdtesting.NewAPIFactory()
+	ns := dynamic.ContentConfig().NegotiatedSerializer
 	tf.Printer = &testPrinter{}
-	tf.UnstructuredClient = &fake.RESTClient{
-		APIRegistry:          api.Registry,
-		NegotiatedSerializer: unstructuredSerializer,
+	tf.Client = &fake.RESTClient{
+		NegotiatedSerializer: ns,
 		Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 			switch p, m := req.URL.Path, req.Method; {
 			case p == "/api/v1/namespaces/test" && m == http.MethodGet:

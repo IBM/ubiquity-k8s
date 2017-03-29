@@ -34,7 +34,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/node"
@@ -83,9 +83,6 @@ func waitForPath(pool, image string, maxRetries int) (string, bool) {
 		devicePath, found := getDevFromImageAndPool(pool, image)
 		if found {
 			return devicePath, true
-		}
-		if i == maxRetries-1 {
-			break
 		}
 		time.Sleep(time.Second)
 	}
@@ -316,9 +313,8 @@ func (util *RBDUtil) DetachDisk(c rbdUnmounter, mntPath string) error {
 	return nil
 }
 
-func (util *RBDUtil) CreateImage(p *rbdVolumeProvisioner) (r *v1.RBDVolumeSource, size int, err error) {
-	var output []byte
-	capacity := p.options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+func (util *RBDUtil) CreateImage(p *rbdVolumeProvisioner) (r *api.RBDVolumeSource, size int, err error) {
+	capacity := p.options.PVC.Spec.Resources.Requests[api.ResourceName(api.ResourceStorage)]
 	volSizeBytes := capacity.Value()
 	// convert to MB that rbd defaults on
 	sz := int(volume.RoundUpSize(volSizeBytes, 1024*1024))
@@ -331,6 +327,7 @@ func (util *RBDUtil) CreateImage(p *rbdVolumeProvisioner) (r *v1.RBDVolumeSource
 	for i := start; i < start+l; i++ {
 		mon := p.Mon[i%l]
 		glog.V(4).Infof("rbd: create %s size %s using mon %s, pool %s id %s key %s", p.rbdMounter.Image, volSz, mon, p.rbdMounter.Pool, p.rbdMounter.adminId, p.rbdMounter.adminSecret)
+		var output []byte
 		output, err = p.rbdMounter.plugin.execCommand("rbd",
 			[]string{"create", p.rbdMounter.Image, "--size", volSz, "--pool", p.rbdMounter.Pool, "--id", p.rbdMounter.adminId, "-m", mon, "--key=" + p.rbdMounter.adminSecret, "--image-format", "1"})
 		if err == nil {
@@ -341,10 +338,11 @@ func (util *RBDUtil) CreateImage(p *rbdVolumeProvisioner) (r *v1.RBDVolumeSource
 	}
 
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create rbd image: %v, command output: %s", err, string(output))
+		glog.Errorf("rbd: Error creating rbd image: %v", err)
+		return nil, 0, err
 	}
 
-	return &v1.RBDVolumeSource{
+	return &api.RBDVolumeSource{
 		CephMonitors: p.rbdMounter.Mon,
 		RBDImage:     p.rbdMounter.Image,
 		RBDPool:      p.rbdMounter.Pool,
@@ -374,7 +372,7 @@ func (util *RBDUtil) DeleteImage(p *rbdVolumeDeleter) error {
 		if err == nil {
 			return nil
 		} else {
-			glog.Errorf("failed to delete rbd image: %v, command output: %s", err, string(output))
+			glog.Errorf("failed to delete rbd image, error %v output %v", err, string(output))
 		}
 	}
 	return err

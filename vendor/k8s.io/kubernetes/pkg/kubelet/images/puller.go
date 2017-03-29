@@ -19,18 +19,13 @@ package images
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
-type pullResult struct {
-	imageRef string
-	err      error
-}
-
 type imagePuller interface {
-	pullImage(kubecontainer.ImageSpec, []v1.Secret, chan<- pullResult)
+	pullImage(kubecontainer.ImageSpec, []api.Secret, chan<- error)
 }
 
 var _, _ imagePuller = &parallelImagePuller{}, &serialImagePuller{}
@@ -43,13 +38,9 @@ func newParallelImagePuller(imageService kubecontainer.ImageService) imagePuller
 	return &parallelImagePuller{imageService}
 }
 
-func (pip *parallelImagePuller) pullImage(spec kubecontainer.ImageSpec, pullSecrets []v1.Secret, pullChan chan<- pullResult) {
+func (pip *parallelImagePuller) pullImage(spec kubecontainer.ImageSpec, pullSecrets []api.Secret, errChan chan<- error) {
 	go func() {
-		imageRef, err := pip.imageService.PullImage(spec, pullSecrets)
-		pullChan <- pullResult{
-			imageRef: imageRef,
-			err:      err,
-		}
+		errChan <- pip.imageService.PullImage(spec, pullSecrets)
 	}()
 }
 
@@ -69,24 +60,20 @@ func newSerialImagePuller(imageService kubecontainer.ImageService) imagePuller {
 
 type imagePullRequest struct {
 	spec        kubecontainer.ImageSpec
-	pullSecrets []v1.Secret
-	pullChan    chan<- pullResult
+	pullSecrets []api.Secret
+	errChan     chan<- error
 }
 
-func (sip *serialImagePuller) pullImage(spec kubecontainer.ImageSpec, pullSecrets []v1.Secret, pullChan chan<- pullResult) {
+func (sip *serialImagePuller) pullImage(spec kubecontainer.ImageSpec, pullSecrets []api.Secret, errChan chan<- error) {
 	sip.pullRequests <- &imagePullRequest{
 		spec:        spec,
 		pullSecrets: pullSecrets,
-		pullChan:    pullChan,
+		errChan:     errChan,
 	}
 }
 
 func (sip *serialImagePuller) processImagePullRequests() {
 	for pullRequest := range sip.pullRequests {
-		imageRef, err := sip.imageService.PullImage(pullRequest.spec, pullRequest.pullSecrets)
-		pullRequest.pullChan <- pullResult{
-			imageRef: imageRef,
-			err:      err,
-		}
+		pullRequest.errChan <- sip.imageService.PullImage(pullRequest.spec, pullRequest.pullSecrets)
 	}
 }

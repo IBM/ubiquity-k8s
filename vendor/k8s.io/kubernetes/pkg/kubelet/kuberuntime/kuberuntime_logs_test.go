@@ -18,44 +18,45 @@ package kuberuntime
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 )
 
 func TestLogOptions(t *testing.T) {
 	var (
 		line         = int64(8)
 		bytes        = int64(64)
-		timestamp    = metav1.Now()
+		timestamp    = unversioned.Now()
 		sinceseconds = int64(10)
 	)
 	for c, test := range []struct {
-		apiOpts *v1.PodLogOptions
+		apiOpts *api.PodLogOptions
 		expect  *logOptions
 	}{
 		{ // empty options
-			apiOpts: &v1.PodLogOptions{},
+			apiOpts: &api.PodLogOptions{},
 			expect:  &logOptions{tail: -1, bytes: -1},
 		},
 		{ // test tail lines
-			apiOpts: &v1.PodLogOptions{TailLines: &line},
+			apiOpts: &api.PodLogOptions{TailLines: &line},
 			expect:  &logOptions{tail: line, bytes: -1},
 		},
 		{ // test limit bytes
-			apiOpts: &v1.PodLogOptions{LimitBytes: &bytes},
+			apiOpts: &api.PodLogOptions{LimitBytes: &bytes},
 			expect:  &logOptions{tail: -1, bytes: bytes},
 		},
 		{ // test since timestamp
-			apiOpts: &v1.PodLogOptions{SinceTime: &timestamp},
+			apiOpts: &api.PodLogOptions{SinceTime: &timestamp},
 			expect:  &logOptions{tail: -1, bytes: -1, since: timestamp.Time},
 		},
 		{ // test since seconds
-			apiOpts: &v1.PodLogOptions{SinceSeconds: &sinceseconds},
+			apiOpts: &api.PodLogOptions{SinceSeconds: &sinceseconds},
 			expect:  &logOptions{tail: -1, bytes: -1, since: timestamp.Add(-10 * time.Second)},
 		},
 	} {
@@ -239,5 +240,30 @@ func TestWriteLogsWithBytesLimit(t *testing.T) {
 		}
 		assert.Equal(t, test.expectStdout, stdoutBuf.String())
 		assert.Equal(t, test.expectStderr, stderrBuf.String())
+	}
+}
+
+func TestTail(t *testing.T) {
+	line := strings.Repeat("a", blockSize)
+	testBytes := []byte(line + "\n" +
+		line + "\n" +
+		line + "\n" +
+		line + "\n" +
+		line[blockSize/2:]) // incomplete line
+
+	for c, test := range []struct {
+		n     int64
+		start int64
+	}{
+		{n: -1, start: 0},
+		{n: 0, start: int64(len(line)+1) * 4},
+		{n: 1, start: int64(len(line)+1) * 3},
+		{n: 9999, start: 0},
+	} {
+		t.Logf("TestCase #%d: %+v", c, test)
+		r := bytes.NewReader(testBytes)
+		s, err := tail(r, test.n)
+		assert.NoError(t, err)
+		assert.Equal(t, s, test.start)
 	}
 }

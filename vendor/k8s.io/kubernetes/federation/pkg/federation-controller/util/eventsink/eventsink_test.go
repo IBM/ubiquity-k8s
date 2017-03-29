@@ -19,19 +19,18 @@ package eventsink
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
-	core "k8s.io/client-go/testing"
-	fakefedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset/fake"
+	fake_fedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_release_1_5/fake"
 	. "k8s.io/kubernetes/federation/pkg/federation-controller/util/test"
-	kubev1 "k8s.io/kubernetes/pkg/api/v1"
+	api "k8s.io/kubernetes/pkg/api"
+	api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+	"k8s.io/kubernetes/pkg/runtime"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEventSink(t *testing.T) {
-	fakeFederationClient := &fakefedclientset.Clientset{}
+	fakeFederationClient := &fake_fedclientset.Clientset{}
 	createdChan := make(chan runtime.Object, 100)
 	fakeFederationClient.AddReactor("create", "events", func(action core.Action) (bool, runtime.Object, error) {
 		createAction := action.(core.CreateAction)
@@ -47,8 +46,8 @@ func TestEventSink(t *testing.T) {
 		return true, obj, nil
 	})
 
-	event := clientv1.Event{
-		ObjectMeta: metav1.ObjectMeta{
+	event := api.Event{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "bzium",
 			Namespace: "ns",
 		},
@@ -56,7 +55,7 @@ func TestEventSink(t *testing.T) {
 	sink := NewFederatedEventSink(fakeFederationClient)
 	eventUpdated, err := sink.Create(&event)
 	assert.NoError(t, err)
-	eventV1 := GetObjectFromChan(createdChan).(*kubev1.Event)
+	eventV1 := GetObjectFromChan(createdChan).(*api_v1.Event)
 	assert.NotNil(t, eventV1)
 	// Just some simple sanity checks.
 	assert.Equal(t, event.Name, eventV1.Name)
@@ -64,7 +63,7 @@ func TestEventSink(t *testing.T) {
 
 	eventUpdated, err = sink.Update(&event)
 	assert.NoError(t, err)
-	eventV1 = GetObjectFromChan(updateChan).(*kubev1.Event)
+	eventV1 = GetObjectFromChan(updateChan).(*api_v1.Event)
 	assert.NotNil(t, eventV1)
 	// Just some simple sanity checks.
 	assert.Equal(t, event.Name, eventV1.Name)

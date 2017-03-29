@@ -25,11 +25,10 @@ import (
 	"strings"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/empty_dir"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
@@ -40,16 +39,15 @@ func TestMakePayload(t *testing.T) {
 	caseMappingMode := int32(0400)
 	cases := []struct {
 		name      string
-		mappings  []v1.KeyToPath
-		configMap *v1.ConfigMap
+		mappings  []api.KeyToPath
+		configMap *api.ConfigMap
 		mode      int32
-		optional  bool
 		payload   map[string]util.FileProjection
 		success   bool
 	}{
 		{
 			name: "no overrides",
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -64,13 +62,13 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "basic 1",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "path/to/foo.txt",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -84,13 +82,13 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "subdirs",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "path/to/1/2/3/foo.txt",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -104,13 +102,13 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "subdirs 2",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "path/to/1/2/3/foo.txt",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -124,7 +122,7 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "subdirs 3",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "path/to/1/2/3/foo.txt",
@@ -134,7 +132,7 @@ func TestMakePayload(t *testing.T) {
 					Path: "another/path/to/the/esteemed/bar.bin",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -149,13 +147,13 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "non existent key",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "zab",
 					Path: "path/to/foo.txt",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -166,7 +164,7 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "mapping with Mode",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "foo.txt",
@@ -178,7 +176,7 @@ func TestMakePayload(t *testing.T) {
 					Mode: &caseMappingMode,
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -193,7 +191,7 @@ func TestMakePayload(t *testing.T) {
 		},
 		{
 			name: "mapping with defaultMode",
-			mappings: []v1.KeyToPath{
+			mappings: []api.KeyToPath{
 				{
 					Key:  "foo",
 					Path: "foo.txt",
@@ -203,7 +201,7 @@ func TestMakePayload(t *testing.T) {
 					Path: "bar.bin",
 				},
 			},
-			configMap: &v1.ConfigMap{
+			configMap: &api.ConfigMap{
 				Data: map[string]string{
 					"foo": "foo",
 					"bar": "bar",
@@ -216,29 +214,10 @@ func TestMakePayload(t *testing.T) {
 			},
 			success: true,
 		},
-		{
-			name: "optional non existent key",
-			mappings: []v1.KeyToPath{
-				{
-					Key:  "zab",
-					Path: "path/to/foo.txt",
-				},
-			},
-			configMap: &v1.ConfigMap{
-				Data: map[string]string{
-					"foo": "foo",
-					"bar": "bar",
-				},
-			},
-			mode:     0644,
-			optional: true,
-			payload:  map[string]util.FileProjection{},
-			success:  true,
-		},
 	}
 
 	for _, tc := range cases {
-		actualPayload, err := MakePayload(tc.mappings, tc.configMap, &tc.mode, tc.optional)
+		actualPayload, err := makePayload(tc.mappings, tc.configMap, &tc.mode)
 		if err != nil && tc.success {
 			t.Errorf("%v: unexpected failure making payload: %v", tc.name, err)
 			continue
@@ -281,7 +260,7 @@ func TestCanSupport(t *testing.T) {
 	if plugin.GetPluginName() != configMapPluginName {
 		t.Errorf("Wrong name: %s", plugin.GetPluginName())
 	}
-	if !plugin.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{ConfigMap: &v1.ConfigMapVolumeSource{LocalObjectReference: v1.LocalObjectReference{Name: ""}}}}}) {
+	if !plugin.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{ConfigMap: &api.ConfigMapVolumeSource{LocalObjectReference: api.LocalObjectReference{Name: ""}}}}}) {
 		t.Errorf("Expected true")
 	}
 	if plugin.CanSupport(&volume.Spec{}) {
@@ -311,7 +290,7 @@ func TestPlugin(t *testing.T) {
 		t.Errorf("Can't find the plugin by name")
 	}
 
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
 	mounter, err := plugin.NewMounter(volume.NewSpecFromVolume(volumeSpec), pod, volume.VolumeOptions{})
 	if err != nil {
 		t.Errorf("Failed to make a new Mounter: %v", err)
@@ -375,7 +354,7 @@ func TestPluginReboot(t *testing.T) {
 		t.Errorf("Can't find the plugin by name")
 	}
 
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
 	mounter, err := plugin.NewMounter(volume.NewSpecFromVolume(volumeSpec), pod, volume.VolumeOptions{})
 	if err != nil {
 		t.Errorf("Failed to make a new Mounter: %v", err)
@@ -408,149 +387,12 @@ func TestPluginReboot(t *testing.T) {
 	doTestCleanAndTeardown(plugin, testPodUID, testVolumeName, volumePath, t)
 }
 
-func TestPluginOptional(t *testing.T) {
-	var (
-		testPodUID     = types.UID("test_pod_uid")
-		testVolumeName = "test_volume_name"
-		testNamespace  = "test_configmap_namespace"
-		testName       = "test_configmap_name"
-		trueVal        = true
-
-		volumeSpec    = volumeSpec(testVolumeName, testName, 0644)
-		client        = fake.NewSimpleClientset()
-		pluginMgr     = volume.VolumePluginMgr{}
-		tempDir, host = newTestHost(t, client)
-	)
-	volumeSpec.VolumeSource.ConfigMap.Optional = &trueVal
-
-	defer os.RemoveAll(tempDir)
-	pluginMgr.InitPlugins(ProbeVolumePlugins(), host)
-
-	plugin, err := pluginMgr.FindPluginByName(configMapPluginName)
-	if err != nil {
-		t.Errorf("Can't find the plugin by name")
-	}
-
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
-	mounter, err := plugin.NewMounter(volume.NewSpecFromVolume(volumeSpec), pod, volume.VolumeOptions{})
-	if err != nil {
-		t.Errorf("Failed to make a new Mounter: %v", err)
-	}
-	if mounter == nil {
-		t.Errorf("Got a nil Mounter")
-	}
-
-	vName, err := plugin.GetVolumeName(volume.NewSpecFromVolume(volumeSpec))
-	if err != nil {
-		t.Errorf("Failed to GetVolumeName: %v", err)
-	}
-	if vName != "test_volume_name/test_configmap_name" {
-		t.Errorf("Got unexpect VolumeName %v", vName)
-	}
-
-	volumePath := mounter.GetPath()
-	if !strings.HasSuffix(volumePath, fmt.Sprintf("pods/test_pod_uid/volumes/kubernetes.io~configmap/test_volume_name")) {
-		t.Errorf("Got unexpected path: %s", volumePath)
-	}
-
-	fsGroup := int64(1001)
-	err = mounter.SetUp(&fsGroup)
-	if err != nil {
-		t.Errorf("Failed to setup volume: %v", err)
-	}
-	if _, err := os.Stat(volumePath); err != nil {
-		if os.IsNotExist(err) {
-			t.Errorf("SetUp() failed, volume path not created: %s", volumePath)
-		} else {
-			t.Errorf("SetUp() failed: %v", err)
-		}
-	}
-
-	infos, err := ioutil.ReadDir(volumePath)
-	if err != nil {
-		t.Fatalf("couldn't find volume path, %s", volumePath)
-	}
-	if len(infos) != 0 {
-		t.Errorf("empty directory, %s, not found", volumePath)
-	}
-	doTestCleanAndTeardown(plugin, testPodUID, testVolumeName, volumePath, t)
-}
-
-func TestPluginKeysOptional(t *testing.T) {
-	var (
-		testPodUID     = types.UID("test_pod_uid")
-		testVolumeName = "test_volume_name"
-		testNamespace  = "test_configmap_namespace"
-		testName       = "test_configmap_name"
-		trueVal        = true
-
-		volumeSpec    = volumeSpec(testVolumeName, testName, 0644)
-		configMap     = configMap(testNamespace, testName)
-		client        = fake.NewSimpleClientset(&configMap)
-		pluginMgr     = volume.VolumePluginMgr{}
-		tempDir, host = newTestHost(t, client)
-	)
-	volumeSpec.VolumeSource.ConfigMap.Items = []v1.KeyToPath{
-		{Key: "data-1", Path: "data-1"},
-		{Key: "data-2", Path: "data-2"},
-		{Key: "data-3", Path: "data-3"},
-		{Key: "missing", Path: "missing"},
-	}
-	volumeSpec.VolumeSource.ConfigMap.Optional = &trueVal
-
-	defer os.RemoveAll(tempDir)
-	pluginMgr.InitPlugins(ProbeVolumePlugins(), host)
-
-	plugin, err := pluginMgr.FindPluginByName(configMapPluginName)
-	if err != nil {
-		t.Errorf("Can't find the plugin by name")
-	}
-
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, UID: testPodUID}}
-	mounter, err := plugin.NewMounter(volume.NewSpecFromVolume(volumeSpec), pod, volume.VolumeOptions{})
-	if err != nil {
-		t.Errorf("Failed to make a new Mounter: %v", err)
-	}
-	if mounter == nil {
-		t.Errorf("Got a nil Mounter")
-	}
-
-	vName, err := plugin.GetVolumeName(volume.NewSpecFromVolume(volumeSpec))
-	if err != nil {
-		t.Errorf("Failed to GetVolumeName: %v", err)
-	}
-	if vName != "test_volume_name/test_configmap_name" {
-		t.Errorf("Got unexpect VolumeName %v", vName)
-	}
-
-	volumePath := mounter.GetPath()
-	if !strings.HasSuffix(volumePath, fmt.Sprintf("pods/test_pod_uid/volumes/kubernetes.io~configmap/test_volume_name")) {
-		t.Errorf("Got unexpected path: %s", volumePath)
-	}
-
-	fsGroup := int64(1001)
-	err = mounter.SetUp(&fsGroup)
-	if err != nil {
-		t.Errorf("Failed to setup volume: %v", err)
-	}
-	if _, err := os.Stat(volumePath); err != nil {
-		if os.IsNotExist(err) {
-			t.Errorf("SetUp() failed, volume path not created: %s", volumePath)
-		} else {
-			t.Errorf("SetUp() failed: %v", err)
-		}
-	}
-
-	doTestConfigMapDataInVolume(volumePath, configMap, t)
-	doTestCleanAndTeardown(plugin, testPodUID, testVolumeName, volumePath, t)
-}
-
-func volumeSpec(volumeName, configMapName string, defaultMode int32) *v1.Volume {
-	return &v1.Volume{
+func volumeSpec(volumeName, configMapName string, defaultMode int32) *api.Volume {
+	return &api.Volume{
 		Name: volumeName,
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{
+		VolumeSource: api.VolumeSource{
+			ConfigMap: &api.ConfigMapVolumeSource{
+				LocalObjectReference: api.LocalObjectReference{
 					Name: configMapName,
 				},
 				DefaultMode: &defaultMode,
@@ -559,9 +401,9 @@ func volumeSpec(volumeName, configMapName string, defaultMode int32) *v1.Volume 
 	}
 }
 
-func configMap(namespace, name string) v1.ConfigMap {
-	return v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+func configMap(namespace, name string) api.ConfigMap {
+	return api.ConfigMap{
+		ObjectMeta: api.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
@@ -573,7 +415,7 @@ func configMap(namespace, name string) v1.ConfigMap {
 	}
 }
 
-func doTestConfigMapDataInVolume(volumePath string, configMap v1.ConfigMap, t *testing.T) {
+func doTestConfigMapDataInVolume(volumePath string, configMap api.ConfigMap, t *testing.T) {
 	for key, value := range configMap.Data {
 		configMapDataHostPath := path.Join(volumePath, key)
 		if _, err := os.Stat(configMapDataHostPath); err != nil {

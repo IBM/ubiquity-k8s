@@ -15,23 +15,23 @@
 # Cross-build the serve_hostname image
 #
 # Usage:
-#       [TAG=v1.6] [PREFIX=gcr.io/google_containers] [TEST_REGISTRY=gcr.io/k8s-authenticated-test] [ARCH=amd64] [BASEIMAGE=busybox] make all
+#       [TAG=v1.5] [PREFIX=gcr.io/google_containers] [TEST_REGISTRY=gcr.io/k8s-authenticated-test] [ARCH=amd64] [BASEIMAGE=busybox] make all
 
 .PHONY: all push container clean
 
-TAG ?= v1.6
+TAG ?= v1.5
 
 REGISTRY ?= gcr.io/google-containers
 TEST_REGISTRY ?= gcr.io/k8s-authenticated-test
 
-# Architectures supported: amd64, arm, arm64, ppc64le and s390x
+# Architectures supported: amd64, arm, arm64 and ppc64le
 ARCH ?= amd64
 
-ALL_ARCH = amd64 arm arm64 ppc64le s390x
+ALL_ARCH = amd64 arm arm64 ppc64le
 
-GOARM=7
+GOARM=6
 TEMP_DIR := $(shell mktemp -d)
-GOLANG_VERSION=1.7.4
+GOLANG_VERSION = 1.6.3
 
 BIN = serve_hostname
 SRCS = serve_hostname.go
@@ -44,16 +44,13 @@ ifeq ($(ARCH),amd64)
         BASEIMAGE?=busybox
 endif
 ifeq ($(ARCH),arm)
-        BASEIMAGE?=armhf/busybox
+        BASEIMAGE?=armel/busybox
 endif
 ifeq ($(ARCH),arm64)
         BASEIMAGE?=aarch64/busybox
 endif
 ifeq ($(ARCH),ppc64le)
         BASEIMAGE?=ppc64le/busybox
-endif
-ifeq ($(ARCH),s390x)
-        BASEIMAGE?=s390x/busybox
 endif
 
 # If you want to build AND push all containers, see the 'all-push' rule.

@@ -19,15 +19,14 @@ package etcd
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apiserver/pkg/registry/generic"
-	etcdtesting "k8s.io/apiserver/pkg/storage/etcd/testing"
 	"k8s.io/kubernetes/federation/apis/federation"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/registry/generic"
 	"k8s.io/kubernetes/pkg/registry/registrytest"
+	"k8s.io/kubernetes/pkg/runtime"
+	etcdtesting "k8s.io/kubernetes/pkg/storage/etcd/testing"
 )
 
 func newStorage(t *testing.T) (*REST, *etcdtesting.EtcdTestServer) {
@@ -35,16 +34,14 @@ func newStorage(t *testing.T) (*REST, *etcdtesting.EtcdTestServer) {
 	restOptions := generic.RESTOptions{
 		StorageConfig:           storageConfig,
 		Decorator:               generic.UndecoratedStorage,
-		DeleteCollectionWorkers: 1,
-		ResourcePrefix:          "clusters",
-	}
+		DeleteCollectionWorkers: 1}
 	storage, _ := NewREST(restOptions)
 	return storage, server
 }
 
 func validNewCluster() *federation.Cluster {
 	return &federation.Cluster{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name: "foo",
 			Labels: map[string]string{
 				"name": "foo",
@@ -71,11 +68,11 @@ func TestCreate(t *testing.T) {
 	defer server.Terminate(t)
 	test := registrytest.New(t, storage.Store).ClusterScope()
 	cluster := validNewCluster()
-	cluster.ObjectMeta = metav1.ObjectMeta{GenerateName: "foo"}
+	cluster.ObjectMeta = api.ObjectMeta{GenerateName: "foo"}
 	test.TestCreate(
 		cluster,
 		&federation.Cluster{
-			ObjectMeta: metav1.ObjectMeta{Name: "-a123-a_"},
+			ObjectMeta: api.ObjectMeta{Name: "-a123-a_"},
 		},
 	)
 }

@@ -24,9 +24,7 @@ import (
 )
 
 func TestValidateDockerInfo(t *testing.T) {
-	v := &DockerValidator{
-		Reporter: DefaultReporter,
-	}
+	v := &DockerValidator{}
 	spec := &DockerSpec{
 		Version:     []string{`1\.(9|\d{2,})\..*`},
 		GraphDriver: []string{"driver_1", "driver_2"},

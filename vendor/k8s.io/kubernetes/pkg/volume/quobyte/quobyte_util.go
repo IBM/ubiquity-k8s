@@ -21,23 +21,23 @@ import (
 	"path"
 	"strings"
 
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/volume"
 
 	"github.com/golang/glog"
-	quobyteapi "github.com/quobyte/api"
+	quobyte_api "github.com/quobyte/api"
 )
 
 type quobyteVolumeManager struct {
 	config *quobyteAPIConfig
 }
 
-func (manager *quobyteVolumeManager) createVolume(provisioner *quobyteVolumeProvisioner) (quobyte *v1.QuobyteVolumeSource, size int, err error) {
-	capacity := provisioner.options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+func (manager *quobyteVolumeManager) createVolume(provisioner *quobyteVolumeProvisioner) (quobyte *api.QuobyteVolumeSource, size int, err error) {
+	capacity := provisioner.options.PVC.Spec.Resources.Requests[api.ResourceName(api.ResourceStorage)]
 	volumeSize := int(volume.RoundUpSize(capacity.Value(), 1024*1024*1024))
 	// Quobyte has the concept of Volumes which doen't have a specific size (they can grow unlimited)
 	// to simulate a size constraint we could set here a Quota
-	volumeRequest := &quobyteapi.CreateVolumeRequest{
+	volumeRequest := &quobyte_api.CreateVolumeRequest{
 		Name:              provisioner.volume,
 		RootUserID:        provisioner.user,
 		RootGroupID:       provisioner.group,
@@ -46,11 +46,11 @@ func (manager *quobyteVolumeManager) createVolume(provisioner *quobyteVolumeProv
 	}
 
 	if _, err := manager.createQuobyteClient().CreateVolume(volumeRequest); err != nil {
-		return &v1.QuobyteVolumeSource{}, volumeSize, err
+		return &api.QuobyteVolumeSource{}, volumeSize, err
 	}
 
 	glog.V(4).Infof("Created Quobyte volume %s", provisioner.volume)
-	return &v1.QuobyteVolumeSource{
+	return &api.QuobyteVolumeSource{
 		Registry: provisioner.registry,
 		Volume:   provisioner.volume,
 		User:     provisioner.user,
@@ -62,8 +62,8 @@ func (manager *quobyteVolumeManager) deleteVolume(deleter *quobyteVolumeDeleter)
 	return manager.createQuobyteClient().DeleteVolumeByName(deleter.volume, deleter.tenant)
 }
 
-func (manager *quobyteVolumeManager) createQuobyteClient() *quobyteapi.QuobyteClient {
-	return quobyteapi.NewQuobyteClient(
+func (manager *quobyteVolumeManager) createQuobyteClient() *quobyte_api.QuobyteClient {
+	return quobyte_api.NewQuobyteClient(
 		manager.config.quobyteAPIServer,
 		manager.config.quobyteUser,
 		manager.config.quobytePassword,

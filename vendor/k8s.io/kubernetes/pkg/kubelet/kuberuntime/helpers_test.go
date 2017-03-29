@@ -20,23 +20,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 func TestStableKey(t *testing.T) {
-	container := &v1.Container{
+	container := &api.Container{
 		Name:  "test_container",
 		Image: "foo/image:v1",
 	}
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "test_pod",
 			Namespace: "test_pod_namespace",
 			UID:       "test_pod_uid",
 		},
-		Spec: v1.PodSpec{
-			Containers: []v1.Container{*container},
+		Spec: api.PodSpec{
+			Containers: []api.Container{*container},
 		},
 	}
 	oldKey := getStableKey(pod, container)

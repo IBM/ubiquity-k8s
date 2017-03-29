@@ -18,7 +18,7 @@ limitations under the License.
 //
 // TODO(lavalamp): this package is a huge disaster at the moment. I intend to
 // refactor. All code currently using this package should change:
-// 1. Declare your own api.Registry.APIGroupRegistrationManager in your own test code.
+// 1. Declare your own registered.APIGroupRegistrationManager in your own test code.
 // 2. Import the relevant install packages.
 // 3. Register the types you need, from the announced.APIGroupAnnouncementManager.
 package testapi
@@ -30,12 +30,12 @@ import (
 	"reflect"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/recognizer"
+	"k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	"k8s.io/kubernetes/federation/apis/federation"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/meta"
+	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apimachinery/registered"
 	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/authorization"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
@@ -46,7 +46,10 @@ import (
 	"k8s.io/kubernetes/pkg/apis/policy"
 	"k8s.io/kubernetes/pkg/apis/rbac"
 	"k8s.io/kubernetes/pkg/apis/storage"
+	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/runtime/serializer/recognizer"
 
+	_ "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/install"
 	_ "k8s.io/kubernetes/federation/apis/federation/install"
 	_ "k8s.io/kubernetes/pkg/api/install"
 	_ "k8s.io/kubernetes/pkg/apis/apps/install"
@@ -83,8 +86,8 @@ var (
 )
 
 type TestGroup struct {
-	externalGroupVersion schema.GroupVersion
-	internalGroupVersion schema.GroupVersion
+	externalGroupVersion unversioned.GroupVersion
+	internalGroupVersion unversioned.GroupVersion
 	internalTypes        map[string]reflect.Type
 	externalTypes        map[string]reflect.Type
 }
@@ -120,12 +123,12 @@ func init() {
 		testGroupVersions := strings.Split(kubeTestAPI, ",")
 		for i := len(testGroupVersions) - 1; i >= 0; i-- {
 			gvString := testGroupVersions[i]
-			groupVersion, err := schema.ParseGroupVersion(gvString)
+			groupVersion, err := unversioned.ParseGroupVersion(gvString)
 			if err != nil {
 				panic(fmt.Sprintf("Error parsing groupversion %v: %v", gvString, err))
 			}
 
-			internalGroupVersion := schema.GroupVersion{Group: groupVersion.Group, Version: runtime.APIVersionInternal}
+			internalGroupVersion := unversioned.GroupVersion{Group: groupVersion.Group, Version: runtime.APIVersionInternal}
 			Groups[groupVersion.Group] = TestGroup{
 				externalGroupVersion: groupVersion,
 				internalGroupVersion: internalGroupVersion,
@@ -136,7 +139,7 @@ func init() {
 	}
 
 	if _, ok := Groups[api.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: api.GroupName, Version: api.Registry.GroupOrDie(api.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: api.GroupName, Version: registered.GroupOrDie(api.GroupName).GroupVersion.Version}
 		Groups[api.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: api.SchemeGroupVersion,
@@ -145,7 +148,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[extensions.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: extensions.GroupName, Version: api.Registry.GroupOrDie(extensions.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: extensions.GroupName, Version: registered.GroupOrDie(extensions.GroupName).GroupVersion.Version}
 		Groups[extensions.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: extensions.SchemeGroupVersion,
@@ -161,7 +164,7 @@ func init() {
 			}
 			internalTypes[k] = t
 		}
-		externalGroupVersion := schema.GroupVersion{Group: autoscaling.GroupName, Version: api.Registry.GroupOrDie(autoscaling.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: autoscaling.GroupName, Version: registered.GroupOrDie(autoscaling.GroupName).GroupVersion.Version}
 		Groups[autoscaling.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: extensions.SchemeGroupVersion,
@@ -177,7 +180,7 @@ func init() {
 				break
 			}
 		}
-		externalGroupVersion := schema.GroupVersion{Group: autoscaling.GroupName, Version: api.Registry.GroupOrDie(autoscaling.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: autoscaling.GroupName, Version: registered.GroupOrDie(autoscaling.GroupName).GroupVersion.Version}
 		Groups[autoscaling.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: autoscaling.SchemeGroupVersion,
@@ -186,7 +189,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[batch.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: batch.GroupName, Version: api.Registry.GroupOrDie(batch.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: batch.GroupName, Version: registered.GroupOrDie(batch.GroupName).GroupVersion.Version}
 		Groups[batch.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: batch.SchemeGroupVersion,
@@ -195,16 +198,16 @@ func init() {
 		}
 	}
 	if _, ok := Groups[apps.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: apps.GroupName, Version: api.Registry.GroupOrDie(apps.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: apps.GroupName, Version: registered.GroupOrDie(apps.GroupName).GroupVersion.Version}
 		Groups[apps.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
-			internalGroupVersion: apps.SchemeGroupVersion,
-			internalTypes:        api.Scheme.KnownTypes(apps.SchemeGroupVersion),
+			internalGroupVersion: extensions.SchemeGroupVersion,
+			internalTypes:        api.Scheme.KnownTypes(extensions.SchemeGroupVersion),
 			externalTypes:        api.Scheme.KnownTypes(externalGroupVersion),
 		}
 	}
 	if _, ok := Groups[policy.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: policy.GroupName, Version: api.Registry.GroupOrDie(policy.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: policy.GroupName, Version: registered.GroupOrDie(policy.GroupName).GroupVersion.Version}
 		Groups[policy.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: policy.SchemeGroupVersion,
@@ -213,7 +216,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[federation.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: federation.GroupName, Version: api.Registry.GroupOrDie(federation.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: federation.GroupName, Version: registered.GroupOrDie(federation.GroupName).GroupVersion.Version}
 		Groups[federation.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: federation.SchemeGroupVersion,
@@ -222,7 +225,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[rbac.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: rbac.GroupName, Version: api.Registry.GroupOrDie(rbac.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: rbac.GroupName, Version: registered.GroupOrDie(rbac.GroupName).GroupVersion.Version}
 		Groups[rbac.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: rbac.SchemeGroupVersion,
@@ -231,7 +234,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[storage.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: storage.GroupName, Version: api.Registry.GroupOrDie(storage.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: storage.GroupName, Version: registered.GroupOrDie(storage.GroupName).GroupVersion.Version}
 		Groups[storage.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: storage.SchemeGroupVersion,
@@ -240,7 +243,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[certificates.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: certificates.GroupName, Version: api.Registry.GroupOrDie(certificates.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: certificates.GroupName, Version: registered.GroupOrDie(certificates.GroupName).GroupVersion.Version}
 		Groups[certificates.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: certificates.SchemeGroupVersion,
@@ -249,7 +252,7 @@ func init() {
 		}
 	}
 	if _, ok := Groups[imagepolicy.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: imagepolicy.GroupName, Version: api.Registry.GroupOrDie(imagepolicy.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: imagepolicy.GroupName, Version: registered.GroupOrDie(imagepolicy.GroupName).GroupVersion.Version}
 		Groups[imagepolicy.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: imagepolicy.SchemeGroupVersion,
@@ -258,11 +261,20 @@ func init() {
 		}
 	}
 	if _, ok := Groups[authorization.GroupName]; !ok {
-		externalGroupVersion := schema.GroupVersion{Group: authorization.GroupName, Version: api.Registry.GroupOrDie(authorization.GroupName).GroupVersion.Version}
+		externalGroupVersion := unversioned.GroupVersion{Group: authorization.GroupName, Version: registered.GroupOrDie(authorization.GroupName).GroupVersion.Version}
 		Groups[authorization.GroupName] = TestGroup{
 			externalGroupVersion: externalGroupVersion,
 			internalGroupVersion: authorization.SchemeGroupVersion,
 			internalTypes:        api.Scheme.KnownTypes(authorization.SchemeGroupVersion),
+			externalTypes:        api.Scheme.KnownTypes(externalGroupVersion),
+		}
+	}
+	if _, ok := Groups[kubeadm.GroupName]; !ok {
+		externalGroupVersion := unversioned.GroupVersion{Group: kubeadm.GroupName, Version: registered.GroupOrDie(kubeadm.GroupName).GroupVersion.Version}
+		Groups[kubeadm.GroupName] = TestGroup{
+			externalGroupVersion: externalGroupVersion,
+			internalGroupVersion: kubeadm.SchemeGroupVersion,
+			internalTypes:        api.Scheme.KnownTypes(kubeadm.SchemeGroupVersion),
 			externalTypes:        api.Scheme.KnownTypes(externalGroupVersion),
 		}
 	}
@@ -281,18 +293,18 @@ func init() {
 	Authorization = Groups[authorization.GroupName]
 }
 
-func (g TestGroup) ContentConfig() (string, *schema.GroupVersion, runtime.Codec) {
+func (g TestGroup) ContentConfig() (string, *unversioned.GroupVersion, runtime.Codec) {
 	return "application/json", g.GroupVersion(), g.Codec()
 }
 
-func (g TestGroup) GroupVersion() *schema.GroupVersion {
+func (g TestGroup) GroupVersion() *unversioned.GroupVersion {
 	copyOfGroupVersion := g.externalGroupVersion
 	return &copyOfGroupVersion
 }
 
 // InternalGroupVersion returns the group,version used to identify the internal
 // types for this API
-func (g TestGroup) InternalGroupVersion() schema.GroupVersion {
+func (g TestGroup) InternalGroupVersion() unversioned.GroupVersion {
 	return g.internalGroupVersion
 }
 
@@ -312,7 +324,7 @@ func (g TestGroup) Codec() runtime.Codec {
 	if serializer.Serializer == nil {
 		return api.Codecs.LegacyCodec(g.externalGroupVersion)
 	}
-	return api.Codecs.CodecForVersions(serializer.Serializer, api.Codecs.UniversalDeserializer(), schema.GroupVersions{g.externalGroupVersion}, nil)
+	return api.Codecs.CodecForVersions(serializer.Serializer, api.Codecs.UniversalDeserializer(), unversioned.GroupVersions{g.externalGroupVersion}, nil)
 }
 
 // NegotiatedSerializer returns the negotiated serializer for the server.
@@ -340,13 +352,13 @@ func (g TestGroup) StorageCodec() runtime.Codec {
 	}
 	ds := recognizer.NewDecoder(s, api.Codecs.UniversalDeserializer())
 
-	return api.Codecs.CodecForVersions(s, ds, schema.GroupVersions{g.externalGroupVersion}, nil)
+	return api.Codecs.CodecForVersions(s, ds, unversioned.GroupVersions{g.externalGroupVersion}, nil)
 }
 
 // Converter returns the api.Scheme for the API version to test against, as set by the
 // KUBE_TEST_API env var.
 func (g TestGroup) Converter() runtime.ObjectConvertor {
-	interfaces, err := api.Registry.GroupOrDie(g.externalGroupVersion.Group).InterfacesFor(g.externalGroupVersion)
+	interfaces, err := registered.GroupOrDie(g.externalGroupVersion.Group).InterfacesFor(g.externalGroupVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -356,7 +368,7 @@ func (g TestGroup) Converter() runtime.ObjectConvertor {
 // MetadataAccessor returns the MetadataAccessor for the API version to test against,
 // as set by the KUBE_TEST_API env var.
 func (g TestGroup) MetadataAccessor() meta.MetadataAccessor {
-	interfaces, err := api.Registry.GroupOrDie(g.externalGroupVersion.Group).InterfacesFor(g.externalGroupVersion)
+	interfaces, err := registered.GroupOrDie(g.externalGroupVersion.Group).InterfacesFor(g.externalGroupVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -420,12 +432,12 @@ func (g TestGroup) ResourcePath(resource, namespace, name string) string {
 }
 
 func (g TestGroup) RESTMapper() meta.RESTMapper {
-	return api.Registry.RESTMapper()
+	return registered.RESTMapper()
 }
 
 // ExternalGroupVersions returns all external group versions allowed for the server.
-func ExternalGroupVersions() schema.GroupVersions {
-	versions := []schema.GroupVersion{}
+func ExternalGroupVersions() unversioned.GroupVersions {
+	versions := []unversioned.GroupVersion{}
 	for _, g := range Groups {
 		gv := g.GroupVersion()
 		versions = append(versions, *gv)
@@ -461,6 +473,6 @@ func GetCodecForObject(obj runtime.Object) (runtime.Codec, error) {
 	return nil, fmt.Errorf("unexpected kind: %v", kind)
 }
 
-func NewTestGroup(external, internal schema.GroupVersion, internalTypes map[string]reflect.Type, externalTypes map[string]reflect.Type) TestGroup {
+func NewTestGroup(external, internal unversioned.GroupVersion, internalTypes map[string]reflect.Type, externalTypes map[string]reflect.Type) TestGroup {
 	return TestGroup{external, internal, internalTypes, externalTypes}
 }

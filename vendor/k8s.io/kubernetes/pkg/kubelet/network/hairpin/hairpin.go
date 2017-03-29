@@ -50,7 +50,7 @@ func SetUpContainerPath(netnsPath string, containerInterfaceName string) error {
 	if netnsPath[0] != '/' {
 		return fmt.Errorf("netnsPath path '%s' was invalid", netnsPath)
 	}
-	nsenterArgs := []string{"--net=" + netnsPath}
+	nsenterArgs := []string{"-n", netnsPath}
 	return setUpContainerInternal(containerInterfaceName, netnsPath, nsenterArgs)
 }
 

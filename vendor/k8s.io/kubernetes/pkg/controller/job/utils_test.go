@@ -19,8 +19,8 @@ package job
 import (
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api/v1"
-	batch "k8s.io/kubernetes/pkg/apis/batch/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/batch"
 )
 
 func TestIsJobFinished(t *testing.T) {
@@ -28,7 +28,7 @@ func TestIsJobFinished(t *testing.T) {
 		Status: batch.JobStatus{
 			Conditions: []batch.JobCondition{{
 				Type:   batch.JobComplete,
-				Status: v1.ConditionTrue,
+				Status: api.ConditionTrue,
 			}},
 		},
 	}
@@ -37,12 +37,12 @@ func TestIsJobFinished(t *testing.T) {
 		t.Error("Job was expected to be finished")
 	}
 
-	job.Status.Conditions[0].Status = v1.ConditionFalse
+	job.Status.Conditions[0].Status = api.ConditionFalse
 	if IsJobFinished(job) {
 		t.Error("Job was not expected to be finished")
 	}
 
-	job.Status.Conditions[0].Status = v1.ConditionUnknown
+	job.Status.Conditions[0].Status = api.ConditionUnknown
 	if IsJobFinished(job) {
 		t.Error("Job was not expected to be finished")
 	}

@@ -22,116 +22,71 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
+	"k8s.io/kubernetes/cmd/libs/go2idl/client-gen/test_apis/testgroup/v1"
+
 	"github.com/golang/glog"
 	"github.com/stretchr/testify/assert"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/kubernetes/test/integration/framework"
-	"k8s.io/sample-apiserver/pkg/apis/wardle/v1alpha1"
-	"k8s.io/sample-apiserver/pkg/cmd/server"
+	"k8s.io/kubernetes/examples/apiserver"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 )
 
-const securePort = "6444"
+var groupVersion = v1.SchemeGroupVersion
 
-var groupVersion = v1alpha1.SchemeGroupVersion
-
-var groupVersionForDiscovery = metav1.GroupVersionForDiscovery{
+var groupVersionForDiscovery = unversioned.GroupVersionForDiscovery{
 	GroupVersion: groupVersion.String(),
 	Version:      groupVersion.Version,
 }
 
 func TestRunServer(t *testing.T) {
-	masterConfig := framework.NewIntegrationTestMasterConfig()
-	_, s := framework.RunAMaster(masterConfig)
-	defer s.Close()
-
-	adminKubeConfig := createKubeConfig(masterConfig.GenericConfig.LoopbackClientConfig)
-	kubeconfigFile, _ := ioutil.TempFile("", "")
-	defer os.Remove(kubeconfigFile.Name())
-	clientcmd.WriteToFile(*adminKubeConfig, kubeconfigFile.Name())
-
-	// Avoid default cert-dir of /var/run/kubernetes to allow this to run on darwin
-	certDir, _ := ioutil.TempDir("", "test-integration-apiserver")
-	defer os.Remove(certDir)
-
+	serverIP := fmt.Sprintf("http://localhost:%d", apiserver.InsecurePort)
 	stopCh := make(chan struct{})
+	go func() {
+		if err := apiserver.Run(apiserver.NewServerRunOptions(), stopCh); err != nil {
+			t.Fatalf("Error in bringing up the server: %v", err)
+		}
+	}()
 	defer close(stopCh)
-	cmd := server.NewCommandStartWardleServer(os.Stdout, os.Stderr, stopCh)
-	cmd.SetArgs([]string{
-		"--secure-port", securePort,
-		"--requestheader-username-headers", "",
-		"--authentication-kubeconfig", kubeconfigFile.Name(),
-		"--authorization-kubeconfig", kubeconfigFile.Name(),
-		"--etcd-servers", framework.GetEtcdURLFromEnv(),
-		"--cert-dir", certDir,
-	})
-	go cmd.Execute()
-
-	serverLocation := fmt.Sprintf("https://localhost:%s", securePort)
-	if err := waitForApiserverUp(serverLocation); err != nil {
+	if err := waitForApiserverUp(serverIP); err != nil {
 		t.Fatalf("%v", err)
 	}
-
-	testAPIGroupList(t, serverLocation)
-	testAPIGroup(t, serverLocation)
-	testAPIResourceList(t, serverLocation)
+	testSwaggerSpec(t, serverIP)
+	testAPIGroupList(t, serverIP)
+	testAPIGroup(t, serverIP)
+	testAPIResourceList(t, serverIP)
 }
 
-func createKubeConfig(clientCfg *rest.Config) *clientcmdapi.Config {
-	clusterNick := "cluster"
-	userNick := "user"
-	contextNick := "context"
-
-	config := clientcmdapi.NewConfig()
-
-	credentials := clientcmdapi.NewAuthInfo()
-	credentials.Token = clientCfg.BearerToken
-	credentials.ClientCertificate = clientCfg.TLSClientConfig.CertFile
-	if len(credentials.ClientCertificate) == 0 {
-		credentials.ClientCertificateData = clientCfg.TLSClientConfig.CertData
+func TestRunSecureServer(t *testing.T) {
+	serverIP := fmt.Sprintf("https://localhost:%d", apiserver.SecurePort)
+	stopCh := make(chan struct{})
+	go func() {
+		options := apiserver.NewServerRunOptions()
+		options.InsecurePort = 0
+		options.SecurePort = apiserver.SecurePort
+		if err := apiserver.Run(options, stopCh); err != nil {
+			t.Fatalf("Error in bringing up the server: %v", err)
+		}
+	}()
+	defer close(stopCh)
+	if err := waitForApiserverUp(serverIP); err != nil {
+		t.Fatalf("%v", err)
 	}
-	credentials.ClientKey = clientCfg.TLSClientConfig.KeyFile
-	if len(credentials.ClientKey) == 0 {
-		credentials.ClientKeyData = clientCfg.TLSClientConfig.KeyData
-	}
-	config.AuthInfos[userNick] = credentials
-
-	cluster := clientcmdapi.NewCluster()
-	cluster.Server = clientCfg.Host
-	cluster.CertificateAuthority = clientCfg.CAFile
-	if len(cluster.CertificateAuthority) == 0 {
-		cluster.CertificateAuthorityData = clientCfg.CAData
-	}
-	cluster.InsecureSkipTLSVerify = clientCfg.Insecure
-	if clientCfg.GroupVersion != nil {
-		cluster.APIVersion = clientCfg.GroupVersion.String()
-	}
-	config.Clusters[clusterNick] = cluster
-
-	context := clientcmdapi.NewContext()
-	context.Cluster = clusterNick
-	context.AuthInfo = userNick
-	config.Contexts[contextNick] = context
-	config.CurrentContext = contextNick
-
-	return config
+	testSwaggerSpec(t, serverIP)
+	testAPIGroupList(t, serverIP)
+	testAPIGroup(t, serverIP)
+	testAPIResourceList(t, serverIP)
 }
 
-func waitForApiserverUp(serverLocation string) error {
-	for start := time.Now(); time.Since(start) < 10*time.Second; time.Sleep(5 * time.Second) {
-		glog.Errorf("Waiting for : %#v", serverLocation)
+func waitForApiserverUp(serverIP string) error {
+	for start := time.Now(); time.Since(start) < time.Minute; time.Sleep(5 * time.Second) {
+		glog.Errorf("Waiting for : %#v", serverIP)
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		_, err := client.Get(serverLocation)
+		_, err := client.Get(serverIP)
 		if err == nil {
 			return nil
 		}
@@ -161,58 +116,65 @@ func readResponse(serverURL string) ([]byte, error) {
 	return contents, nil
 }
 
-func testAPIGroupList(t *testing.T, serverLocation string) {
-	serverURL := serverLocation + "/apis"
+func testSwaggerSpec(t *testing.T, serverIP string) {
+	serverURL := serverIP + "/swaggerapi"
+	_, err := readResponse(serverURL)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
+func testAPIGroupList(t *testing.T, serverIP string) {
+	serverURL := serverIP + "/apis"
 	contents, err := readResponse(serverURL)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	t.Log(string(contents))
-	var apiGroupList metav1.APIGroupList
+	var apiGroupList unversioned.APIGroupList
 	err = json.Unmarshal(contents, &apiGroupList)
 	if err != nil {
 		t.Fatalf("Error in unmarshalling response from server %s: %v", serverURL, err)
 	}
 	assert.Equal(t, 1, len(apiGroupList.Groups))
-	assert.Equal(t, groupVersion.Group, apiGroupList.Groups[0].Name)
+	assert.Equal(t, apiGroupList.Groups[0].Name, groupVersion.Group)
 	assert.Equal(t, 1, len(apiGroupList.Groups[0].Versions))
-	assert.Equal(t, groupVersionForDiscovery, apiGroupList.Groups[0].Versions[0])
-	assert.Equal(t, groupVersionForDiscovery, apiGroupList.Groups[0].PreferredVersion)
+	assert.Equal(t, apiGroupList.Groups[0].Versions[0], groupVersionForDiscovery)
+	assert.Equal(t, apiGroupList.Groups[0].PreferredVersion, groupVersionForDiscovery)
 }
 
-func testAPIGroup(t *testing.T, serverLocation string) {
-	serverURL := serverLocation + "/apis/wardle.k8s.io"
+func testAPIGroup(t *testing.T, serverIP string) {
+	serverURL := serverIP + "/apis/testgroup.k8s.io"
 	contents, err := readResponse(serverURL)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	t.Log(string(contents))
-	var apiGroup metav1.APIGroup
+	var apiGroup unversioned.APIGroup
 	err = json.Unmarshal(contents, &apiGroup)
 	if err != nil {
 		t.Fatalf("Error in unmarshalling response from server %s: %v", serverURL, err)
 	}
-	assert.Equal(t, groupVersion.Group, apiGroup.Name)
+	assert.Equal(t, apiGroup.APIVersion, groupVersion.Version)
+	assert.Equal(t, apiGroup.Name, groupVersion.Group)
 	assert.Equal(t, 1, len(apiGroup.Versions))
-	assert.Equal(t, groupVersion.String(), apiGroup.Versions[0].GroupVersion)
-	assert.Equal(t, groupVersion.Version, apiGroup.Versions[0].Version)
-	assert.Equal(t, apiGroup.PreferredVersion, apiGroup.Versions[0])
+	assert.Equal(t, apiGroup.Versions[0].GroupVersion, groupVersion.String())
+	assert.Equal(t, apiGroup.Versions[0].Version, groupVersion.Version)
+	assert.Equal(t, apiGroup.Versions[0], apiGroup.PreferredVersion)
 }
 
-func testAPIResourceList(t *testing.T, serverLocation string) {
-	serverURL := serverLocation + "/apis/wardle.k8s.io/v1alpha1"
+func testAPIResourceList(t *testing.T, serverIP string) {
+	serverURL := serverIP + "/apis/testgroup.k8s.io/v1"
 	contents, err := readResponse(serverURL)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	t.Log(string(contents))
-	var apiResourceList metav1.APIResourceList
+	var apiResourceList unversioned.APIResourceList
 	err = json.Unmarshal(contents, &apiResourceList)
 	if err != nil {
 		t.Fatalf("Error in unmarshalling response from server %s: %v", serverURL, err)
 	}
-	assert.Equal(t, groupVersion.String(), apiResourceList.GroupVersion)
+	assert.Equal(t, apiResourceList.APIVersion, groupVersion.Version)
+	assert.Equal(t, apiResourceList.GroupVersion, groupVersion.String())
 	assert.Equal(t, 1, len(apiResourceList.APIResources))
-	assert.Equal(t, "flunders", apiResourceList.APIResources[0].Name)
+	assert.Equal(t, apiResourceList.APIResources[0].Name, "testtypes")
 	assert.True(t, apiResourceList.APIResources[0].Namespaced)
 }

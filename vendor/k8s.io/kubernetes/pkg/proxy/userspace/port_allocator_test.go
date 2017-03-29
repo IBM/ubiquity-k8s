@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/kubernetes/pkg/util/net"
 )
 
 func TestRangeAllocatorEmpty(t *testing.T) {
@@ -31,26 +31,13 @@ func TestRangeAllocatorEmpty(t *testing.T) {
 			t.Fatalf("expected panic because of empty port range: %#v", r)
 		}
 	}()
-	_ = newPortRangeAllocator(*r, true)
+	_ = newPortRangeAllocator(*r)
 }
 
 func TestRangeAllocatorFullyAllocated(t *testing.T) {
 	r := &net.PortRange{}
 	r.Set("1-1")
-	// Don't auto-fill ports, we'll manually turn the crank
-	pra := newPortRangeAllocator(*r, false)
-	a := pra.(*rangeAllocator)
-
-	// Fill in the one available port
-	if !a.fillPortsOnce() {
-		t.Fatalf("Expected to be able to fill ports")
-	}
-
-	// There should be no ports available
-	if a.fillPortsOnce() {
-		t.Fatalf("Expected to be unable to fill ports")
-	}
-
+	a := newPortRangeAllocator(*r)
 	p, err := a.AllocateNext()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -59,31 +46,12 @@ func TestRangeAllocatorFullyAllocated(t *testing.T) {
 		t.Fatalf("unexpected allocated port: %d", p)
 	}
 
-	a.lock.Lock()
-	if bit := a.used.Bit(p - a.Base); bit != 1 {
-		a.lock.Unlock()
-		t.Fatalf("unexpected used bit for allocated port: %d", p)
-	}
-	a.lock.Unlock()
-
 	_, err = a.AllocateNext()
 	if err == nil {
 		t.Fatalf("expected error because of fully-allocated range")
 	}
 
 	a.Release(p)
-	a.lock.Lock()
-	if bit := a.used.Bit(p - a.Base); bit != 0 {
-		a.lock.Unlock()
-		t.Fatalf("unexpected used bit for allocated port: %d", p)
-	}
-	a.lock.Unlock()
-
-	// Fill in the one available port
-	if !a.fillPortsOnce() {
-		t.Fatalf("Expected to be able to fill ports")
-	}
-
 	p, err = a.AllocateNext()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -91,12 +59,6 @@ func TestRangeAllocatorFullyAllocated(t *testing.T) {
 	if p != 1 {
 		t.Fatalf("unexpected allocated port: %d", p)
 	}
-	a.lock.Lock()
-	if bit := a.used.Bit(p - a.Base); bit != 1 {
-		a.lock.Unlock()
-		t.Fatalf("unexpected used bit for allocated port: %d", p)
-	}
-	a.lock.Unlock()
 
 	_, err = a.AllocateNext()
 	if err == nil {
@@ -107,69 +69,30 @@ func TestRangeAllocatorFullyAllocated(t *testing.T) {
 func TestRangeAllocator_RandomishAllocation(t *testing.T) {
 	r := &net.PortRange{}
 	r.Set("1-100")
-	pra := newPortRangeAllocator(*r, false)
-	a := pra.(*rangeAllocator)
+	a := newPortRangeAllocator(*r)
 
 	// allocate all the ports
 	var err error
 	ports := make([]int, 100, 100)
 	for i := 0; i < 100; i++ {
-		if !a.fillPortsOnce() {
-			t.Fatalf("Expected to be able to fill ports")
-		}
 		ports[i], err = a.AllocateNext()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if ports[i] < 1 || ports[i] > 100 {
-			t.Fatalf("unexpected allocated port: %d", ports[i])
-		}
-		a.lock.Lock()
-		if bit := a.used.Bit(ports[i] - a.Base); bit != 1 {
-			a.lock.Unlock()
-			t.Fatalf("unexpected used bit for allocated port: %d", ports[i])
-		}
-		a.lock.Unlock()
-	}
-
-	if a.fillPortsOnce() {
-		t.Fatalf("Expected to be unable to fill ports")
 	}
 
 	// release them all
 	for i := 0; i < 100; i++ {
 		a.Release(ports[i])
-		a.lock.Lock()
-		if bit := a.used.Bit(ports[i] - a.Base); bit != 0 {
-			a.lock.Unlock()
-			t.Fatalf("unexpected used bit for allocated port: %d", ports[i])
-		}
-		a.lock.Unlock()
 	}
 
 	// allocate the ports again
 	rports := make([]int, 100, 100)
 	for i := 0; i < 100; i++ {
-		if !a.fillPortsOnce() {
-			t.Fatalf("Expected to be able to fill ports")
-		}
 		rports[i], err = a.AllocateNext()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if rports[i] < 1 || rports[i] > 100 {
-			t.Fatalf("unexpected allocated port: %d", rports[i])
-		}
-		a.lock.Lock()
-		if bit := a.used.Bit(rports[i] - a.Base); bit != 1 {
-			a.lock.Unlock()
-			t.Fatalf("unexpected used bit for allocated port: %d", rports[i])
-		}
-		a.lock.Unlock()
-	}
-
-	if a.fillPortsOnce() {
-		t.Fatalf("Expected to be unable to fill ports")
 	}
 
 	if reflect.DeepEqual(ports, rports) {

@@ -23,14 +23,13 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
+	clientcmdapi "k8s.io/kubernetes/pkg/client/unversioned/clientcmd/api"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/util/i18n"
+	utilerrors "k8s.io/kubernetes/pkg/util/errors"
+	"k8s.io/kubernetes/pkg/util/sets"
 )
 
 // GetContextsOptions contains the assignable options from the args.
@@ -60,7 +59,7 @@ func NewCmdConfigGetContexts(out io.Writer, configAccess clientcmd.ConfigAccess)
 
 	cmd := &cobra.Command{
 		Use:     "get-contexts [(-o|--output=)name)]",
-		Short:   i18n.T("Describe one or many contexts"),
+		Short:   "Describe one or many contexts",
 		Long:    getContextsLong,
 		Example: getContextsExample,
 		Run: func(cmd *cobra.Command, args []string) {

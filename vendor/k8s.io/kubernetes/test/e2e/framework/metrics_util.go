@@ -18,7 +18,6 @@ package framework
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,11 +27,11 @@ import (
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/master/ports"
 	"k8s.io/kubernetes/pkg/metrics"
+	"k8s.io/kubernetes/pkg/util/sets"
 
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
@@ -324,13 +323,8 @@ func getSchedulingLatency(c clientset.Interface) (SchedulingLatency, error) {
 	result := SchedulingLatency{}
 
 	// Check if master Node is registered
-	nodes, err := c.Core().Nodes().List(metav1.ListOptions{})
+	nodes, err := c.Core().Nodes().List(api.ListOptions{})
 	ExpectNoError(err)
-
-	subResourceProxyAvailable, err := ServerVersionGTE(SubResourcePodProxyVersion, c.Discovery())
-	if err != nil {
-		return result, err
-	}
 
 	var data string
 	var masterRegistered = false
@@ -340,29 +334,13 @@ func getSchedulingLatency(c clientset.Interface) (SchedulingLatency, error) {
 		}
 	}
 	if masterRegistered {
-		ctx, cancel := context.WithTimeout(context.Background(), SingleCallTimeout)
-		defer cancel()
-
-		var rawData []byte
-		if subResourceProxyAvailable {
-			rawData, err = c.Core().RESTClient().Get().
-				Context(ctx).
-				Namespace(metav1.NamespaceSystem).
-				Resource("pods").
-				Name(fmt.Sprintf("kube-scheduler-%v:%v", TestContext.CloudConfig.MasterName, ports.SchedulerPort)).
-				SubResource("proxy").
-				Suffix("metrics").
-				Do().Raw()
-		} else {
-			rawData, err = c.Core().RESTClient().Get().
-				Context(ctx).
-				Prefix("proxy").
-				Namespace(metav1.NamespaceSystem).
-				SubResource("pods").
-				Name(fmt.Sprintf("kube-scheduler-%v:%v", TestContext.CloudConfig.MasterName, ports.SchedulerPort)).
-				Suffix("metrics").
-				Do().Raw()
-		}
+		rawData, err := c.Core().RESTClient().Get().
+			Prefix("proxy").
+			Namespace(api.NamespaceSystem).
+			Resource("pods").
+			Name(fmt.Sprintf("kube-scheduler-%v:%v", TestContext.CloudConfig.MasterName, ports.SchedulerPort)).
+			Suffix("metrics").
+			Do().Raw()
 
 		ExpectNoError(err)
 		data = string(rawData)

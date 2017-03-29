@@ -21,10 +21,9 @@ limitations under the License.
 package federation
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	conversion "k8s.io/apimachinery/pkg/conversion"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 	api "k8s.io/kubernetes/pkg/api"
+	conversion "k8s.io/kubernetes/pkg/conversion"
+	runtime "k8s.io/kubernetes/pkg/runtime"
 	reflect "reflect"
 )
 
@@ -51,11 +50,9 @@ func DeepCopy_federation_Cluster(in interface{}, out interface{}, c *conversion.
 	{
 		in := in.(*Cluster)
 		out := out.(*Cluster)
-		*out = *in
-		if newVal, err := c.DeepCopy(&in.ObjectMeta); err != nil {
+		out.TypeMeta = in.TypeMeta
+		if err := api.DeepCopy_api_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, c); err != nil {
 			return err
-		} else {
-			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
 		if err := DeepCopy_federation_ClusterSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
@@ -71,9 +68,12 @@ func DeepCopy_federation_ClusterCondition(in interface{}, out interface{}, c *co
 	{
 		in := in.(*ClusterCondition)
 		out := out.(*ClusterCondition)
-		*out = *in
+		out.Type = in.Type
+		out.Status = in.Status
 		out.LastProbeTime = in.LastProbeTime.DeepCopy()
 		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		out.Reason = in.Reason
+		out.Message = in.Message
 		return nil
 	}
 }
@@ -82,7 +82,8 @@ func DeepCopy_federation_ClusterList(in interface{}, out interface{}, c *convers
 	{
 		in := in.(*ClusterList)
 		out := out.(*ClusterList)
-		*out = *in
+		out.TypeMeta = in.TypeMeta
+		out.ListMeta = in.ListMeta
 		if in.Items != nil {
 			in, out := &in.Items, &out.Items
 			*out = make([]Cluster, len(*in))
@@ -91,6 +92,8 @@ func DeepCopy_federation_ClusterList(in interface{}, out interface{}, c *convers
 					return err
 				}
 			}
+		} else {
+			out.Items = nil
 		}
 		return nil
 	}
@@ -100,12 +103,15 @@ func DeepCopy_federation_ClusterReplicaSetPreferences(in interface{}, out interf
 	{
 		in := in.(*ClusterReplicaSetPreferences)
 		out := out.(*ClusterReplicaSetPreferences)
-		*out = *in
+		out.MinReplicas = in.MinReplicas
 		if in.MaxReplicas != nil {
 			in, out := &in.MaxReplicas, &out.MaxReplicas
 			*out = new(int64)
 			**out = **in
+		} else {
+			out.MaxReplicas = nil
 		}
+		out.Weight = in.Weight
 		return nil
 	}
 }
@@ -114,16 +120,21 @@ func DeepCopy_federation_ClusterSpec(in interface{}, out interface{}, c *convers
 	{
 		in := in.(*ClusterSpec)
 		out := out.(*ClusterSpec)
-		*out = *in
 		if in.ServerAddressByClientCIDRs != nil {
 			in, out := &in.ServerAddressByClientCIDRs, &out.ServerAddressByClientCIDRs
 			*out = make([]ServerAddressByClientCIDR, len(*in))
-			copy(*out, *in)
+			for i := range *in {
+				(*out)[i] = (*in)[i]
+			}
+		} else {
+			out.ServerAddressByClientCIDRs = nil
 		}
 		if in.SecretRef != nil {
 			in, out := &in.SecretRef, &out.SecretRef
 			*out = new(api.LocalObjectReference)
 			**out = **in
+		} else {
+			out.SecretRef = nil
 		}
 		return nil
 	}
@@ -133,7 +144,6 @@ func DeepCopy_federation_ClusterStatus(in interface{}, out interface{}, c *conve
 	{
 		in := in.(*ClusterStatus)
 		out := out.(*ClusterStatus)
-		*out = *in
 		if in.Conditions != nil {
 			in, out := &in.Conditions, &out.Conditions
 			*out = make([]ClusterCondition, len(*in))
@@ -142,12 +152,17 @@ func DeepCopy_federation_ClusterStatus(in interface{}, out interface{}, c *conve
 					return err
 				}
 			}
+		} else {
+			out.Conditions = nil
 		}
 		if in.Zones != nil {
 			in, out := &in.Zones, &out.Zones
 			*out = make([]string, len(*in))
 			copy(*out, *in)
+		} else {
+			out.Zones = nil
 		}
+		out.Region = in.Region
 		return nil
 	}
 }
@@ -156,7 +171,7 @@ func DeepCopy_federation_FederatedReplicaSetPreferences(in interface{}, out inte
 	{
 		in := in.(*FederatedReplicaSetPreferences)
 		out := out.(*FederatedReplicaSetPreferences)
-		*out = *in
+		out.Rebalance = in.Rebalance
 		if in.Clusters != nil {
 			in, out := &in.Clusters, &out.Clusters
 			*out = make(map[string]ClusterReplicaSetPreferences)
@@ -167,6 +182,8 @@ func DeepCopy_federation_FederatedReplicaSetPreferences(in interface{}, out inte
 				}
 				(*out)[key] = *newVal
 			}
+		} else {
+			out.Clusters = nil
 		}
 		return nil
 	}
@@ -176,7 +193,8 @@ func DeepCopy_federation_ServerAddressByClientCIDR(in interface{}, out interface
 	{
 		in := in.(*ServerAddressByClientCIDR)
 		out := out.(*ServerAddressByClientCIDR)
-		*out = *in
+		out.ClientCIDR = in.ClientCIDR
+		out.ServerAddress = in.ServerAddress
 		return nil
 	}
 }

@@ -26,18 +26,17 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/cmd/kubelet/app/options"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/volumemanager/cache"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/goroutinemap/exponentialbackoff"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/strings"
+	"k8s.io/kubernetes/pkg/util/wait"
 	volumepkg "k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/nestedpendingoperations"
 	"k8s.io/kubernetes/pkg/volume/util/operationexecutor"
@@ -86,7 +85,7 @@ type Reconciler interface {
 // mounter - mounter passed in from kubelet, passed down unmount path
 // volumePluginMrg - volume plugin manager passed from kubelet
 func NewReconciler(
-	kubeClient clientset.Interface,
+	kubeClient internalclientset.Interface,
 	controllerAttachDetachEnabled bool,
 	loopSleepDuration time.Duration,
 	syncDuration time.Duration,
@@ -116,7 +115,7 @@ func NewReconciler(
 }
 
 type reconciler struct {
-	kubeClient                    clientset.Interface
+	kubeClient                    internalclientset.Interface
 	controllerAttachDetachEnabled bool
 	loopSleepDuration             time.Duration
 	syncDuration                  time.Duration
@@ -406,11 +405,11 @@ type podVolume struct {
 }
 
 type reconstructedVolume struct {
-	volumeName          v1.UniqueVolumeName
+	volumeName          api.UniqueVolumeName
 	podName             volumetypes.UniquePodName
 	volumeSpec          *volumepkg.Spec
 	outerVolumeSpecName string
-	pod                 *v1.Pod
+	pod                 *api.Pod
 	pluginIsAttachable  bool
 	volumeGidValue      string
 	devicePath          string
@@ -431,7 +430,7 @@ func (rc *reconciler) syncStates(podsDir string) {
 		return
 	}
 
-	volumesNeedUpdate := make(map[v1.UniqueVolumeName]*reconstructedVolume)
+	volumesNeedUpdate := make(map[api.UniqueVolumeName]*reconstructedVolume)
 	for _, volume := range podVolumes {
 		reconstructedVolume, err := rc.reconstructVolume(volume)
 		if err != nil {
@@ -498,8 +497,8 @@ func (rc *reconciler) reconstructVolume(volume podVolume) (*reconstructedVolume,
 	if err != nil {
 		return nil, err
 	}
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID: types.UID(volume.podName),
 		},
 	}
@@ -512,7 +511,7 @@ func (rc *reconciler) reconstructVolume(volume podVolume) (*reconstructedVolume,
 	if err != nil {
 		return nil, err
 	}
-	var uniqueVolumeName v1.UniqueVolumeName
+	var uniqueVolumeName api.UniqueVolumeName
 	if attachablePlugin != nil {
 		uniqueVolumeName = volumehelper.GetUniqueVolumeName(volume.pluginName, volumeName)
 	} else {
@@ -551,9 +550,9 @@ func (rc *reconciler) reconstructVolume(volume podVolume) (*reconstructedVolume,
 	return reconstructedVolume, nil
 }
 
-func (rc *reconciler) updateStates(volumesNeedUpdate map[v1.UniqueVolumeName]*reconstructedVolume) error {
+func (rc *reconciler) updateStates(volumesNeedUpdate map[api.UniqueVolumeName]*reconstructedVolume) error {
 	// Get the node status to retrieve volume device path information.
-	node, fetchErr := rc.kubeClient.Core().Nodes().Get(string(rc.nodeName), metav1.GetOptions{})
+	node, fetchErr := rc.kubeClient.Core().Nodes().Get(string(rc.nodeName))
 	if fetchErr != nil {
 		glog.Errorf("updateStates in reconciler: could not get node status with error %v", fetchErr)
 	} else {

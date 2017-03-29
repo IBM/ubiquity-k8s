@@ -19,13 +19,11 @@ package common
 import (
 	"fmt"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/sysctl"
+	"k8s.io/kubernetes/pkg/util/uuid"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/test/e2e/framework"
 
 	. "github.com/onsi/ginkgo"
@@ -36,31 +34,31 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 	f := framework.NewDefaultFramework("sysctl")
 	var podClient *framework.PodClient
 
-	testPod := func() *v1.Pod {
+	testPod := func() *api.Pod {
 		podName := "sysctl-" + string(uuid.NewUUID())
-		pod := v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
+		pod := api.Pod{
+			ObjectMeta: api.ObjectMeta{
 				Name:        podName,
 				Annotations: map[string]string{},
 			},
-			Spec: v1.PodSpec{
-				Containers: []v1.Container{
+			Spec: api.PodSpec{
+				Containers: []api.Container{
 					{
 						Name:  "test-container",
 						Image: "gcr.io/google_containers/busybox:1.24",
 					},
 				},
-				RestartPolicy: v1.RestartPolicyNever,
+				RestartPolicy: api.RestartPolicyNever,
 			},
 		}
 
 		return &pod
 	}
 
-	waitForPodErrorEventOrStarted := func(pod *v1.Pod) (*v1.Event, error) {
-		var ev *v1.Event
+	waitForPodErrorEventOrStarted := func(pod *api.Pod) (*api.Event, error) {
+		var ev *api.Event
 		err := wait.Poll(framework.Poll, framework.PodStartTimeout, func() (bool, error) {
-			evnts, err := f.ClientSet.Core().Events(pod.Namespace).Search(api.Scheme, pod)
+			evnts, err := f.ClientSet.Core().Events(pod.Namespace).Search(pod)
 			if err != nil {
 				return false, fmt.Errorf("error in listing events: %s", err)
 			}
@@ -84,7 +82,7 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 
 	It("should support sysctls", func() {
 		pod := testPod()
-		pod.Annotations[v1.SysctlsPodAnnotationKey] = v1.PodAnnotationsFromSysctls([]v1.Sysctl{
+		pod.Annotations[api.SysctlsPodAnnotationKey] = api.PodAnnotationsFromSysctls([]api.Sysctl{
 			{
 				Name:  "kernel.shm_rmid_forced",
 				Value: "1",
@@ -109,11 +107,11 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 		By("Waiting for pod completion")
 		err = f.WaitForPodNoLongerRunning(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
-		pod, err = podClient.Get(pod.Name, metav1.GetOptions{})
+		pod, err = podClient.Get(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Checking that the pod succeeded")
-		Expect(pod.Status.Phase).To(Equal(v1.PodSucceeded))
+		Expect(pod.Status.Phase).To(Equal(api.PodSucceeded))
 
 		By("Getting logs from the pod")
 		log, err := framework.GetPodLogs(f.ClientSet, f.Namespace.Name, pod.Name, pod.Spec.Containers[0].Name)
@@ -125,7 +123,7 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 
 	It("should support unsafe sysctls which are actually whitelisted", func() {
 		pod := testPod()
-		pod.Annotations[v1.UnsafeSysctlsPodAnnotationKey] = v1.PodAnnotationsFromSysctls([]v1.Sysctl{
+		pod.Annotations[api.UnsafeSysctlsPodAnnotationKey] = api.PodAnnotationsFromSysctls([]api.Sysctl{
 			{
 				Name:  "kernel.shm_rmid_forced",
 				Value: "1",
@@ -150,11 +148,11 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 		By("Waiting for pod completion")
 		err = f.WaitForPodNoLongerRunning(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
-		pod, err = podClient.Get(pod.Name, metav1.GetOptions{})
+		pod, err = podClient.Get(pod.Name)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Checking that the pod succeeded")
-		Expect(pod.Status.Phase).To(Equal(v1.PodSucceeded))
+		Expect(pod.Status.Phase).To(Equal(api.PodSucceeded))
 
 		By("Getting logs from the pod")
 		log, err := framework.GetPodLogs(f.ClientSet, f.Namespace.Name, pod.Name, pod.Spec.Containers[0].Name)
@@ -166,7 +164,7 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 
 	It("should reject invalid sysctls", func() {
 		pod := testPod()
-		pod.Annotations[v1.SysctlsPodAnnotationKey] = v1.PodAnnotationsFromSysctls([]v1.Sysctl{
+		pod.Annotations[api.SysctlsPodAnnotationKey] = api.PodAnnotationsFromSysctls([]api.Sysctl{
 			{
 				Name:  "foo-",
 				Value: "bar",
@@ -180,7 +178,7 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 				Value: "100000000",
 			},
 		})
-		pod.Annotations[v1.UnsafeSysctlsPodAnnotationKey] = v1.PodAnnotationsFromSysctls([]v1.Sysctl{
+		pod.Annotations[api.UnsafeSysctlsPodAnnotationKey] = api.PodAnnotationsFromSysctls([]api.Sysctl{
 			{
 				Name:  "kernel.shmall",
 				Value: "100000000",
@@ -208,7 +206,7 @@ var _ = framework.KubeDescribe("Sysctls", func() {
 
 	It("should not launch unsafe, but not explicitly enabled sysctls on the node", func() {
 		pod := testPod()
-		pod.Annotations[v1.SysctlsPodAnnotationKey] = v1.PodAnnotationsFromSysctls([]v1.Sysctl{
+		pod.Annotations[api.SysctlsPodAnnotationKey] = api.PodAnnotationsFromSysctls([]api.Sysctl{
 			{
 				Name:  "kernel.msgmax",
 				Value: "10000000000",

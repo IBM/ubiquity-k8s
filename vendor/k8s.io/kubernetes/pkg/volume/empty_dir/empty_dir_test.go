@@ -23,11 +23,10 @@ import (
 	"path"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	utiltesting "k8s.io/client-go/util/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/mount"
+	utiltesting "k8s.io/kubernetes/pkg/util/testing"
 	"k8s.io/kubernetes/pkg/volume"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
 	"k8s.io/kubernetes/pkg/volume/util"
@@ -56,10 +55,10 @@ func TestCanSupport(t *testing.T) {
 	if plug.GetPluginName() != "kubernetes.io/empty-dir" {
 		t.Errorf("Wrong name: %s", plug.GetPluginName())
 	}
-	if !plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}}) {
+	if !plug.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{EmptyDir: &api.EmptyDirVolumeSource{}}}}) {
 		t.Errorf("Expected true")
 	}
-	if plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{}}}) {
+	if plug.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{}}}) {
 		t.Errorf("Expected false")
 	}
 }
@@ -75,13 +74,13 @@ func (fake *fakeMountDetector) GetMountMedium(path string) (storageMedium, bool,
 
 func TestPluginEmptyRootContext(t *testing.T) {
 	doTestPlugin(t, pluginTestConfig{
-		medium:                 v1.StorageMediumDefault,
+		medium:                 api.StorageMediumDefault,
 		expectedSetupMounts:    0,
 		expectedTeardownMounts: 0})
 }
 
 type pluginTestConfig struct {
-	medium                        v1.StorageMedium
+	medium                        api.StorageMedium
 	idempotent                    bool
 	expectedSetupMounts           int
 	shouldBeMountedBeforeTeardown bool
@@ -102,14 +101,14 @@ func doTestPlugin(t *testing.T, config pluginTestConfig) {
 
 		plug       = makePluginUnderTest(t, "kubernetes.io/empty-dir", basePath)
 		volumeName = "test-volume"
-		spec       = &v1.Volume{
+		spec       = &api.Volume{
 			Name:         volumeName,
-			VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{Medium: config.medium}},
+			VolumeSource: api.VolumeSource{EmptyDir: &api.EmptyDirVolumeSource{Medium: config.medium}},
 		}
 
 		physicalMounter = mount.FakeMounter{}
 		mountDetector   = fakeMountDetector{}
-		pod             = &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+		pod             = &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	)
 
 	if config.idempotent {
@@ -172,7 +171,7 @@ func doTestPlugin(t *testing.T, config pluginTestConfig) {
 
 	// Make an unmounter for the volume
 	teardownMedium := mediumUnknown
-	if config.medium == v1.StorageMediumMemory {
+	if config.medium == api.StorageMediumMemory {
 		teardownMedium = mediumMemory
 	}
 	unmounterMountDetector := &fakeMountDetector{medium: teardownMedium, isMount: config.shouldBeMountedBeforeTeardown}
@@ -212,10 +211,10 @@ func TestPluginBackCompat(t *testing.T) {
 
 	plug := makePluginUnderTest(t, "kubernetes.io/empty-dir", basePath)
 
-	spec := &v1.Volume{
+	spec := &api.Volume{
 		Name: "vol1",
 	}
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	mounter, err := plug.NewMounter(volume.NewSpecFromVolume(spec), pod, volume.VolumeOptions{})
 	if err != nil {
 		t.Errorf("Failed to make a new Mounter: %v", err)
@@ -241,10 +240,10 @@ func TestMetrics(t *testing.T) {
 
 	plug := makePluginUnderTest(t, "kubernetes.io/empty-dir", tmpDir)
 
-	spec := &v1.Volume{
+	spec := &api.Volume{
 		Name: "vol1",
 	}
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	mounter, err := plug.NewMounter(volume.NewSpecFromVolume(spec), pod, volume.VolumeOptions{})
 	if err != nil {
 		t.Errorf("Failed to make a new Mounter: %v", err)

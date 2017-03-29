@@ -129,14 +129,7 @@ func (c *Controller) Detach(detachRequest resources.FlexVolumeDetachRequest) res
 
 	c.logger.Printf("detach-details %#v\n", detachRequest)
 
-	err := c.Client.RemoveVolume(detachRequest.Name, false)
-	if err != nil {
-		return resources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to detach volume %#v", err),
-			Device:  detachRequest.Name,
-		}
-	}
+	// no-op for now, will change with latest flex api update
 
 	return resources.FlexVolumeResponse{
 		Status:  "Success",

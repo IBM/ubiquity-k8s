@@ -21,10 +21,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 func TestCacheOperations(t *testing.T) {
@@ -36,7 +35,7 @@ func TestCacheOperations(t *testing.T) {
 	_, found := m.Get(unsetID)
 	assert.False(t, found, "unset result found")
 
-	m.Set(setID, Success, &v1.Pod{})
+	m.Set(setID, Success, &api.Pod{})
 	result, found := m.Get(setID)
 	assert.True(t, result == Success, "set result")
 	assert.True(t, found, "set result found")
@@ -49,7 +48,7 @@ func TestCacheOperations(t *testing.T) {
 func TestUpdates(t *testing.T) {
 	m := NewManager()
 
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test-pod"}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{Name: "test-pod"}}
 	fooID := kubecontainer.ContainerID{Type: "test", ID: "foo"}
 	barID := kubecontainer.ContainerID{Type: "test", ID: "bar"}
 

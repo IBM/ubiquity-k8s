@@ -19,15 +19,15 @@ package node
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 )
 
 func TestGetPreferredAddress(t *testing.T) {
 	testcases := map[string]struct {
 		Labels      map[string]string
-		Addresses   []v1.NodeAddress
-		Preferences []v1.NodeAddressType
+		Addresses   []api.NodeAddress
+		Preferences []api.NodeAddressType
 
 		ExpectErr     string
 		ExpectAddress string
@@ -36,44 +36,44 @@ func TestGetPreferredAddress(t *testing.T) {
 			ExpectErr: "no preferred addresses found; known addresses: []",
 		},
 		"missing address": {
-			Addresses: []v1.NodeAddress{
-				{Type: v1.NodeInternalIP, Address: "1.2.3.4"},
+			Addresses: []api.NodeAddress{
+				{Type: api.NodeInternalIP, Address: "1.2.3.4"},
 			},
-			Preferences: []v1.NodeAddressType{v1.NodeHostName},
+			Preferences: []api.NodeAddressType{api.NodeHostName},
 			ExpectErr:   "no preferred addresses found; known addresses: [{InternalIP 1.2.3.4}]",
 		},
 		"found address": {
-			Addresses: []v1.NodeAddress{
-				{Type: v1.NodeInternalIP, Address: "1.2.3.4"},
-				{Type: v1.NodeExternalIP, Address: "1.2.3.5"},
-				{Type: v1.NodeExternalIP, Address: "1.2.3.7"},
+			Addresses: []api.NodeAddress{
+				{Type: api.NodeInternalIP, Address: "1.2.3.4"},
+				{Type: api.NodeExternalIP, Address: "1.2.3.5"},
+				{Type: api.NodeExternalIP, Address: "1.2.3.7"},
 			},
-			Preferences:   []v1.NodeAddressType{v1.NodeHostName, v1.NodeExternalIP},
+			Preferences:   []api.NodeAddressType{api.NodeHostName, api.NodeExternalIP},
 			ExpectAddress: "1.2.3.5",
 		},
 		"found hostname address": {
-			Labels: map[string]string{metav1.LabelHostname: "label-hostname"},
-			Addresses: []v1.NodeAddress{
-				{Type: v1.NodeExternalIP, Address: "1.2.3.5"},
-				{Type: v1.NodeHostName, Address: "status-hostname"},
+			Labels: map[string]string{unversioned.LabelHostname: "label-hostname"},
+			Addresses: []api.NodeAddress{
+				{Type: api.NodeExternalIP, Address: "1.2.3.5"},
+				{Type: api.NodeHostName, Address: "status-hostname"},
 			},
-			Preferences:   []v1.NodeAddressType{v1.NodeHostName, v1.NodeExternalIP},
+			Preferences:   []api.NodeAddressType{api.NodeHostName, api.NodeExternalIP},
 			ExpectAddress: "status-hostname",
 		},
 		"found label address": {
-			Labels: map[string]string{metav1.LabelHostname: "label-hostname"},
-			Addresses: []v1.NodeAddress{
-				{Type: v1.NodeExternalIP, Address: "1.2.3.5"},
+			Labels: map[string]string{unversioned.LabelHostname: "label-hostname"},
+			Addresses: []api.NodeAddress{
+				{Type: api.NodeExternalIP, Address: "1.2.3.5"},
 			},
-			Preferences:   []v1.NodeAddressType{v1.NodeHostName, v1.NodeExternalIP},
+			Preferences:   []api.NodeAddressType{api.NodeHostName, api.NodeExternalIP},
 			ExpectAddress: "label-hostname",
 		},
 	}
 
 	for k, tc := range testcases {
-		node := &v1.Node{
-			ObjectMeta: metav1.ObjectMeta{Labels: tc.Labels},
-			Status:     v1.NodeStatus{Addresses: tc.Addresses},
+		node := &api.Node{
+			ObjectMeta: api.ObjectMeta{Labels: tc.Labels},
+			Status:     api.NodeStatus{Addresses: tc.Addresses},
 		}
 		address, err := GetPreferredNodeAddress(node, tc.Preferences)
 		errString := ""

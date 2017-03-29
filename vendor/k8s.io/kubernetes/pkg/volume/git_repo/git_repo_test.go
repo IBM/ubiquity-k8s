@@ -25,9 +25,8 @@ import (
 	"strings"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/empty_dir"
@@ -55,7 +54,7 @@ func TestCanSupport(t *testing.T) {
 	if plug.GetPluginName() != "kubernetes.io/git-repo" {
 		t.Errorf("Wrong name: %s", plug.GetPluginName())
 	}
-	if !plug.CanSupport(&volume.Spec{Volume: &v1.Volume{VolumeSource: v1.VolumeSource{GitRepo: &v1.GitRepoVolumeSource{}}}}) {
+	if !plug.CanSupport(&volume.Spec{Volume: &api.Volume{VolumeSource: api.VolumeSource{GitRepo: &api.GitRepoVolumeSource{}}}}) {
 		t.Errorf("Expected true")
 	}
 }
@@ -74,16 +73,16 @@ func TestPlugin(t *testing.T) {
 
 	scenarios := []struct {
 		name              string
-		vol               *v1.Volume
+		vol               *api.Volume
 		expecteds         []expectedCommand
 		isExpectedFailure bool
 	}{
 		{
 			name: "target-dir",
-			vol: &v1.Volume{
+			vol: &api.Volume{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GitRepo: &v1.GitRepoVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GitRepo: &api.GitRepoVolumeSource{
 						Repository: gitUrl,
 						Revision:   revision,
 						Directory:  "target_dir",
@@ -108,10 +107,10 @@ func TestPlugin(t *testing.T) {
 		},
 		{
 			name: "target-dir-no-revision",
-			vol: &v1.Volume{
+			vol: &api.Volume{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GitRepo: &v1.GitRepoVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GitRepo: &api.GitRepoVolumeSource{
 						Repository: gitUrl,
 						Directory:  "target_dir",
 					},
@@ -127,10 +126,10 @@ func TestPlugin(t *testing.T) {
 		},
 		{
 			name: "only-git-clone",
-			vol: &v1.Volume{
+			vol: &api.Volume{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GitRepo: &v1.GitRepoVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GitRepo: &api.GitRepoVolumeSource{
 						Repository: gitUrl,
 					},
 				},
@@ -145,10 +144,10 @@ func TestPlugin(t *testing.T) {
 		},
 		{
 			name: "no-target-dir",
-			vol: &v1.Volume{
+			vol: &api.Volume{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GitRepo: &v1.GitRepoVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GitRepo: &api.GitRepoVolumeSource{
 						Repository: gitUrl,
 						Revision:   revision,
 						Directory:  "",
@@ -173,10 +172,10 @@ func TestPlugin(t *testing.T) {
 		},
 		{
 			name: "current-dir",
-			vol: &v1.Volume{
+			vol: &api.Volume{
 				Name: "vol1",
-				VolumeSource: v1.VolumeSource{
-					GitRepo: &v1.GitRepoVolumeSource{
+				VolumeSource: api.VolumeSource{
+					GitRepo: &api.GitRepoVolumeSource{
 						Repository: gitUrl,
 						Revision:   revision,
 						Directory:  ".",
@@ -215,7 +214,7 @@ func TestPlugin(t *testing.T) {
 
 func doTestPlugin(scenario struct {
 	name              string
-	vol               *v1.Volume
+	vol               *api.Volume
 	expecteds         []expectedCommand
 	isExpectedFailure bool
 }, t *testing.T) []error {
@@ -232,7 +231,7 @@ func doTestPlugin(scenario struct {
 			fmt.Errorf("Can't find the plugin by name"))
 		return allErrs
 	}
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{UID: types.UID("poduid")}}
+	pod := &api.Pod{ObjectMeta: api.ObjectMeta{UID: types.UID("poduid")}}
 	mounter, err := plug.NewMounter(volume.NewSpecFromVolume(scenario.vol), pod, volume.VolumeOptions{})
 
 	if err != nil {
@@ -312,7 +311,7 @@ func doTestPlugin(scenario struct {
 
 func doTestSetUp(scenario struct {
 	name              string
-	vol               *v1.Volume
+	vol               *api.Volume
 	expecteds         []expectedCommand
 	isExpectedFailure bool
 }, mounter volume.Mounter) []error {

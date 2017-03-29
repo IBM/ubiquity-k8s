@@ -17,9 +17,9 @@ limitations under the License.
 package kubectl
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 // FilterFunc is a function that knows how to filter a specific resource kind.
@@ -60,22 +60,8 @@ func filterPods(obj runtime.Object, options PrintOptions) bool {
 func (f Filters) Filter(obj runtime.Object, opts *PrintOptions) (bool, error) {
 	// check if the object is unstructured. If so, let's attempt to convert it to a type we can understand
 	// before apply filter func.
-	obj, _ = DecodeUnknownObject(obj)
-
-	for _, filter := range f {
-		if ok := filter(obj, *opts); ok {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// check if the object is unstructured. If so, let's attempt to convert it to a type we can understand.
-func DecodeUnknownObject(obj runtime.Object) (runtime.Object, error) {
-	var err error
-
 	switch obj.(type) {
-	case runtime.Unstructured, *runtime.Unknown:
+	case *runtime.UnstructuredList, *runtime.Unstructured, *runtime.Unknown:
 		if objBytes, err := runtime.Encode(api.Codecs.LegacyCodec(), obj); err == nil {
 			if decodedObj, err := runtime.Decode(api.Codecs.UniversalDecoder(), objBytes); err == nil {
 				obj = decodedObj
@@ -83,5 +69,10 @@ func DecodeUnknownObject(obj runtime.Object) (runtime.Object, error) {
 		}
 	}
 
-	return obj, err
+	for _, filter := range f {
+		if ok := filter(obj, *opts); ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }

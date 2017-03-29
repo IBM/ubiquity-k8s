@@ -19,10 +19,9 @@ package cronjob
 import (
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/kubernetes/pkg/api"
 	apitesting "k8s.io/kubernetes/pkg/api/testing"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/batch"
 )
 
@@ -33,7 +32,7 @@ func newBool(a bool) *bool {
 }
 
 func TestCronJobStrategy(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 	if !Strategy.NamespaceScoped() {
 		t.Errorf("CronJob must be namespace scoped")
 	}
@@ -45,13 +44,13 @@ func TestCronJobStrategy(t *testing.T) {
 		Spec: api.PodSpec{
 			RestartPolicy: api.RestartPolicyOnFailure,
 			DNSPolicy:     api.DNSClusterFirst,
-			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: api.TerminationMessageReadFile}},
+			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent"}},
 		},
 	}
 	scheduledJob := &batch.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:      "mycronjob",
-			Namespace: metav1.NamespaceDefault,
+			Namespace: api.NamespaceDefault,
 		},
 		Spec: batch.CronJobSpec{
 			Schedule:          "* * * * ?",
@@ -72,9 +71,9 @@ func TestCronJobStrategy(t *testing.T) {
 	if len(errs) != 0 {
 		t.Errorf("Unexpected error validating %v", errs)
 	}
-	now := metav1.Now()
+	now := unversioned.Now()
 	updatedCronJob := &batch.CronJob{
-		ObjectMeta: metav1.ObjectMeta{Name: "bar", ResourceVersion: "4"},
+		ObjectMeta: api.ObjectMeta{Name: "bar", ResourceVersion: "4"},
 		Spec: batch.CronJobSpec{
 			Schedule: "5 5 5 * ?",
 		},
@@ -95,7 +94,7 @@ func TestCronJobStrategy(t *testing.T) {
 }
 
 func TestCronJobStatusStrategy(t *testing.T) {
-	ctx := genericapirequest.NewDefaultContext()
+	ctx := api.NewDefaultContext()
 	if !StatusStrategy.NamespaceScoped() {
 		t.Errorf("CronJob must be namespace scoped")
 	}
@@ -106,14 +105,14 @@ func TestCronJobStatusStrategy(t *testing.T) {
 		Spec: api.PodSpec{
 			RestartPolicy: api.RestartPolicyOnFailure,
 			DNSPolicy:     api.DNSClusterFirst,
-			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent", TerminationMessagePolicy: api.TerminationMessageReadFile}},
+			Containers:    []api.Container{{Name: "abc", Image: "image", ImagePullPolicy: "IfNotPresent"}},
 		},
 	}
 	oldSchedule := "* * * * ?"
 	oldCronJob := &batch.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "mycronjob",
-			Namespace:       metav1.NamespaceDefault,
+			Namespace:       api.NamespaceDefault,
 			ResourceVersion: "10",
 		},
 		Spec: batch.CronJobSpec{
@@ -126,11 +125,11 @@ func TestCronJobStatusStrategy(t *testing.T) {
 			},
 		},
 	}
-	now := metav1.Now()
+	now := unversioned.Now()
 	newCronJob := &batch.CronJob{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: api.ObjectMeta{
 			Name:            "mycronjob",
-			Namespace:       metav1.NamespaceDefault,
+			Namespace:       api.NamespaceDefault,
 			ResourceVersion: "9",
 		},
 		Spec: batch.CronJobSpec{

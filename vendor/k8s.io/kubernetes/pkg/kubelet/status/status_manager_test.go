@@ -20,33 +20,29 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
+	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
+	"k8s.io/kubernetes/pkg/client/testing/core"
+
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	core "k8s.io/client-go/testing"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubepod "k8s.io/kubernetes/pkg/kubelet/pod"
 	podtest "k8s.io/kubernetes/pkg/kubelet/pod/testing"
-	kubesecret "k8s.io/kubernetes/pkg/kubelet/secret"
-	statustest "k8s.io/kubernetes/pkg/kubelet/status/testing"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
+	"k8s.io/kubernetes/pkg/runtime"
 )
 
 // Generate new instance of test pod with the same initial value.
-func getTestPod() *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+func getTestPod() *api.Pod {
+	return &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
@@ -73,17 +69,17 @@ func (m *manager) testSyncBatch() {
 }
 
 func newTestManager(kubeClient clientset.Interface) *manager {
-	podManager := kubepod.NewBasicPodManager(podtest.NewFakeMirrorClient(), kubesecret.NewFakeManager())
+	podManager := kubepod.NewBasicPodManager(podtest.NewFakeMirrorClient())
 	podManager.AddPod(getTestPod())
-	return NewManager(kubeClient, podManager, &statustest.FakePodDeletionSafetyProvider{}).(*manager)
+	return NewManager(kubeClient, podManager).(*manager)
 }
 
 func generateRandomMessage() string {
 	return strconv.Itoa(rand.Int())
 }
 
-func getRandomPodStatus() v1.PodStatus {
-	return v1.PodStatus{
+func getRandomPodStatus() api.PodStatus {
+	return api.PodStatus{
 		Message: generateRandomMessage(),
 	}
 }
@@ -139,16 +135,16 @@ func TestNewStatus(t *testing.T) {
 
 func TestNewStatusPreservesPodStartTime(t *testing.T) {
 	syncer := newTestManager(&fake.Clientset{})
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
 		},
-		Status: v1.PodStatus{},
+		Status: api.PodStatus{},
 	}
-	now := metav1.Now()
-	startTime := metav1.NewTime(now.Time.Add(-1 * time.Minute))
+	now := unversioned.Now()
+	startTime := unversioned.NewTime(now.Time.Add(-1 * time.Minute))
 	pod.Status.StartTime = &startTime
 	syncer.SetPodStatus(pod, getRandomPodStatus())
 
@@ -158,12 +154,12 @@ func TestNewStatusPreservesPodStartTime(t *testing.T) {
 	}
 }
 
-func getReadyPodStatus() v1.PodStatus {
-	return v1.PodStatus{
-		Conditions: []v1.PodCondition{
+func getReadyPodStatus() api.PodStatus {
+	return api.PodStatus{
+		Conditions: []api.PodCondition{
 			{
-				Type:   v1.PodReady,
-				Status: v1.ConditionTrue,
+				Type:   api.PodReady,
+				Status: api.ConditionTrue,
 			},
 		},
 	}
@@ -172,18 +168,18 @@ func getReadyPodStatus() v1.PodStatus {
 func TestNewStatusSetsReadyTransitionTime(t *testing.T) {
 	syncer := newTestManager(&fake.Clientset{})
 	podStatus := getReadyPodStatus()
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
 		},
-		Status: v1.PodStatus{},
+		Status: api.PodStatus{},
 	}
 	syncer.SetPodStatus(pod, podStatus)
 	verifyUpdates(t, syncer, 1)
 	status := expectPodStatus(t, syncer, pod)
-	readyCondition := v1.GetPodReadyCondition(status)
+	readyCondition := api.GetPodReadyCondition(status)
 	if readyCondition.LastTransitionTime.IsZero() {
 		t.Errorf("Unexpected: last transition time not set")
 	}
@@ -200,7 +196,7 @@ func TestChangedStatus(t *testing.T) {
 func TestChangedStatusKeepsStartTime(t *testing.T) {
 	syncer := newTestManager(&fake.Clientset{})
 	testPod := getTestPod()
-	now := metav1.Now()
+	now := unversioned.Now()
 	firstStatus := getRandomPodStatus()
 	firstStatus.StartTime = &now
 	syncer.SetPodStatus(testPod, firstStatus)
@@ -219,25 +215,25 @@ func TestChangedStatusKeepsStartTime(t *testing.T) {
 func TestChangedStatusUpdatesLastTransitionTime(t *testing.T) {
 	syncer := newTestManager(&fake.Clientset{})
 	podStatus := getReadyPodStatus()
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
 		},
-		Status: v1.PodStatus{},
+		Status: api.PodStatus{},
 	}
 	syncer.SetPodStatus(pod, podStatus)
 	verifyUpdates(t, syncer, 1)
 	oldStatus := expectPodStatus(t, syncer, pod)
 	anotherStatus := getReadyPodStatus()
-	anotherStatus.Conditions[0].Status = v1.ConditionFalse
+	anotherStatus.Conditions[0].Status = api.ConditionFalse
 	syncer.SetPodStatus(pod, anotherStatus)
 	verifyUpdates(t, syncer, 1)
 	newStatus := expectPodStatus(t, syncer, pod)
 
-	oldReadyCondition := v1.GetPodReadyCondition(oldStatus)
-	newReadyCondition := v1.GetPodReadyCondition(newStatus)
+	oldReadyCondition := api.GetPodReadyCondition(oldStatus)
+	newReadyCondition := api.GetPodReadyCondition(newStatus)
 	if newReadyCondition.LastTransitionTime.IsZero() {
 		t.Errorf("Unexpected: last transition time not set")
 	}
@@ -258,13 +254,13 @@ func TestUnchangedStatus(t *testing.T) {
 func TestUnchangedStatusPreservesLastTransitionTime(t *testing.T) {
 	syncer := newTestManager(&fake.Clientset{})
 	podStatus := getReadyPodStatus()
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
 			UID:       "12345678",
 			Name:      "foo",
 			Namespace: "new",
 		},
-		Status: v1.PodStatus{},
+		Status: api.PodStatus{},
 	}
 	syncer.SetPodStatus(pod, podStatus)
 	verifyUpdates(t, syncer, 1)
@@ -275,8 +271,8 @@ func TestUnchangedStatusPreservesLastTransitionTime(t *testing.T) {
 	verifyUpdates(t, syncer, 0)
 	newStatus := expectPodStatus(t, syncer, pod)
 
-	oldReadyCondition := v1.GetPodReadyCondition(oldStatus)
-	newReadyCondition := v1.GetPodReadyCondition(newStatus)
+	oldReadyCondition := api.GetPodReadyCondition(oldStatus)
+	newReadyCondition := api.GetPodReadyCondition(newStatus)
 	if newReadyCondition.LastTransitionTime.IsZero() {
 		t.Errorf("Unexpected: last transition time not set")
 	}
@@ -295,7 +291,7 @@ func TestSyncBatchIgnoresNotFound(t *testing.T) {
 	syncer.testSyncBatch()
 
 	verifyActions(t, syncer.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
 	})
 }
 
@@ -306,8 +302,8 @@ func TestSyncBatch(t *testing.T) {
 	syncer.SetPodStatus(testPod, getRandomPodStatus())
 	syncer.testSyncBatch()
 	verifyActions(t, syncer.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	},
 	)
 }
@@ -324,7 +320,7 @@ func TestSyncBatchChecksMismatchedUID(t *testing.T) {
 	syncer.SetPodStatus(differentPod, getRandomPodStatus())
 	syncer.testSyncBatch()
 	verifyActions(t, syncer.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
 	})
 }
 
@@ -334,24 +330,24 @@ func TestSyncBatchNoDeadlock(t *testing.T) {
 	pod := getTestPod()
 
 	// Setup fake client.
-	var ret v1.Pod
+	var ret api.Pod
 	var err error
 	client.AddReactor("*", "pods", func(action core.Action) (bool, runtime.Object, error) {
 		switch action := action.(type) {
 		case core.GetAction:
 			assert.Equal(t, pod.Name, action.GetName(), "Unexpeted GetAction: %+v", action)
 		case core.UpdateAction:
-			assert.Equal(t, pod.Name, action.GetObject().(*v1.Pod).Name, "Unexpeted UpdateAction: %+v", action)
+			assert.Equal(t, pod.Name, action.GetObject().(*api.Pod).Name, "Unexpeted UpdateAction: %+v", action)
 		default:
 			assert.Fail(t, "Unexpected Action: %+v", action)
 		}
 		return true, &ret, err
 	})
 
-	pod.Status.ContainerStatuses = []v1.ContainerStatus{{State: v1.ContainerState{Running: &v1.ContainerStateRunning{}}}}
+	pod.Status.ContainerStatuses = []api.ContainerStatus{{State: api.ContainerState{Running: &api.ContainerStateRunning{}}}}
 
-	getAction := core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}}
-	updateAction := core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}}
+	getAction := core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}}
+	updateAction := core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}}
 
 	// Pod not found.
 	ret = *pod
@@ -377,7 +373,7 @@ func TestSyncBatchNoDeadlock(t *testing.T) {
 	client.ClearActions()
 
 	// Pod is terminated, but still running.
-	pod.DeletionTimestamp = new(metav1.Time)
+	pod.DeletionTimestamp = new(unversioned.Time)
 	m.SetPodStatus(pod, getRandomPodStatus())
 	m.testSyncBatch()
 	verifyActions(t, client, []core.Action{getAction, updateAction})
@@ -385,7 +381,7 @@ func TestSyncBatchNoDeadlock(t *testing.T) {
 
 	// Pod is terminated successfully.
 	pod.Status.ContainerStatuses[0].State.Running = nil
-	pod.Status.ContainerStatuses[0].State.Terminated = &v1.ContainerStateTerminated{}
+	pod.Status.ContainerStatuses[0].State.Terminated = &api.ContainerStateTerminated{}
 	m.SetPodStatus(pod, getRandomPodStatus())
 	m.testSyncBatch()
 	verifyActions(t, client, []core.Action{getAction, updateAction})
@@ -404,7 +400,7 @@ func TestStaleUpdates(t *testing.T) {
 	client := fake.NewSimpleClientset(pod)
 	m := newTestManager(client)
 
-	status := v1.PodStatus{Message: "initial status"}
+	status := api.PodStatus{Message: "initial status"}
 	m.SetPodStatus(pod, status)
 	status.Message = "first version bump"
 	m.SetPodStatus(pod, status)
@@ -415,8 +411,8 @@ func TestStaleUpdates(t *testing.T) {
 	t.Logf("First sync pushes latest status.")
 	m.testSyncBatch()
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	})
 	client.ClearActions()
 
@@ -436,8 +432,8 @@ func TestStaleUpdates(t *testing.T) {
 	m.SetPodStatus(pod, status)
 	m.testSyncBatch()
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	})
 
 	// Nothing stuck in the pipe.
@@ -445,10 +441,10 @@ func TestStaleUpdates(t *testing.T) {
 }
 
 // shuffle returns a new shuffled list of container statuses.
-func shuffle(statuses []v1.ContainerStatus) []v1.ContainerStatus {
+func shuffle(statuses []api.ContainerStatus) []api.ContainerStatus {
 	numStatuses := len(statuses)
 	randIndexes := rand.Perm(numStatuses)
-	shuffled := make([]v1.ContainerStatus, numStatuses)
+	shuffled := make([]api.ContainerStatus, numStatuses)
 	for i := 0; i < numStatuses; i++ {
 		shuffled[i] = statuses[randIndexes[i]]
 	}
@@ -456,21 +452,21 @@ func shuffle(statuses []v1.ContainerStatus) []v1.ContainerStatus {
 }
 
 func TestStatusEquality(t *testing.T) {
-	pod := v1.Pod{
-		Spec: v1.PodSpec{},
+	pod := api.Pod{
+		Spec: api.PodSpec{},
 	}
-	containerStatus := []v1.ContainerStatus{}
+	containerStatus := []api.ContainerStatus{}
 	for i := 0; i < 10; i++ {
-		s := v1.ContainerStatus{
+		s := api.ContainerStatus{
 			Name: fmt.Sprintf("container%d", i),
 		}
 		containerStatus = append(containerStatus, s)
 	}
-	podStatus := v1.PodStatus{
+	podStatus := api.PodStatus{
 		ContainerStatuses: containerStatus,
 	}
 	for i := 0; i < 10; i++ {
-		oldPodStatus := v1.PodStatus{
+		oldPodStatus := api.PodStatus{
 			ContainerStatuses: shuffle(podStatus.ContainerStatuses),
 		}
 		normalizeStatus(&pod, &oldPodStatus)
@@ -478,40 +474,6 @@ func TestStatusEquality(t *testing.T) {
 		if !isStatusEqual(&oldPodStatus, &podStatus) {
 			t.Fatalf("Order of container statuses should not affect normalized equality.")
 		}
-	}
-}
-
-func TestStatusNormalizationEnforcesMaxBytes(t *testing.T) {
-	pod := v1.Pod{
-		Spec: v1.PodSpec{},
-	}
-	containerStatus := []v1.ContainerStatus{}
-	for i := 0; i < 48; i++ {
-		s := v1.ContainerStatus{
-			Name: fmt.Sprintf("container%d", i),
-			LastTerminationState: v1.ContainerState{
-				Terminated: &v1.ContainerStateTerminated{
-					Message: strings.Repeat("abcdefgh", int(24+i%3)),
-				},
-			},
-		}
-		containerStatus = append(containerStatus, s)
-	}
-	podStatus := v1.PodStatus{
-		InitContainerStatuses: containerStatus[:24],
-		ContainerStatuses:     containerStatus[24:],
-	}
-	result := normalizeStatus(&pod, &podStatus)
-	count := 0
-	for _, s := range result.InitContainerStatuses {
-		l := len(s.LastTerminationState.Terminated.Message)
-		if l < 192 || l > 256 {
-			t.Errorf("container message had length %d", l)
-		}
-		count += l
-	}
-	if count > kubecontainer.MaxPodTerminationMessageLogLength {
-		t.Errorf("message length not truncated")
 	}
 }
 
@@ -532,7 +494,7 @@ func TestStaticPod(t *testing.T) {
 	assert.True(t, kubepod.IsStaticPod(staticPod), "SetUp error: staticPod")
 
 	status := getRandomPodStatus()
-	now := metav1.Now()
+	now := unversioned.Now()
 	status.StartTime = &now
 	m.SetPodStatus(staticPod, status)
 
@@ -558,11 +520,11 @@ func TestStaticPod(t *testing.T) {
 	// Should sync pod because the corresponding mirror pod is created
 	m.testSyncBatch()
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	})
 	updateAction := client.Actions()[1].(core.UpdateActionImpl)
-	updatedPod := updateAction.Object.(*v1.Pod)
+	updatedPod := updateAction.Object.(*api.Pod)
 	assert.Equal(t, mirrorPod.UID, updatedPod.UID, "Expected mirrorPod (%q), but got %q", mirrorPod.UID, updatedPod.UID)
 	assert.True(t, isStatusEqual(&status, &updatedPod.Status), "Expected: %+v, Got: %+v", status, updatedPod.Status)
 	client.ClearActions()
@@ -574,48 +536,20 @@ func TestStaticPod(t *testing.T) {
 	// Change mirror pod identity.
 	m.podManager.DeletePod(mirrorPod)
 	mirrorPod.UID = "new-mirror-pod"
-	mirrorPod.Status = v1.PodStatus{}
+	mirrorPod.Status = api.PodStatus{}
 	m.podManager.AddPod(mirrorPod)
 
 	// Should not update to mirror pod, because UID has changed.
 	m.testSyncBatch()
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
 	})
-}
-
-func TestTerminatePod(t *testing.T) {
-	syncer := newTestManager(&fake.Clientset{})
-	testPod := getTestPod()
-	// update the pod's status to Failed.  TerminatePod should preserve this status update.
-	firstStatus := getRandomPodStatus()
-	firstStatus.Phase = v1.PodFailed
-	syncer.SetPodStatus(testPod, firstStatus)
-
-	// set the testPod to a pod with Phase running, to simulate a stale pod
-	testPod.Status = getRandomPodStatus()
-	testPod.Status.Phase = v1.PodRunning
-
-	syncer.TerminatePod(testPod)
-
-	// we expect the container statuses to have changed to terminated
-	newStatus := expectPodStatus(t, syncer, testPod)
-	for i := range newStatus.ContainerStatuses {
-		assert.False(t, newStatus.ContainerStatuses[i].State.Terminated == nil, "expected containers to be terminated")
-	}
-	for i := range newStatus.InitContainerStatuses {
-		assert.False(t, newStatus.InitContainerStatuses[i].State.Terminated == nil, "expected init containers to be terminated")
-	}
-
-	// we expect the previous status update to be preserved.
-	assert.Equal(t, newStatus.Phase, firstStatus.Phase)
-	assert.Equal(t, newStatus.Message, firstStatus.Message)
 }
 
 func TestSetContainerReadiness(t *testing.T) {
 	cID1 := kubecontainer.ContainerID{Type: "test", ID: "1"}
 	cID2 := kubecontainer.ContainerID{Type: "test", ID: "2"}
-	containerStatuses := []v1.ContainerStatus{
+	containerStatuses := []api.ContainerStatus{
 		{
 			Name:        "c1",
 			ContainerID: cID1.String(),
@@ -626,18 +560,18 @@ func TestSetContainerReadiness(t *testing.T) {
 			Ready:       false,
 		},
 	}
-	status := v1.PodStatus{
+	status := api.PodStatus{
 		ContainerStatuses: containerStatuses,
-		Conditions: []v1.PodCondition{{
-			Type:   v1.PodReady,
-			Status: v1.ConditionFalse,
+		Conditions: []api.PodCondition{{
+			Type:   api.PodReady,
+			Status: api.ConditionFalse,
 		}},
 	}
 	pod := getTestPod()
-	pod.Spec.Containers = []v1.Container{{Name: "c1"}, {Name: "c2"}}
+	pod.Spec.Containers = []api.Container{{Name: "c1"}, {Name: "c2"}}
 
 	// Verify expected readiness of containers & pod.
-	verifyReadiness := func(step string, status *v1.PodStatus, c1Ready, c2Ready, podReady bool) {
+	verifyReadiness := func(step string, status *api.PodStatus, c1Ready, c2Ready, podReady bool) {
 		for _, c := range status.ContainerStatuses {
 			switch c.ContainerID {
 			case cID1.String():
@@ -652,9 +586,9 @@ func TestSetContainerReadiness(t *testing.T) {
 				t.Fatalf("[%s] Unexpected container: %+v", step, c)
 			}
 		}
-		if status.Conditions[0].Type != v1.PodReady {
+		if status.Conditions[0].Type != api.PodReady {
 			t.Fatalf("[%s] Unexpected condition: %+v", step, status.Conditions[0])
-		} else if ready := (status.Conditions[0].Status == v1.ConditionTrue); ready != podReady {
+		} else if ready := (status.Conditions[0].Status == api.ConditionTrue); ready != podReady {
 			t.Errorf("[%s] Expected readiness of pod to be %v but was %v", step, podReady, ready)
 		}
 	}
@@ -788,12 +722,12 @@ func TestReconcilePodStatus(t *testing.T) {
 	client.ClearActions()
 	syncer.syncBatch()
 	verifyActions(t, client, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	})
 }
 
-func expectPodStatus(t *testing.T, m *manager, pod *v1.Pod) v1.PodStatus {
+func expectPodStatus(t *testing.T, m *manager, pod *api.Pod) api.PodStatus {
 	status, ok := m.GetPodStatus(pod.UID)
 	if !ok {
 		t.Fatalf("Expected PodStatus for %q not found", pod.UID)
@@ -804,22 +738,22 @@ func expectPodStatus(t *testing.T, m *manager, pod *v1.Pod) v1.PodStatus {
 func TestDeletePods(t *testing.T) {
 	pod := getTestPod()
 	// Set the deletion timestamp.
-	pod.DeletionTimestamp = new(metav1.Time)
+	pod.DeletionTimestamp = new(unversioned.Time)
 	client := fake.NewSimpleClientset(pod)
 	m := newTestManager(client)
 	m.podManager.AddPod(pod)
 
 	status := getRandomPodStatus()
-	now := metav1.Now()
+	now := unversioned.Now()
 	status.StartTime = &now
 	m.SetPodStatus(pod, status)
 
 	m.testSyncBatch()
 	// Expect to see an delete action.
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
-		core.DeleteActionImpl{ActionImpl: core.ActionImpl{Verb: "delete", Resource: schema.GroupVersionResource{Resource: "pods"}}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.DeleteActionImpl{ActionImpl: core.ActionImpl{Verb: "delete", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
 	})
 }
 
@@ -833,7 +767,7 @@ func TestDoNotDeleteMirrorPods(t *testing.T) {
 		kubetypes.ConfigMirrorAnnotationKey: "mirror",
 	}
 	// Set the deletion timestamp.
-	mirrorPod.DeletionTimestamp = new(metav1.Time)
+	mirrorPod.DeletionTimestamp = new(unversioned.Time)
 	client := fake.NewSimpleClientset(mirrorPod)
 	m := newTestManager(client)
 	m.podManager.AddPod(staticPod)
@@ -844,14 +778,14 @@ func TestDoNotDeleteMirrorPods(t *testing.T) {
 	assert.Equal(t, m.podManager.TranslatePodUID(mirrorPod.UID), staticPod.UID)
 
 	status := getRandomPodStatus()
-	now := metav1.Now()
+	now := unversioned.Now()
 	status.StartTime = &now
 	m.SetPodStatus(staticPod, status)
 
 	m.testSyncBatch()
 	// Expect not to see an delete action.
 	verifyActions(t, m.kubeClient, []core.Action{
-		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: schema.GroupVersionResource{Resource: "pods"}}},
-		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: schema.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
+		core.GetActionImpl{ActionImpl: core.ActionImpl{Verb: "get", Resource: unversioned.GroupVersionResource{Resource: "pods"}}},
+		core.UpdateActionImpl{ActionImpl: core.ActionImpl{Verb: "update", Resource: unversioned.GroupVersionResource{Resource: "pods"}, Subresource: "status"}},
 	})
 }
