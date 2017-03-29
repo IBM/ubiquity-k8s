@@ -30,6 +30,12 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	logFile.Sync()
-	logFile.Close()
+	err := logFile.Sync()
+	if err != nil {
+		panic(err.Error())
+	}
+	err = logFile.Close()
+	if err != nil {
+		panic(err.Error())
+	}
 })

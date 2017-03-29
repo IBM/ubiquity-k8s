@@ -31,6 +31,7 @@ var _ = Describe("Controller", func() {
 
 		Context(".Attach", func() {
 			It("does not error on create with valid opts", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("Volume not found"))
 				fakeClient.CreateVolumeReturns(nil)
 				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
@@ -39,8 +40,29 @@ var _ = Describe("Controller", func() {
 				Expect(attachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(1))
 			})
+
+			It("does not error on create when volume exists", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, nil)
+				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+				attachResponse := controller.Attach(attachRequest)
+				Expect(attachResponse.Status).To(Equal("Success"))
+				Expect(attachResponse.Message).To(Equal("Volume already attached"))
+				Expect(attachResponse.Device).To(Equal("vol1"))
+				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(0))
+			})
+			It("does error on create when client fails to fetch volume", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+				attachResponse := controller.Attach(attachRequest)
+				Expect(attachResponse.Status).To(Equal("Failure"))
+				Expect(attachResponse.Message).To(Equal("Failed checking volume"))
+				Expect(attachResponse.Device).To(Equal("vol1"))
+				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(0))
+			})
+
 			It("does error on create when client fails to attach", func() {
 				err := fmt.Errorf("Spectrum internal error on attach")
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("Volume not found"))
 				fakeClient.CreateVolumeReturns(err)
 				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
@@ -85,7 +107,8 @@ var _ = Describe("Controller", func() {
 				Expect(fakeClient.AttachCallCount()).To(Equal(1))
 			})
 			AfterEach(func() {
-				os.RemoveAll("/tmp/mnt2")
+				err := os.RemoveAll("/tmp/mnt2")
+				Expect(err).ToNot(HaveOccurred())
 			})
 			It("errors when volume exists and client fails to mount it", func() {
 				err := fmt.Errorf("failed to mount volume")
