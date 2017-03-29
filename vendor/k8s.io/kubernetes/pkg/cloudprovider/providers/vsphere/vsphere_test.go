@@ -24,9 +24,9 @@ import (
 	"testing"
 
 	"golang.org/x/net/context"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/kubernetes/pkg/cloudprovider"
-	"k8s.io/kubernetes/pkg/types"
-	"k8s.io/kubernetes/pkg/util/rand"
 )
 
 func configFromEnv() (cfg VSphereConfig, ok bool) {
@@ -123,7 +123,7 @@ func TestVSphereLogin(t *testing.T) {
 	defer cancel()
 
 	// Create vSphere client
-	err = vSphereLogin(vs, ctx)
+	err = vSphereLogin(ctx, vs)
 	if err != nil {
 		t.Errorf("Failed to create vSpere client: %s", err)
 	}
@@ -161,13 +161,13 @@ func TestInstances(t *testing.T) {
 		t.Fatalf("Instances() returned false")
 	}
 
-	srvs, err := i.List("*")
+	srvs, err := vs.list("*")
 	if err != nil {
-		t.Fatalf("Instances.List() failed: %s", err)
+		t.Fatalf("list() failed: %s", err)
 	}
 
 	if len(srvs) == 0 {
-		t.Fatalf("Instances.List() returned zero servers")
+		t.Fatalf("list() returned zero servers")
 	}
 	t.Logf("Found servers (%d): %s\n", len(srvs), srvs)
 
@@ -220,17 +220,12 @@ func TestVolumes(t *testing.T) {
 		t.Fatalf("Failed to construct/authenticate vSphere: %s", err)
 	}
 
-	i, ok := vs.Instances()
-	if !ok {
-		t.Fatalf("Instances() returned false")
-	}
-
-	srvs, err := i.List("*")
+	srvs, err := vs.list("*")
 	if err != nil {
-		t.Fatalf("Instances.List() failed: %s", err)
+		t.Fatalf("list() failed: %s", err)
 	}
 	if len(srvs) == 0 {
-		t.Fatalf("Instances.List() returned zero servers")
+		t.Fatalf("list() returned zero servers")
 	}
 
 	volumeOptions := &VolumeOptions{
