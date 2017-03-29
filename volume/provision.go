@@ -6,7 +6,6 @@ import (
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.ibm.com/almaden-containers/ubiquity/resources"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -29,15 +28,14 @@ const (
 	nodeEnv      = "NODE_NAME"
 )
 
-func NewFlexProvisioner(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (controller.Provisioner, error) {
-	return newFlexProvisionerInternal(logger, client, flexClient)
+func NewFlexProvisioner(logger *log.Logger, flexClient resources.StorageClient) (controller.Provisioner, error) {
+	return newFlexProvisionerInternal(logger, flexClient)
 }
 
-func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface, flexClient resources.StorageClient) (*flexProvisioner, error) {
+func newFlexProvisionerInternal(logger *log.Logger, flexClient resources.StorageClient) (*flexProvisioner, error) {
 
 	provisioner := &flexProvisioner{
 		logger:         logger,
-		client:         client,
 		ubiquityClient: flexClient,
 		podIPEnv:       podIPEnv,
 		serviceEnv:     serviceEnv,
@@ -51,9 +49,6 @@ func newFlexProvisionerInternal(logger *log.Logger, client kubernetes.Interface,
 
 type flexProvisioner struct {
 	logger *log.Logger
-	// Client, needed for getting a service cluster IP to put as the NFS server of
-	// provisioned PVs
-	client kubernetes.Interface
 
 	// Whether the provisioner is running out of cluster and so cannot rely on
 	// the existence of any of the pod, service, namespace, node env variables.
@@ -70,12 +65,17 @@ type flexProvisioner struct {
 	nodeEnv      string
 }
 
-var _ controller.Provisioner = &flexProvisioner{}
-
 // Provision creates a volume i.e. the storage asset and returns a PV object for
 // the volume.
 func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
-	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+	if options.PVC == nil {
+		return nil, fmt.Errorf("options missing PVC %#v", options)
+	}
+	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
+	if !exists {
+		return nil, fmt.Errorf("options.PVC.Spec.Resources.Requests does not contain capacity")
+	}
+	fmt.Printf("PVC with capacity %d", capacity.Value())
 	capacityMB := capacity.Value() / (1024 * 1024)
 
 	volume_details, err := p.createVolume(options, capacityMB)
@@ -126,7 +126,9 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 
 func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64) (map[string]string, error) {
 	ubiquityParams := make(map[string]interface{})
-	ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)
+	if capacity != 0 {
+		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)
+	}
 	for key, value := range options.Parameters {
 		ubiquityParams[key] = value
 	}
