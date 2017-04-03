@@ -1,4 +1,4 @@
-package: github.com/ibm/ubiquity-k8s
+package: github.com/IBM/ubiquity-k8s
 import:
 - package: github.com/BurntSushi/toml
 - package: github.com/jessevdk/go-flags
@@ -6,7 +6,7 @@ import:
   subpackages:
   - lib/controller
   - lib/leaderelection
-- package: github.com/ibm/ubiquity
+- package: github.com/IBM/ubiquity
   version: dev
   subpackages:
   - remote

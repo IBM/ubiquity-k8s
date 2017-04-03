@@ -10,11 +10,11 @@ import (
 	"path"
 
 	"github.com/BurntSushi/toml"
+	"github.com/IBM/ubiquity-k8s/controller"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/ibm/ubiquity-k8s/controller"
 
-	"github.com/ibm/ubiquity/resources"
-	"github.com/ibm/ubiquity/utils"
+	"github.com/IBM/ubiquity/resources"
+	"github.com/IBM/ubiquity/utils"
 )
 
 var configFile = flag.String(

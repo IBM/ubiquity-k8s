@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/ibm/ubiquity/resources"
+	"github.com/IBM/ubiquity/resources"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/pkg/api/v1"
