@@ -7,9 +7,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	ctl "github.ibm.com/almaden-containers/ubiquity-k8s/controller"
-	"github.ibm.com/almaden-containers/ubiquity/fakes"
-	"github.ibm.com/almaden-containers/ubiquity/resources"
+	ctl "github.com/ibm/ubiquity-k8s/controller"
+	"github.com/ibm/ubiquity/fakes"
+	"github.com/ibm/ubiquity/resources"
 )
 
 var _ = Describe("Controller", func() {

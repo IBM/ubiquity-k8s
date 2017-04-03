@@ -53,32 +53,6 @@ ensure-packages() {
   :
 }
 
-function create-node-pki {
-  echo "Creating node pki files"
-
-  local -r pki_dir="/etc/kubernetes/pki"
-  mkdir -p "${pki_dir}"
-
-  if [[ -z "${CA_CERT_BUNDLE:-}" ]]; then
-    CA_CERT_BUNDLE="${CA_CERT}"
-  fi
-
-  CA_CERT_BUNDLE_PATH="${pki_dir}/ca-certificates.crt"
-  echo "${CA_CERT_BUNDLE}" | base64 --decode > "${CA_CERT_BUNDLE_PATH}"
-
-  if [[ ! -z "${KUBELET_CERT:-}" && ! -z "${KUBELET_KEY:-}" ]]; then
-    KUBELET_CERT_PATH="${pki_dir}/kubelet.crt"
-    echo "${KUBELET_CERT}" | base64 --decode > "${KUBELET_CERT_PATH}"
-
-    KUBELET_KEY_PATH="${pki_dir}/kubelet.key"
-    echo "${KUBELET_KEY}" | base64 --decode > "${KUBELET_KEY_PATH}"
-  fi
-
-  # TODO(mikedanese): remove this when we don't support downgrading to versions
-  # < 1.6.
-  ln -sf "${CA_CERT_BUNDLE_PATH}" /etc/kubernetes/ca.crt
-}
-
 # A hookpoint for setting up local devices
 ensure-local-disks() {
  for ssd in /dev/disk/by-id/google-local-ssd-*; do
@@ -166,6 +140,23 @@ for k,v in yaml.load(sys.stdin).iteritems():
   print("""readonly {var}={value}""".format(var = k, value = pipes.quote(str(v))))
   print("""export {var}""".format(var = k))
   ' < """${kube_env_yaml}""")"
+}
+
+function set-kube-master-certs() {
+  local kube_master_certs_yaml="${INSTALL_DIR}/kube_master_certs.yaml"
+
+  until curl-metadata kube-master-certs > "${kube_master_certs_yaml}"; do
+    echo 'Waiting for kube-master-certs...'
+    sleep 3
+  done
+
+  eval "$(python -c '
+import pipes,sys,yaml
+
+for k,v in yaml.load(sys.stdin).iteritems():
+  print("""readonly {var}={value}""".format(var = k, value = pipes.quote(str(v))))
+  print("""export {var}""".format(var = k))
+  ' < """${kube_master_certs_yaml}""")"
 }
 
 function remove-docker-artifacts() {
@@ -485,12 +476,18 @@ e2e_storage_test_environment: '$(echo "$E2E_STORAGE_TEST_ENVIRONMENT" | sed -e "
 kube_uid: '$(echo "${KUBE_UID}" | sed -e "s/'/''/g")'
 initial_etcd_cluster: '$(echo "${INITIAL_ETCD_CLUSTER:-}" | sed -e "s/'/''/g")'
 initial_etcd_cluster_state: '$(echo "${INITIAL_ETCD_CLUSTER_STATE:-}" | sed -e "s/'/''/g")'
-ca_cert_bundle_path: '$(echo "${CA_CERT_BUNDLE_PATH:-}" | sed -e "s/'/''/g")'
+
 hostname: $(hostname -s)
+enable_default_storage_class: '$(echo "$ENABLE_DEFAULT_STORAGE_CLASS" | sed -e "s/'/''/g")'
 EOF
     if [ -n "${STORAGE_BACKEND:-}" ]; then
       cat <<EOF >>/srv/salt-overlay/pillar/cluster-params.sls
 storage_backend: '$(echo "$STORAGE_BACKEND" | sed -e "s/'/''/g")'
+EOF
+    fi
+    if [ -n "${STORAGE_MEDIA_TYPE:-}" ]; then
+      cat <<EOF >>/srv/salt-overlay/pillar/cluster-params.sls
+storage_media_type: '$(echo "$STORAGE_MEDIA_TYPE" | sed -e "s/'/''/g")'
 EOF
     fi
     if [ -n "${ADMISSION_CONTROL:-}" ] && [ ${ADMISSION_CONTROL} == *"ImagePolicyWebhook"* ]; then
@@ -685,6 +682,13 @@ function create-salt-master-auth() {
         echo "${KUBECFG_KEY:-}" | base64 --decode > /srv/kubernetes/kubecfg.key)
     fi
   fi
+  if [ ! -e /srv/kubernetes/kubeapiserver.cert ]; then
+    if [[ ! -z "${KUBEAPISERVER_CERT:-}" ]] && [[ ! -z "${KUBEAPISERVER_KEY:-}" ]]; then
+      (umask 077;
+        echo "${KUBEAPISERVER_CERT}" | base64 --decode > /srv/kubernetes/kubeapiserver.cert;
+        echo "${KUBEAPISERVER_KEY}" | base64 --decode > /srv/kubernetes/kubeapiserver.key)
+    fi
+  fi
   if [ ! -e "${BASIC_AUTH_FILE}" ]; then
     mkdir -p /srv/salt-overlay/salt/kube-apiserver
     (umask 077;
@@ -723,6 +727,11 @@ function create-salt-master-kubelet-auth() {
 function create-salt-kubelet-auth() {
   local -r kubelet_kubeconfig_file="/srv/salt-overlay/salt/kubelet/kubeconfig"
   if [ ! -e "${kubelet_kubeconfig_file}" ]; then
+    # If there isn't a CA certificate set specifically for the kubelet, use
+    # the cluster CA certificate.
+    if [[ -z "${KUBELET_CA_CERT:-}" ]]; then
+      KUBELET_CA_CERT="${CA_CERT}"
+    fi
     mkdir -p /srv/salt-overlay/salt/kubelet
     (umask 077;
       cat > "${kubelet_kubeconfig_file}" <<EOF
@@ -731,13 +740,13 @@ kind: Config
 users:
 - name: kubelet
   user:
-    client-certificate: ${KUBELET_CERT_PATH}
-    client-key: ${KUBELET_KEY_PATH}
+    client-certificate-data: ${KUBELET_CERT}
+    client-key-data: ${KUBELET_KEY}
 clusters:
 - name: local
   cluster:
     server: https://kubernetes-master
-    certificate-authority: ${CA_CERT_BUNDLE_PATH}
+    certificate-authority-data: ${KUBELET_CA_CERT}
 contexts:
 - context:
     cluster: local
@@ -747,6 +756,9 @@ current-context: service-account-context
 EOF
 )
   fi
+  local -r client_ca_file="/srv/salt-overlay/salt/kubelet/ca.crt"
+  (umask 077;
+    echo "${KUBELET_CA_CERT}" | base64 --decode > "${client_ca_file}")
 }
 
 # This should happen both on cluster initialization and node upgrades.
@@ -768,7 +780,7 @@ users:
 clusters:
 - name: local
   cluster:
-    certificate-authority-data: ${CA_CERT_BUNDLE}
+    certificate-authority-data: ${CA_CERT}
 contexts:
 - context:
     cluster: local
@@ -1117,10 +1129,10 @@ if [[ -z "${is_push}" ]]; then
   set-kube-env
   auto-upgrade
   ensure-local-disks
-  create-node-pki
   [[ "${KUBERNETES_MASTER}" == "true" ]] && mount-master-pd
   create-salt-pillar
   if [[ "${KUBERNETES_MASTER}" == "true" ]]; then
+    set-kube-master-certs
     create-salt-master-auth
     create-salt-master-etcd-auth
     create-salt-master-kubelet-auth

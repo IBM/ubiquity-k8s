@@ -1,5 +1,5 @@
-hash: 42f19cae8ee93cfcab7944152a6f60c35e094fbcf144fa00f7f7f8ca421b1e3f
-updated: 2017-03-29T14:33:10.630692092-07:00
+hash: 8bbcc6f629d3f72e686a008dc9f959f55aca490ab6c01867ebd28664bcfbb6f0
+updated: 2017-04-03T13:50:45.141177921-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -73,6 +73,17 @@ imports:
   version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
+- name: github.com/ibm/ubiquity
+  version: a3f2df01de97f350d2f958857e8fa520475c83cb
+  subpackages:
+  - fakes
+  - local/spectrumscale
+  - local/spectrumscale/connectors
+  - model
+  - remote
+  - remote/mounter
+  - resources
+  - utils
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
@@ -113,17 +124,6 @@ imports:
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
-- name: github.ibm.com/almaden-containers/ubiquity
-  version: 0a204f347e345e214f47070ca3eda34a8c5bbada
-  subpackages:
-  - fakes
-  - local/spectrumscale
-  - local/spectrumscale/connectors
-  - model
-  - remote
-  - remote/mounter
-  - resources
-  - utils
 - name: golang.org/x/crypto
   version: 1f22c0103821b9390939b6776727195525381532
   subpackages:
@@ -181,6 +181,7 @@ imports:
   version: 0f8a3af747f81547246d79ca00c20af330868fa6
   subpackages:
   - pkg/types
+  - pkg/util/runtime
   - pkg/util/uuid
 - name: k8s.io/client-go
   version: e121606b0d09b2e1c467183ee46217fa85a6b672
@@ -301,12 +302,11 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 114f8911f9597be669a747ab72787e0bd74c9359
+  version: 98d693e9d24f585cb4e6615efdb3d07ec3a1616b
   subpackages:
-  - pkg/cloudprovider
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
-  - pkg/util/runtime
+  - staging/src/k8s.io/client-go/_vendor/github.com/golang/glog
 testImports:
 - name: github.com/onsi/ginkgo
   version: 74c678d97c305753605c338c6c78c49ec104b5e7

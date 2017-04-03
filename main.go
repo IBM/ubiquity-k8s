@@ -9,12 +9,12 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/ibm/ubiquity-k8s/volume"
+	"github.com/ibm/ubiquity/remote"
+	"github.com/ibm/ubiquity/resources"
+	"github.com/ibm/ubiquity/utils"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
-	"github.ibm.com/almaden-containers/ubiquity-k8s/volume"
-	"github.ibm.com/almaden-containers/ubiquity/remote"
-	"github.ibm.com/almaden-containers/ubiquity/resources"
-	"github.ibm.com/almaden-containers/ubiquity/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
