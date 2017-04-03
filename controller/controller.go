@@ -8,8 +8,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/ibm/ubiquity/remote"
-	"github.com/ibm/ubiquity/resources"
+	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/resources"
 )
 
 //Controller this is a structure that controls volume management

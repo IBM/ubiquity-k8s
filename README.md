@@ -31,7 +31,7 @@ Clone the repository and build the binary using these commands.
 ```bash
 mkdir -p $GOPATH/src/github.com/ibm
 cd $GOPATH/src/github.com/ibm
-git clone git@github.ibm.com:almaden-containers/ubiquity-k8s.git
+git clone git@github.com:ibm/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_provisioner
 ```

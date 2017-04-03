@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/pkg/api/v1"
 
-	"github.com/ibm/ubiquity-k8s/volume"
-	"github.com/ibm/ubiquity/fakes"
+	"github.com/IBM/ubiquity-k8s/volume"
+	"github.com/IBM/ubiquity/fakes"
 )
 
 var _ = Describe("Provisioner", func() {
