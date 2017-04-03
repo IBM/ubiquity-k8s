@@ -6,12 +6,12 @@ The repository contains mainly two components that could be used separately or c
 
 # Ubiquity dynamic provisioner for k8s
 
-Ubiquity provisioner facilitates creation and deletion of persistent storage, via [ubiquity](https://github.ibm.com/almaden-containers/ubiquity) service, within kubernetes
+Ubiquity provisioner facilitates creation and deletion of persistent storage, via [ubiquity](https://github.com/ibm/ubiquity) service, within kubernetes
 
 ### Prerequesites
 * Functional [kubernetes]() environment (v1.5.0 or higher is required for flexvolume support)
 * Spectrum-Scale client must be installed on the nodes
-* [Ubiquity](https://github.ibm.com/almaden-containers/ubiquity) service must be running
+* [Ubiquity](https://github.com/ibm/ubiquity) service must be running
 * Install [golang](https://golang.org/) and setup your go path
 * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
@@ -29,8 +29,8 @@ In order to create the ubiquity provisioner binary we need to start by getting t
 Clone the repository and build the binary using these commands.
 
 ```bash
-mkdir -p $GOPATH/src/github.ibm.com/almaden-containers
-cd $GOPATH/src/github.ibm.com/almaden-containers
+mkdir -p $GOPATH/src/github.com/ibm
+cd $GOPATH/src/github.com/ibm
 git clone git@github.ibm.com:almaden-containers/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_provisioner
@@ -89,16 +89,16 @@ A persistent volume should be dynamically created and bound to the claim.
 
 # Ubiquity FlexVolume Cli for k8s
 
-Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](https://github.ibm.com/almaden-containers/ubiquity) service, within kubernetes
+Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](https://github.com/ibm/ubiquity) service, within kubernetes
 
 * Creating the executable
 In order to create the ubiquity flexvolume binary we need to start by getting the repository.
 Clone the repository (if you haven't done that yet) and build the binary using these commands.
 
 ```bash
-mkdir -p $GOPATH/src/github.ibm.com/almaden-containers
-cd $GOPATH/src/github.ibm.com/almaden-containers
-git clone git@github.ibm.com:almaden-containers/ubiquity-k8s.git
+mkdir -p $GOPATH/src/github.com/ibm
+cd $GOPATH/src/github.com/ibm
+git clone git@github.com:ibm/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_flex_driver
 ```

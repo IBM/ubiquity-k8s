@@ -1,5 +1,5 @@
-hash: 5b8fe8907b8f0922fcf8ef401ffc859c0924f166e6105618ddc8e0506f6f5aa9
-updated: 2017-03-27T10:14:55.136681881-07:00
+hash: 8bbcc6f629d3f72e686a008dc9f959f55aca490ab6c01867ebd28664bcfbb6f0
+updated: 2017-04-03T13:50:45.141177921-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -9,7 +9,7 @@ imports:
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
 - name: github.com/BurntSushi/toml
-  version: bbd5bb678321a0d6e58f1099321dfa73391c1b6f
+  version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/coreos/go-oidc
   version: 5644a2f50e2d2d5ba0b474bc5bc55fea1925936d
   subpackages:
@@ -73,6 +73,17 @@ imports:
   version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
+- name: github.com/ibm/ubiquity
+  version: a3f2df01de97f350d2f958857e8fa520475c83cb
+  subpackages:
+  - fakes
+  - local/spectrumscale
+  - local/spectrumscale/connectors
+  - model
+  - remote
+  - remote/mounter
+  - resources
+  - utils
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
@@ -113,17 +124,6 @@ imports:
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
-- name: github.ibm.com/almaden-containers/ubiquity
-  version: 5aa646be17908032fdc4479c322cd27e79b6755b
-  subpackages:
-  - fakes
-  - local/spectrumscale
-  - local/spectrumscale/connectors
-  - model
-  - remote
-  - remote/mounter
-  - resources
-  - utils
 - name: golang.org/x/crypto
   version: 1f22c0103821b9390939b6776727195525381532
   subpackages:
@@ -177,6 +177,12 @@ imports:
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+- name: k8s.io/apimachinery
+  version: 0f8a3af747f81547246d79ca00c20af330868fa6
+  subpackages:
+  - pkg/types
+  - pkg/util/runtime
+  - pkg/util/uuid
 - name: k8s.io/client-go
   version: e121606b0d09b2e1c467183ee46217fa85a6b672
   subpackages:
@@ -296,12 +302,11 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 894ff23729bbc0055907dd3a496afb725396adda
+  version: 98d693e9d24f585cb4e6615efdb3d07ec3a1616b
   subpackages:
-  - pkg/cloudprovider
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
-  - pkg/util/runtime
+  - staging/src/k8s.io/client-go/_vendor/github.com/golang/glog
 testImports:
 - name: github.com/onsi/ginkgo
   version: 74c678d97c305753605c338c6c78c49ec104b5e7

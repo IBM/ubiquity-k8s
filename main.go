@@ -9,12 +9,12 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/ibm/ubiquity-k8s/volume"
+	"github.com/ibm/ubiquity/remote"
+	"github.com/ibm/ubiquity/resources"
+	"github.com/ibm/ubiquity/utils"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
-	"github.ibm.com/almaden-containers/ubiquity-k8s/volume"
-	"github.ibm.com/almaden-containers/ubiquity/remote"
-	"github.ibm.com/almaden-containers/ubiquity/resources"
-	"github.ibm.com/almaden-containers/ubiquity/utils"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -40,14 +40,14 @@ const (
 func main() {
 
 	flag.Parse()
-	logger, logFile := utils.SetupLogger("/tmp", "ubiquity-provisioner")
-	defer utils.CloseLogs(logFile)
 	var ubiquityConfig resources.UbiquityPluginConfig
 	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
 	if _, err := toml.DecodeFile(*configFile, &ubiquityConfig); err != nil {
 		fmt.Println(err)
 		return
 	}
+	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
+	defer utils.CloseLogs(logFile)
 
 	logger.Printf("Provisioner %s specified", *provisioner)
 
@@ -83,7 +83,7 @@ func main() {
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
 	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
-	flexProvisioner, err := volume.NewFlexProvisioner(logger, clientset, remoteClient)
+	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig.LogPath)
 	if err != nil {
 		panic("Error starting ubiquity client")
 	}

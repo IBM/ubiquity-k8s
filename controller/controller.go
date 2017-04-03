@@ -8,8 +8,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.ibm.com/almaden-containers/ubiquity/remote"
-	"github.ibm.com/almaden-containers/ubiquity/resources"
+	"github.com/ibm/ubiquity/remote"
+	"github.com/ibm/ubiquity/resources"
 )
 
 //Controller this is a structure that controls volume management
@@ -81,32 +81,45 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 		opts[key] = value
 	}
 
-	c.logger.Printf("Found opts: #%v\n", opts)
-	err := c.Client.CreateVolume(volumeName, opts)
-	if err != nil && err.Error() != fmt.Sprintf("Volume `%s` already exists", volumeName) {
-		attachResponse = resources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach volume: %#v", err),
-			Device:  volumeName,
-		}
-		c.logger.Printf("Failed-to-attach-volume %#v ", err)
-	} else if err != nil && err.Error() == fmt.Sprintf("Volume `%s` already exists", volumeName) {
-		attachResponse = resources.FlexVolumeResponse{
-			Status:  "Success",
-			Message: "Volume already attached",
-			Device:  volumeName,
-		}
+	c.logger.Printf("Found opts for attach request: #%v\n", opts)
 
-	} else {
-		attachResponse = resources.FlexVolumeResponse{
-			Status:  "Success",
-			Message: "Volume attached successfully",
-			Device:  volumeName,
+	_, err := c.Client.GetVolume(volumeName)
+
+	if err != nil {
+		if err.Error() == "Volume not found" {
+			err = c.Client.CreateVolume(volumeName, opts)
+			if err != nil && err.Error() != fmt.Sprintf("Volume `%s` already exists", volumeName) {
+				return resources.FlexVolumeResponse{
+					Status:  "Failure",
+					Message: fmt.Sprintf("Failed to attach volume: %#v", err),
+					Device:  volumeName,
+				}
+			} else if err != nil && err.Error() == fmt.Sprintf("Volume `%s` already exists", volumeName) {
+				return resources.FlexVolumeResponse{
+					Status:  "Success",
+					Message: "Volume already attached",
+					Device:  volumeName,
+				}
+			}
+			return resources.FlexVolumeResponse{
+				Status:  "Success",
+				Message: "Volume attached successfully",
+				Device:  volumeName,
+			}
 		}
+		return resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: "Failed checking volume",
+			Device:  volumeName}
+
 	}
 
-	c.logger.Printf("Done attach of volume: %s\n", volumeName)
-	return attachResponse
+	return resources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Volume already attached",
+		Device:  volumeName,
+	}
+
 }
 
 //Detach detaches the volume/ fileset from the pod
@@ -116,14 +129,7 @@ func (c *Controller) Detach(detachRequest resources.FlexVolumeDetachRequest) res
 
 	c.logger.Printf("detach-details %#v\n", detachRequest)
 
-	err := c.Client.RemoveVolume(detachRequest.Name, false)
-	if err != nil {
-		return resources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to detach volume %#v", err),
-			Device:  detachRequest.Name,
-		}
-	}
+	// no-op for now, will change with latest flex api update
 
 	return resources.FlexVolumeResponse{
 		Status:  "Success",
@@ -184,12 +190,11 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 				Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
 				Device:  "",
 			}
-		} else {
-			return resources.FlexVolumeResponse{
-				Status:  "Failure",
-				Message: fmt.Sprintf("Failed running mount %#v", err),
-				Device:  "",
-			}
+		}
+		return resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed running mount %#v", err),
+			Device:  "",
 		}
 	}
 
