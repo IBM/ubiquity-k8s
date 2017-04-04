@@ -1,17 +1,17 @@
 # Ubiquity-k8s
-This projects contains the needed components to manage persistent storage for kubernetes through [Ubiquity](https://github.ibm.com/almaden-containers/ubiquity) service.
+This projects contains the needed components to manage persistent storage for kubernetes through [Ubiquity](https://github.com/IBM/ubiquity) service.
 The repository contains mainly two components that could be used separately or combined according to the requirements:
 - Ubiquity dynamic provisioner
 - Ubiquity flex driver
 
 # Ubiquity dynamic provisioner for k8s
 
-Ubiquity provisioner facilitates creation and deletion of persistent storage, via [ubiquity](https://github.com/ibm/ubiquity) service, within kubernetes
+Ubiquity provisioner facilitates creation and deletion of persistent storage, via [ubiquity](https://github.com/IBM/ubiquity) service, within kubernetes
 
 ### Prerequesites
 * Functional [kubernetes]() environment (v1.5.0 or higher is required for flexvolume support)
 * Spectrum-Scale client must be installed on the nodes
-* [Ubiquity](https://github.com/ibm/ubiquity) service must be running
+* [Ubiquity](https://github.com/IBM/ubiquity) service must be running
 * Install [golang](https://golang.org/) and setup your go path
 * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
@@ -21,7 +21,7 @@ Ubiquity provisioner facilitates creation and deletion of persistent storage, vi
 mkdir -p $HOME/workspace
 export GOPATH=$HOME/workspace
 ```
-* Configure ssh-keys for github.ibm.com - go tools require password less ssh access to github. If you have not already setup ssh keys for your github.ibm profile, please follow steps in 
+* Configure ssh-keys for github.com - go tools require password less ssh access to github. If you have not already setup ssh keys for your github profile, please follow steps in 
 (https://help.github.com/enterprise/2.7/user/articles/generating-an-ssh-key/) before proceeding further.
 
 * Creating the executable
@@ -29,9 +29,9 @@ In order to create the ubiquity provisioner binary we need to start by getting t
 Clone the repository and build the binary using these commands.
 
 ```bash
-mkdir -p $GOPATH/src/github.com/ibm
-cd $GOPATH/src/github.com/ibm
-git clone git@github.com:ibm/ubiquity-k8s.git
+mkdir -p $GOPATH/src/github.com/IBM
+cd $GOPATH/src/github.com/IBM
+git clone git@github.com:IBM/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_provisioner
 ```
@@ -89,16 +89,16 @@ A persistent volume should be dynamically created and bound to the claim.
 
 # Ubiquity FlexVolume Cli for k8s
 
-Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](https://github.com/ibm/ubiquity) service, within kubernetes
+Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](https://github.com/IBM/ubiquity) service, within kubernetes
 
 * Creating the executable
 In order to create the ubiquity flexvolume binary we need to start by getting the repository.
 Clone the repository (if you haven't done that yet) and build the binary using these commands.
 
 ```bash
-mkdir -p $GOPATH/src/github.com/ibm
-cd $GOPATH/src/github.com/ibm
-git clone git@github.com:ibm/ubiquity-k8s.git
+mkdir -p $GOPATH/src/github.com/IBM
+cd $GOPATH/src/github.com/IBM
+git clone git@github.com:IBM/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_flex_driver
 ```
