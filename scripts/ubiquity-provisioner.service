@@ -1,0 +1,21 @@
+[Unit]
+Description=ubiquity k8s dynamic provisioner
+Documentation=https://github.com/IBM/ubiquity-k8s
+After=network.target
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ubiquity
+EnvironmentFile=/etc/ubiquity/ubiquity-provisioner.env
+ExecStart=/usr/bin/provisioner \
+          $UBIQUITY_CLIENT_CONFIG \
+          $KUBE_CONFIG \
+          $PROVISIONER_NAME \
+          $PROVISIONER_ARGS
+
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
