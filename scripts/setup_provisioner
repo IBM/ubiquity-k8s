@@ -8,7 +8,7 @@ mkdir -p /etc/ubiquity
 cp $scripts/../bin/provisioner /usr/bin/provisioner
 
 cp $scripts/../ubiquity-client.conf \
-/etc/ubiquity/ubiquity-client-k8.conf 
+/etc/ubiquity/ubiquity-client-k8s.conf 
 
 cp $scripts/ubiquity-provisioner.env /etc/ubiquity/ubiquity-provisioner.env
 

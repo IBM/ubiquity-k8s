@@ -1,6 +1,6 @@
 [Unit]
-Description=ubiquity k8 dynamic provisioner
-Documentation=https://github.ibm.com/almaden-containers/ubiquity-k8s
+Description=ubiquity k8s dynamic provisioner
+Documentation=https://github.com/IBM/ubiquity-k8s
 After=network.target
 After=docker.service
 Requires=docker.service
