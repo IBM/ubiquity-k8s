@@ -1,22 +1,27 @@
 # Ubiquity-k8s
 This projects contains the needed components to manage persistent storage for kubernetes through [Ubiquity](https://github.com/IBM/ubiquity) service.
-The repository contains mainly two components that could be used separately or combined according to the requirements:
-- Ubiquity dynamic provisioner
-- Ubiquity flex driver
+The repository contains two components that could be used separately or combined according to the requirements:
+- Ubiquity Dynamic Provisioner
+- Ubiquity Flex Driver
 
-# Ubiquity dynamic provisioner for k8s
+This code is provided "AS IS" and without warranty of any kind.  Any issues will be handled on a best effort basis.
 
-Ubiquity provisioner facilitates creation and deletion of persistent storage, via [ubiquity](https://github.com/IBM/ubiquity) service, within kubernetes
-
-### Prerequesites
-* Functional [kubernetes]() environment (v1.5.0 or higher is required for flexvolume support)
-* Spectrum-Scale client must be installed on the nodes
+### General Prerequesites
+* Functional [kubernetes]() environment (v1.5.x is required for flexvolume support, v1.6.x is not yet supported for the flexvolume)
 * [Ubiquity](https://github.com/IBM/ubiquity) service must be running
 * Install [golang](https://golang.org/) and setup your go path
 * Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-
-### Getting started
+* The correct storage software must be installed and configured on each of the kubernetes nodes (minions). For example:
+  * Spectrum-Scale - Ensure the Spectrum Scale client (NSD client) is installed and part of a Spectrum Scale cluster.
+  * NFS - Ensure hosts support mounting NFS file systems.
 * Configure go - GOPATH environment variable needs to be correctly set before starting the build process. Create a new directory and set it as GOPATH
+
+## Ubiquity Dynamic Provisioner 
+
+Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent storage in Kubernetes through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
+  
+### Download and build the code
+
 ```bash
 mkdir -p $HOME/workspace
 export GOPATH=$HOME/workspace
@@ -25,7 +30,7 @@ export GOPATH=$HOME/workspace
 (https://help.github.com/enterprise/2.7/user/articles/generating-an-ssh-key/) before proceeding further.
 
 * Creating the executable
-In order to create the ubiquity provisioner binary we need to start by getting the repository.
+In order to create the Ubiquity provisioner binary we need to start by getting the repository.
 Clone the repository and build the binary using these commands.
 
 ```bash
@@ -37,21 +42,7 @@ cd ubiquity-k8s
 ```
 Newly built binary (provisioner) will be in bin directory.
 
-### Running the Ubiquity dynamic provisioner
-```bash
-./bin/provisioner -config <configFile> -kubeconfig <kubeConfigDir> -provisioner <provisionerName> -retries=<number>
-```
-where:
-* provisioner: Name of the dynamic provisioner (this will be used by the storage classes)
-* configFile: Configuration file to use (defaults to `./ubiquity-client.conf`)
-* kubeconfig: Local kubernetes configuration
-* reties: Number of attempts for creating/deleting PVs for a given PVC
-
-Example:
-```bash
-./bin/provisioner -provisioner=ubiquity/flex -config=./ubiquity-client.conf -kubeconfig=$HOME/.kube/config -retries=1
-```
-### Configuring the Ubiquity details
+### Configuration
 
 Unless otherwise specified by the `configFile` command line parameter, the Ubiquity service will
 look for a file named `ubiquity-client.conf` for its configuration.
@@ -59,7 +50,7 @@ look for a file named `ubiquity-client.conf` for its configuration.
 The following snippet shows a sample configuration file:
 
 ```toml
-logPath = "/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity.log" in this path.
+logPath = "/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
 backend = "spectrum-scale" # Backend name
 
 [UbiquityServer]
@@ -67,6 +58,53 @@ address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 
 ```
+
+### Two Options to Install and Run
+
+#### Option 1: systemd
+This option assumes that the system that you are using has support for systemd (e.g., ubuntu 14.04 does not have native support to systems, ubuntu 16.04 does.)
+Please note that the script will try to start the service as user `ubiquity`. The dynamic provisioner can run under any user, so if you prefer to use a different user please change the script to use the right user. Or create the user ubiquity as described in [Ubiquity documentation](https://github.com/IBM/ubiquity).
+
+1) Change into the  ubiquity-k8s/scripts directory and run the following command:
+```bash
+./setup_provisioner
+```
+
+This will copy provisioner binary to /usr/bin, ubiquity-client-k8.conf and ubiquity-provisioner.env to  /etc/ubiquity location.  It will also enable ubiquity-provisioner service.
+
+2) Make appropriate changes to /etc/ubiquity/ubiquity-client-k8.conf  e.g. server ip/port 
+
+3) Edit /etc/ubiquity/ubiquity-provisioner.env to add/remove command line option to dynamic provisioner.
+
+4) Start and stop the Ubiquity Kubernetes Dynamic Provisioner service the following command
+```bash
+systemctl start/stop/restart ubiquity-provisioner
+```
+
+#### Option 2: Manual
+On any host in the cluster that can communicate with the Kubernetes admin node (although its probably simplest to run it on the same node as the Ubiquity server), run the following command
+
+```bash
+./bin/provisioner -config <configFile> -kubeconfig <kubeConfigDir> -provisioner <provisionerName> -retries=<number>
+```
+where:
+* provisioner: Name of the dynamic provisioner (this will be used by the storage classes)
+* configFile: Configuration file to use (defaults to `./ubiquity-client.conf`)
+* kubeconfig: Local kubernetes configuration
+* retries: Number of attempts for creating/deleting PVs for a given PVC
+
+Example:
+```bash
+./bin/provisioner -provisioner=ubiquity/flex -config=./ubiquity-client.conf -kubeconfig=$HOME/.kube/config -retries=1
+```
+
+### Testing
+In order to test the dynamic provisioner, please refer to `scripts/run_acceptance.sh` file.
+
+### Available Storage Classes
+These storage classes are described in the YAML files in `deploy` folder:
+* spectrum-scale-fileset - described in `deploy/storage_class_fileset.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets.
+* spectrum-scale-fileset-lightweight - described in `deploy/storage_class_lightweight.yml`, it allows the dynamic provisioner to create volumes out of sub-directories of filesets.
 
 
 ### Usage example:
@@ -87,12 +125,13 @@ The claim is referring to `spectrum-scale-fileset` as the storage class to be us
 A persistent volume should be dynamically created and bound to the claim.
 
 
-# Ubiquity FlexVolume Cli for k8s
+## Ubiquity FlexVolume CLI 
 
-Ubiquity flexvolume cli provides access to persistent storage, via [ubiquity](https://github.com/IBM/ubiquity) service, within kubernetes
+Ubiquity FlexVolume CLI supports attaching and detaching volumes on persistent storage using the [Ubiquity](https://github.com/IBM/ubiquity) service.
 
-* Creating the executable
-In order to create the ubiquity flexvolume binary we need to start by getting the repository.
+### Download and build the code
+
+In order to create the Ubiquity flexvolume binary we need to start by getting the repository.
 Clone the repository (if you haven't done that yet) and build the binary using these commands.
 
 ```bash
@@ -102,9 +141,9 @@ git clone git@github.com:IBM/ubiquity-k8s.git
 cd ubiquity-k8s
 ./scripts/build_flex_driver
 ```
- Newly built binary (ubiquity) will be in bin directory.
+Newly built binary (ubiquity) will be in bin directory.
 
-# Using the plugin
+### Using the plugin
 Install the ubiquity binary on all nodes in the kubelet plugin path along with its configuration file.
 
 Path for installing the plugin is:
@@ -119,11 +158,15 @@ You can use the following commands to create and install the binary in the right
 ./scripts/setup
 ```
 
+### Testing
+
+In order to test the flex driver, please refer to `scripts/flex_smoke_test.sh` file.
+
 In order to test the flexvolume within kubernetes, you can create the following pod based on the file in deploy folder (this suppose that you already used the dynamic provisioner to create the storageclass and the claim):
 ```bash
 kubectl create -f deploy/pod.yml
 ```
 
-#### Running Tests:
-In order to test the dynamic provisioner, please refer to `scripts/run_acceptance.sh` file.
-In order to test the flex driver, please refer to `scripts/flex_smoke_test.sh` file.
+## Suggestions and Questions
+
+For any questions, suggestions, or issues, please use github.
