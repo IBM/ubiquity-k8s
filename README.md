@@ -62,7 +62,7 @@ port = 9999            # TCP port on which the Ubiquity Service is listening
 ### Two Options to Install and Run
 
 #### Option 1: systemd
-This option assumes that the system that you are using has support for systemd (e.g., ubuntu 14.04 does not have native support to systems, ubuntu 16.04 does.)
+This option assumes that the system that you are using has support for systemd (e.g., ubuntu 14.04 does not have native support to systemd, ubuntu 16.04 does.)
 Please note that the script will try to start the service as user `ubiquity`. The dynamic provisioner can run under any user, so if you prefer to use a different user please change the script to use the right user. Or create the user ubiquity as described in [Ubiquity documentation](https://github.com/IBM/ubiquity).
 
 1) Change into the  ubiquity-k8s/scripts directory and run the following command:
