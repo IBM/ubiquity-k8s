@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubernetes/cmd/kube-proxy/app/options"
 	"k8s.io/kubernetes/pkg/api"
 	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/internalversion"
 	"k8s.io/kubernetes/pkg/proxy"
 	proxyconfig "k8s.io/kubernetes/pkg/proxy/config"
 	"k8s.io/kubernetes/pkg/proxy/iptables"
@@ -57,6 +58,7 @@ import (
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -217,6 +219,7 @@ func NewProxyServerDefault(config *options.ProxyServerConfig) (*ProxyServer, err
 	recorder := eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "kube-proxy", Host: hostname})
 
 	var proxier proxy.ProxyProvider
+	var servicesHandler proxyconfig.ServiceConfigHandler
 	var endpointsHandler proxyconfig.EndpointsConfigHandler
 
 	proxyMode := getProxyMode(string(config.Mode), client.Core().Nodes(), hostname, iptInterface, iptables.LinuxKernelCompatTester{})
@@ -243,22 +246,20 @@ func NewProxyServerDefault(config *options.ProxyServerConfig) (*ProxyServer, err
 			glog.Fatalf("Unable to create proxier: %v", err)
 		}
 		proxier = proxierIPTables
+		servicesHandler = proxierIPTables
 		endpointsHandler = proxierIPTables
 		// No turning back. Remove artifacts that might still exist from the userspace Proxier.
 		glog.V(0).Info("Tearing down userspace rules.")
 		userspace.CleanupLeftovers(iptInterface)
 	} else {
 		glog.V(0).Info("Using userspace Proxier.")
-		// This is a proxy.LoadBalancer which NewProxier needs but has methods we don't need for
-		// our config.EndpointsConfigHandler.
-		loadBalancer := userspace.NewLoadBalancerRR()
-		// set EndpointsConfigHandler to our loadBalancer
-		endpointsHandler = loadBalancer
-
-		var proxierUserspace proxy.ProxyProvider
-
 		if runtime.GOOS == "windows" {
-			proxierUserspace, err = winuserspace.NewProxier(
+			// This is a proxy.LoadBalancer which NewProxier needs but has methods we don't need for
+			// our config.EndpointsConfigHandler.
+			loadBalancer := winuserspace.NewLoadBalancerRR()
+			// set EndpointsConfigHandler to our loadBalancer
+			endpointsHandler = loadBalancer
+			proxierUserspace, err := winuserspace.NewProxier(
 				loadBalancer,
 				net.ParseIP(config.BindAddress),
 				netshInterface,
@@ -267,21 +268,33 @@ func NewProxyServerDefault(config *options.ProxyServerConfig) (*ProxyServer, err
 				config.IPTablesSyncPeriod.Duration,
 				config.UDPIdleTimeout.Duration,
 			)
+			if err != nil {
+				glog.Fatalf("Unable to create proxier: %v", err)
+			}
+			servicesHandler = proxierUserspace
+			proxier = proxierUserspace
 		} else {
-			proxierUserspace, err = userspace.NewProxier(
+			// This is a proxy.LoadBalancer which NewProxier needs but has methods we don't need for
+			// our config.EndpointsConfigHandler.
+			loadBalancer := userspace.NewLoadBalancerRR()
+			// set EndpointsConfigHandler to our loadBalancer
+			endpointsHandler = loadBalancer
+			proxierUserspace, err := userspace.NewProxier(
 				loadBalancer,
 				net.ParseIP(config.BindAddress),
 				iptInterface,
+				execer,
 				*utilnet.ParsePortRangeOrDie(config.PortRange),
 				config.IPTablesSyncPeriod.Duration,
 				config.IPTablesMinSyncPeriod.Duration,
 				config.UDPIdleTimeout.Duration,
 			)
+			if err != nil {
+				glog.Fatalf("Unable to create proxier: %v", err)
+			}
+			servicesHandler = proxierUserspace
+			proxier = proxierUserspace
 		}
-		if err != nil {
-			glog.Fatalf("Unable to create proxier: %v", err)
-		}
-		proxier = proxierUserspace
 		// Remove artifacts from the pure-iptables Proxier, if not on Windows.
 		if runtime.GOOS != "windows" {
 			glog.V(0).Info("Tearing down pure-iptables proxy rules.")
@@ -294,22 +307,23 @@ func NewProxyServerDefault(config *options.ProxyServerConfig) (*ProxyServer, err
 		iptInterface.AddReloadFunc(proxier.Sync)
 	}
 
+	informerFactory := informers.NewSharedInformerFactory(client, config.ConfigSyncPeriod)
+
 	// Create configs (i.e. Watches for Services and Endpoints)
 	// Note: RegisterHandler() calls need to happen before creation of Sources because sources
 	// only notify on changes, and the initial update (on process start) may be lost if no handlers
 	// are registered yet.
-	serviceConfig := proxyconfig.NewServiceConfig()
-	serviceConfig.RegisterHandler(proxier)
+	serviceConfig := proxyconfig.NewServiceConfig(informerFactory.Core().InternalVersion().Services(), config.ConfigSyncPeriod)
+	serviceConfig.RegisterHandler(servicesHandler)
+	go serviceConfig.Run(wait.NeverStop)
 
-	endpointsConfig := proxyconfig.NewEndpointsConfig()
+	endpointsConfig := proxyconfig.NewEndpointsConfig(informerFactory.Core().InternalVersion().Endpoints(), config.ConfigSyncPeriod)
 	endpointsConfig.RegisterHandler(endpointsHandler)
+	go endpointsConfig.Run(wait.NeverStop)
 
-	proxyconfig.NewSourceAPI(
-		client.Core().RESTClient(),
-		config.ConfigSyncPeriod,
-		serviceConfig.Channel("api"),
-		endpointsConfig.Channel("api"),
-	)
+	// This has to start after the calls to NewServiceConfig and NewEndpointsConfig because those
+	// functions must configure their shared informer event handlers first.
+	go informerFactory.Start(wait.NeverStop)
 
 	config.NodeRef = &clientv1.ObjectReference{
 		Kind:      "Node",
@@ -342,6 +356,7 @@ func (s *ProxyServer) Run() error {
 		http.HandleFunc("/proxyMode", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "%s", s.ProxyMode)
 		})
+		http.Handle("/metrics", prometheus.Handler())
 		configz.InstallHandler(http.DefaultServeMux)
 		go wait.Until(func() {
 			err := http.ListenAndServe(s.Config.HealthzBindAddress+":"+strconv.Itoa(int(s.Config.HealthzPort)), nil)

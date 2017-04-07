@@ -26,7 +26,7 @@ Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent sto
 mkdir -p $HOME/workspace
 export GOPATH=$HOME/workspace
 ```
-* Configure ssh-keys for github.com - go tools require password less ssh access to github. If you have not already setup ssh keys for your github profile, please follow steps in 
+* Configure ssh-keys for github.com - go tools require password less ssh access to github. If you have not already setup ssh keys for your github profile, please follow steps in
 (https://help.github.com/enterprise/2.7/user/articles/generating-an-ssh-key/) before proceeding further.
 
 * Creating the executable
@@ -58,6 +58,15 @@ address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 
 ```
+
+If you need to use spectrum-scale-nfs backend, you need also to add the spectrum-scale nfs configuration:
+
+```toml
+[SpectrumNfsRemoteConfig]
+ClientConfig = "192.168.1.0/24(Access_Type=RW,Protocols=3:4,Transports=TCP:UDP)"
+```
+
+Where the ClientConfig contains the CIDR that the node where the volume will be mounted belongs to.
 
 ### Two Options to Install and Run
 
@@ -106,6 +115,7 @@ These storage classes are described in the YAML files in `deploy` folder:
 * spectrum-scale-fileset - described in `deploy/storage_class_fileset.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets.
 * spectrum-scale-fileset-lightweight - described in `deploy/storage_class_lightweight.yml`, it allows the dynamic provisioner to create volumes out of sub-directories of filesets.
 
+* spectrum-scale-fileset-nfs - described in `deploy/storage_class_fileset_nfs.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets based on NFS.
 
 ### Usage example:
 In order to test the dynamic provisioner create a storage class:

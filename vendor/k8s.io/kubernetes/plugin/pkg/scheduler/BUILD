@@ -40,8 +40,10 @@ go_library(
     deps = [
         "//pkg/api/v1:go_default_library",
         "//pkg/client/clientset_generated/clientset:go_default_library",
+        "//pkg/client/listers/core/v1:go_default_library",
         "//plugin/pkg/scheduler/algorithm:go_default_library",
         "//plugin/pkg/scheduler/api:go_default_library",
+        "//plugin/pkg/scheduler/core:go_default_library",
         "//plugin/pkg/scheduler/metrics:go_default_library",
         "//plugin/pkg/scheduler/schedulercache:go_default_library",
         "//plugin/pkg/scheduler/util:go_default_library",

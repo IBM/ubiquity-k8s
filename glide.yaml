@@ -3,6 +3,7 @@ import:
 - package: github.com/BurntSushi/toml
 - package: github.com/jessevdk/go-flags
 - package: github.com/kubernetes-incubator/external-storage
+  version: 7ed750505f701c978a79ebf001cc37fc529d73d0
   subpackages:
   - lib/controller
   - lib/leaderelection
@@ -13,15 +14,31 @@ import:
   - resources
   - utils
 - package: k8s.io/client-go
+  version: v2.0.0
   subpackages:
   - kubernetes
+  - kubernetes/typed/core/v1
+  - pkg/api
+  - pkg/api/errors
+  - pkg/api/unversioned
   - pkg/api/v1
+  - pkg/apis/storage/v1beta1
+  - pkg/fields
+  - pkg/runtime
+  - pkg/types
+  - pkg/util/runtime
+  - pkg/util/uuid
   - pkg/util/wait
-  - rest
-  - tools/clientcmd
+  - pkg/version
+  - pkg/watch
+  - tools/cache
+  - tools/record
 - package: k8s.io/apimachinery
   subpackages:
   - pkg/types
+- package: k8s.io/kubernetes
+  subpackages:
+  - pkg/util/goroutinemap
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega
