@@ -27,6 +27,7 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm"
 	schedulerapi "k8s.io/kubernetes/plugin/pkg/scheduler/api"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/schedulercache"
+	schedulertesting "k8s.io/kubernetes/plugin/pkg/scheduler/testing"
 )
 
 type fitPredicate func(pod *v1.Pod, node *v1.Node) (bool, error)
@@ -104,12 +105,13 @@ func machine2Prioritizer(_ *v1.Pod, nodeNameToInfo map[string]*schedulercache.No
 }
 
 type FakeExtender struct {
-	predicates   []fitPredicate
-	prioritizers []priorityConfig
-	weight       int
+	predicates       []fitPredicate
+	prioritizers     []priorityConfig
+	weight           int
+	nodeCacheCapable bool
 }
 
-func (f *FakeExtender) Filter(pod *v1.Pod, nodes []*v1.Node) ([]*v1.Node, schedulerapi.FailedNodesMap, error) {
+func (f *FakeExtender) Filter(pod *v1.Pod, nodes []*v1.Node, nodeNameToInfo map[string]*schedulercache.NodeInfo) ([]*v1.Node, schedulerapi.FailedNodesMap, error) {
 	filtered := []*v1.Node{}
 	failedNodesMap := schedulerapi.FailedNodesMap{}
 	for _, node := range nodes {
@@ -129,6 +131,10 @@ func (f *FakeExtender) Filter(pod *v1.Pod, nodes []*v1.Node) ([]*v1.Node, schedu
 		} else {
 			failedNodesMap[node.Name] = "FakeExtender failed"
 		}
+	}
+
+	if f.nodeCacheCapable {
+		return filtered, failedNodesMap, nil
 	}
 	return filtered, failedNodesMap, nil
 }
@@ -287,9 +293,9 @@ func TestGenericSchedulerWithExtenders(t *testing.T) {
 			cache.AddNode(&v1.Node{ObjectMeta: metav1.ObjectMeta{Name: name}})
 		}
 		scheduler := NewGenericScheduler(
-			cache, test.predicates, algorithm.EmptyMetadataProducer, test.prioritizers, algorithm.EmptyMetadataProducer, extenders)
+			cache, nil, test.predicates, algorithm.EmptyMetadataProducer, test.prioritizers, algorithm.EmptyMetadataProducer, extenders)
 		podIgnored := &v1.Pod{}
-		machine, err := scheduler.Schedule(podIgnored, algorithm.FakeNodeLister(makeNodeList(test.nodes)))
+		machine, err := scheduler.Schedule(podIgnored, schedulertesting.FakeNodeLister(makeNodeList(test.nodes)))
 		if test.expectsErr {
 			if err == nil {
 				t.Errorf("Unexpected non-error for %s, machine %s", test.name, machine)

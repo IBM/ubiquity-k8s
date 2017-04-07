@@ -42,5 +42,3 @@ flycheck_*.el
 /nfs/nfs-provisioner
 /nfs/deploy/docker/nfs-provisioner
 *.pyc
-
-.idea/

@@ -79,6 +79,14 @@ func (plugin *photonPersistentDiskPlugin) RequiresRemount() bool {
 	return false
 }
 
+func (plugin *photonPersistentDiskPlugin) SupportsMountOption() bool {
+	return true
+}
+
+func (plugin *photonPersistentDiskPlugin) SupportsBulkVolumeVerification() bool {
+	return false
+}
+
 func (plugin *photonPersistentDiskPlugin) NewMounter(spec *volume.Spec, pod *v1.Pod, _ volume.VolumeOptions) (volume.Mounter, error) {
 	return plugin.newMounterInternal(spec, pod.UID, &PhotonDiskUtil{}, plugin.host.GetMounter())
 }
@@ -143,7 +151,7 @@ func (plugin *photonPersistentDiskPlugin) ConstructVolumeSpec(volumeSpecName, mo
 // Abstract interface to disk operations.
 type pdManager interface {
 	// Creates a volume
-	CreateVolume(provisioner *photonPersistentDiskProvisioner) (pdID string, volumeSizeGB int, err error)
+	CreateVolume(provisioner *photonPersistentDiskProvisioner) (pdID string, volumeSizeGB int, fstype string, err error)
 	// Deletes a volume
 	DeleteVolume(deleter *photonPersistentDiskDeleter) error
 }
@@ -334,9 +342,13 @@ func (plugin *photonPersistentDiskPlugin) newProvisionerInternal(options volume.
 }
 
 func (p *photonPersistentDiskProvisioner) Provision() (*v1.PersistentVolume, error) {
-	pdID, sizeGB, err := p.manager.CreateVolume(p)
+	pdID, sizeGB, fstype, err := p.manager.CreateVolume(p)
 	if err != nil {
 		return nil, err
+	}
+
+	if fstype == "" {
+		fstype = "ext4"
 	}
 
 	pv := &v1.PersistentVolume{
@@ -356,7 +368,7 @@ func (p *photonPersistentDiskProvisioner) Provision() (*v1.PersistentVolume, err
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				PhotonPersistentDisk: &v1.PhotonPersistentDiskVolumeSource{
 					PdID:   pdID,
-					FSType: "ext4",
+					FSType: fstype,
 				},
 			},
 		},
