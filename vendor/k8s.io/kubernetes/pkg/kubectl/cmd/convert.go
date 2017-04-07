@@ -25,10 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
+	"k8s.io/kubernetes/pkg/printers"
 	"k8s.io/kubernetes/pkg/util/i18n"
 
 	"github.com/spf13/cobra"
@@ -96,7 +96,7 @@ type ConvertOptions struct {
 
 	encoder runtime.Encoder
 	out     io.Writer
-	printer kubectl.ResourcePrinter
+	printer printers.ResourcePrinter
 
 	outputVersion schema.GroupVersion
 }
@@ -132,9 +132,9 @@ func (o *ConvertOptions) Complete(f cmdutil.Factory, out io.Writer, cmd *cobra.C
 
 	if o.local {
 		fmt.Fprintln(os.Stderr, "running in local mode...")
-		o.builder = resource.NewBuilder(mapper, typer, resource.DisabledClientForMapping{ClientMapper: clientMapper}, f.Decoder(true))
+		o.builder = resource.NewBuilder(mapper, f.CategoryExpander(), typer, resource.DisabledClientForMapping{ClientMapper: clientMapper}, f.Decoder(true))
 	} else {
-		o.builder = resource.NewBuilder(mapper, typer, clientMapper, f.Decoder(true))
+		o.builder = resource.NewBuilder(mapper, f.CategoryExpander(), typer, clientMapper, f.Decoder(true))
 		schema, err := f.Validator(cmdutil.GetFlagBool(cmd, "validate"), cmdutil.GetFlagString(cmd, "schema-cache-dir"))
 		if err != nil {
 			return err
@@ -160,9 +160,11 @@ func (o *ConvertOptions) Complete(f cmdutil.Factory, out io.Writer, cmd *cobra.C
 		} else {
 			outputFormat = "template"
 		}
+		// TODO: once printing is abstracted, this should be handled at flag declaration time
+		cmd.Flags().Set("output", outputFormat)
 	}
 	o.encoder = f.JSONEncoder()
-	o.printer, _, err = kubectl.GetPrinter(outputFormat, templateFile, false, cmdutil.GetFlagBool(cmd, "allow-missing-template-keys"))
+	o.printer, _, err = f.PrinterForCommand(cmd)
 	if err != nil {
 		return err
 	}

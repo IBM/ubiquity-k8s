@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	clientv1 "k8s.io/client-go/pkg/api/v1"
@@ -45,6 +46,11 @@ import (
 
 const (
 	allClustersKey = "ALL_CLUSTERS"
+	ControllerName = "namespaces"
+)
+
+var (
+	RequiredResources = []schema.GroupVersionResource{apiv1.SchemeGroupVersion.WithResource("namespaces")}
 )
 
 type NamespaceController struct {
@@ -359,7 +365,7 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 	if baseNamespace.DeletionTimestamp != nil {
 		if err := nc.delete(baseNamespace); err != nil {
 			glog.Errorf("Failed to delete %s: %v", namespace, err)
-			nc.eventRecorder.Eventf(baseNamespace, api.EventTypeNormal, "DeleteFailed",
+			nc.eventRecorder.Eventf(baseNamespace, api.EventTypeWarning, "DeleteFailed",
 				"Namespace delete failed: %v", err)
 			nc.deliverNamespace(namespace, 0, true)
 		}
@@ -438,7 +444,7 @@ func (nc *NamespaceController) reconcileNamespace(namespace string) {
 	glog.V(2).Infof("Updating namespace %s in underlying clusters. Operations: %d", baseNamespace.Name, len(operations))
 
 	err = nc.federatedUpdater.UpdateWithOnError(operations, nc.updateTimeout, func(op util.FederatedOperation, operror error) {
-		nc.eventRecorder.Eventf(baseNamespace, api.EventTypeNormal, "UpdateInClusterFailed",
+		nc.eventRecorder.Eventf(baseNamespace, api.EventTypeWarning, "UpdateInClusterFailed",
 			"Namespace update in cluster %s failed: %v", op.ClusterName, operror)
 	})
 	if err != nil {

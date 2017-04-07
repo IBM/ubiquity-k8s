@@ -172,57 +172,6 @@ func TestGetChainLinesMultipleTables(t *testing.T) {
 	checkAllLines(t, utiliptables.TableNAT, []byte(iptables_save), expected)
 }
 
-func TestExecConntrackTool(t *testing.T) {
-	fcmd := exec.FakeCmd{
-		CombinedOutputScript: []exec.FakeCombinedOutputAction{
-			func() ([]byte, error) { return []byte("1 flow entries have been deleted"), nil },
-			func() ([]byte, error) { return []byte("1 flow entries have been deleted"), nil },
-			func() ([]byte, error) {
-				return []byte(""), fmt.Errorf("conntrack v1.4.2 (conntrack-tools): 0 flow entries have been deleted.")
-			},
-		},
-	}
-	fexec := exec.FakeExec{
-		CommandScript: []exec.FakeCommandAction{
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-		},
-		LookPathFunc: func(cmd string) (string, error) { return cmd, nil },
-	}
-
-	fakeProxier := Proxier{exec: &fexec}
-
-	testCases := [][]string{
-		{"-L", "-p", "udp"},
-		{"-D", "-p", "udp", "-d", "10.0.240.1"},
-		{"-D", "-p", "udp", "--orig-dst", "10.240.0.2", "--dst-nat", "10.0.10.2"},
-	}
-
-	expectErr := []bool{false, false, true}
-
-	for i := range testCases {
-		err := fakeProxier.execConntrackTool(testCases[i]...)
-
-		if expectErr[i] {
-			if err == nil {
-				t.Errorf("expected err, got %v", err)
-			}
-		} else {
-			if err != nil {
-				t.Errorf("expected success, got %v", err)
-			}
-		}
-
-		execCmd := strings.Join(fcmd.CombinedOutputLog[i], " ")
-		expectCmd := fmt.Sprintf("%s %s", "conntrack", strings.Join(testCases[i], " "))
-
-		if execCmd != expectCmd {
-			t.Errorf("expect execute command: %s, but got: %s", expectCmd, execCmd)
-		}
-	}
-}
-
 func newFakeServiceInfo(service proxy.ServicePortName, ip net.IP, port int, protocol api.Protocol, onlyNodeLocalEndpoints bool) *serviceInfo {
 	return &serviceInfo{
 		sessionAffinityType:    api.ServiceAffinityNone, // default
@@ -292,54 +241,6 @@ func TestDeleteEndpointConnections(t *testing.T) {
 
 		if expectCommandExecCount != fexec.CommandCalls {
 			t.Errorf("Exepect comand executed %d times, but got %d", expectCommandExecCount, fexec.CommandCalls)
-		}
-	}
-}
-
-func TestDeleteServiceConnections(t *testing.T) {
-	fcmd := exec.FakeCmd{
-		CombinedOutputScript: []exec.FakeCombinedOutputAction{
-			func() ([]byte, error) { return []byte("1 flow entries have been deleted"), nil },
-			func() ([]byte, error) { return []byte("1 flow entries have been deleted"), nil },
-			func() ([]byte, error) {
-				return []byte(""), fmt.Errorf("conntrack v1.4.2 (conntrack-tools): 0 flow entries have been deleted.")
-			},
-		},
-	}
-	fexec := exec.FakeExec{
-		CommandScript: []exec.FakeCommandAction{
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-			func(cmd string, args ...string) exec.Cmd { return exec.InitFakeCmd(&fcmd, cmd, args...) },
-		},
-		LookPathFunc: func(cmd string) (string, error) { return cmd, nil },
-	}
-
-	fakeProxier := Proxier{exec: &fexec}
-
-	testCases := [][]string{
-		{
-			"10.240.0.3",
-			"10.240.0.5",
-		},
-		{
-			"10.240.0.4",
-		},
-	}
-
-	svcCount := 0
-	for i := range testCases {
-		fakeProxier.deleteServiceConnections(testCases[i])
-		for _, ip := range testCases[i] {
-			expectCommand := fmt.Sprintf("conntrack -D --orig-dst %s -p udp", ip)
-			execCommand := strings.Join(fcmd.CombinedOutputLog[svcCount], " ")
-			if expectCommand != execCommand {
-				t.Errorf("Exepect comand: %s, but executed %s", expectCommand, execCommand)
-			}
-			svcCount += 1
-		}
-		if svcCount != fexec.CommandCalls {
-			t.Errorf("Exepect comand executed %d times, but got %d", svcCount, fexec.CommandCalls)
 		}
 	}
 }
@@ -464,16 +365,16 @@ func NewFakeProxier(ipt utiliptables.Interface) *Proxier {
 	// TODO: Call NewProxier after refactoring out the goroutine
 	// invocation into a Run() method.
 	return &Proxier{
-		exec:                      &exec.FakeExec{},
-		serviceMap:                make(map[proxy.ServicePortName]*serviceInfo),
-		iptables:                  ipt,
-		clusterCIDR:               "10.0.0.0/24",
-		allEndpoints:              []api.Endpoints{},
-		haveReceivedServiceUpdate: true,
-		hostname:                  testHostname,
-		portsMap:                  make(map[localPort]closeable),
-		portMapper:                &fakePortOpener{[]*localPort{}},
-		healthChecker:             fakeHealthChecker{},
+		exec:          &exec.FakeExec{},
+		serviceMap:    make(map[proxy.ServicePortName]*serviceInfo),
+		iptables:      ipt,
+		clusterCIDR:   "10.0.0.0/24",
+		allEndpoints:  []*api.Endpoints{},
+		allServices:   []*api.Service{},
+		hostname:      testHostname,
+		portsMap:      make(map[localPort]closeable),
+		portMapper:    &fakePortOpener{[]*localPort{}},
+		healthChecker: fakeHealthChecker{},
 	}
 }
 
@@ -645,7 +546,7 @@ func TestClusterIPReject(t *testing.T) {
 
 	svc := proxy.ServicePortName{NamespacedName: types.NamespacedName{Namespace: "ns1", Name: svcName}, Port: "p80"}
 	fp.serviceMap[svc] = newFakeServiceInfo(svc, svcIP, 80, api.ProtocolTCP, false)
-	fp.syncProxyRules()
+	fp.syncProxyRules(syncReasonForce)
 
 	svcChain := string(servicePortChainName(svc, strings.ToLower(string(api.ProtocolTCP))))
 	svcRules := ipt.GetRules(svcChain)
@@ -669,7 +570,7 @@ func TestClusterIPEndpointsJump(t *testing.T) {
 	ip := "10.180.0.1"
 	port := 80
 	ep := fmt.Sprintf("%s:%d", ip, port)
-	allEndpoints := []api.Endpoints{
+	allEndpoints := []*api.Endpoints{
 		makeTestEndpoints("ns1", svcName, func(ept *api.Endpoints) {
 			ept.Subsets = []api.EndpointSubset{{
 				Addresses: []api.EndpointAddress{{
@@ -723,7 +624,7 @@ func TestLoadBalancer(t *testing.T) {
 
 	ip := "10.180.0.1"
 	port := 80
-	fp.allEndpoints = []api.Endpoints{
+	fp.allEndpoints = []*api.Endpoints{
 		makeTestEndpoints("ns1", svcName, func(ept *api.Endpoints) {
 			ept.Subsets = []api.EndpointSubset{{
 				Addresses: []api.EndpointAddress{{
@@ -737,7 +638,7 @@ func TestLoadBalancer(t *testing.T) {
 		}),
 	}
 
-	fp.syncProxyRules()
+	fp.syncProxyRules(syncReasonForce)
 
 	proto := strings.ToLower(string(api.ProtocolTCP))
 	fwChain := string(serviceFirewallChainName(svc, proto))
@@ -768,7 +669,7 @@ func TestNodePort(t *testing.T) {
 
 	ip := "10.180.0.1"
 	port := 80
-	fp.allEndpoints = []api.Endpoints{
+	fp.allEndpoints = []*api.Endpoints{
 		makeTestEndpoints("ns1", svcName, func(ept *api.Endpoints) {
 			ept.Subsets = []api.EndpointSubset{{
 				Addresses: []api.EndpointAddress{{
@@ -782,7 +683,7 @@ func TestNodePort(t *testing.T) {
 		}),
 	}
 
-	fp.syncProxyRules()
+	fp.syncProxyRules(syncReasonForce)
 
 	proto := strings.ToLower(string(api.ProtocolTCP))
 	svcChain := string(servicePortChainName(svc, strings.ToLower(proto)))
@@ -790,6 +691,25 @@ func TestNodePort(t *testing.T) {
 	kubeNodePortRules := ipt.GetRules(string(kubeNodePortsChain))
 	if !hasJump(kubeNodePortRules, svcChain, "", svcInfo.nodePort) {
 		errorf(fmt.Sprintf("Failed to find jump to svc chain %v", svcChain), kubeNodePortRules, t)
+	}
+}
+
+func TestNodePortReject(t *testing.T) {
+	ipt := iptablestest.NewFake()
+	fp := NewFakeProxier(ipt)
+	svcName := "svc1"
+	svcIP := net.IPv4(10, 20, 30, 41)
+
+	svc := proxy.ServicePortName{NamespacedName: types.NamespacedName{Namespace: "ns1", Name: svcName}, Port: "p80"}
+	svcInfo := newFakeServiceInfo(svc, svcIP, 80, api.ProtocolTCP, false)
+	svcInfo.nodePort = 3001
+	fp.serviceMap[svc] = svcInfo
+
+	fp.syncProxyRules(syncReasonForce)
+
+	kubeSvcRules := ipt.GetRules(string(kubeServicesChain))
+	if !hasJump(kubeSvcRules, iptablestest.Reject, svcIP.String(), 3001) {
+		errorf(fmt.Sprintf("Failed to find a %v rule for service %v with no endpoints", iptablestest.Reject, svcName), kubeSvcRules, t)
 	}
 }
 
@@ -812,7 +732,7 @@ func TestOnlyLocalLoadBalancing(t *testing.T) {
 	port := 80
 	nonLocalEp := fmt.Sprintf("%s:%d", ip1, port)
 	localEp := fmt.Sprintf("%s:%d", ip2, port)
-	allEndpoints := []api.Endpoints{
+	allEndpoints := []*api.Endpoints{
 		makeTestEndpoints("ns1", svcName, func(ept *api.Endpoints) {
 			ept.Subsets = []api.EndpointSubset{{
 				Addresses: []api.EndpointAddress{{
@@ -890,7 +810,7 @@ func onlyLocalNodePorts(t *testing.T, fp *Proxier, ipt *iptablestest.FakeIPTable
 	port := 80
 	nonLocalEp := fmt.Sprintf("%s:%d", ip1, port)
 	localEp := fmt.Sprintf("%s:%d", ip2, port)
-	allEndpoints := []api.Endpoints{
+	allEndpoints := []*api.Endpoints{
 		makeTestEndpoints("ns1", svcName, func(ept *api.Endpoints) {
 			ept.Subsets = []api.EndpointSubset{{
 				Addresses: []api.EndpointAddress{{
@@ -938,8 +858,8 @@ func onlyLocalNodePorts(t *testing.T, fp *Proxier, ipt *iptablestest.FakeIPTable
 	}
 }
 
-func makeTestService(namespace, name string, svcFunc func(*api.Service)) api.Service {
-	svc := api.Service{
+func makeTestService(namespace, name string, svcFunc func(*api.Service)) *api.Service {
+	svc := &api.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -947,7 +867,7 @@ func makeTestService(namespace, name string, svcFunc func(*api.Service)) api.Ser
 		Spec:   api.ServiceSpec{},
 		Status: api.ServiceStatus{},
 	}
-	svcFunc(&svc)
+	svcFunc(svc)
 	return svc
 }
 
@@ -963,7 +883,7 @@ func addTestPort(array []api.ServicePort, name string, protocol api.Protocol, po
 }
 
 func TestBuildServiceMapAddRemove(t *testing.T) {
-	services := []api.Service{
+	services := []*api.Service{
 		makeTestService("somewhere-else", "cluster-ip", func(svc *api.Service) {
 			svc.Spec.Type = api.ServiceTypeClusterIP
 			svc.Spec.ClusterIP = "172.16.55.4"
@@ -1006,7 +926,7 @@ func TestBuildServiceMapAddRemove(t *testing.T) {
 		}),
 	}
 
-	serviceMap, hcAdd, hcDel, staleUDPServices := buildServiceMap(services, make(proxyServiceMap))
+	serviceMap, hcAdd, hcDel, staleUDPServices := buildNewServiceMap(services, make(proxyServiceMap))
 	if len(serviceMap) != 8 {
 		t.Errorf("expected service map length 8, got %v", serviceMap)
 	}
@@ -1039,9 +959,9 @@ func TestBuildServiceMapAddRemove(t *testing.T) {
 	}
 
 	// Remove some stuff
-	services = []api.Service{services[0]}
+	services = []*api.Service{services[0]}
 	services[0].Spec.Ports = []api.ServicePort{services[0].Spec.Ports[1]}
-	serviceMap, hcAdd, hcDel, staleUDPServices = buildServiceMap(services, serviceMap)
+	serviceMap, hcAdd, hcDel, staleUDPServices = buildNewServiceMap(services, serviceMap)
 	if len(serviceMap) != 1 {
 		t.Errorf("expected service map length 1, got %v", serviceMap)
 	}
@@ -1079,7 +999,7 @@ func TestBuildServiceMapAddRemove(t *testing.T) {
 }
 
 func TestBuildServiceMapServiceHeadless(t *testing.T) {
-	services := []api.Service{
+	services := []*api.Service{
 		makeTestService("somewhere-else", "headless", func(svc *api.Service) {
 			svc.Spec.Type = api.ServiceTypeClusterIP
 			svc.Spec.ClusterIP = api.ClusterIPNone
@@ -1088,7 +1008,7 @@ func TestBuildServiceMapServiceHeadless(t *testing.T) {
 	}
 
 	// Headless service should be ignored
-	serviceMap, hcAdd, hcDel, staleUDPServices := buildServiceMap(services, make(proxyServiceMap))
+	serviceMap, hcAdd, hcDel, staleUDPServices := buildNewServiceMap(services, make(proxyServiceMap))
 	if len(serviceMap) != 0 {
 		t.Errorf("expected service map length 0, got %d", len(serviceMap))
 	}
@@ -1107,7 +1027,7 @@ func TestBuildServiceMapServiceHeadless(t *testing.T) {
 }
 
 func TestBuildServiceMapServiceTypeExternalName(t *testing.T) {
-	services := []api.Service{
+	services := []*api.Service{
 		makeTestService("somewhere-else", "external-name", func(svc *api.Service) {
 			svc.Spec.Type = api.ServiceTypeExternalName
 			svc.Spec.ClusterIP = "172.16.55.4" // Should be ignored
@@ -1116,7 +1036,7 @@ func TestBuildServiceMapServiceTypeExternalName(t *testing.T) {
 		}),
 	}
 
-	serviceMap, hcAdd, hcDel, staleUDPServices := buildServiceMap(services, make(proxyServiceMap))
+	serviceMap, hcAdd, hcDel, staleUDPServices := buildNewServiceMap(services, make(proxyServiceMap))
 	if len(serviceMap) != 0 {
 		t.Errorf("expected service map length 0, got %v", serviceMap)
 	}
@@ -1133,7 +1053,7 @@ func TestBuildServiceMapServiceTypeExternalName(t *testing.T) {
 }
 
 func TestBuildServiceMapServiceUpdate(t *testing.T) {
-	first := []api.Service{
+	first := []*api.Service{
 		makeTestService("somewhere", "some-service", func(svc *api.Service) {
 			svc.Spec.Type = api.ServiceTypeClusterIP
 			svc.Spec.ClusterIP = "172.16.55.4"
@@ -1142,7 +1062,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 		}),
 	}
 
-	second := []api.Service{
+	second := []*api.Service{
 		makeTestService("somewhere", "some-service", func(svc *api.Service) {
 			svc.ObjectMeta.Annotations = map[string]string{
 				service.BetaAnnotationExternalTraffic:     service.AnnotationValueExternalTrafficLocal,
@@ -1161,7 +1081,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 		}),
 	}
 
-	serviceMap, hcAdd, hcDel, staleUDPServices := buildServiceMap(first, make(proxyServiceMap))
+	serviceMap, hcAdd, hcDel, staleUDPServices := buildNewServiceMap(first, make(proxyServiceMap))
 	if len(serviceMap) != 2 {
 		t.Errorf("expected service map length 2, got %v", serviceMap)
 	}
@@ -1177,7 +1097,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 	}
 
 	// Change service to load-balancer
-	serviceMap, hcAdd, hcDel, staleUDPServices = buildServiceMap(second, serviceMap)
+	serviceMap, hcAdd, hcDel, staleUDPServices = buildNewServiceMap(second, serviceMap)
 	if len(serviceMap) != 2 {
 		t.Errorf("expected service map length 2, got %v", serviceMap)
 	}
@@ -1193,7 +1113,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 
 	// No change; make sure the service map stays the same and there are
 	// no health-check changes
-	serviceMap, hcAdd, hcDel, staleUDPServices = buildServiceMap(second, serviceMap)
+	serviceMap, hcAdd, hcDel, staleUDPServices = buildNewServiceMap(second, serviceMap)
 	if len(serviceMap) != 2 {
 		t.Errorf("expected service map length 2, got %v", serviceMap)
 	}
@@ -1208,7 +1128,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 	}
 
 	// And back to ClusterIP
-	serviceMap, hcAdd, hcDel, staleUDPServices = buildServiceMap(first, serviceMap)
+	serviceMap, hcAdd, hcDel, staleUDPServices = buildNewServiceMap(first, serviceMap)
 	if len(serviceMap) != 2 {
 		t.Errorf("expected service map length 2, got %v", serviceMap)
 	}
@@ -1227,7 +1147,7 @@ func TestBuildServiceMapServiceUpdate(t *testing.T) {
 // This is a coarse test, but it offers some modicum of confidence as the code is evolved.
 func Test_accumulateEndpointsMap(t *testing.T) {
 	testCases := []struct {
-		newEndpoints api.Endpoints
+		newEndpoints *api.Endpoints
 		oldEndpoints map[proxy.ServicePortName][]*endpointsInfo
 		expectedNew  map[proxy.ServicePortName][]*endpointsInfo
 	}{{
@@ -1435,9 +1355,8 @@ func Test_accumulateEndpointsMap(t *testing.T) {
 
 	for tci, tc := range testCases {
 		// outputs
-		newEndpoints := map[proxy.ServicePortName][]*endpointsInfo{}
-		svcPortToInfoMap := map[proxy.ServicePortName][]hostPortInfo{}
-		accumulateEndpointsMap(&tc.newEndpoints, "host", tc.oldEndpoints, &newEndpoints, &svcPortToInfoMap)
+		newEndpoints := make(proxyEndpointMap)
+		accumulateEndpointsMap(tc.newEndpoints, "host", tc.oldEndpoints, &newEndpoints)
 
 		if len(newEndpoints) != len(tc.expectedNew) {
 			t.Errorf("[%d] expected %d new, got %d: %v", tci, len(tc.expectedNew), len(newEndpoints), spew.Sdump(newEndpoints))
@@ -1456,14 +1375,14 @@ func Test_accumulateEndpointsMap(t *testing.T) {
 	}
 }
 
-func makeTestEndpoints(namespace, name string, eptFunc func(*api.Endpoints)) api.Endpoints {
-	ept := api.Endpoints{
+func makeTestEndpoints(namespace, name string, eptFunc func(*api.Endpoints)) *api.Endpoints {
+	ept := &api.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
 	}
-	eptFunc(&ept)
+	eptFunc(ept)
 	return ept
 }
 
@@ -1477,21 +1396,21 @@ func makeServicePortName(ns, name, port string) proxy.ServicePortName {
 	}
 }
 
-func Test_updateEndpoints(t *testing.T) {
+func Test_buildNewEndpointsMap(t *testing.T) {
 	testCases := []struct {
-		newEndpoints   []api.Endpoints
+		newEndpoints   []*api.Endpoints
 		oldEndpoints   map[proxy.ServicePortName][]*endpointsInfo
 		expectedResult map[proxy.ServicePortName][]*endpointsInfo
 		expectedStale  []endpointServicePair
 	}{{
 		// Case[0]: nothing
-		newEndpoints:   []api.Endpoints{},
+		newEndpoints:   []*api.Endpoints{},
 		oldEndpoints:   map[proxy.ServicePortName][]*endpointsInfo{},
 		expectedResult: map[proxy.ServicePortName][]*endpointsInfo{},
 		expectedStale:  []endpointServicePair{},
 	}, {
 		// Case[1]: no change, unnamed port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1516,7 +1435,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[2]: no change, named port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1542,7 +1461,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[3]: no change, multiple subsets
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1582,7 +1501,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[4]: no change, multiple subsets, multiple ports
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1631,7 +1550,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[5]: no change, multiple endpoints, subsets, IPs, and ports
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1733,7 +1652,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[6]: add an Endpoints
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1754,7 +1673,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[7]: remove an Endpoints
-		newEndpoints: []api.Endpoints{ /* empty */ },
+		newEndpoints: []*api.Endpoints{ /* empty */ },
 		oldEndpoints: map[proxy.ServicePortName][]*endpointsInfo{
 			makeServicePortName("ns1", "ep1", ""): {
 				{"1.1.1.1:11", false},
@@ -1767,7 +1686,7 @@ func Test_updateEndpoints(t *testing.T) {
 		}},
 	}, {
 		// Case[8]: add an IP and port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1803,7 +1722,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[9]: remove an IP and port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1843,7 +1762,7 @@ func Test_updateEndpoints(t *testing.T) {
 		}},
 	}, {
 		// Case[10]: add a subset
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1880,7 +1799,7 @@ func Test_updateEndpoints(t *testing.T) {
 		expectedStale: []endpointServicePair{},
 	}, {
 		// Case[11]: remove a subset
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1912,7 +1831,7 @@ func Test_updateEndpoints(t *testing.T) {
 		}},
 	}, {
 		// Case[12]: rename a port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1941,7 +1860,7 @@ func Test_updateEndpoints(t *testing.T) {
 		}},
 	}, {
 		// Case[13]: renumber a port
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -1970,7 +1889,7 @@ func Test_updateEndpoints(t *testing.T) {
 		}},
 	}, {
 		// Case[14]: complex add and remove
-		newEndpoints: []api.Endpoints{
+		newEndpoints: []*api.Endpoints{
 			makeTestEndpoints("ns1", "ep1", func(ept *api.Endpoints) {
 				ept.Subsets = []api.EndpointSubset{{
 					Addresses: []api.EndpointAddress{{
@@ -2074,7 +1993,7 @@ func Test_updateEndpoints(t *testing.T) {
 	}}
 
 	for tci, tc := range testCases {
-		newMap, stale := updateEndpoints(tc.newEndpoints, tc.oldEndpoints, "host", fakeHealthChecker{})
+		newMap, stale := buildNewEndpointsMap(tc.newEndpoints, tc.oldEndpoints, "host", fakeHealthChecker{})
 		if len(newMap) != len(tc.expectedResult) {
 			t.Errorf("[%d] expected %d results, got %d: %v", tci, len(tc.expectedResult), len(newMap), newMap)
 		}

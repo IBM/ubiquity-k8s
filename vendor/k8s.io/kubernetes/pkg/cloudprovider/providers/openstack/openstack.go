@@ -17,17 +17,20 @@ limitations under the License.
 package openstack
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	apiversions_v1 "github.com/gophercloud/gophercloud/openstack/blockstorage/v1/apiversions"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/extensions/trusts"
 	tokens3 "github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
@@ -37,6 +40,8 @@ import (
 
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/types"
+	netutil "k8s.io/apimachinery/pkg/util/net"
+	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 )
@@ -86,7 +91,8 @@ type LoadBalancerOpts struct {
 }
 
 type BlockStorageOpts struct {
-	TrustDevicePath bool `gcfg:"trust-device-path"` // See Issue #33128
+	BSVersion       string `gcfg:"bs-version"`        // overrides autodetection. v1 or v2. Defaults to auto
+	TrustDevicePath bool   `gcfg:"trust-device-path"` // See Issue #33128
 }
 
 type RouterOpts struct {
@@ -116,6 +122,7 @@ type Config struct {
 		DomainId   string `gcfg:"domain-id"`
 		DomainName string `gcfg:"domain-name"`
 		Region     string
+		CAFile     string `gcfg:"ca-file"`
 	}
 	LoadBalancer LoadBalancerOpts
 	BlockStorage BlockStorageOpts
@@ -169,6 +176,7 @@ func readConfig(config io.Reader) (Config, error) {
 	var cfg Config
 
 	// Set default values for config params
+	cfg.BlockStorage.BSVersion = "auto"
 	cfg.BlockStorage.TrustDevicePath = false
 
 	err := gcfg.ReadInto(&cfg, config)
@@ -213,6 +221,16 @@ func newOpenStack(cfg Config) (*OpenStack, error) {
 	provider, err := openstack.NewClient(cfg.Global.AuthUrl)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Global.CAFile != "" {
+		roots, err := certutil.NewPool(cfg.Global.CAFile)
+		if err != nil {
+			return nil, err
+		}
+		config := &tls.Config{}
+		config.RootCAs = roots
+		provider.HTTPClient.Transport = netutil.SetOldTransportDefaults(&http.Transport{TLSClientConfig: config})
+
 	}
 	if cfg.Global.TrustId != "" {
 		opts := cfg.toAuth3Options()
@@ -520,4 +538,112 @@ func (os *OpenStack) Routes() (cloudprovider.Routes, bool) {
 	glog.V(1).Info("Claiming to support Routes")
 
 	return r, true
+}
+
+// Implementation of sort interface for blockstorage version probing
+type APIVersionsByID []apiversions_v1.APIVersion
+
+func (apiVersions APIVersionsByID) Len() int {
+	return len(apiVersions)
+}
+
+func (apiVersions APIVersionsByID) Swap(i, j int) {
+	apiVersions[i], apiVersions[j] = apiVersions[j], apiVersions[i]
+}
+
+func (apiVersions APIVersionsByID) Less(i, j int) bool {
+	return apiVersions[i].ID > apiVersions[j].ID
+}
+
+func autoVersionSelector(apiVersion *apiversions_v1.APIVersion) string {
+	switch strings.ToLower(apiVersion.ID) {
+	case "v2.0":
+		return "v2"
+	case "v1.0":
+		return "v1"
+	default:
+		return ""
+	}
+}
+
+func doBsApiVersionAutodetect(availableApiVersions []apiversions_v1.APIVersion) string {
+	sort.Sort(APIVersionsByID(availableApiVersions))
+	for _, status := range []string{"CURRENT", "SUPPORTED"} {
+		for _, version := range availableApiVersions {
+			if strings.ToUpper(version.Status) == status {
+				if detectedApiVersion := autoVersionSelector(&version); detectedApiVersion != "" {
+					glog.V(3).Infof("Blockstorage API version probing has found a suitable %s api version: %s", status, detectedApiVersion)
+					return detectedApiVersion
+				}
+			}
+		}
+	}
+
+	return ""
+
+}
+
+func (os *OpenStack) volumeService(forceVersion string) (volumeService, error) {
+	bsVersion := ""
+	if forceVersion == "" {
+		bsVersion = os.bsOpts.BSVersion
+	} else {
+		bsVersion = forceVersion
+	}
+
+	switch bsVersion {
+	case "v1":
+		sClient, err := openstack.NewBlockStorageV1(os.provider, gophercloud.EndpointOpts{
+			Region: os.region,
+		})
+		if err != nil || sClient == nil {
+			glog.Errorf("Unable to initialize cinder client for region: %s", os.region)
+			return nil, err
+		}
+		return &VolumesV1{sClient, os.bsOpts}, nil
+	case "v2":
+		sClient, err := openstack.NewBlockStorageV2(os.provider, gophercloud.EndpointOpts{
+			Region: os.region,
+		})
+		if err != nil || sClient == nil {
+			glog.Errorf("Unable to initialize cinder v2 client for region: %s", os.region)
+			return nil, err
+		}
+		return &VolumesV2{sClient, os.bsOpts}, nil
+	case "auto":
+		sClient, err := openstack.NewBlockStorageV1(os.provider, gophercloud.EndpointOpts{
+			Region: os.region,
+		})
+		if err != nil || sClient == nil {
+			glog.Errorf("Unable to initialize cinder client for region: %s", os.region)
+			return nil, err
+		}
+		availableApiVersions := []apiversions_v1.APIVersion{}
+		err = apiversions_v1.List(sClient).EachPage(func(page pagination.Page) (bool, error) {
+			// returning false from this handler stops page iteration, error is propagated to the upper function
+			apiversions, err := apiversions_v1.ExtractAPIVersions(page)
+			if err != nil {
+				glog.Errorf("Unable to extract api versions from page: %v", err)
+				return false, err
+			}
+			availableApiVersions = append(availableApiVersions, apiversions...)
+			return true, nil
+		})
+
+		if err != nil {
+			glog.Errorf("Error when retrieving list of supported blockstorage api versions: %v", err)
+			return nil, err
+		}
+		if autodetectedVersion := doBsApiVersionAutodetect(availableApiVersions); autodetectedVersion != "" {
+			return os.volumeService(autodetectedVersion)
+		} else {
+			// Nothing suitable found, failed autodetection
+			return nil, errors.New("BS API version autodetection failed.")
+		}
+
+	default:
+		err_txt := fmt.Sprintf("Config error: unrecognised bs-version \"%v\"", os.bsOpts.BSVersion)
+		glog.Warningf(err_txt)
+		return nil, errors.New(err_txt)
+	}
 }

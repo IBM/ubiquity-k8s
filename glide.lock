@@ -1,5 +1,5 @@
-hash: 8bbcc6f629d3f72e686a008dc9f959f55aca490ab6c01867ebd28664bcfbb6f0
-updated: 2017-04-03T13:50:45.141177921-07:00
+hash: f8359268904b9cde5cf92f442843522d7e38f51d88cf5f76bd424eb5b224f597
+updated: 2017-04-07T11:31:19.585007-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -68,13 +68,13 @@ imports:
 - name: github.com/google/gofuzz
   version: bbcb9da2d746f8bdbd6a936686a0a6067ada0ec5
 - name: github.com/gorilla/context
-  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
   version: 392c28fe23e1c45ddba891b0320b3b5df220beea
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
-- name: github.com/ibm/ubiquity
-  version: a3f2df01de97f350d2f958857e8fa520475c83cb
+- name: github.com/IBM/ubiquity
+  version: 643ba48d3e2222ba6a6477c8c3eddae25e585f01
   subpackages:
   - fakes
   - local/spectrumscale
@@ -87,7 +87,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
-  version: 4e64e4a4e2552194cf594243e23aa9baf3b4297e
+  version: 460c7bb0abd6e927f2767cadc91aa6ef776a98b4
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
   subpackages:
@@ -99,7 +99,7 @@ imports:
 - name: github.com/juju/ratelimit
   version: 77ed1c8a01217656d2080ad51981f6e99adaa177
 - name: github.com/kubernetes-incubator/external-storage
-  version: ffcf7d7b3212438ec58fd61e529cd738caf97e8e
+  version: 7ed750505f701c978a79ebf001cc37fc529d73d0
   subpackages:
   - lib/controller
   - lib/leaderelection
@@ -178,7 +178,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/apimachinery
-  version: 0f8a3af747f81547246d79ca00c20af330868fa6
+  version: c1c4a7fe832857c75cc1d79c8e40d71d5da15fc6
   subpackages:
   - pkg/types
   - pkg/util/runtime
@@ -302,14 +302,13 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 98d693e9d24f585cb4e6615efdb3d07ec3a1616b
+  version: 176eb0e509a255dd520de135cda31096f8796be5
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
-  - staging/src/k8s.io/client-go/_vendor/github.com/golang/glog
 testImports:
 - name: github.com/onsi/ginkgo
-  version: 74c678d97c305753605c338c6c78c49ec104b5e7
+  version: bb93381d543b0e5725244abe752214a110791d01
   subpackages:
   - config
   - internal/codelocation
@@ -324,6 +323,8 @@ testImports:
   - internal/writer
   - reporters
   - reporters/stenographer
+  - reporters/stenographer/support/go-colorable
+  - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
   version: d59fa0ac68bb5dd932ee8d24eed631cdd519efc3

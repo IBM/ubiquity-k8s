@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	pkgruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	clientv1 "k8s.io/client-go/pkg/api/v1"
@@ -45,6 +46,11 @@ import (
 
 const (
 	allClustersKey = "ALL_CLUSTERS"
+	ControllerName = "daemonsets"
+)
+
+var (
+	RequiredResources = []schema.GroupVersionResource{extensionsv1.SchemeGroupVersion.WithResource("daemonsets")}
 )
 
 type DaemonSetController struct {
@@ -158,7 +164,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 			if err != nil {
 				glog.Errorf("Error creating daemonset %s/%s/: %v", daemonset.Namespace, daemonset.Name, err)
 			} else {
-				glog.V(4).Infof("Successfully created deamonset %s/%s", daemonset.Namespace, daemonset.Name)
+				glog.V(4).Infof("Successfully created daemonset %s/%s", daemonset.Namespace, daemonset.Name)
 			}
 			return err
 		},
@@ -169,7 +175,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 			if err != nil {
 				glog.Errorf("Error updating daemonset %s/%s/: %v", daemonset.Namespace, daemonset.Name, err)
 			} else {
-				glog.V(4).Infof("Successfully updating deamonset %s/%s", daemonset.Namespace, daemonset.Name)
+				glog.V(4).Infof("Successfully updating daemonset %s/%s", daemonset.Namespace, daemonset.Name)
 			}
 			return err
 		},
@@ -180,7 +186,7 @@ func NewDaemonSetController(client federationclientset.Interface) *DaemonSetCont
 			if err != nil {
 				glog.Errorf("Error deleting daemonset %s/%s/: %v", daemonset.Namespace, daemonset.Name, err)
 			} else {
-				glog.V(4).Infof("Successfully deleting deamonset %s/%s", daemonset.Namespace, daemonset.Name)
+				glog.V(4).Infof("Successfully deleting daemonset %s/%s", daemonset.Namespace, daemonset.Name)
 			}
 			return err
 		})
@@ -360,7 +366,7 @@ func (daemonsetcontroller *DaemonSetController) reconcileDaemonSet(namespace str
 	if baseDaemonSet.DeletionTimestamp != nil {
 		if err := daemonsetcontroller.delete(baseDaemonSet); err != nil {
 			glog.Errorf("Failed to delete %s: %v", daemonsetName, err)
-			daemonsetcontroller.eventRecorder.Eventf(baseDaemonSet, api.EventTypeNormal, "DeleteFailed",
+			daemonsetcontroller.eventRecorder.Eventf(baseDaemonSet, api.EventTypeWarning, "DeleteFailed",
 				"DaemonSet delete failed: %v", err)
 			daemonsetcontroller.deliverDaemonSet(namespace, daemonsetName, 0, true)
 		}
@@ -440,7 +446,7 @@ func (daemonsetcontroller *DaemonSetController) reconcileDaemonSet(namespace str
 	}
 	err = daemonsetcontroller.federatedUpdater.UpdateWithOnError(operations, daemonsetcontroller.updateTimeout,
 		func(op util.FederatedOperation, operror error) {
-			daemonsetcontroller.eventRecorder.Eventf(baseDaemonSet, api.EventTypeNormal, "UpdateInClusterFailed",
+			daemonsetcontroller.eventRecorder.Eventf(baseDaemonSet, api.EventTypeWarning, "UpdateInClusterFailed",
 				"DaemonSet update in cluster %s failed: %v", op.ClusterName, operror)
 		})
 

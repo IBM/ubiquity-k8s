@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // Testing configurations of single a PV/PVC pair attached to a vSphere Disk
@@ -38,10 +39,13 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 		pv         *v1.PersistentVolume
 		pvc        *v1.PersistentVolumeClaim
 		clientPod  *v1.Pod
-		pvConfig   persistentVolumeConfig
+		pvConfig   framework.PersistentVolumeConfig
+		pvcConfig  framework.PersistentVolumeClaimConfig
 		vsp        *vsphere.VSphere
 		err        error
 		node       types.NodeName
+		volLabel   labels.Set
+		selector   *metav1.LabelSelector
 	)
 
 	f := framework.NewDefaultFramework("pv")
@@ -62,6 +66,9 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 		pvc = nil
 		pv = nil
 
+		volLabel = labels.Set{framework.VolumeSelectorKey: ns}
+		selector = metav1.SetAsLabelSelector(volLabel)
+
 		if vsp == nil {
 			vsp, err = vsphere.GetVSphere()
 			Expect(err).NotTo(HaveOccurred())
@@ -69,23 +76,30 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 		if volumePath == "" {
 			volumePath, err = createVSphereVolume(vsp, nil)
 			Expect(err).NotTo(HaveOccurred())
-			pvConfig = persistentVolumeConfig{
-				namePrefix: "vspherepv-",
-				pvSource: v1.PersistentVolumeSource{
+			pvConfig = framework.PersistentVolumeConfig{
+				NamePrefix: "vspherepv-",
+				Labels:     volLabel,
+				PVSource: v1.PersistentVolumeSource{
 					VsphereVolume: &v1.VsphereVirtualDiskVolumeSource{
 						VolumePath: volumePath,
 						FSType:     "ext4",
 					},
 				},
-				prebind: nil,
+				Prebind: nil,
+			}
+			pvcConfig = framework.PersistentVolumeClaimConfig{
+				Annotations: map[string]string{
+					v1.BetaStorageClassAnnotation: "",
+				},
+				Selector: selector,
 			}
 		}
 		By("Creating the PV and PVC")
-		pv, pvc = createPVPVC(c, pvConfig, ns, false)
-		waitOnPVandPVC(c, ns, pv, pvc)
+		pv, pvc = framework.CreatePVPVC(c, pvConfig, pvcConfig, ns, false)
+		framework.WaitOnPVandPVC(c, ns, pv, pvc)
 
 		By("Creating the Client Pod")
-		clientPod = createClientPod(c, ns, pvc)
+		clientPod = framework.CreateClientPod(c, ns, pvc)
 		node := types.NodeName(clientPod.Spec.NodeName)
 
 		By("Verify disk should be attached to the node")
@@ -100,15 +114,15 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 			if clientPod != nil {
 				clientPod, err = c.CoreV1().Pods(ns).Get(clientPod.Name, metav1.GetOptions{})
 				if !apierrs.IsNotFound(err) {
-					deletePodWithWait(f, c, clientPod)
+					framework.DeletePodWithWait(f, c, clientPod)
 				}
 			}
 
 			if pv != nil {
-				deletePersistentVolume(c, pv.Name)
+				framework.DeletePersistentVolume(c, pv.Name)
 			}
 			if pvc != nil {
-				deletePersistentVolumeClaim(c, pvc.Name, ns)
+				framework.DeletePersistentVolumeClaim(c, pvc.Name, ns)
 			}
 		}
 	})
@@ -136,7 +150,7 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 
 	It("should test that deleting a PVC before the pod does not cause pod deletion to fail on PD detach", func() {
 		By("Deleting the Claim")
-		deletePersistentVolumeClaim(c, pvc.Name, ns)
+		framework.DeletePersistentVolumeClaim(c, pvc.Name, ns)
 
 		pvc, err = c.CoreV1().PersistentVolumeClaims(ns).Get(pvc.Name, metav1.GetOptions{})
 		if !apierrs.IsNotFound(err) {
@@ -144,7 +158,7 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 		}
 		pvc = nil
 		By("Deleting the Pod")
-		deletePodWithWait(f, c, clientPod)
+		framework.DeletePodWithWait(f, c, clientPod)
 
 	})
 
@@ -157,13 +171,13 @@ var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 	*/
 	It("should test that deleting the PV before the pod does not cause pod deletion to fail on PD detach", func() {
 		By("Deleting the Persistent Volume")
-		deletePersistentVolume(c, pv.Name)
+		framework.DeletePersistentVolume(c, pv.Name)
 		pv, err = c.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
 		if !apierrs.IsNotFound(err) {
 			Expect(err).NotTo(HaveOccurred())
 		}
 		pv = nil
 		By("Deleting the pod")
-		deletePodWithWait(f, c, clientPod)
+		framework.DeletePodWithWait(f, c, clientPod)
 	})
 })

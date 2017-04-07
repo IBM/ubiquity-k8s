@@ -42,30 +42,60 @@ kube::test::get_caller() {
 
 # Force exact match of a returned result for a object query.  Wrap this with || to support multiple
 # valid return types.
+# This runs `kubectl get` once and asserts that the result is as expected.
+## $1: Object on which get should be run
+# $2: The go-template to run on the result
+# $3: The expected output
+# $4: Additional args to be passed to kubectl
 kube::test::get_object_assert() {
-  local object=$1
-  local request=$2
-  local expected=$3
-  local args=${4:-}
+  kube::test::object_assert 1 "$@"
+}
 
-  res=$(eval kubectl get "${kube_flags[@]}" ${args} $object -o go-template=\"$request\")
+# Asserts that the output of a given get query is as expected.
+# Runs the query multiple times before failing it.
+# $1: Object on which get should be run
+# $2: The go-template to run on the result
+# $3: The expected output
+# $4: Additional args to be passed to kubectl
+kube::test::wait_object_assert() {
+  kube::test::object_assert 10 "$@"
+}
 
-  if [[ "$res" =~ ^$expected$ ]]; then
-      echo -n ${green}
-      echo "$(kube::test::get_caller): Successful get $object $request: $res"
-      echo -n ${reset}
-      return 0
-  else
-      echo ${bold}${red}
-      echo "$(kube::test::get_caller): FAIL!"
-      echo "Get $object $request"
-      echo "  Expected: $expected"
-      echo "  Got:      $res"
-      echo ${reset}${red}
-      caller
-      echo ${reset}
-      return 1
-  fi
+# Asserts that the output of a given get query is as expected.
+# Can run the query multiple times before failing it.
+# $1: Number of times the query should be run before failing it.
+# $2: Object on which get should be run
+# $3: The go-template to run on the result
+# $4: The expected output
+# $5: Additional args to be passed to kubectl
+kube::test::object_assert() {
+  local tries=$1
+  local object=$2
+  local request=$3
+  local expected=$4
+  local args=${5:-}
+
+  for j in $(seq 1 ${tries}); do
+    res=$(eval kubectl get -a "${kube_flags[@]}" ${args} $object -o go-template=\"$request\")
+    if [[ "$res" =~ ^$expected$ ]]; then
+        echo -n ${green}
+        echo "$(kube::test::get_caller 3): Successful get $object $request: $res"
+        echo -n ${reset}
+        return 0
+    fi
+    echo "Waiting for Get $object $request $args: expected: $expected, got: $res"
+    sleep $((${j}-1))
+  done
+
+  echo ${bold}${red}
+  echo "$(kube::test::get_caller 3): FAIL!"
+  echo "Get $object $request"
+  echo "  Expected: $expected"
+  echo "  Got:      $res"
+  echo ${reset}${red}
+  caller
+  echo ${reset}
+  return 1
 }
 
 kube::test::get_object_jsonpath_assert() {
@@ -73,7 +103,7 @@ kube::test::get_object_jsonpath_assert() {
   local request=$2
   local expected=$3
 
-  res=$(eval kubectl get "${kube_flags[@]}" $object -o jsonpath=\"$request\")
+  res=$(eval kubectl get -a "${kube_flags[@]}" $object -o jsonpath=\"$request\")
 
   if [[ "$res" =~ ^$expected$ ]]; then
       echo -n ${green}
@@ -273,3 +303,100 @@ kube::test::if_supports_resource() {
   done
   return 1
 }
+
+
+kube::test::version::object_to_file() {
+  name=$1
+  flags=${2:-""}
+  file=$3
+  kubectl version $flags | grep "$name Version:" | sed -e s/"$name Version: version.Info{"/'/' -e s/'}'/'/' -e s/', '/','/g -e s/':'/'=/g' -e s/'"'/""/g | tr , '\n' > "${file}"
+}
+
+kube::test::version::json_object_to_file() {
+  flags=$1
+  file=$2
+  kubectl version $flags --output json | sed -e s/'\"'/''/g -e s/'}'/''/g -e s/'{'/''/g -e s/'clientVersion:'/'clientVersion:,'/ -e s/'serverVersion:'/'serverVersion:,'/ | tr , '\n' > "${file}"
+}
+
+kube::test::version::json_client_server_object_to_file() {
+  flags=$1
+  name=$2
+  file=$3
+  kubectl version $flags --output json | jq -r ".${name}" | sed -e s/'\"'/''/g -e s/'}'/''/g -e s/'{'/''/g -e /^$/d -e s/','/''/g  -e s/':'/'='/g > "${file}"
+}
+
+kube::test::version::yaml_object_to_file() {
+  flags=$1
+  file=$2
+  kubectl version $flags --output yaml | sed -e s/' '/''/g -e s/'\"'/''/g -e /^$/d > "${file}"
+}
+
+kube::test::version::diff_assert() {
+  local original=$1
+  local comparator=${2:-"eq"}
+  local latest=$3
+  local diff_msg=${4:-""}
+  local res=""
+
+  if [ ! -f $original ]; then
+        echo ${bold}${red}
+        echo "FAIL! ${diff_msg}"
+        echo "the file '${original}' does not exit"
+        echo ${reset}${red}
+        caller
+        echo ${reset}
+        return 1
+  fi
+
+  if [ ! -f $latest ]; then
+        echo ${bold}${red}
+        echo "FAIL! ${diff_msg}"
+        echo "the file '${latest}' does not exit"
+        echo ${reset}${red}
+        caller
+        echo ${reset}
+        return 1
+  fi
+
+  sort ${original} > "${original}.sorted"
+  sort ${latest} > "${latest}.sorted"
+
+  if [ "$comparator" == "eq" ]; then
+    if [ "$(diff -iwB ${original}.sorted ${latest}.sorted)" == "" ] ; then
+        echo -n ${green}
+        echo "Successful: ${diff_msg}"
+        echo -n ${reset}
+        return 0
+    else
+        echo ${bold}${red}
+        echo "FAIL! ${diff_msg}"
+        echo "  Expected: "
+        echo "$(cat ${original})"
+        echo "  Got: "
+        echo "$(cat ${latest})"
+        echo ${reset}${red}
+        caller
+        echo ${reset}
+        return 1
+    fi
+  else
+    if [ ! -z "$(diff -iwB ${original}.sorted ${latest}.sorted)" ] ; then
+        echo -n ${green}
+        echo "Successful: ${diff_msg}"
+        echo -n ${reset}
+        return 0
+    else
+        echo ${bold}${red}
+        echo "FAIL! ${diff_msg}"
+        echo "  Expected: "
+        echo "$(cat ${original})"
+        echo "  Got: "
+        echo "$(cat ${latest})"
+        echo ${reset}${red}
+        caller
+        echo ${reset}
+        return 1
+      fi
+  fi
+}
+

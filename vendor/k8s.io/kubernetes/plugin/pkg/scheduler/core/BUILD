@@ -11,6 +11,7 @@ load(
 go_test(
     name = "go_default_test",
     srcs = [
+        "equivalence_cache_test.go",
         "extender_test.go",
         "generic_scheduler_test.go",
     ],
@@ -18,6 +19,7 @@ go_test(
     tags = ["automanaged"],
     deps = [
         "//pkg/api/v1:go_default_library",
+        "//pkg/apis/apps/v1beta1:go_default_library",
         "//pkg/apis/extensions/v1beta1:go_default_library",
         "//plugin/pkg/scheduler/algorithm:go_default_library",
         "//plugin/pkg/scheduler/algorithm/predicates:go_default_library",
@@ -25,6 +27,7 @@ go_test(
         "//plugin/pkg/scheduler/algorithm/priorities/util:go_default_library",
         "//plugin/pkg/scheduler/api:go_default_library",
         "//plugin/pkg/scheduler/schedulercache:go_default_library",
+        "//plugin/pkg/scheduler/testing:go_default_library",
         "//vendor:k8s.io/apimachinery/pkg/api/resource",
         "//vendor:k8s.io/apimachinery/pkg/apis/meta/v1",
         "//vendor:k8s.io/apimachinery/pkg/util/sets",
@@ -51,6 +54,7 @@ go_library(
         "//vendor:github.com/golang/groupcache/lru",
         "//vendor:k8s.io/apimachinery/pkg/util/errors",
         "//vendor:k8s.io/apimachinery/pkg/util/net",
+        "//vendor:k8s.io/apimachinery/pkg/util/sets",
         "//vendor:k8s.io/apiserver/pkg/util/trace",
         "//vendor:k8s.io/client-go/rest",
         "//vendor:k8s.io/client-go/util/workqueue",

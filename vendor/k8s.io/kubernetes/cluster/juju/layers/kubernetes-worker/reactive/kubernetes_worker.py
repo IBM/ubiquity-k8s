@@ -24,13 +24,16 @@ from socket import gethostname
 from charms import layer
 from charms.reactive import hook
 from charms.reactive import set_state, remove_state
-from charms.reactive import when, when_not
+from charms.reactive import when, when_any, when_not
 from charms.reactive.helpers import data_changed
+from charms.kubernetes.common import get_version, reset_versions
 from charms.kubernetes.flagmanager import FlagManager
 from charms.templating.jinja2 import render
 
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import service_stop
+from charmhelpers.core.host import service_restart
+from charmhelpers.contrib.charmsupport import nrpe
 
 
 kubeconfig_path = '/srv/kubernetes/config'
@@ -39,6 +42,13 @@ kubeconfig_path = '/srv/kubernetes/config'
 @hook('upgrade-charm')
 def remove_installed_state():
     remove_state('kubernetes-worker.components.installed')
+
+    # Remove gpu.enabled state so we can reconfigure gpu-related kubelet flags,
+    # since they can differ between k8s versions
+    remove_state('kubernetes-worker.gpu.enabled')
+    kubelet_opts = FlagManager('kubelet')
+    kubelet_opts.destroy('--feature-gates')
+    kubelet_opts.destroy('--experimental-nvidia-gpus')
 
 
 @hook('stop')
@@ -103,6 +113,7 @@ def install_kubernetes_components():
         hookenv.log(install)
         check_call(install)
 
+    reset_versions()
     set_state('kubernetes-worker.components.installed')
 
 
@@ -115,7 +126,7 @@ def set_app_version():
 
 
 @when('kubernetes-worker.components.installed')
-@when_not('kube-dns.available')
+@when_not('kube-control.dns.available')
 def notify_user_transient_status():
     ''' Notify to the user we are in a transient state and the application
     is still converging. Potentially remotely, or we may be in a detached loop
@@ -129,14 +140,14 @@ def notify_user_transient_status():
     hookenv.status_set('waiting', 'Waiting for cluster DNS.')
 
 
-@when('kubernetes-worker.components.installed', 'kube-dns.available')
-def charm_status(kube_dns):
+@when('kubernetes-worker.components.installed', 'kube-control.dns.available')
+def charm_status(kube_control):
     '''Update the status message with the current status of kubelet.'''
     update_kubelet_status()
 
 
 def update_kubelet_status():
-    ''' There are different states that the kubelt can be in, where we are
+    ''' There are different states that the kubelet can be in, where we are
     waiting for dns, waiting for cluster turnup, or ready to serve
     applications.'''
     if (_systemctl_is_active('kubelet')):
@@ -146,30 +157,62 @@ def update_kubelet_status():
         hookenv.status_set('waiting', 'Waiting for kubelet to start.')
 
 
+@when('certificates.available')
+def send_data(tls):
+    '''Send the data that is required to create a server certificate for
+    this server.'''
+    # Use the public ip of this unit as the Common Name for the certificate.
+    common_name = hookenv.unit_public_ip()
+
+    # Create SANs that the tls layer will add to the server cert.
+    sans = [
+        hookenv.unit_public_ip(),
+        hookenv.unit_private_ip(),
+        gethostname()
+    ]
+
+    # Create a path safe name by removing path characters from the unit name.
+    certificate_name = hookenv.local_unit().replace('/', '_')
+
+    # Request a server cert with this information.
+    tls.request_server_cert(common_name, sans, certificate_name)
+
+
 @when('kubernetes-worker.components.installed', 'kube-api-endpoint.available',
       'tls_client.ca.saved', 'tls_client.client.certificate.saved',
-      'tls_client.client.key.saved', 'kube-dns.available', 'cni.available')
-def start_worker(kube_api, kube_dns, cni):
+      'tls_client.client.key.saved', 'tls_client.server.certificate.saved',
+      'tls_client.server.key.saved', 'kube-control.dns.available',
+      'cni.available')
+def start_worker(kube_api, kube_control, cni):
     ''' Start kubelet using the provided API and DNS info.'''
+    config = hookenv.config()
     servers = get_kube_api_servers(kube_api)
     # Note that the DNS server doesn't necessarily exist at this point. We know
     # what its IP will eventually be, though, so we can go ahead and configure
     # kubelet with that info. This ensures that early pods are configured with
     # the correct DNS even though the server isn't ready yet.
 
-    dns = kube_dns.details()
+    dns = kube_control.get_dns()
 
     if (data_changed('kube-api-servers', servers) or
             data_changed('kube-dns', dns)):
-        # Initialize a FlagManager object to add flags to unit data.
-        opts = FlagManager('kubelet')
-        # Append the DNS flags + data to the FlagManager object.
 
-        opts.add('--cluster-dns', dns['sdn-ip']) # FIXME: sdn-ip needs a rename
+        # Create FlagManager for kubelet and add dns flags
+        opts = FlagManager('kubelet')
+        opts.add('--cluster-dns', dns['sdn-ip'])  # FIXME sdn-ip needs a rename
         opts.add('--cluster-domain', dns['domain'])
 
+        # Create FlagManager for KUBE_MASTER and add api server addresses
+        kube_master_opts = FlagManager('KUBE_MASTER')
+        kube_master_opts.add('--master', ','.join(servers))
+
+        # set --allow-privileged flag for kubelet
+        set_privileged(
+            "true" if config['allow-privileged'] == "true" else "false",
+            render_config=False)
+
         create_config(servers[0])
-        render_init_scripts(servers)
+        render_init_scripts()
         set_state('kubernetes-worker.config.created')
         restart_unit_services()
         update_kubelet_status()
@@ -295,45 +338,46 @@ def create_config(server):
                       user='kubelet')
 
 
-def render_init_scripts(api_servers):
+def render_init_scripts():
     ''' We have related to either an api server or a load balancer connected
     to the apiserver. Render the config files and prepare for launch '''
     context = {}
     context.update(hookenv.config())
 
-    # Get the tls paths from the layer data.
     layer_options = layer.options('tls-client')
-    context['ca_cert_path'] = layer_options.get('ca_certificate_path')
-    context['client_cert_path'] = layer_options.get('client_certificate_path')
-    context['client_key_path'] = layer_options.get('client_key_path')
+    ca_cert_path = layer_options.get('ca_certificate_path')
+    server_cert_path = layer_options.get('server_certificate_path')
+    server_key_path = layer_options.get('server_key_path')
 
     unit_name = os.getenv('JUJU_UNIT_NAME').replace('/', '-')
-    context.update({'kube_api_endpoint': ','.join(api_servers),
-                    'JUJU_UNIT_NAME': unit_name})
+    context.update({
+        'kube_allow_priv': FlagManager('KUBE_ALLOW_PRIV').to_s(),
+        'kube_api_endpoint': FlagManager('KUBE_MASTER').to_s(),
+        'JUJU_UNIT_NAME': unit_name,
+    })
 
-    # Create a flag manager for kubelet to render kubelet_opts.
     kubelet_opts = FlagManager('kubelet')
-    # Declare to kubelet it needs to read from kubeconfig
     kubelet_opts.add('--require-kubeconfig', None)
     kubelet_opts.add('--kubeconfig', kubeconfig_path)
     kubelet_opts.add('--network-plugin', 'cni')
+    kubelet_opts.add('--anonymous-auth', 'false')
+    kubelet_opts.add('--client-ca-file', ca_cert_path)
+    kubelet_opts.add('--tls-cert-file', server_cert_path)
+    kubelet_opts.add('--tls-private-key-file', server_key_path)
     context['kubelet_opts'] = kubelet_opts.to_s()
-    # Create a flag manager for kube-proxy to render kube_proxy_opts.
+
     kube_proxy_opts = FlagManager('kube-proxy')
     kube_proxy_opts.add('--kubeconfig', kubeconfig_path)
     context['kube_proxy_opts'] = kube_proxy_opts.to_s()
 
     os.makedirs('/var/lib/kubelet', exist_ok=True)
-    # Set the user when rendering config
-    context['user'] = 'kubelet'
-    # Set the user when rendering config
-    context['user'] = 'kube-proxy'
+
     render('kube-default', '/etc/default/kube-default', context)
     render('kubelet.defaults', '/etc/default/kubelet', context)
+    render('kubelet.service', '/lib/systemd/system/kubelet.service', context)
     render('kube-proxy.defaults', '/etc/default/kube-proxy', context)
     render('kube-proxy.service', '/lib/systemd/system/kube-proxy.service',
            context)
-    render('kubelet.service', '/lib/systemd/system/kubelet.service', context)
 
 
 def create_kubeconfig(kubeconfig, server, ca, key, certificate, user='ubuntu',
@@ -392,6 +436,7 @@ def restart_unit_services():
     # Restart the services.
     hookenv.log('Restarting kubelet, and kube-proxy.')
     call(['systemctl', 'restart', 'kubelet'])
+    remove_state('kubernetes-worker.kubelet.restart')
     call(['systemctl', 'restart', 'kube-proxy'])
 
 
@@ -447,6 +492,211 @@ def kubectl_manifest(operation, manifest):
         return kubectl_success(operation, '-f', manifest)
 
 
+@when('nrpe-external-master.available')
+@when_not('nrpe-external-master.initial-config')
+def initial_nrpe_config(nagios=None):
+    set_state('nrpe-external-master.initial-config')
+    update_nrpe_config(nagios)
+
+
+@when('kubernetes-worker.config.created')
+@when('nrpe-external-master.available')
+@when_any('config.changed.nagios_context',
+          'config.changed.nagios_servicegroups')
+def update_nrpe_config(unused=None):
+    services = ('kubelet', 'kube-proxy')
+
+    hostname = nrpe.get_nagios_hostname()
+    current_unit = nrpe.get_nagios_unit_name()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+    nrpe.add_init_service_checks(nrpe_setup, services, current_unit)
+    nrpe_setup.write()
+
+
+@when_not('nrpe-external-master.available')
+@when('nrpe-external-master.initial-config')
+def remove_nrpe_config(nagios=None):
+    remove_state('nrpe-external-master.initial-config')
+
+    # List of systemd services for which the checks will be removed
+    services = ('kubelet', 'kube-proxy')
+
+    # The current nrpe-external-master interface doesn't handle a lot of logic,
+    # use the charm-helpers code for now.
+    hostname = nrpe.get_nagios_hostname()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+
+    for service in services:
+        nrpe_setup.remove_check(shortname=service)
+
+
+def set_privileged(privileged, render_config=True):
+    """Update the KUBE_ALLOW_PRIV flag for kubelet and re-render config files.
+
+    If the flag already matches the requested value, this is a no-op.
+
+    :param str privileged: "true" or "false"
+    :param bool render_config: whether to render new config files
+    :return: True if the flag was changed, else false
+
+    """
+    if privileged == "true":
+        set_state('kubernetes-worker.privileged')
+    else:
+        remove_state('kubernetes-worker.privileged')
+
+    flag = '--allow-privileged'
+    kube_allow_priv_opts = FlagManager('KUBE_ALLOW_PRIV')
+    if kube_allow_priv_opts.get(flag) == privileged:
+        # Flag isn't changing, nothing to do
+        return False
+
+    hookenv.log('Setting {}={}'.format(flag, privileged))
+
+    # Update --allow-privileged flag value
+    kube_allow_priv_opts.add(flag, privileged, strict=True)
+
+    # re-render config with new options
+    if render_config:
+        render_init_scripts()
+
+        # signal that we need a kubelet restart
+        set_state('kubernetes-worker.kubelet.restart')
+
+    return True
+
+
+@when('config.changed.allow-privileged')
+@when('kubernetes-worker.config.created')
+def on_config_allow_privileged_change():
+    """React to changed 'allow-privileged' config value.
+
+    """
+    config = hookenv.config()
+    privileged = config['allow-privileged']
+    if privileged == "auto":
+        return
+
+    set_privileged(privileged)
+    remove_state('config.changed.allow-privileged')
+
+
+@when('kubernetes-worker.kubelet.restart')
+def restart_kubelet():
+    """Restart kubelet.
+
+    """
+    # Make sure systemd loads latest service config
+    call(['systemctl', 'daemon-reload'])
+    # Restart kubelet
+    service_restart('kubelet')
+    remove_state('kubernetes-worker.kubelet.restart')
+
+
+@when('cuda.installed')
+@when('kubernetes-worker.components.installed')
+@when('kubernetes-worker.config.created')
+@when_not('kubernetes-worker.gpu.enabled')
+def enable_gpu():
+    """Enable GPU usage on this node.
+
+    """
+    config = hookenv.config()
+    if config['allow-privileged'] == "false":
+        hookenv.status_set(
+            'active',
+            'GPUs available. Set allow-privileged="auto" to enable.'
+        )
+        return
+
+    hookenv.log('Enabling gpu mode')
+
+    kubelet_opts = FlagManager('kubelet')
+    if get_version('kubelet') < (1, 6):
+        hookenv.log('Adding --experimental-nvidia-gpus=1 to kubelet')
+        kubelet_opts.add('--experimental-nvidia-gpus', '1')
+    else:
+        hookenv.log('Adding --feature-gates=Accelerators=true to kubelet')
+        kubelet_opts.add('--feature-gates', 'Accelerators=true')
+
+    # enable privileged mode and re-render config files
+    set_privileged("true", render_config=False)
+    render_init_scripts()
+
+    # Apply node labels
+    _apply_node_label('gpu=true', overwrite=True)
+    _apply_node_label('cuda=true', overwrite=True)
+
+    # Not sure why this is necessary, but if you don't run this, k8s will
+    # think that the node has 0 gpus (as shown by the output of
+    # `kubectl get nodes -o yaml`
+    check_call(['nvidia-smi'])
+
+    set_state('kubernetes-worker.gpu.enabled')
+    set_state('kubernetes-worker.kubelet.restart')
+
+
+@when('kubernetes-worker.gpu.enabled')
+@when_not('kubernetes-worker.privileged')
+def disable_gpu():
+    """Disable GPU usage on this node.
+
+    This handler fires when we're running in gpu mode, and then the operator
+    sets allow-privileged="false". Since we can no longer run privileged
+    containers, we need to disable gpu mode.
+
+    """
+    hookenv.log('Disabling gpu mode')
+
+    kubelet_opts = FlagManager('kubelet')
+    if get_version('kubelet') < (1, 6):
+        kubelet_opts.destroy('--experimental-nvidia-gpus')
+    else:
+        kubelet_opts.remove('--feature-gates', 'Accelerators=true')
+
+    render_init_scripts()
+
+    # Remove node labels
+    _apply_node_label('gpu', delete=True)
+    _apply_node_label('cuda', delete=True)
+
+    remove_state('kubernetes-worker.gpu.enabled')
+    set_state('kubernetes-worker.kubelet.restart')
+
+
+@when('kubernetes-worker.gpu.enabled')
+@when('kube-control.connected')
+def notify_master_gpu_enabled(kube_control):
+    """Notify kubernetes-master that we're gpu-enabled.
+
+    """
+    kube_control.set_gpu(True)
+
+
+@when_not('kubernetes-worker.gpu.enabled')
+@when('kube-control.connected')
+def notify_master_gpu_not_enabled(kube_control):
+    """Notify kubernetes-master that we're not gpu-enabled.
+
+    """
+    kube_control.set_gpu(False)
+
+
+@when_not('kube-control.connected')
+def missing_kube_control():
+    """Inform the operator they need to add the kube-control relation.
+
+    If deploying via bundle this won't happen, but if operator is upgrading a
+    a charm in a deployment that pre-dates the kube-control relation, it'll be
+    missing.
+
+    """
+    hookenv.status_set(
+        'blocked',
+        'Relate {}:kube-control kubernetes-master:kube-control'.format(
+            hookenv.service_name()))
+
+
 def _systemctl_is_active(application):
     ''' Poll systemctl to determine if the application is running '''
     cmd = ['systemctl', 'is-active', application]
@@ -457,7 +707,7 @@ def _systemctl_is_active(application):
         return False
 
 
-def _apply_node_label(label, delete=False):
+def _apply_node_label(label, delete=False, overwrite=False):
     ''' Invoke kubectl to apply node label changes '''
 
     hostname = gethostname()
@@ -470,6 +720,8 @@ def _apply_node_label(label, delete=False):
         cmd = cmd + '-'
     else:
         cmd = cmd_base.format(kubeconfig_path, hostname, label)
+        if overwrite:
+            cmd = '{} --overwrite'.format(cmd)
     check_call(split(cmd))
 
 
