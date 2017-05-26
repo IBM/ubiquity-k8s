@@ -10,21 +10,26 @@ import (
 
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/fakes"
+	"github.com/IBM/ubiquity/resources"
 )
 
 var _ = Describe("Provisioner", func() {
 	var (
 		fakeClient *fakes.FakeStorageClient
 		// fakeKubeInterface *k8s_fake.FakeInterface
-		provisioner controller.Provisioner
-		options     controller.VolumeOptions
-		err         error
+		provisioner    controller.Provisioner
+		options        controller.VolumeOptions
+		backends       []resources.Backend
+		ubiquityConfig resources.UbiquityPluginConfig
+		err            error
 	)
 
 	BeforeEach(func() {
 		fakeClient = new(fakes.FakeStorageClient)
+		backends = []resources.Backend{resources.SpectrumScale}
+		ubiquityConfig = resources.UbiquityPluginConfig{Backends: backends}
 		// fakeKubeInterface = new(k8s_fake.FakeInterface)
-		provisioner, err = volume.NewFlexProvisioner(testLogger, fakeClient, "/tmp")
+		provisioner, err = volume.NewFlexProvisioner(testLogger, fakeClient, ubiquityConfig)
 	})
 
 	Context(".Provision", func() {
