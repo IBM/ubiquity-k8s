@@ -67,6 +67,7 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 		namespaceEnv:   namespaceEnv,
 		nodeEnv:        nodeEnv,
 	}
+
 	activateRequest := resources.ActivateRequest{Backends: config.Backends}
 	err := provisioner.ubiquityClient.Activate(activateRequest)
 
