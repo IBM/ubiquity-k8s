@@ -179,7 +179,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	if !exists {
 		return nil, fmt.Errorf("backend is not specified")
 	}
-	b := resources.Backend(backendName.(string))
+	b := backendName.(string)
 	createVolumeRequest := resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
 	err := p.ubiquityClient.CreateVolume(createVolumeRequest)
 	if err != nil {

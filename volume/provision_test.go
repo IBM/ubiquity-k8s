@@ -19,14 +19,14 @@ var _ = Describe("Provisioner", func() {
 		// fakeKubeInterface *k8s_fake.FakeInterface
 		provisioner    controller.Provisioner
 		options        controller.VolumeOptions
-		backends       []resources.Backend
+		backends       []string
 		ubiquityConfig resources.UbiquityPluginConfig
 		err            error
 	)
 
 	BeforeEach(func() {
 		fakeClient = new(fakes.FakeStorageClient)
-		backends = []resources.Backend{resources.SpectrumScale}
+		backends = []string{resources.SpectrumScale}
 		ubiquityConfig = resources.UbiquityPluginConfig{Backends: backends}
 		// fakeKubeInterface = new(k8s_fake.FakeInterface)
 		provisioner, err = volume.NewFlexProvisioner(testLogger, fakeClient, ubiquityConfig)

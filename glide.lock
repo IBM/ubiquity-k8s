@@ -1,5 +1,5 @@
 hash: 0e247021feacfe426852a2e841ef5d623946be6edd8cb86f3941b7a262a9a4ce
-updated: 2017-05-25T17:06:57.50333682-07:00
+updated: 2017-06-05T09:22:15.660498401-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -74,7 +74,7 @@ imports:
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: 6c69c571649467183d48a95b92ee1081036dfa52
+  version: 5d7347a7c9cc79f03325e0c1f1092626746ac66f
   subpackages:
   - fakes
   - local/spectrumscale
