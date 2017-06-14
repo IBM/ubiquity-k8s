@@ -49,6 +49,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/events"
 	"k8s.io/kubernetes/pkg/api/helper"
+	"k8s.io/kubernetes/pkg/api/helper/qos"
 	"k8s.io/kubernetes/pkg/api/ref"
 	resourcehelper "k8s.io/kubernetes/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/apis/apps"
@@ -57,7 +58,9 @@ import (
 	"k8s.io/kubernetes/pkg/apis/certificates"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	versionedextension "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/apis/networking"
 	"k8s.io/kubernetes/pkg/apis/policy"
+	"k8s.io/kubernetes/pkg/apis/rbac"
 	"k8s.io/kubernetes/pkg/apis/storage"
 	storageutil "k8s.io/kubernetes/pkg/apis/storage/util"
 	versionedclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
@@ -68,7 +71,6 @@ import (
 	"k8s.io/kubernetes/pkg/controller"
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 	"k8s.io/kubernetes/pkg/fieldpath"
-	"k8s.io/kubernetes/pkg/kubelet/qos"
 	"k8s.io/kubernetes/pkg/printers"
 	"k8s.io/kubernetes/pkg/util/slice"
 )
@@ -131,7 +133,7 @@ func describerMap(c clientset.Interface) map[schema.GroupKind]printers.Describer
 		api.Kind("ConfigMap"):             &ConfigMapDescriber{c},
 
 		extensions.Kind("ReplicaSet"):                  &ReplicaSetDescriber{c},
-		extensions.Kind("NetworkPolicy"):               &NetworkPolicyDescriber{c},
+		extensions.Kind("NetworkPolicy"):               &ExtensionsNetworkPolicyDescriber{c},
 		autoscaling.Kind("HorizontalPodAutoscaler"):    &HorizontalPodAutoscalerDescriber{c},
 		extensions.Kind("DaemonSet"):                   &DaemonSetDescriber{c},
 		extensions.Kind("Deployment"):                  &DeploymentDescriber{c, versionedClientsetForDeployment(c)},
@@ -143,6 +145,9 @@ func describerMap(c clientset.Interface) map[schema.GroupKind]printers.Describer
 		certificates.Kind("CertificateSigningRequest"): &CertificateSigningRequestDescriber{c},
 		storage.Kind("StorageClass"):                   &StorageClassDescriber{c},
 		policy.Kind("PodDisruptionBudget"):             &PodDisruptionBudgetDescriber{c},
+		rbac.Kind("RoleBinding"):                       &RoleBindingDescriber{c},
+		rbac.Kind("ClusterRoleBinding"):                &ClusterRoleBindingDescriber{c},
+		networking.Kind("NetworkPolicy"):               &NetworkPolicyDescriber{c},
 	}
 
 	return m
@@ -649,7 +654,7 @@ func describePod(pod *api.Pod, events *api.EventList) (string, error) {
 		if pod.Status.QOSClass != "" {
 			w.Write(LEVEL_0, "QoS Class:\t%s\n", pod.Status.QOSClass)
 		} else {
-			w.Write(LEVEL_0, "QoS Class:\t%s\n", qos.InternalGetPodQOS(pod))
+			w.Write(LEVEL_0, "QoS Class:\t%s\n", qos.GetPodQOS(pod))
 		}
 		printLabelsMultiline(w, "Node-Selectors", pod.Spec.NodeSelector)
 		printPodTolerationsMultiline(w, "Tolerations", pod.Spec.Tolerations)
@@ -732,6 +737,8 @@ func describeVolumes(volumes []api.Volume, w PrefixWriter, space string) {
 			printPortworxVolumeSource(volume.VolumeSource.PortworxVolume, w)
 		case volume.VolumeSource.ScaleIO != nil:
 			printScaleIOVolumeSource(volume.VolumeSource.ScaleIO, w)
+		case volume.VolumeSource.CephFS != nil:
+			printCephFSVolumeSource(volume.VolumeSource.CephFS, w)
 		default:
 			w.Write(LEVEL_1, "<unknown>\n")
 		}
@@ -818,8 +825,12 @@ func printISCSIVolumeSource(iscsi *api.ISCSIVolumeSource, w PrefixWriter) {
 		"    Lun:\t%v\n"+
 		"    ISCSIInterface\t%v\n"+
 		"    FSType:\t%v\n"+
-		"    ReadOnly:\t%v\n",
-		iscsi.TargetPortal, iscsi.IQN, iscsi.Lun, iscsi.ISCSIInterface, iscsi.FSType, iscsi.ReadOnly)
+		"    ReadOnly:\t%v\n"+
+		"    Portals:\t%v\n"+
+		"    DiscoveryCHAPAuth:\t%v\n"+
+		"    SessionCHAPAuth:\t%v\n"+
+		"    SecretRef:\t%v\n",
+		iscsi.TargetPortal, iscsi.IQN, iscsi.Lun, iscsi.ISCSIInterface, iscsi.FSType, iscsi.ReadOnly, iscsi.Portals, iscsi.DiscoveryCHAPAuth, iscsi.SessionCHAPAuth, iscsi.SecretRef)
 }
 
 func printGlusterfsVolumeSource(glusterfs *api.GlusterfsVolumeSource, w PrefixWriter) {
@@ -866,17 +877,19 @@ func printAzureDiskVolumeSource(d *api.AzureDiskVolumeSource, w PrefixWriter) {
 	w.Write(LEVEL_2, "Type:\tAzureDisk (an Azure Data Disk mount on the host and bind mount to the pod)\n"+
 		"    DiskName:\t%v\n"+
 		"    DiskURI:\t%v\n"+
+		"    Kind: \t%v\n"+
 		"    FSType:\t%v\n"+
 		"    CachingMode:\t%v\n"+
 		"    ReadOnly:\t%v\n",
-		d.DiskName, d.DataDiskURI, *d.FSType, *d.CachingMode, *d.ReadOnly)
+		d.DiskName, d.DataDiskURI, *d.Kind, *d.FSType, *d.CachingMode, *d.ReadOnly)
 }
 
 func printVsphereVolumeSource(vsphere *api.VsphereVirtualDiskVolumeSource, w PrefixWriter) {
 	w.Write(LEVEL_2, "Type:\tvSphereVolume (a Persistent Disk resource in vSphere)\n"+
 		"    VolumePath:\t%v\n"+
 		"    FSType:\t%v\n",
-		vsphere.VolumePath, vsphere.FSType)
+		"    StoragePolicyName:\t%v\n",
+		vsphere.VolumePath, vsphere.FSType, vsphere.StoragePolicyName)
 }
 
 func printPhotonPersistentDiskVolumeSource(photon *api.PhotonPersistentDiskVolumeSource, w PrefixWriter) {
@@ -905,6 +918,23 @@ func printScaleIOVolumeSource(sio *api.ScaleIOVolumeSource, w PrefixWriter) {
 		"    FSType:\t%v\n"+
 		"    ReadOnly:\t%v\n",
 		sio.Gateway, sio.System, sio.ProtectionDomain, sio.StoragePool, sio.StorageMode, sio.VolumeName, sio.FSType, sio.ReadOnly)
+}
+
+func printLocalVolumeSource(ls *api.LocalVolumeSource, w PrefixWriter) {
+	w.Write(LEVEL_2, "Type:\tLocalVolume (a persistent volume backed by local storage on a node)\n"+
+		"    Path:\t%v\n",
+		ls.Path)
+}
+
+func printCephFSVolumeSource(cephfs *api.CephFSVolumeSource, w PrefixWriter) {
+	w.Write(LEVEL_2, "Type:\tCephFS (a CephFS mount on the host that shares a pod's lifetime)\n"+
+		"    Monitors:\t%v\n"+
+		"    Path:\t%v\n"+
+		"    User:\t%v\n"+
+		"    SecretFile:\t%v\n"+
+		"    SecretRef:\t%v\n"+
+		"    ReadOnly:\t%v\n",
+		cephfs.Monitors, cephfs.Path, cephfs.User, cephfs.SecretFile, cephfs.SecretRef, cephfs.ReadOnly)
 }
 
 type PersistentVolumeDescriber struct {
@@ -976,6 +1006,10 @@ func describePersistentVolume(pv *api.PersistentVolume, events *api.EventList) (
 			printPortworxVolumeSource(pv.Spec.PortworxVolume, w)
 		case pv.Spec.ScaleIO != nil:
 			printScaleIOVolumeSource(pv.Spec.ScaleIO, w)
+		case pv.Spec.Local != nil:
+			printLocalVolumeSource(pv.Spec.Local, w)
+		case pv.Spec.CephFS != nil:
+			printCephFSVolumeSource(pv.Spec.CephFS, w)
 		}
 
 		if events != nil {
@@ -2097,6 +2131,70 @@ func describeServiceAccount(serviceAccount *api.ServiceAccount, tokens []api.Sec
 	})
 }
 
+// RoleBindingDescriber generates information about a node.
+type RoleBindingDescriber struct {
+	clientset.Interface
+}
+
+func (d *RoleBindingDescriber) Describe(namespace, name string, describerSettings printers.DescriberSettings) (string, error) {
+	binding, err := d.Rbac().RoleBindings(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", binding.Name)
+		printLabelsMultiline(w, "Labels", binding.Labels)
+		printAnnotationsMultiline(w, "Annotations", binding.Annotations)
+
+		w.Write(LEVEL_0, "Role:\n")
+		w.Write(LEVEL_1, "Kind:\t%s\n", binding.RoleRef.Kind)
+		w.Write(LEVEL_1, "Name:\t%s\n", binding.RoleRef.Name)
+
+		w.Write(LEVEL_0, "Subjects:\n")
+		w.Write(LEVEL_1, "Kind\tName\tNamespace\n")
+		w.Write(LEVEL_1, "----\t----\t---------\n")
+		for _, s := range binding.Subjects {
+			w.Write(LEVEL_1, "%s\t%s\t%s\n", s.Kind, s.Name, s.Namespace)
+		}
+
+		return nil
+	})
+}
+
+// ClusterRoleBindingDescriber generates information about a node.
+type ClusterRoleBindingDescriber struct {
+	clientset.Interface
+}
+
+func (d *ClusterRoleBindingDescriber) Describe(namespace, name string, describerSettings printers.DescriberSettings) (string, error) {
+	binding, err := d.Rbac().ClusterRoleBindings().Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", binding.Name)
+		printLabelsMultiline(w, "Labels", binding.Labels)
+		printAnnotationsMultiline(w, "Annotations", binding.Annotations)
+
+		w.Write(LEVEL_0, "Role:\n")
+		w.Write(LEVEL_1, "Kind:\t%s\n", binding.RoleRef.Kind)
+		w.Write(LEVEL_1, "Name:\t%s\n", binding.RoleRef.Name)
+
+		w.Write(LEVEL_0, "Subjects:\n")
+		w.Write(LEVEL_1, "Kind\tName\tNamespace\n")
+		w.Write(LEVEL_1, "----\t----\t---------\n")
+		for _, s := range binding.Subjects {
+			w.Write(LEVEL_1, "%s\t%s\t%s\n", s.Kind, s.Name, s.Namespace)
+		}
+
+		return nil
+	})
+}
+
 // NodeDescriber generates information about a node.
 type NodeDescriber struct {
 	clientset.Interface
@@ -2716,13 +2814,41 @@ func describeCluster(cluster *federation.Cluster) (string, error) {
 	})
 }
 
-// NetworkPolicyDescriber generates information about a NetworkPolicy
+// ExtensionsNetworkPolicyDescriber generates information about an extensions.NetworkPolicy
+type ExtensionsNetworkPolicyDescriber struct {
+	clientset.Interface
+}
+
+func (d *ExtensionsNetworkPolicyDescriber) Describe(namespace, name string, describerSettings printers.DescriberSettings) (string, error) {
+	c := d.Extensions().NetworkPolicies(namespace)
+
+	networkPolicy, err := c.Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return describeExtensionsNetworkPolicy(networkPolicy)
+}
+
+func describeExtensionsNetworkPolicy(networkPolicy *extensions.NetworkPolicy) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		w := NewPrefixWriter(out)
+		w.Write(LEVEL_0, "Name:\t%s\n", networkPolicy.Name)
+		w.Write(LEVEL_0, "Namespace:\t%s\n", networkPolicy.Namespace)
+		printLabelsMultiline(w, "Labels", networkPolicy.Labels)
+		printAnnotationsMultiline(w, "Annotations", networkPolicy.Annotations)
+
+		return nil
+	})
+}
+
+// NetworkPolicyDescriber generates information about a networking.NetworkPolicy
 type NetworkPolicyDescriber struct {
 	clientset.Interface
 }
 
 func (d *NetworkPolicyDescriber) Describe(namespace, name string, describerSettings printers.DescriberSettings) (string, error) {
-	c := d.Extensions().NetworkPolicies(namespace)
+	c := d.Networking().NetworkPolicies(namespace)
 
 	networkPolicy, err := c.Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -2732,7 +2858,7 @@ func (d *NetworkPolicyDescriber) Describe(namespace, name string, describerSetti
 	return describeNetworkPolicy(networkPolicy)
 }
 
-func describeNetworkPolicy(networkPolicy *extensions.NetworkPolicy) (string, error) {
+func describeNetworkPolicy(networkPolicy *networking.NetworkPolicy) (string, error) {
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", networkPolicy.Name)
@@ -2800,7 +2926,13 @@ func describePodDisruptionBudget(pdb *policy.PodDisruptionBudget, events *api.Ev
 	return tabbedString(func(out io.Writer) error {
 		w := NewPrefixWriter(out)
 		w.Write(LEVEL_0, "Name:\t%s\n", pdb.Name)
-		w.Write(LEVEL_0, "Min available:\t%s\n", pdb.Spec.MinAvailable.String())
+
+		if pdb.Spec.MinAvailable != nil {
+			w.Write(LEVEL_0, "Min available:\t%s\n", pdb.Spec.MinAvailable.String())
+		} else if pdb.Spec.MaxUnavailable != nil {
+			w.Write(LEVEL_0, "Max unavailable:\t%s\n", pdb.Spec.MaxUnavailable.String())
+		}
+
 		if pdb.Spec.Selector != nil {
 			w.Write(LEVEL_0, "Selector:\t%s\n", metav1.FormatLabelSelector(pdb.Spec.Selector))
 		} else {

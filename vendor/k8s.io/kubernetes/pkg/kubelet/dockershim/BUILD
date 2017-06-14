@@ -20,6 +20,7 @@ go_library(
         "docker_legacy.go",
         "docker_sandbox.go",
         "docker_service.go",
+        "docker_stats.go",
         "docker_streaming.go",
         "exec.go",
         "helpers.go",
@@ -31,6 +32,7 @@ go_library(
     deps = [
         "//pkg/api/v1:go_default_library",
         "//pkg/apis/componentconfig:go_default_library",
+        "//pkg/credentialprovider:go_default_library",
         "//pkg/kubelet/apis/cri:go_default_library",
         "//pkg/kubelet/apis/cri/v1alpha1:go_default_library",
         "//pkg/kubelet/cm:go_default_library",
@@ -112,7 +114,7 @@ go_test(
         "//vendor/github.com/golang/mock/gomock:go_default_library",
         "//vendor/github.com/stretchr/testify/assert:go_default_library",
         "//vendor/github.com/stretchr/testify/require:go_default_library",
-        "//vendor/k8s.io/client-go/util/clock:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/util/clock:go_default_library",
     ],
 )
 

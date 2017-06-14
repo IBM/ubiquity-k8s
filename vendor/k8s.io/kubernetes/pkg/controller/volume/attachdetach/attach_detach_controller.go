@@ -144,7 +144,8 @@ func NewAttachDetachController(
 		adc.desiredStateOfWorld,
 		adc.actualStateOfWorld,
 		adc.attacherDetacher,
-		adc.nodeStatusUpdater)
+		adc.nodeStatusUpdater,
+		recorder)
 
 	adc.desiredStateOfWorldPopulator = populator.NewDesiredStateOfWorldPopulator(
 		desiredStateOfWorldPopulatorLoopSleepPeriod,
@@ -551,6 +552,12 @@ func (adc *attachDetachController) GetSecretFunc() func(namespace, name string) 
 	}
 }
 
+func (adc *attachDetachController) GetConfigMapFunc() func(namespace, name string) (*v1.ConfigMap, error) {
+	return func(_, _ string) (*v1.ConfigMap, error) {
+		return nil, fmt.Errorf("GetConfigMap unsupported in attachDetachController")
+	}
+}
+
 func (adc *attachDetachController) addNodeToDswp(node *v1.Node, nodeName types.NodeName) {
 	if _, exists := node.Annotations[volumehelper.ControllerManagedAttachAnnotation]; exists {
 		keepTerminatedPodVolumes := false
@@ -563,4 +570,8 @@ func (adc *attachDetachController) addNodeToDswp(node *v1.Node, nodeName types.N
 		// detach controller. Add it to desired state of world.
 		adc.desiredStateOfWorld.AddNode(nodeName, keepTerminatedPodVolumes)
 	}
+}
+
+func (adc *attachDetachController) GetNodeLabels() (map[string]string, error) {
+	return nil, fmt.Errorf("GetNodeLabels() unsupported in Attach/Detach controller")
 }

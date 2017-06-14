@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/util/flag"
@@ -52,12 +51,12 @@ type HollowNodeConfig struct {
 	NodeName            string
 	ServerPort          int
 	ContentType         string
+	UseRealProxier      bool
 }
 
 const (
-	maxPods            = 110
-	podsPerCore        = 0
-	configResyncPeriod = 15 * time.Minute
+	maxPods     = 110
+	podsPerCore = 0
 )
 
 var knownMorphs = sets.NewString("kubelet", "proxy")
@@ -70,6 +69,7 @@ func (c *HollowNodeConfig) addFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&c.ServerPort, "api-server-port", 443, "Port on which API server is listening.")
 	fs.StringVar(&c.Morph, "morph", "", fmt.Sprintf("Specifies into which Hollow component this binary should morph. Allowed values: %v", knownMorphs.List()))
 	fs.StringVar(&c.ContentType, "kube-api-content-type", "application/vnd.kubernetes.protobuf", "ContentType of requests sent to apiserver.")
+	fs.BoolVar(&c.UseRealProxier, "use-real-proxier", true, "Set to true if you want to use real proxier inside hollow-proxy.")
 }
 
 func (c *HollowNodeConfig) createClientConfigFromFile() (*restclient.Config, error) {
@@ -151,6 +151,7 @@ func main() {
 			execer,
 			eventBroadcaster,
 			recorder,
+			config.UseRealProxier,
 		)
 		if err != nil {
 			glog.Fatalf("Failed to create hollowProxy instance: %v", err)

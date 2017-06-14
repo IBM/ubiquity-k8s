@@ -20,6 +20,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# Set locale to ensure english responses from kubectl commands
+export LANG=C
+
 KUBE_ROOT=$(dirname "${BASH_SOURCE}")/../..
 # Expects the following has already been done by whatever sources this script
 # source "${KUBE_ROOT}/hack/lib/init.sh"
@@ -30,7 +33,6 @@ ETCD_PORT=${ETCD_PORT:-2379}
 API_PORT=${API_PORT:-8080}
 SECURE_API_PORT=${SECURE_API_PORT:-6443}
 API_HOST=${API_HOST:-127.0.0.1}
-KUBELET_PORT=${KUBELET_PORT:-10250}
 KUBELET_HEALTHZ_PORT=${KUBELET_HEALTHZ_PORT:-10248}
 CTLRMGR_PORT=${CTLRMGR_PORT:-10252}
 PROXY_HOST=127.0.0.1 # kubectl only serves on localhost.
@@ -67,6 +69,7 @@ static="static"
 storageclass="storageclass"
 subjectaccessreviews="subjectaccessreviews"
 thirdpartyresources="thirdpartyresources"
+customresourcedefinitions="customresourcedefinitions"
 daemonsets="daemonsets"
 
 
@@ -178,6 +181,7 @@ function kubectl-with-retry()
 # wait-for-pods-with-label "app=foo" "nginx-0nginx-1"
 function wait-for-pods-with-label()
 {
+  local i
   for i in $(seq 1 10); do
     kubeout=`kubectl get po -l $1 --template '{{range.items}}{{.metadata.name}}{{end}}' --sort-by metadata.name "${kube_flags[@]}"`
     if [[ $kubeout = $2 ]]; then
@@ -430,15 +434,28 @@ run_pod_tests() {
   # Post-condition: configmap exists and has expected values
   kube::test::get_object_assert 'configmap/test-configmap --namespace=test-kubectl-describe-pod' "{{$id_field}}" 'test-configmap'
 
-  ### Create a pod disruption budget
+  ### Create a pod disruption budget with minAvailable
   # Command
-  kubectl create pdb test-pdb --selector=app=rails --min-available=2 --namespace=test-kubectl-describe-pod
+  kubectl create pdb test-pdb-1 --selector=app=rails --min-available=2 --namespace=test-kubectl-describe-pod
   # Post-condition: pdb exists and has expected values
-  kube::test::get_object_assert 'pdb/test-pdb --namespace=test-kubectl-describe-pod' "{{$pdb_min_available}}" '2'
+  kube::test::get_object_assert 'pdb/test-pdb-1 --namespace=test-kubectl-describe-pod' "{{$pdb_min_available}}" '2'
   # Command
   kubectl create pdb test-pdb-2 --selector=app=rails --min-available=50% --namespace=test-kubectl-describe-pod
   # Post-condition: pdb exists and has expected values
   kube::test::get_object_assert 'pdb/test-pdb-2 --namespace=test-kubectl-describe-pod' "{{$pdb_min_available}}" '50%'
+
+  ### Create a pod disruption budget with maxUnavailable
+  # Command
+  kubectl create pdb test-pdb-3 --selector=app=rails --max-unavailable=2 --namespace=test-kubectl-describe-pod
+  # Post-condition: pdb exists and has expected values
+  kube::test::get_object_assert 'pdb/test-pdb-3 --namespace=test-kubectl-describe-pod' "{{$pdb_max_unavailable}}" '2'
+  # Command
+  kubectl create pdb test-pdb-4 --selector=app=rails --max-unavailable=50% --namespace=test-kubectl-describe-pod
+  # Post-condition: pdb exists and has expected values
+  kube::test::get_object_assert 'pdb/test-pdb-4 --namespace=test-kubectl-describe-pod' "{{$pdb_max_unavailable}}" '50%'
+
+  ### Fail creating a pod disruption budget if both maxUnavailable and minAvailable specified
+  ! kubectl create pdb test-pdb --selector=app=rails --min-available=2 --max-unavailable=3 --namespace=test-kubectl-describe-pod
 
   # Create a pod that consumes secret, configmap, and downward API keys as envs
   kube::test::get_object_assert 'pods --namespace=test-kubectl-describe-pod' "{{range.items}}{{$id_field}}:{{end}}" ''
@@ -452,7 +469,7 @@ run_pod_tests() {
   kubectl delete pod env-test-pod --namespace=test-kubectl-describe-pod
   kubectl delete secret test-secret --namespace=test-kubectl-describe-pod
   kubectl delete configmap test-configmap --namespace=test-kubectl-describe-pod
-  kubectl delete pdb/test-pdb pdb/test-pdb-2 --namespace=test-kubectl-describe-pod
+  kubectl delete pdb/test-pdb-1 pdb/test-pdb-2 pdb/test-pdb-3 pdb/test-pdb-4 --namespace=test-kubectl-describe-pod
   kubectl delete namespace test-kubectl-describe-pod
 
   ### Create two PODs
@@ -1113,6 +1130,23 @@ run_kubectl_run_tests() {
   kubectl delete deployment nginx-apps "${kube_flags[@]}"
 }
 
+run_kubectl_using_deprecated_commands_test() {
+  ## `kubectl run-container` should function identical to `kubectl run`, but it
+  ## should also print a deprecation warning.
+  # Pre-Condition: no Job exists
+  kube::test::get_object_assert jobs "{{range.items}}{{$id_field}}:{{end}}" ''
+  # Command
+  output_message=$(kubectl 2>&1 run-container pi --generator=job/v1 "--image=$IMAGE_PERL" --restart=OnFailure -- perl -Mbignum=bpi -wle 'print bpi(15)' "${kube_flags[@]}")
+  # Ensure that the user is warned their command is deprecated.
+  kube::test::if_has_string "${output_message}" 'deprecated'
+  # Post-Condition: Job "pi" is created
+  kube::test::get_object_assert jobs "{{range.items}}{{$id_field}}:{{end}}" 'pi:'
+  # Clean up
+  kubectl delete jobs pi "${kube_flags[@]}"
+  # Post-condition: no pods exist.
+  kube::test::get_object_assert pods "{{range.items}}{{$id_field}}:{{end}}" ''
+}
+
 run_kubectl_get_tests() {
   ### Test retrieval of non-existing pods
   # Pre-condition: no POD exists
@@ -1286,6 +1320,57 @@ run_kubectl_request_timeout_tests() {
   kubectl delete pods valid-pod "${kube_flags[@]}"
 }
 
+run_crd_tests() {
+  create_and_use_new_namespace
+  kubectl "${kube_flags_with_token[@]}" create -f - << __EOF__
+{
+  "kind": "CustomResourceDefinition",
+  "apiVersion": "apiextensions.k8s.io/v1beta1",
+  "metadata": {
+    "name": "foos.company.com"
+  },
+  "spec": {
+    "group": "company.com",
+    "version": "v1",
+    "names": {
+      "plural": "foos",
+      "kind": "Foo"
+    }
+  }
+}
+__EOF__
+
+  # Post-Condition: assertion object exist
+  kube::test::get_object_assert customresourcedefinitions "{{range.items}}{{$id_field}}:{{end}}" 'foos.company.com:'
+
+  kubectl "${kube_flags_with_token[@]}" create -f - << __EOF__
+{
+  "kind": "CustomResourceDefinition",
+  "apiVersion": "apiextensions.k8s.io/v1beta1",
+  "metadata": {
+    "name": "bars.company.com"
+  },
+  "spec": {
+    "group": "company.com",
+    "version": "v1",
+    "names": {
+      "plural": "bars",
+      "kind": "Bar"
+    }
+  }
+}
+__EOF__
+
+  # Post-Condition: assertion object exist
+  kube::test::get_object_assert customresourcedefinitions "{{range.items}}{{$id_field}}:{{end}}" 'bars.company.com:foos.company.com:'
+
+  run_non_native_resource_tests
+
+  # teardown
+  kubectl delete customresourcedefinitions/foos.company.com "${kube_flags_with_token[@]}"
+  kubectl delete customresourcedefinitions/bars.company.com "${kube_flags_with_token[@]}"
+}
+
 run_tpr_tests() {
   create_and_use_new_namespace
   kubectl "${kube_flags[@]}" create -f - "${kube_flags[@]}" << __EOF__
@@ -1324,11 +1409,134 @@ __EOF__
   # Post-Condition: assertion object exist
   kube::test::get_object_assert thirdpartyresources "{{range.items}}{{$id_field}}:{{end}}" 'bar.company.com:foo.company.com:'
 
-  kube::util::wait_for_url "http://127.0.0.1:${API_PORT}/apis/company.com/v1" "third party api"
+  run_non_native_resource_tests
 
-  kube::util::wait_for_url "http://127.0.0.1:${API_PORT}/apis/company.com/v1/foos" "third party api Foo"
+  # teardown
+  kubectl delete thirdpartyresources/foo.company.com "${kube_flags[@]}"
+  kubectl delete thirdpartyresources/bar.company.com "${kube_flags[@]}"
+}
 
-  kube::util::wait_for_url "http://127.0.0.1:${API_PORT}/apis/company.com/v1/bars" "third party api Bar"
+run_tpr_migration_tests() {
+  local i tries
+  create_and_use_new_namespace
+
+  # Create CRD first. This is sort of backwards so we can create a marker below.
+  kubectl "${kube_flags_with_token[@]}" create -f - << __EOF__
+{
+  "kind": "CustomResourceDefinition",
+  "apiVersion": "apiextensions.k8s.io/v1beta1",
+  "metadata": {
+    "name": "foos.company.crd"
+  },
+  "spec": {
+    "group": "company.crd",
+    "version": "v1",
+    "names": {
+      "plural": "foos",
+      "kind": "Foo"
+    }
+  }
+}
+__EOF__
+  # Wait for API to become available.
+  tries=0
+  until kubectl "${kube_flags[@]}" get foos.company.crd || [ $tries -gt 10 ]; do
+    tries=$((tries+1))
+    sleep ${tries}
+  done
+  kube::test::get_object_assert foos.company.crd '{{len .items}}' '0'
+
+  # Create a marker that only exists in CRD so we know when CRD is active vs. TPR.
+  kubectl "${kube_flags[@]}" create -f - << __EOF__
+{
+  "kind": "Foo",
+  "apiVersion": "company.crd/v1",
+  "metadata": {
+    "name": "crd-marker"
+  },
+  "testValue": "only exists in CRD"
+}
+__EOF__
+  kube::test::get_object_assert foos.company.crd '{{len .items}}' '1'
+
+  # Now create a TPR that sits in front of the CRD and hides it.
+  kubectl "${kube_flags[@]}" create -f - << __EOF__
+{
+  "kind": "ThirdPartyResource",
+  "apiVersion": "extensions/v1beta1",
+  "metadata": {
+    "name": "foo.company.crd"
+  },
+  "versions": [
+    {
+      "name": "v1"
+    }
+  ]
+}
+__EOF__
+  # The marker should disappear.
+  kube::test::wait_object_assert foos.company.crd '{{len .items}}' '0'
+
+  # Add some items to the TPR.
+  for i in {1..10}; do
+    kubectl "${kube_flags[@]}" create -f - << __EOF__
+{
+  "kind": "Foo",
+  "apiVersion": "company.crd/v1",
+  "metadata": {
+    "name": "tpr-${i}"
+  },
+  "testValue": "migrate-${i}"
+}
+__EOF__
+  done
+  kube::test::get_object_assert foos.company.crd '{{len .items}}' '10'
+
+  # Delete the TPR and wait for the CRD to take over.
+  kubectl "${kube_flags[@]}" delete thirdpartyresource/foo.company.crd
+  tries=0
+  until kubectl "${kube_flags[@]}" get foos.company.crd/crd-marker || [ $tries -gt 10 ]; do
+    tries=$((tries+1))
+    sleep ${tries}
+  done
+  kube::test::get_object_assert foos.company.crd/crd-marker '{{.testValue}}' 'only exists in CRD'
+
+  # Check if the TPR items were migrated to CRD.
+  kube::test::get_object_assert foos.company.crd '{{len .items}}' '11'
+  for i in {1..10}; do
+    kube::test::get_object_assert foos.company.crd/tpr-${i} '{{.testValue}}' "migrate-${i}"
+  done
+
+  # teardown
+  kubectl delete customresourcedefinitions/foos.company.crd "${kube_flags_with_token[@]}"
+}
+
+
+kube::util::non_native_resources() {
+  local times
+  local wait
+  local failed
+  times=30
+  wait=10
+  local i
+  for i in $(seq 1 $times); do
+    failed=""
+    kubectl "${kube_flags[@]}" get --raw '/apis/company.com/v1' || failed=true
+    kubectl "${kube_flags[@]}" get --raw '/apis/company.com/v1/foos' || failed=true
+    kubectl "${kube_flags[@]}" get --raw '/apis/company.com/v1/bars' || failed=true
+
+    if [ -z "${failed}" ]; then
+      return 0
+    fi
+    sleep ${wait}
+  done
+
+  kube::log::error "Timed out waiting for non-native-resources; tried ${times} waiting ${wait}s between each"
+  return 1
+}
+
+run_non_native_resource_tests() {
+  kube::util::non_native_resources
 
   # Test that we can list this new third party resource (foos)
   kube::test::get_object_assert foos "{{range.items}}{{$id_field}}:{{end}}" ''
@@ -1363,7 +1571,7 @@ __EOF__
   kubectl "${kube_flags[@]}" get foos/test -o "jsonpath={.someField}"          --allow-missing-template-keys=false
   kubectl "${kube_flags[@]}" get foos      -o "go-template={{range .items}}{{.someField}}{{end}}" --allow-missing-template-keys=false
   kubectl "${kube_flags[@]}" get foos/test -o "go-template={{.someField}}"                        --allow-missing-template-keys=false
-  output_message=$(kubectl get foos/test -o name)
+  output_message=$(kubectl "${kube_flags[@]}" get foos/test -o name)
   kube::test::if_has_string "${output_message}" 'foos/test'
 
   # Test patching
@@ -1558,10 +1766,6 @@ __EOF__
   # Make sure it's gone
   kube::test::get_object_assert foos "{{range.items}}{{$id_field}}:{{end}}" ''
   kube::test::get_object_assert bars "{{range.items}}{{$id_field}}:{{end}}" ''
-
-  # teardown
-  kubectl delete thirdpartyresources foo.company.com "${kube_flags[@]}"
-  kubectl delete thirdpartyresources bar.company.com "${kube_flags[@]}"
 }
 
 run_recursive_resources_tests() {
@@ -2845,12 +3049,12 @@ runTests() {
   kube::log::status "Checking kubectl version"
   kubectl version
 
-  i=0
+  ns_num=0
   create_and_use_new_namespace() {
-    i=$(($i+1))
-    kube::log::status "Creating namespace namespace${i}"
-    kubectl create namespace "namespace${i}"
-    kubectl config set-context "${CONTEXT}" --namespace="namespace${i}"
+    ns_num=$(($ns_num+1))
+    kube::log::status "Creating namespace namespace${ns_num}"
+    kubectl create namespace "namespace${ns_num}"
+    kubectl config set-context "${CONTEXT}" --namespace="namespace${ns_num}"
   }
 
   kube_flags=(
@@ -2897,6 +3101,7 @@ runTests() {
   deployment_second_image_field="(index .spec.template.spec.containers 1).image"
   change_cause_annotation='.*kubernetes.io/change-cause.*'
   pdb_min_available=".spec.minAvailable"
+  pdb_max_unavailable=".spec.maxUnavailable"
   template_generation_field=".spec.templateGeneration"
 
   # Make sure "default" namespace exists.
@@ -3018,6 +3223,9 @@ runTests() {
     kube::test::get_object_assert clusterrole/resourcename-reader "{{range.rules}}{{range.resources}}{{.}}:{{end}}{{end}}" 'pods:'
     kube::test::get_object_assert clusterrole/resourcename-reader "{{range.rules}}{{range.apiGroups}}{{.}}:{{end}}{{end}}" ':'
     kube::test::get_object_assert clusterrole/resourcename-reader "{{range.rules}}{{range.resourceNames}}{{.}}:{{end}}{{end}}" 'foo:'
+    kubectl create "${kube_flags[@]}" clusterrole url-reader --verb=get --non-resource-url=/logs/* --non-resource-url=/healthz/*
+    kube::test::get_object_assert clusterrole/url-reader "{{range.rules}}{{range.verbs}}{{.}}:{{end}}{{end}}" 'get:'
+    kube::test::get_object_assert clusterrole/url-reader "{{range.rules}}{{range.nonResourceURLs}}{{.}}:{{end}}{{end}}" '/logs/\*:/healthz/\*:'
 
     # test `kubectl create rolebinding/clusterrolebinding`
     # test `kubectl set subject rolebinding/clusterrolebinding`
@@ -3140,6 +3348,7 @@ runTests() {
     # run for federation apiserver as well.
     run_kubectl_apply_tests
     run_kubectl_run_tests
+    run_kubectl_using_deprecated_commands_test
     run_kubectl_create_filter_tests
   fi
 
@@ -3172,8 +3381,16 @@ runTests() {
   # Third Party Resources             #
   #####################################
 
+  # customresourcedefinitions cleanup after themselves.  Run these first, then TPRs
+  if kube::test::if_supports_resource "${customresourcedefinitions}" ; then
+    run_crd_tests
+  fi
+
   if kube::test::if_supports_resource "${thirdpartyresources}" ; then
     run_tpr_tests
+    if kube::test::if_supports_resource "${customresourcedefinitions}" ; then
+      run_tpr_migration_tests
+    fi
   fi
 
   #################
@@ -3768,6 +3985,30 @@ __EOF__
   kube::test::if_has_string "${output_message}" 'unknown command'
   output_message=$(! KUBECTL_PLUGINS_PATH=test/fixtures/pkg/kubectl/plugins/ kubectl plugin error 2>&1)
   kube::test::if_has_string "${output_message}" 'error: exit status 1'
+
+  # plugin tree
+  output_message=$(KUBECTL_PLUGINS_PATH=test/fixtures/pkg/kubectl/plugins kubectl plugin tree 2>&1)
+  kube::test::if_has_string "${output_message}" 'Plugin with a tree of commands'
+  kube::test::if_has_string "${output_message}" 'child1\s\+The first child of a tree'
+  kube::test::if_has_string "${output_message}" 'child2\s\+The second child of a tree'
+  kube::test::if_has_string "${output_message}" 'child3\s\+The third child of a tree'
+  output_message=$(KUBECTL_PLUGINS_PATH=test/fixtures/pkg/kubectl/plugins kubectl plugin tree child1 --help 2>&1)
+  kube::test::if_has_string "${output_message}" 'The first child of a tree'
+  kube::test::if_has_not_string "${output_message}" 'The second child'
+  kube::test::if_has_not_string "${output_message}" 'child2'
+  output_message=$(KUBECTL_PLUGINS_PATH=test/fixtures/pkg/kubectl/plugins kubectl plugin tree child1 2>&1)
+  kube::test::if_has_string "${output_message}" 'child one'
+  kube::test::if_has_not_string "${output_message}" 'child1'
+  kube::test::if_has_not_string "${output_message}" 'The first child'
+
+  # plugin env
+  output_message=$(KUBECTL_PLUGINS_PATH=test/fixtures/pkg/kubectl/plugins kubectl plugin env 2>&1)
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_CURRENT_NAMESPACE'
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_CALLER'
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_DESCRIPTOR_COMMAND=./env.sh'
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_DESCRIPTOR_SHORT_DESC=The plugin envs plugin'
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_GLOBAL_FLAG_KUBECONFIG'
+  kube::test::if_has_string "${output_message}" 'KUBECTL_PLUGINS_GLOBAL_FLAG_REQUEST_TIMEOUT=0'
 
   #################
   # Impersonation #

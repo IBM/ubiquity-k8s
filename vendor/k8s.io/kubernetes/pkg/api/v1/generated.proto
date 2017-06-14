@@ -26,7 +26,6 @@ import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
-import "k8s.io/apiserver/pkg/apis/example/v1/generated.proto";
 
 // Package-wide variables from generator "generated".
 option go_package = "v1";
@@ -120,6 +119,9 @@ message AzureDiskVolumeSource {
   // the ReadOnly setting in VolumeMounts.
   // +optional
   optional bool readOnly = 5;
+
+  // Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared
+  optional string kind = 6;
 }
 
 // AzureFile represents an Azure File Service mount on the host and bind mount to the pod.
@@ -759,6 +761,15 @@ message EmptyDirVolumeSource {
   // More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
   // +optional
   optional string medium = 1;
+
+  // Total amount of local storage required for this EmptyDir volume.
+  // The size limit is also applicable for memory medium.
+  // The maximum usage on memory medium EmptyDir would be the minimum value between
+  // the SizeLimit specified here and the sum of memory limits of all containers in a pod.
+  // The default is nil which means that the limit is undefined.
+  // More info: http://kubernetes.io/docs/user-guide/volumes#emptydir
+  // +optional
+  optional k8s.io.apimachinery.pkg.api.resource.Quantity sizeLimit = 2;
 }
 
 // EndpointAddress is a tuple that describes single IP address.
@@ -1382,6 +1393,10 @@ message ListOptions {
   // +optional
   optional string fieldSelector = 2;
 
+  // If true, partially initialized resources are included in the response.
+  // +optional
+  optional bool includeUninitialized = 6;
+
   // Watch for changes to the described resources and return them as a stream of
   // add, update, and remove notifications. Specify resourceVersion.
   // +optional
@@ -1431,6 +1446,14 @@ message LocalObjectReference {
   // TODO: Add other useful fields. apiVersion, kind, uid?
   // +optional
   optional string name = 1;
+}
+
+// Local represents directly-attached storage with node affinity
+message LocalVolumeSource {
+  // The full path to the volume on the node
+  // For alpha, this path must be a directory
+  // Once block as a source is supported, then this path can point to a block device
+  optional string path = 1;
 }
 
 // Represents an NFS mount that lasts the lifetime of a pod.
@@ -1909,6 +1932,17 @@ message ObjectMeta {
   // +patchStrategy=merge
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.OwnerReference ownerReferences = 13;
 
+  // An initializer is a controller which enforces some system invariant at object creation time.
+  // This field is a list of initializers that have not yet acted on this object. If nil or empty,
+  // this object has been completely initialized. Otherwise, the object is considered uninitialized
+  // and is hidden (in list/watch and get calls) from clients that haven't explicitly asked to
+  // observe uninitialized objects.
+  // 
+  // When an object is created, the system will populate this list with the current set of initializers.
+  // Only privileged users may set or modify this list. Once it is empty, it may not be modified further
+  // by any user.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Initializers initializers = 16;
+
   // Must be empty before the object is deleted from the registry. Each entry
   // is an identifier for the responsible component that will remove the entry
   // from the list. If the deletionTimestamp of the object is non-nil, entries
@@ -2184,6 +2218,10 @@ message PersistentVolumeSource {
   // ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.
   // +optional
   optional ScaleIOVolumeSource scaleIO = 19;
+
+  // Local represents directly-attached storage with node affinity
+  // +optional
+  optional LocalVolumeSource local = 20;
 }
 
 // PersistentVolumeSpec is the specification of a persistent volume.
@@ -3982,6 +4020,14 @@ message VsphereVirtualDiskVolumeSource {
   // Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
   // +optional
   optional string fsType = 2;
+
+  // Storage Policy Based Management (SPBM) profile name.
+  // +optional
+  optional string storagePolicyName = 3;
+
+  // Storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.
+  // +optional
+  optional string storagePolicyID = 4;
 }
 
 // The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)

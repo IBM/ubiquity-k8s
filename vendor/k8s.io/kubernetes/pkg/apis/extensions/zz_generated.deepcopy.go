@@ -378,6 +378,11 @@ func DeepCopy_extensions_DeploymentStatus(in interface{}, out interface{}, c *co
 				}
 			}
 		}
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
+		}
 		return nil
 	}
 }
@@ -812,6 +817,11 @@ func DeepCopy_extensions_PodSecurityPolicySpec(in interface{}, out interface{}, 
 		}
 		if err := DeepCopy_extensions_FSGroupStrategyOptions(&in.FSGroup, &out.FSGroup, c); err != nil {
 			return err
+		}
+		if in.AllowedHostPaths != nil {
+			in, out := &in.AllowedHostPaths, &out.AllowedHostPaths
+			*out = make([]string, len(*in))
+			copy(*out, *in)
 		}
 		return nil
 	}

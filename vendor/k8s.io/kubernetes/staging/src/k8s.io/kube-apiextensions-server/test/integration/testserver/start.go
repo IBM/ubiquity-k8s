@@ -42,7 +42,7 @@ func DefaultServerConfig() (*extensionsapiserver.Config, error) {
 	}
 
 	options := server.NewCustomResourceDefinitionsServerOptions(os.Stdout, os.Stderr)
-	options.RecommendedOptions.Audit.Path = "-"
+	options.RecommendedOptions.Audit.LogOptions.Path = "-"
 	options.RecommendedOptions.SecureServing.BindPort = port
 	options.RecommendedOptions.Authentication.SkipInClusterLookup = true
 	options.RecommendedOptions.SecureServing.BindAddress = net.ParseIP("127.0.0.1")
@@ -76,7 +76,7 @@ func DefaultServerConfig() (*extensionsapiserver.Config, error) {
 		return nil, err
 	}
 
-	customResourceDefinitionRESTOptionsGetter := extensionsapiserver.CustomResourceDefinitionRESTOptionsGetter{
+	customResourceDefinitionRESTOptionsGetter := extensionsapiserver.CRDRESTOptionsGetter{
 		StorageConfig:           options.RecommendedOptions.Etcd.StorageConfig,
 		StoragePrefix:           options.RecommendedOptions.Etcd.StorageConfig.Prefix,
 		EnableWatchCache:        options.RecommendedOptions.Etcd.EnableWatchCache,
@@ -88,8 +88,8 @@ func DefaultServerConfig() (*extensionsapiserver.Config, error) {
 	customResourceDefinitionRESTOptionsGetter.StorageConfig.Copier = extensionsapiserver.UnstructuredCopier{}
 
 	config := &extensionsapiserver.Config{
-		GenericConfig:                             genericConfig,
-		CustomResourceDefinitionRESTOptionsGetter: customResourceDefinitionRESTOptionsGetter,
+		GenericConfig:        genericConfig,
+		CRDRESTOptionsGetter: customResourceDefinitionRESTOptionsGetter,
 	}
 
 	return config, nil
@@ -140,7 +140,7 @@ func StartServer(config *extensionsapiserver.Config) (chan struct{}, clientset.I
 		return nil, nil, nil, err
 	}
 
-	bytes, _ := apiExtensionsClient.Discovery().RESTClient().Get().AbsPath("/apis/apiextensions.k8s.io/v1alpha1").DoRaw()
+	bytes, _ := apiExtensionsClient.Discovery().RESTClient().Get().AbsPath("/apis/apiextensions.k8s.io/v1beta1").DoRaw()
 	fmt.Print(string(bytes))
 
 	return stopCh, apiExtensionsClient, dynamic.NewDynamicClientPool(server.GenericAPIServer.LoopbackClientConfig), nil

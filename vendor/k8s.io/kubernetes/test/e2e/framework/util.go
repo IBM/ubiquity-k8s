@@ -590,8 +590,6 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 			case res && err == nil:
 				nOk++
 			case pod.Status.Phase == v1.PodSucceeded:
-				continue
-			case pod.Status.Phase == v1.PodSucceeded:
 				Logf("The status of Pod %s is Succeeded which is unexpected", pod.ObjectMeta.Name)
 				badPods = append(badPods, pod)
 				// it doesn't make sense to wait for this pod
@@ -3348,9 +3346,10 @@ func WatchRecreateDeployment(c clientset.Interface, d *extensions.Deployment) er
 }
 
 // WaitForDeploymentRevisionAndImage waits for the deployment's and its new RS's revision and container image to match the given revision and image.
-// Note that deployment revision and its new RS revision should be updated shortly, so we only wait for 1 minute here to fail early.
+// Note that deployment revision and its new RS revision should be updated shortly most of the time, but an overwhelmed RS controller
+// may result in taking longer to relabel a RS.
 func WaitForDeploymentRevisionAndImage(c clientset.Interface, ns, deploymentName string, revision, image string) error {
-	return testutil.WaitForDeploymentRevisionAndImage(c, ns, deploymentName, revision, image, Logf, Poll, pollShortTimeout)
+	return testutil.WaitForDeploymentRevisionAndImage(c, ns, deploymentName, revision, image, Logf, Poll, pollLongTimeout)
 }
 
 // CheckNewRSAnnotations check if the new RS's annotation is as expected
@@ -3486,16 +3485,17 @@ func WaitForPartialEvents(c clientset.Interface, ns string, objOrRef runtime.Obj
 
 type updateDeploymentFunc func(d *extensions.Deployment)
 
-func UpdateDeploymentWithRetries(c clientset.Interface, namespace, name string, applyUpdate updateDeploymentFunc) (deployment *extensions.Deployment, err error) {
-	deployments := c.Extensions().Deployments(namespace)
+func UpdateDeploymentWithRetries(c clientset.Interface, namespace, name string, applyUpdate updateDeploymentFunc) (*extensions.Deployment, error) {
+	var deployment *extensions.Deployment
 	var updateErr error
-	pollErr := wait.Poll(10*time.Millisecond, 1*time.Minute, func() (bool, error) {
-		if deployment, err = deployments.Get(name, metav1.GetOptions{}); err != nil {
+	pollErr := wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
+		var err error
+		if deployment, err = c.Extensions().Deployments(namespace).Get(name, metav1.GetOptions{}); err != nil {
 			return false, err
 		}
 		// Apply the update, then attempt to push it to the apiserver.
 		applyUpdate(deployment)
-		if deployment, err = deployments.Update(deployment); err == nil {
+		if deployment, err = c.Extensions().Deployments(namespace).Update(deployment); err == nil {
 			Logf("Updating deployment %s", name)
 			return true, nil
 		}
@@ -3513,7 +3513,7 @@ type updateRsFunc func(d *extensions.ReplicaSet)
 func UpdateReplicaSetWithRetries(c clientset.Interface, namespace, name string, applyUpdate updateRsFunc) (*extensions.ReplicaSet, error) {
 	var rs *extensions.ReplicaSet
 	var updateErr error
-	pollErr := wait.PollImmediate(10*time.Millisecond, 1*time.Minute, func() (bool, error) {
+	pollErr := wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 		var err error
 		if rs, err = c.Extensions().ReplicaSets(namespace).Get(name, metav1.GetOptions{}); err != nil {
 			return false, err
@@ -3918,21 +3918,24 @@ func CheckPodsRunningReadyOrSucceeded(c clientset.Interface, ns string, podNames
 func CheckPodsCondition(c clientset.Interface, ns string, podNames []string, timeout time.Duration, condition podCondition, desc string) bool {
 	np := len(podNames)
 	Logf("Waiting up to %v for %d pods to be %s: %s", timeout, np, desc, podNames)
-	result := make(chan bool, len(podNames))
+	type waitPodResult struct {
+		success bool
+		podName string
+	}
+	result := make(chan waitPodResult, len(podNames))
 	for _, podName := range podNames {
 		// Launch off pod readiness checkers.
 		go func(name string) {
 			err := WaitForPodCondition(c, ns, name, desc, timeout, condition)
-			result <- err == nil
+			result <- waitPodResult{err == nil, name}
 		}(podName)
 	}
 	// Wait for them all to finish.
 	success := true
-	// TODO(a-robinson): Change to `for range` syntax and remove logging once we
-	// support only Go >= 1.4.
-	for _, podName := range podNames {
-		if !<-result {
-			Logf("Pod %[1]s failed to be %[2]s.", podName, desc)
+	for range podNames {
+		res := <-result
+		if !res.success {
+			Logf("Pod %[1]s failed to be %[2]s.", res.podName, desc)
 			success = false
 		}
 	}
@@ -5178,12 +5181,16 @@ func CleanupGCEResources(loadBalancerName string) (retErr error) {
 	if err := DeleteGCEStaticIP(loadBalancerName); err != nil {
 		Logf("%v", err)
 	}
+	var hcNames []string
 	hc, getErr := gceCloud.GetHttpHealthCheck(loadBalancerName)
 	if getErr != nil && !IsGoogleAPIHTTPErrorCode(getErr, http.StatusNotFound) {
 		retErr = fmt.Errorf("%v\n%v", retErr, getErr)
 		return
 	}
-	if err := gceCloud.DeleteTargetPool(loadBalancerName, hc); err != nil &&
+	if hc != nil {
+		hcNames = append(hcNames, hc.Name)
+	}
+	if err := gceCloud.DeleteTargetPool(loadBalancerName, hcNames...); err != nil &&
 		!IsGoogleAPIHTTPErrorCode(err, http.StatusNotFound) {
 		retErr = fmt.Errorf("%v\n%v", retErr, err)
 	}

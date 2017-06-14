@@ -166,6 +166,17 @@ type ObjectMeta struct {
 	// +optional
 	OwnerReferences []metav1.OwnerReference
 
+	// An initializer is a controller which enforces some system invariant at object creation time.
+	// This field is a list of initializers that have not yet acted on this object. If nil or empty,
+	// this object has been completely initialized. Otherwise, the object is considered uninitialized
+	// and is hidden (in list/watch and get calls) from clients that haven't explicitly asked to
+	// observe uninitialized objects.
+	//
+	// When an object is created, the system will populate this list with the current set of initializers.
+	// Only privileged users may set or modify this list. Once it is empty, it may not be modified further
+	// by any user.
+	Initializers *metav1.Initializers
+
 	// Must be empty before the object is deleted from the registry. Each entry
 	// is an identifier for the responsible component that will remove the entry
 	// from the list. If the deletionTimestamp of the object is non-nil, entries
@@ -370,6 +381,9 @@ type PersistentVolumeSource struct {
 	// ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.
 	// +optional
 	ScaleIO *ScaleIOVolumeSource
+	// Local represents directly-attached storage with node affinity
+	// +optional
+	Local *LocalVolumeSource
 }
 
 type PersistentVolumeClaimVolumeSource struct {
@@ -388,6 +402,10 @@ const (
 
 	// MountOptionAnnotation defines mount option annotation used in PVs
 	MountOptionAnnotation = "volume.beta.kubernetes.io/mount-options"
+
+	// AlphaStorageNodeAffinityAnnotation defines node affinity policies for a PersistentVolume.
+	// Value is a string of the json representation of type NodeAffinity
+	AlphaStorageNodeAffinityAnnotation = "volume.alpha.kubernetes.io/node-affinity"
 )
 
 // +genclient=true
@@ -583,6 +601,14 @@ type EmptyDirVolumeSource struct {
 	// The default is "" which means to use the node's default medium.
 	// +optional
 	Medium StorageMedium
+	// Total amount of local storage required for this EmptyDir volume.
+	// The size limit is also applicable for memory medium.
+	// The maximum usage on memory medium EmptyDir would be the minimum value between
+	// the SizeLimit specified here and the sum of memory limits of all containers in a pod.
+	// The default is nil which means that the limit is undefined.
+	// More info: http://kubernetes.io/docs/user-guide/volumes#emptydir
+	// +optional
+	SizeLimit resource.Quantity
 }
 
 // StorageMedium defines ways that storage can be allocated to a volume.
@@ -1020,6 +1046,12 @@ type VsphereVirtualDiskVolumeSource struct {
 	// Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 	// +optional
 	FSType string
+	// Storage Policy Based Management (SPBM) profile name.
+	// +optional
+	StoragePolicyName string
+	// Storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.
+	// +optional
+	StoragePolicyID string
 }
 
 // Represents a Photon Controller persistent disk resource.
@@ -1048,11 +1080,16 @@ type PortworxVolumeSource struct {
 }
 
 type AzureDataDiskCachingMode string
+type AzureDataDiskKind string
 
 const (
 	AzureDataDiskCachingNone      AzureDataDiskCachingMode = "None"
 	AzureDataDiskCachingReadOnly  AzureDataDiskCachingMode = "ReadOnly"
 	AzureDataDiskCachingReadWrite AzureDataDiskCachingMode = "ReadWrite"
+
+	AzureSharedBlobDisk    AzureDataDiskKind = "Shared"
+	AzureDedicatedBlobDisk AzureDataDiskKind = "Dedicated"
+	AzureManagedDisk       AzureDataDiskKind = "Managed"
 )
 
 // AzureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
@@ -1073,6 +1110,8 @@ type AzureDiskVolumeSource struct {
 	// the ReadOnly setting in VolumeMounts.
 	// +optional
 	ReadOnly *bool
+	// Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared
+	Kind *AzureDataDiskKind
 }
 
 // ScaleIOVolumeSource represents a persistent ScaleIO volume
@@ -1203,6 +1242,14 @@ type KeyToPath struct {
 	// mode, like fsGroup, and the result can be other mode bits set.
 	// +optional
 	Mode *int32
+}
+
+// Local represents directly-attached storage with node affinity
+type LocalVolumeSource struct {
+	// The full path to the volume on the node
+	// For alpha, this path must be a directory
+	// Once block as a source is supported, then this path can point to a block device
+	Path string
 }
 
 // ContainerPort represents a network port in a single container
@@ -2978,6 +3025,12 @@ const (
 	ResourceMemory ResourceName = "memory"
 	// Volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)
 	ResourceStorage ResourceName = "storage"
+	// Local Storage for overlay filesystem, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	// The resource name for ResourceStorageOverlay is alpha and it can change across releases.
+	ResourceStorageOverlay ResourceName = "storage.kubernetes.io/overlay"
+	// Local Storage for scratch space, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	// The resource name for ResourceStorageScratch is alpha and it can change across releases.
+	ResourceStorageScratch ResourceName = "storage.kubernetes.io/scratch"
 	// NVIDIA GPU, in devices. Alpha, might change: although fractional and allowing values >1, only one whole device per node is assigned.
 	ResourceNvidiaGPU ResourceName = "alpha.kubernetes.io/nvidia-gpu"
 	// Number of Pods that may be running on this Node: see ResourcePods
@@ -3152,6 +3205,10 @@ type ListOptions struct {
 	LabelSelector labels.Selector
 	// A selector based on fields
 	FieldSelector fields.Selector
+
+	// If true, partially initialized resources are included in the response.
+	IncludeUninitialized bool
+
 	// If true, watch for changes to this list
 	Watch bool
 	// When specified with a watch call, shows changes that occur after that particular version of a resource.

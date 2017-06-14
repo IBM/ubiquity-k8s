@@ -35,16 +35,6 @@ import (
 const (
 	defaultRootDir = "/var/lib/kubelet"
 
-	// When these values are updated, also update test/e2e/framework/util.go
-	defaultPodInfraContainerImageName    = "gcr.io/google_containers/pause"
-	defaultPodInfraContainerImageVersion = "3.0"
-	defaultPodInfraContainerImage        = defaultPodInfraContainerImageName +
-		"-" + runtime.GOARCH + ":" +
-		defaultPodInfraContainerImageVersion
-
-	// From pkg/kubelet/rkt/rkt.go to avoid circular import
-	defaultRktAPIServiceEndpoint = "localhost:15441"
-
 	AutoDetectCloudProvider = "auto-detect"
 
 	defaultIPTablesMasqueradeBit = 14
@@ -240,17 +230,8 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 	if obj.RuntimeRequestTimeout == zeroDuration {
 		obj.RuntimeRequestTimeout = metav1.Duration{Duration: 2 * time.Minute}
 	}
-	if obj.ImagePullProgressDeadline == zeroDuration {
-		obj.ImagePullProgressDeadline = metav1.Duration{Duration: 1 * time.Minute}
-	}
 	if obj.CPUCFSQuota == nil {
 		obj.CPUCFSQuota = boolVar(true)
-	}
-	if obj.DockerExecHandlerName == "" {
-		obj.DockerExecHandlerName = "native"
-	}
-	if obj.DockerEndpoint == "" && runtime.GOOS != "windows" {
-		obj.DockerEndpoint = "unix:///var/run/docker.sock"
 	}
 	if obj.EventBurst == 0 {
 		obj.EventBurst = 10
@@ -301,9 +282,6 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 		temp := int32(80)
 		obj.ImageGCLowThresholdPercent = &temp
 	}
-	if obj.LowDiskSpaceThresholdMB == 0 {
-		obj.LowDiskSpaceThresholdMB = 256
-	}
 	if obj.MasterServiceNamespace == "" {
 		obj.MasterServiceNamespace = metav1.NamespaceDefault
 	}
@@ -336,9 +314,6 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 		temp := int32(qos.KubeletOOMScoreAdj)
 		obj.OOMScoreAdj = &temp
 	}
-	if obj.PodInfraContainerImage == "" {
-		obj.PodInfraContainerImage = defaultPodInfraContainerImage
-	}
 	if obj.Port == 0 {
 		obj.Port = ports.KubeletPort
 	}
@@ -360,9 +335,6 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 	}
 	if obj.ResolverConfig == "" {
 		obj.ResolverConfig = kubetypes.ResolvConfDefault
-	}
-	if obj.RktAPIEndpoint == "" {
-		obj.RktAPIEndpoint = defaultRktAPIServiceEndpoint
 	}
 	if obj.RootDirectory == "" {
 		obj.RootDirectory = defaultRootDir
@@ -396,7 +368,7 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 		obj.HairpinMode = PromiscuousBridge
 	}
 	if obj.EvictionHard == nil {
-		temp := "memory.available<100Mi"
+		temp := "memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%"
 		obj.EvictionHard = &temp
 	}
 	if obj.EvictionPressureTransitionPeriod == zeroDuration {
@@ -435,8 +407,12 @@ func SetDefaults_KubeletConfiguration(obj *KubeletConfiguration) {
 	if obj.EnforceNodeAllocatable == nil {
 		obj.EnforceNodeAllocatable = defaultNodeAllocatableEnforcement
 	}
-	if obj.ExperimentalDockershim == nil {
-		obj.ExperimentalDockershim = boolVar(false)
+	if obj.RemoteRuntimeEndpoint == "" {
+		if runtime.GOOS == "linux" {
+			obj.RemoteRuntimeEndpoint = "unix:///var/run/dockershim.sock"
+		} else if runtime.GOOS == "windows" {
+			obj.RemoteRuntimeEndpoint = "tcp://localhost:3735"
+		}
 	}
 }
 

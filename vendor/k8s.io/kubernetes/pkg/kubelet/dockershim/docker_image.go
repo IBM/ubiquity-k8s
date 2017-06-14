@@ -43,7 +43,7 @@ func (ds *dockerService) ListImages(filter *runtimeapi.ImageFilter) ([]*runtimea
 		return nil, err
 	}
 
-	result := []*runtimeapi.Image{}
+	result := make([]*runtimeapi.Image, 0, len(images))
 	for _, i := range images {
 		apiImage, err := imageToRuntimeAPIImage(&i)
 		if err != nil {
@@ -134,7 +134,7 @@ func getImageRef(client libdocker.Interface, image string) (string, error) {
 }
 
 // ImageFsInfo returns information of the filesystem that is used to store images.
-func (ds *dockerService) ImageFsInfo() (*runtimeapi.FsInfo, error) {
+func (ds *dockerService) ImageFsInfo(req *runtimeapi.ImageFsInfoRequest) (*runtimeapi.ImageFsInfoResponse, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

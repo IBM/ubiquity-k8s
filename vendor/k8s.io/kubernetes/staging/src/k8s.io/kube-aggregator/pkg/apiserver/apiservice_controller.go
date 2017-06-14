@@ -39,7 +39,7 @@ import (
 )
 
 type APIHandlerManager interface {
-	AddAPIService(apiService *apiregistration.APIService, destinationHost string)
+	AddAPIService(apiService *apiregistration.APIService)
 	RemoveAPIService(apiServiceName string)
 }
 
@@ -102,31 +102,8 @@ func (c *APIServiceRegistrationController) sync(key string) error {
 		return nil
 	}
 
-	// TODO move the destination host to status so that you can see where its going
-	c.apiHandlerManager.AddAPIService(apiService, c.getDestinationHost(apiService))
+	c.apiHandlerManager.AddAPIService(apiService)
 	return nil
-}
-
-func (c *APIServiceRegistrationController) getDestinationHost(apiService *apiregistration.APIService) string {
-	if apiService.Spec.Service == nil {
-		return ""
-	}
-
-	destinationHost := apiService.Spec.Service.Name + "." + apiService.Spec.Service.Namespace + ".svc"
-	service, err := c.serviceLister.Services(apiService.Spec.Service.Namespace).Get(apiService.Spec.Service.Name)
-	if err != nil {
-		return destinationHost
-	}
-	switch {
-	// use IP from a clusterIP for these service types
-	case service.Spec.Type == v1.ServiceTypeClusterIP,
-		service.Spec.Type == v1.ServiceTypeNodePort,
-		service.Spec.Type == v1.ServiceTypeLoadBalancer:
-		return service.Spec.ClusterIP
-	}
-
-	// return the normal DNS name by default
-	return destinationHost
 }
 
 func (c *APIServiceRegistrationController) Run(stopCh <-chan struct{}) {

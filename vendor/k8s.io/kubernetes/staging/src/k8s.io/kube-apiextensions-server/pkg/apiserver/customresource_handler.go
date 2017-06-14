@@ -45,6 +45,7 @@ import (
 
 	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions"
 	listers "k8s.io/kube-apiextensions-server/pkg/client/listers/apiextensions/internalversion"
+	"k8s.io/kube-apiextensions-server/pkg/controller/finalizer"
 	"k8s.io/kube-apiextensions-server/pkg/registry/customresource"
 )
 
@@ -104,13 +105,11 @@ func (r *crdHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		// programmer error
 		panic("missing context")
-		return
 	}
 	requestInfo, ok := apirequest.RequestInfoFrom(ctx)
 	if !ok {
 		// programmer error
 		panic("missing requestInfo")
-		return
 	}
 	if !requestInfo.IsResourceRequest {
 		pathParts := splitPath(requestInfo.Path)
@@ -129,10 +128,6 @@ func (r *crdHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		r.delegate.ServeHTTP(w, req)
 		return
 	}
-	if len(requestInfo.Subresource) > 0 {
-		http.NotFound(w, req)
-		return
-	}
 
 	crdName := requestInfo.Resource + "." + requestInfo.APIGroup
 	crd, err := r.crdLister.Get(crdName)
@@ -148,10 +143,15 @@ func (r *crdHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		r.delegate.ServeHTTP(w, req)
 		return
 	}
-	// if we can't definitively determine that our names are good, delegate
-	if !apiextensions.IsCRDConditionFalse(crd, apiextensions.NameConflict) {
+	if !apiextensions.IsCRDConditionTrue(crd, apiextensions.Established) {
 		r.delegate.ServeHTTP(w, req)
 	}
+	if len(requestInfo.Subresource) > 0 {
+		http.NotFound(w, req)
+		return
+	}
+
+	terminating := apiextensions.IsCRDConditionTrue(crd, apiextensions.Terminating)
 
 	crdInfo := r.getServingInfoFor(crd)
 	storage := crdInfo.storage
@@ -174,20 +174,37 @@ func (r *crdHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		handler(w, req)
 		return
 	case "create":
+		if terminating {
+			http.Error(w, fmt.Sprintf("%v not allowed while CustomResourceDefinition is terminating", requestInfo.Verb), http.StatusMethodNotAllowed)
+			return
+		}
 		handler := handlers.CreateResource(storage, requestScope, discovery.NewUnstructuredObjectTyper(nil), r.admission)
 		handler(w, req)
 		return
 	case "update":
+		if terminating {
+			http.Error(w, fmt.Sprintf("%v not allowed while CustomResourceDefinition is terminating", requestInfo.Verb), http.StatusMethodNotAllowed)
+			return
+		}
 		handler := handlers.UpdateResource(storage, requestScope, discovery.NewUnstructuredObjectTyper(nil), r.admission)
 		handler(w, req)
 		return
 	case "patch":
+		if terminating {
+			http.Error(w, fmt.Sprintf("%v not allowed while CustomResourceDefinition is terminating", requestInfo.Verb), http.StatusMethodNotAllowed)
+			return
+		}
 		handler := handlers.PatchResource(storage, requestScope, r.admission, unstructured.UnstructuredObjectConverter{})
 		handler(w, req)
 		return
 	case "delete":
 		allowsOptions := true
 		handler := handlers.DeleteResource(storage, allowsOptions, requestScope, r.admission)
+		handler(w, req)
+		return
+	case "deletecollection":
+		checkBody := true
+		handler := handlers.DeleteCollection(storage, checkBody, requestScope, r.admission)
 		handler(w, req)
 		return
 
@@ -228,6 +245,13 @@ func (r *crdHandler) removeDeadStorage() {
 	r.customStorage.Store(storageMap)
 }
 
+// GetCustomResourceListerCollectionDeleter returns the ListerCollectionDeleter for
+// the given uid, or nil if one does not exist.
+func (r *crdHandler) GetCustomResourceListerCollectionDeleter(crd *apiextensions.CustomResourceDefinition) finalizer.ListerCollectionDeleter {
+	info := r.getServingInfoFor(crd)
+	return info.storage
+}
+
 func (r *crdHandler) getServingInfoFor(crd *apiextensions.CustomResourceDefinition) *crdInfo {
 	storageMap := r.customStorage.Load().(crdStorageMap)
 	ret, ok := storageMap[crd.UID]
@@ -250,6 +274,17 @@ func (r *crdHandler) getServingInfoFor(crd *apiextensions.CustomResourceDefiniti
 		customresource.NewStrategy(discovery.NewUnstructuredObjectTyper(nil), crd.Spec.Scope == apiextensions.NamespaceScoped),
 		r.restOptionsGetter,
 	)
+
+	// When new REST storage is created, the storage cacher for the CR starts asynchronously.
+	// REST API operations return like list use the RV of etcd, but the storage cacher's reflector's list
+	// can get a different RV because etcd can be touched in between the initial list operation (if that's what you're doing first)
+	// and the storage cache reflector starting.
+	// Later, you can issue a watch with the REST apis list.RV and end up earlier than the storage cacher.
+	// The time window is really narrow, but it can happen.  The simplest "solution" is to wait
+	// briefly for the storage cache to start before we return out new storage so its more likely that we'll have valid
+	// resource versions for the watch cache.  We don't expose cache status outside of the caching layer
+	// so I can't think of way to determine it reliably.
+	time.Sleep(1 * time.Second)
 
 	parameterScheme := runtime.NewScheme()
 	parameterScheme.AddUnversionedTypes(schema.GroupVersion{Group: crd.Spec.Group, Version: crd.Spec.Version},
@@ -362,7 +397,7 @@ type UnstructuredDefaulter struct{}
 
 func (UnstructuredDefaulter) Default(in runtime.Object) {}
 
-type CustomResourceDefinitionRESTOptionsGetter struct {
+type CRDRESTOptionsGetter struct {
 	StorageConfig           storagebackend.Config
 	StoragePrefix           string
 	EnableWatchCache        bool
@@ -371,7 +406,7 @@ type CustomResourceDefinitionRESTOptionsGetter struct {
 	DeleteCollectionWorkers int
 }
 
-func (t CustomResourceDefinitionRESTOptionsGetter) GetRESTOptions(resource schema.GroupResource) (generic.RESTOptions, error) {
+func (t CRDRESTOptionsGetter) GetRESTOptions(resource schema.GroupResource) (generic.RESTOptions, error) {
 	ret := generic.RESTOptions{
 		StorageConfig:           &t.StorageConfig,
 		Decorator:               generic.UndecoratedStorage,

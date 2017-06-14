@@ -89,6 +89,7 @@ func TestWriteStaticPodManifests(t *testing.T) {
 				t.Errorf("WriteStaticPodManifests: %v", err)
 				continue
 			}
+			defer manifest.Close()
 
 			var pod api.Pod
 			d := yaml.NewYAMLOrJSONDecoder(manifest, 4096)
@@ -675,7 +676,6 @@ func TestGetControllerManagerCommand(t *testing.T) {
 				"--service-account-private-key-file=" + testCertsDir + "/sa.key",
 				"--cluster-signing-cert-file=" + testCertsDir + "/ca.crt",
 				"--cluster-signing-key-file=" + testCertsDir + "/ca.key",
-				"--insecure-experimental-approve-all-kubelet-csrs-for-group=system:bootstrappers",
 				"--use-service-account-credentials=true",
 				"--controllers=*,bootstrapsigner,tokencleaner",
 			},
@@ -694,7 +694,6 @@ func TestGetControllerManagerCommand(t *testing.T) {
 				"--service-account-private-key-file=" + testCertsDir + "/sa.key",
 				"--cluster-signing-cert-file=" + testCertsDir + "/ca.crt",
 				"--cluster-signing-key-file=" + testCertsDir + "/ca.key",
-				"--insecure-experimental-approve-all-kubelet-csrs-for-group=system:bootstrappers",
 				"--use-service-account-credentials=true",
 				"--controllers=*,bootstrapsigner,tokencleaner",
 				"--cloud-provider=foo",
@@ -714,7 +713,6 @@ func TestGetControllerManagerCommand(t *testing.T) {
 				"--service-account-private-key-file=" + testCertsDir + "/sa.key",
 				"--cluster-signing-cert-file=" + testCertsDir + "/ca.crt",
 				"--cluster-signing-key-file=" + testCertsDir + "/ca.key",
-				"--insecure-experimental-approve-all-kubelet-csrs-for-group=system:bootstrappers",
 				"--use-service-account-credentials=true",
 				"--controllers=*,bootstrapsigner,tokencleaner",
 				"--allocate-node-cidrs=true",

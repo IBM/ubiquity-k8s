@@ -235,7 +235,7 @@ type DeploymentRollback struct {
 }
 
 type RollbackConfig struct {
-	// The revision to rollback to. If set to 0, rollbck to the last revision.
+	// The revision to rollback to. If set to 0, rollback to the last revision.
 	// +optional
 	Revision int64
 }
@@ -327,6 +327,12 @@ type DeploymentStatus struct {
 
 	// Represents the latest available observations of a deployment's current state.
 	Conditions []DeploymentCondition
+
+	// Count of hash collisions for the Deployment. The Deployment controller uses this
+	// field as a collision avoidance mechanism when it needs to create the name for the
+	// newest ReplicaSet.
+	// +optional
+	CollisionCount *int64
 }
 
 type DeploymentConditionType string
@@ -878,6 +884,10 @@ type PodSecurityPolicySpec struct {
 	// will not be forced to.
 	// +optional
 	ReadOnlyRootFilesystem bool
+	// AllowedHostPaths is a white list of allowed host path prefixes. Empty indicates that all
+	// host paths may be used.
+	// +optional
+	AllowedHostPaths []string
 }
 
 // HostPortRange defines a range of host ports that will be enabled by a policy
@@ -1036,6 +1046,7 @@ type PodSecurityPolicyList struct {
 
 // +genclient=true
 
+// NetworkPolicy describes what network traffic is allowed for a set of Pods
 type NetworkPolicy struct {
 	metav1.TypeMeta
 	// +optional
@@ -1055,13 +1066,12 @@ type NetworkPolicySpec struct {
 	PodSelector metav1.LabelSelector
 
 	// List of ingress rules to be applied to the selected pods.
-	// Traffic is allowed to a pod if namespace.networkPolicy.ingress.isolation is undefined and cluster policy allows it,
+	// Traffic is allowed to a pod if there are no NetworkPolicies selecting the pod
 	// OR if the traffic source is the pod's local node,
 	// OR if the traffic matches at least one ingress rule across all of the NetworkPolicy
 	// objects whose podSelector matches the pod.
-	// If this field is empty then this NetworkPolicy does not affect ingress isolation.
-	// If this field is present and contains at least one rule, this policy allows any traffic
-	// which matches at least one of the ingress rules in this list.
+	// If this field is empty then this NetworkPolicy does not allow any traffic
+	// (and serves solely to ensure that the pods it selects are isolated by default).
 	// +optional
 	Ingress []NetworkPolicyIngressRule
 }
