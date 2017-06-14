@@ -76,6 +76,7 @@ var map_AzureDiskVolumeSource = map[string]string{
 	"cachingMode": "Host Caching mode: None, Read Only, Read Write.",
 	"fsType":      "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
 	"readOnly":    "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
+	"kind":        "Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared",
 }
 
 func (AzureDiskVolumeSource) SwaggerDoc() map[string]string {
@@ -395,8 +396,9 @@ func (DownwardAPIVolumeSource) SwaggerDoc() map[string]string {
 }
 
 var map_EmptyDirVolumeSource = map[string]string{
-	"":       "Represents an empty directory for a pod. Empty directory volumes support ownership management and SELinux relabeling.",
-	"medium": "What type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
+	"":          "Represents an empty directory for a pod. Empty directory volumes support ownership management and SELinux relabeling.",
+	"medium":    "What type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
+	"sizeLimit": "Total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: http://kubernetes.io/docs/user-guide/volumes#emptydir",
 }
 
 func (EmptyDirVolumeSource) SwaggerDoc() map[string]string {
@@ -752,12 +754,13 @@ func (List) SwaggerDoc() map[string]string {
 }
 
 var map_ListOptions = map[string]string{
-	"":                "ListOptions is the query options to a standard REST list call. DEPRECATED: This type has been moved to meta/v1 and will be removed soon.",
-	"labelSelector":   "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
-	"fieldSelector":   "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
-	"watch":           "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
-	"resourceVersion": "When specified with a watch call, shows changes that occur after that particular version of a resource. Defaults to changes from the beginning of history. When specified for list: - if unset, then the result is returned from remote storage based on quorum-read flag; - if it's 0, then we simply return what we currently have in cache, no guarantee; - if set to non zero, then the result is at least as fresh as given rv.",
-	"timeoutSeconds":  "Timeout for the list/watch call.",
+	"":                     "ListOptions is the query options to a standard REST list call. DEPRECATED: This type has been moved to meta/v1 and will be removed soon.",
+	"labelSelector":        "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
+	"fieldSelector":        "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
+	"includeUninitialized": "If true, partially initialized resources are included in the response.",
+	"watch":                "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
+	"resourceVersion":      "When specified with a watch call, shows changes that occur after that particular version of a resource. Defaults to changes from the beginning of history. When specified for list: - if unset, then the result is returned from remote storage based on quorum-read flag; - if it's 0, then we simply return what we currently have in cache, no guarantee; - if set to non zero, then the result is at least as fresh as given rv.",
+	"timeoutSeconds":       "Timeout for the list/watch call.",
 }
 
 func (ListOptions) SwaggerDoc() map[string]string {
@@ -790,6 +793,15 @@ var map_LocalObjectReference = map[string]string{
 
 func (LocalObjectReference) SwaggerDoc() map[string]string {
 	return map_LocalObjectReference
+}
+
+var map_LocalVolumeSource = map[string]string{
+	"":     "Local represents directly-attached storage with node affinity",
+	"path": "The full path to the volume on the node For alpha, this path must be a directory Once block as a source is supported, then this path can point to a block device",
+}
+
+func (LocalVolumeSource) SwaggerDoc() map[string]string {
+	return map_LocalVolumeSource
 }
 
 var map_NFSVolumeSource = map[string]string{
@@ -1027,6 +1039,7 @@ var map_ObjectMeta = map[string]string{
 	"labels":                     "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/",
 	"annotations":                "Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/",
 	"ownerReferences":            "List of objects depended by this object. If ALL objects in the list have been deleted, this object will be garbage collected. If this object is managed by a controller, then an entry in this list will point to this controller, with the controller field set to true. There cannot be more than one managing controller.",
+	"initializers":               "An initializer is a controller which enforces some system invariant at object creation time. This field is a list of initializers that have not yet acted on this object. If nil or empty, this object has been completely initialized. Otherwise, the object is considered uninitialized and is hidden (in list/watch and get calls) from clients that haven't explicitly asked to observe uninitialized objects.\n\nWhen an object is created, the system will populate this list with the current set of initializers. Only privileged users may set or modify this list. Once it is empty, it may not be modified further by any user.",
 	"finalizers":                 "Must be empty before the object is deleted from the registry. Each entry is an identifier for the responsible component that will remove the entry from the list. If the deletionTimestamp of the object is non-nil, entries in this list can only be removed.",
 	"clusterName":                "The name of the cluster which the object belongs to. This is used to distinguish resources with same name and namespace in different clusters. This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.",
 }
@@ -1147,6 +1160,7 @@ var map_PersistentVolumeSource = map[string]string{
 	"photonPersistentDisk": "PhotonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine",
 	"portworxVolume":       "PortworxVolume represents a portworx volume attached and mounted on kubelets host machine",
 	"scaleIO":              "ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.",
+	"local":                "Local represents directly-attached storage with node affinity",
 }
 
 func (PersistentVolumeSource) SwaggerDoc() map[string]string {
@@ -1973,9 +1987,11 @@ func (VolumeSource) SwaggerDoc() map[string]string {
 }
 
 var map_VsphereVirtualDiskVolumeSource = map[string]string{
-	"":           "Represents a vSphere volume resource.",
-	"volumePath": "Path that identifies vSphere volume vmdk",
-	"fsType":     "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+	"":                  "Represents a vSphere volume resource.",
+	"volumePath":        "Path that identifies vSphere volume vmdk",
+	"fsType":            "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
+	"storagePolicyName": "Storage Policy Based Management (SPBM) profile name.",
+	"storagePolicyID":   "Storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.",
 }
 
 func (VsphereVirtualDiskVolumeSource) SwaggerDoc() map[string]string {

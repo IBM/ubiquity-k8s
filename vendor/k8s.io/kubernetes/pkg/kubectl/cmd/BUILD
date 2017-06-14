@@ -12,6 +12,7 @@ go_library(
         "annotate.go",
         "apiversions.go",
         "apply.go",
+        "apply_edit_last_applied.go",
         "apply_set_last_applied.go",
         "apply_view_last_applied.go",
         "attach.go",
@@ -69,7 +70,6 @@ go_library(
     ],
     deps = [
         "//pkg/api:go_default_library",
-        "//pkg/api/helper:go_default_library",
         "//pkg/api/v1:go_default_library",
         "//pkg/api/v1/helper:go_default_library",
         "//pkg/api/validation:go_default_library",
@@ -95,6 +95,7 @@ go_library(
         "//pkg/kubectl/metricsutil:go_default_library",
         "//pkg/kubectl/plugins:go_default_library",
         "//pkg/kubectl/resource:go_default_library",
+        "//pkg/kubectl/util:go_default_library",
         "//pkg/kubelet/types:go_default_library",
         "//pkg/printers:go_default_library",
         "//pkg/printers/internalversion:go_default_library",

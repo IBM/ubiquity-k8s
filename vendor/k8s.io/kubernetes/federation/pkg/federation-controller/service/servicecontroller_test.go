@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/federation/apis/federation/v1beta1"
 	fakefedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset/fake"
+	"k8s.io/kubernetes/federation/pkg/federation-controller/service/ingress"
 	fedutil "k8s.io/kubernetes/federation/pkg/federation-controller/util"
 	. "k8s.io/kubernetes/federation/pkg/federation-controller/util/test"
 	"k8s.io/kubernetes/pkg/api/v1"
@@ -53,11 +54,13 @@ const (
 	serviceEndpoint2 = "192.168.1.1"
 )
 
+var awfulError error = errors.NewGone("Something bad happened")
+
 func TestServiceController(t *testing.T) {
 	glog.Infof("Creating fake infrastructure")
 	fedClient := &fakefedclientset.Clientset{}
-	cluster1 := NewClusterWithRegionZone("cluster1", v1.ConditionTrue, "region1", "zone1")
-	cluster2 := NewClusterWithRegionZone("cluster2", v1.ConditionTrue, "region2", "zone2")
+	cluster1 := NewCluster("cluster1", v1.ConditionTrue)
+	cluster2 := NewCluster("cluster2", v1.ConditionTrue)
 
 	RegisterFakeClusterGet(&fedClient.Fake, &v1beta1.ClusterList{Items: []v1beta1.Cluster{*cluster1, *cluster2}})
 	RegisterFakeList(clusters, &fedClient.Fake, &v1beta1.ClusterList{Items: []v1beta1.Cluster{*cluster1, *cluster2}})
@@ -149,10 +152,10 @@ func TestServiceController(t *testing.T) {
 		key, desiredService, serviceStatusCompare, wait.ForeverTestTimeout))
 
 	glog.Infof("Test federation service is updated when cluster1 endpoint for the service is created")
-	desiredIngressAnnotation := NewFederatedServiceIngress().
+	desiredIngressAnnotation := ingress.NewFederatedServiceIngress().
 		AddEndpoints("cluster1", []string{lbIngress1}).
 		String()
-	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
+	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ingress.FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
 	c1EndpointWatch.Add(NewEndpoint("test-service-1", serviceEndpoint1))
 	require.NoError(t, WaitForFederatedServiceUpdate(t, sc.serviceStore,
 		key, desiredService, serviceIngressCompare, wait.ForeverTestTimeout))
@@ -173,20 +176,20 @@ func TestServiceController(t *testing.T) {
 		key, desiredService, serviceStatusCompare, wait.ForeverTestTimeout))
 
 	glog.Infof("Test federation service is updated when cluster2 endpoint for the service is created")
-	desiredIngressAnnotation = NewFederatedServiceIngress().
+	desiredIngressAnnotation = ingress.NewFederatedServiceIngress().
 		AddEndpoints("cluster1", []string{lbIngress1}).
 		AddEndpoints("cluster2", []string{lbIngress2}).
 		String()
-	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
+	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ingress.FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
 	c2EndpointWatch.Add(NewEndpoint("test-service-1", serviceEndpoint2))
 	require.NoError(t, WaitForFederatedServiceUpdate(t, sc.serviceStore,
 		key, desiredService, serviceIngressCompare, wait.ForeverTestTimeout))
 
 	glog.Infof("Test federation service is updated when cluster1 endpoint for the service is deleted")
-	desiredIngressAnnotation = NewFederatedServiceIngress().
+	desiredIngressAnnotation = ingress.NewFederatedServiceIngress().
 		AddEndpoints("cluster2", []string{lbIngress2}).
 		String()
-	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
+	desiredService = &v1.Service{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ingress.FederatedServiceIngressAnnotation: desiredIngressAnnotation}}}
 	c1EndpointWatch.Delete(NewEndpoint("test-service-1", serviceEndpoint1))
 	require.NoError(t, WaitForFederatedServiceUpdate(t, sc.serviceStore,
 		key, desiredService, serviceIngressCompare, wait.ForeverTestTimeout))
@@ -205,6 +208,53 @@ func TestServiceController(t *testing.T) {
 		key, service, wait.ForeverTestTimeout))
 
 	close(stop)
+}
+
+func TestGetOperationsToPerformOnCluster(t *testing.T) {
+	obj := NewService("test-service-1", 80)
+	cluster1 := NewCluster("cluster1", v1.ConditionTrue)
+	fedClient := &fakefedclientset.Clientset{}
+	sc := New(fedClient)
+
+	testCases := map[string]struct {
+		expectedSendErr bool
+		sendToCluster   bool
+		operationType   fedutil.FederatedOperationType
+	}{
+		"sendToCluster error returned": {
+			expectedSendErr: true,
+		},
+		"Missing object and not matching ClusterSelector should result in no operations": {
+			sendToCluster: false,
+		},
+		"Missing object and matching ClusterSelector should result in add operation": {
+			operationType: fedutil.OperationTypeAdd,
+			sendToCluster: true,
+		},
+		// Update and Delete scenarios are tested in TestServiceController
+	}
+	for testName, testCase := range testCases {
+		t.Run(testName, func(t *testing.T) {
+
+			operations, err := getOperationsToPerformOnCluster(sc.federatedInformer, cluster1, obj, func(map[string]string, map[string]string) (bool, error) {
+				if testCase.expectedSendErr {
+					return false, awfulError
+				}
+				return testCase.sendToCluster, nil
+			})
+			if testCase.expectedSendErr {
+				require.Error(t, err, "An error was expected")
+			} else {
+				require.NoError(t, err, "An error was not expected")
+			}
+			if len(testCase.operationType) == 0 {
+				require.Nil(t, operations, "An operation was not expected")
+			} else {
+				require.NotNil(t, operations, "A single operation was expected")
+				require.Equal(t, testCase.operationType, operations.Type, "Unexpected operation returned")
+			}
+		})
+	}
 }
 
 func NewService(name string, port int32) *v1.Service {
@@ -238,14 +288,6 @@ func NewEndpoint(name, ip string) *v1.Endpoints {
 	}
 }
 
-// NewClusterWithRegionZone builds a new cluster object with given region and zone attributes.
-func NewClusterWithRegionZone(name string, readyStatus v1.ConditionStatus, region, zone string) *v1beta1.Cluster {
-	cluster := NewCluster(name, readyStatus)
-	cluster.Status.Zones = []string{zone}
-	cluster.Status.Region = region
-	return cluster
-}
-
 // WaitForClusterService waits for the cluster service to be created matching the desiredService.
 func WaitForClusterService(t *testing.T, store fedutil.FederatedReadOnlyStore, clusterName, key string, desiredService *v1.Service, timeout time.Duration) error {
 	err := wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
@@ -276,11 +318,11 @@ func serviceStatusCompare(current, desired *v1.Service) bool {
 }
 
 func serviceIngressCompare(current, desired *v1.Service) bool {
-	if strings.Compare(current.Annotations[FederatedServiceIngressAnnotation], desired.Annotations[FederatedServiceIngressAnnotation]) != 0 {
-		glog.V(5).Infof("Waiting for loadbalancer ingress, Current: %v, Desired: %v", current.Annotations[FederatedServiceIngressAnnotation], desired.Annotations[FederatedServiceIngressAnnotation])
+	if strings.Compare(current.Annotations[ingress.FederatedServiceIngressAnnotation], desired.Annotations[ingress.FederatedServiceIngressAnnotation]) != 0 {
+		glog.V(5).Infof("Waiting for loadbalancer ingress, Current: %v, Desired: %v", current.Annotations[ingress.FederatedServiceIngressAnnotation], desired.Annotations[ingress.FederatedServiceIngressAnnotation])
 		return false
 	}
-	glog.V(5).Infof("Loadbalancer ingress match: %v", current.Annotations[FederatedServiceIngressAnnotation])
+	glog.V(5).Infof("Loadbalancer ingress match: %v", current.Annotations[ingress.FederatedServiceIngressAnnotation])
 	return true
 }
 

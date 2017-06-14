@@ -90,6 +90,12 @@ func New() *Generator {
 			`k8s.io/kubernetes/pkg/apis/settings/v1alpha1`,
 			`k8s.io/kubernetes/pkg/apis/storage/v1beta1`,
 			`k8s.io/kubernetes/pkg/apis/storage/v1`,
+			`k8s.io/kubernetes/pkg/apis/admission/v1alpha1`,
+			`k8s.io/kubernetes/pkg/apis/admissionregistration/v1alpha1`,
+			`-k8s.io/client-go/pkg/api/v1`,
+			`k8s.io/metrics/pkg/apis/metrics/v1alpha1`,
+			`k8s.io/metrics/pkg/apis/custom_metrics/v1alpha1`,
+			`k8s.io/kubernetes/pkg/apis/networking/v1`,
 		}, ","),
 		DropEmbeddedFields: "k8s.io/apimachinery/pkg/apis/meta/v1.TypeMeta",
 	}

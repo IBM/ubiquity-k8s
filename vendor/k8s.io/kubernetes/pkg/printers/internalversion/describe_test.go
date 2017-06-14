@@ -135,6 +135,28 @@ func TestDescribeNamespace(t *testing.T) {
 	}
 }
 
+func TestDescribeConfigMap(t *testing.T) {
+	fake := fake.NewSimpleClientset(&api.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycm",
+			Namespace: "foo",
+		},
+		Data: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+	})
+	c := &describeClient{T: t, Namespace: "foo", Interface: fake}
+	d := ConfigMapDescriber{c}
+	out, err := d.Describe("foo", "mycm", printers.DescriberSettings{ShowEvents: true})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if !strings.Contains(out, "foo") || !strings.Contains(out, "mycm") || !strings.Contains(out, "key1") || !strings.Contains(out, "value1") || !strings.Contains(out, "key2") || !strings.Contains(out, "value2") {
+		t.Errorf("unexpected out: %s", out)
+	}
+}
+
 func TestDescribeService(t *testing.T) {
 	fake := fake.NewSimpleClientset(&api.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -774,6 +796,7 @@ func TestDescribeStorageClass(t *testing.T) {
 }
 
 func TestDescribePodDisruptionBudget(t *testing.T) {
+	minAvailable := intstr.FromInt(22)
 	f := fake.NewSimpleClientset(&policy.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:         "ns1",
@@ -781,7 +804,7 @@ func TestDescribePodDisruptionBudget(t *testing.T) {
 			CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
 		},
 		Spec: policy.PodDisruptionBudgetSpec{
-			MinAvailable: intstr.FromInt(22),
+			MinAvailable: &minAvailable,
 		},
 		Status: policy.PodDisruptionBudgetStatus{
 			PodDisruptionsAllowed: 5,
@@ -1419,6 +1442,45 @@ URL:	http://localhost
 			if strings.Contains(output, test.unexpected) {
 				t.Errorf("Didn't expect to find %q in: %q", test.unexpected, output)
 			}
+		}
+	}
+}
+
+func TestDescribeResourceQuota(t *testing.T) {
+	fake := fake.NewSimpleClientset(&api.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bar",
+			Namespace: "foo",
+		},
+		Status: api.ResourceQuotaStatus{
+			Hard: api.ResourceList{
+				api.ResourceName(api.ResourceCPU):            resource.MustParse("1"),
+				api.ResourceName(api.ResourceLimitsCPU):      resource.MustParse("2"),
+				api.ResourceName(api.ResourceLimitsMemory):   resource.MustParse("2G"),
+				api.ResourceName(api.ResourceMemory):         resource.MustParse("1G"),
+				api.ResourceName(api.ResourceRequestsCPU):    resource.MustParse("1"),
+				api.ResourceName(api.ResourceRequestsMemory): resource.MustParse("1G"),
+			},
+			Used: api.ResourceList{
+				api.ResourceName(api.ResourceCPU):            resource.MustParse("0"),
+				api.ResourceName(api.ResourceLimitsCPU):      resource.MustParse("0"),
+				api.ResourceName(api.ResourceLimitsMemory):   resource.MustParse("0G"),
+				api.ResourceName(api.ResourceMemory):         resource.MustParse("0G"),
+				api.ResourceName(api.ResourceRequestsCPU):    resource.MustParse("0"),
+				api.ResourceName(api.ResourceRequestsMemory): resource.MustParse("0G"),
+			},
+		},
+	})
+	c := &describeClient{T: t, Namespace: "foo", Interface: fake}
+	d := ResourceQuotaDescriber{c}
+	out, err := d.Describe("foo", "bar", printers.DescriberSettings{ShowEvents: true})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expectedOut := []string{"bar", "foo", "limits.cpu", "2", "limits.memory", "2G", "requests.cpu", "1", "requests.memory", "1G"}
+	for _, expected := range expectedOut {
+		if !strings.Contains(out, expected) {
+			t.Errorf("expected to find %q in output: %q", expected, out)
 		}
 	}
 }

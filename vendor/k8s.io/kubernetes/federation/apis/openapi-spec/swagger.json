@@ -102,11 +102,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -115,6 +115,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -185,11 +192,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -198,6 +205,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -267,6 +281,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -305,11 +326,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "post": {
@@ -350,83 +371,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
-     }
-    },
-    "delete": {
-     "description": "delete collection of Namespace",
-     "consumes": [
-      "*/*"
-     ],
-     "produces": [
-      "application/json",
-      "application/yaml",
-      "application/vnd.kubernetes.protobuf"
-     ],
-     "schemes": [
-      "https"
-     ],
-     "tags": [
-      "core_v1"
-     ],
-     "operationId": "deleteCoreV1CollectionNamespace",
-     "parameters": [
-      {
-       "uniqueItems": true,
-       "type": "string",
-       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
-       "name": "fieldSelector",
-       "in": "query"
-      },
-      {
-       "uniqueItems": true,
-       "type": "string",
-       "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
-       "name": "labelSelector",
-       "in": "query"
-      },
-      {
-       "uniqueItems": true,
-       "type": "string",
-       "description": "When specified with a watch call, shows changes that occur after that particular version of a resource. Defaults to changes from the beginning of history. When specified for list: - if unset, then the result is returned from remote storage based on quorum-read flag; - if it's 0, then we simply return what we currently have in cache, no guarantee; - if set to non zero, then the result is at least as fresh as given rv.",
-       "name": "resourceVersion",
-       "in": "query"
-      },
-      {
-       "uniqueItems": true,
-       "type": "integer",
-       "description": "Timeout for the list/watch call.",
-       "name": "timeoutSeconds",
-       "in": "query"
-      },
-      {
-       "uniqueItems": true,
-       "type": "boolean",
-       "description": "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
-       "name": "watch",
-       "in": "query"
-      }
-     ],
-     "responses": {
-      "200": {
-       "description": "OK",
-       "schema": {
-        "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
-       }
-      },
-      "401": {
-       "description": "Unauthorized"
-      }
-     },
-     "x-kubernetes-action": "DELETECOLLECTION",
-     "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -469,6 +418,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -507,11 +463,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "post": {
@@ -552,11 +508,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "delete": {
@@ -582,6 +538,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -624,11 +587,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -694,11 +657,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "put": {
@@ -739,11 +702,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "delete": {
@@ -805,11 +768,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "patch": {
@@ -852,11 +815,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -915,6 +878,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -953,11 +923,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "post": {
@@ -998,11 +968,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "delete": {
@@ -1028,6 +998,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -1070,11 +1047,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -1140,11 +1117,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "put": {
@@ -1185,11 +1162,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "delete": {
@@ -1251,11 +1228,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "patch": {
@@ -1298,11 +1275,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -1361,6 +1338,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -1399,11 +1383,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "post": {
@@ -1444,11 +1428,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "delete": {
@@ -1474,6 +1458,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -1516,11 +1507,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -1586,11 +1577,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "put": {
@@ -1631,11 +1622,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "delete": {
@@ -1697,11 +1688,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "patch": {
@@ -1744,11 +1735,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -1807,6 +1798,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -1845,11 +1843,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "post": {
@@ -1890,11 +1888,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "delete": {
@@ -1920,6 +1918,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -1962,11 +1967,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -2032,11 +2037,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "put": {
@@ -2077,11 +2082,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "delete": {
@@ -2143,11 +2148,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "patch": {
@@ -2190,11 +2195,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -2252,11 +2257,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "put": {
@@ -2297,11 +2302,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "patch": {
@@ -2344,11 +2349,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -2422,11 +2427,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "put": {
@@ -2467,11 +2472,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "delete": {
@@ -2533,11 +2538,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "patch": {
@@ -2580,11 +2585,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -2644,11 +2649,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -2698,11 +2703,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "put": {
@@ -2743,11 +2748,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "patch": {
@@ -2790,11 +2795,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -2846,11 +2851,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -2859,6 +2864,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -2929,11 +2941,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -2942,6 +2954,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3012,11 +3031,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -3025,6 +3044,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3095,11 +3121,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -3108,6 +3134,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3178,11 +3211,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -3191,6 +3224,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3261,11 +3301,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -3274,6 +3314,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3352,11 +3399,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     },
     "parameters": [
@@ -3365,6 +3412,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3451,11 +3505,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -3464,6 +3518,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3542,11 +3603,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     },
     "parameters": [
@@ -3555,6 +3616,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3641,11 +3709,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -3654,6 +3722,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3732,11 +3807,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -3745,6 +3820,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3831,11 +3913,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -3844,6 +3926,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -3922,11 +4011,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -3935,6 +4024,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4021,11 +4117,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     },
     "parameters": [
@@ -4034,6 +4130,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4112,11 +4215,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     },
     "parameters": [
@@ -4125,6 +4228,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4195,11 +4305,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     },
     "parameters": [
@@ -4208,6 +4318,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4377,11 +4494,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -4390,6 +4507,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4460,11 +4584,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -4473,6 +4597,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4543,11 +4674,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -4556,6 +4687,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -4625,6 +4763,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -4663,11 +4808,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "post": {
@@ -4708,11 +4853,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "delete": {
@@ -4738,6 +4883,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -4780,11 +4932,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -4850,11 +5002,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "put": {
@@ -4895,11 +5047,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "delete": {
@@ -4961,11 +5113,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "patch": {
@@ -5008,11 +5160,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -5070,11 +5222,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "put": {
@@ -5115,11 +5267,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "patch": {
@@ -5162,11 +5314,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -5225,6 +5377,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -5263,11 +5422,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "post": {
@@ -5308,11 +5467,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "delete": {
@@ -5338,6 +5497,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -5380,11 +5546,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -5450,11 +5616,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "put": {
@@ -5495,11 +5661,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "delete": {
@@ -5561,11 +5727,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "patch": {
@@ -5608,11 +5774,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -5680,11 +5846,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DeploymentRollback"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DeploymentRollback"
      }
     },
     "parameters": [
@@ -5742,11 +5908,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "put": {
@@ -5787,11 +5953,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "patch": {
@@ -5834,11 +6000,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "parameters": [
@@ -5896,11 +6062,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "put": {
@@ -5941,11 +6107,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "patch": {
@@ -5988,11 +6154,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -6051,6 +6217,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -6089,11 +6262,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "post": {
@@ -6134,11 +6307,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "delete": {
@@ -6164,6 +6337,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -6206,11 +6386,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -6276,11 +6456,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "put": {
@@ -6321,11 +6501,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "delete": {
@@ -6387,11 +6567,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "patch": {
@@ -6434,11 +6614,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -6496,11 +6676,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "put": {
@@ -6541,11 +6721,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "patch": {
@@ -6588,11 +6768,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -6651,6 +6831,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -6689,11 +6876,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "post": {
@@ -6734,11 +6921,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "delete": {
@@ -6764,6 +6951,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -6806,11 +7000,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -6876,11 +7070,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "put": {
@@ -6921,11 +7115,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "delete": {
@@ -6987,11 +7181,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "patch": {
@@ -7034,11 +7228,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -7096,11 +7290,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "put": {
@@ -7141,11 +7335,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "patch": {
@@ -7188,11 +7382,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     },
     "parameters": [
@@ -7250,11 +7444,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "put": {
@@ -7295,11 +7489,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "patch": {
@@ -7342,11 +7536,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -7406,11 +7600,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -7419,6 +7613,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7489,11 +7690,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -7502,6 +7703,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7572,11 +7780,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -7585,6 +7793,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7655,11 +7870,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -7668,6 +7883,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7738,11 +7960,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -7751,6 +7973,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7829,11 +8058,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     },
     "parameters": [
@@ -7842,6 +8071,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -7928,11 +8164,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -7941,6 +8177,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8019,11 +8262,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     },
     "parameters": [
@@ -8032,6 +8275,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8118,11 +8368,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -8131,6 +8381,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8209,11 +8466,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     },
     "parameters": [
@@ -8222,6 +8479,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8308,11 +8572,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -8321,6 +8585,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8399,11 +8670,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -8412,6 +8683,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8498,11 +8776,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     },
     "parameters": [
@@ -8511,6 +8789,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -8646,6 +8931,13 @@
       },
       {
        "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their labels. Defaults to everything.",
        "name": "labelSelector",
@@ -8684,11 +8976,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "LIST",
+     "x-kubernetes-action": "list",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "post": {
@@ -8729,11 +9021,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "POST",
+     "x-kubernetes-action": "post",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "delete": {
@@ -8759,6 +9051,13 @@
        "type": "string",
        "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
        "name": "fieldSelector",
+       "in": "query"
+      },
+      {
+       "uniqueItems": true,
+       "type": "boolean",
+       "description": "If true, partially initialized resources are included in the response.",
+       "name": "includeUninitialized",
        "in": "query"
       },
       {
@@ -8801,11 +9100,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETECOLLECTION",
+     "x-kubernetes-action": "deletecollection",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "parameters": [
@@ -8863,11 +9162,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "GET",
+     "x-kubernetes-action": "get",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "put": {
@@ -8908,11 +9207,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "delete": {
@@ -8974,11 +9273,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "DELETE",
+     "x-kubernetes-action": "delete",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "patch": {
@@ -9021,11 +9320,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PATCH",
+     "x-kubernetes-action": "patch",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "parameters": [
@@ -9085,11 +9384,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "PUT",
+     "x-kubernetes-action": "put",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "parameters": [
@@ -9141,11 +9440,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCHLIST",
+     "x-kubernetes-action": "watchlist",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "parameters": [
@@ -9154,6 +9453,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -9224,11 +9530,11 @@
        "description": "Unauthorized"
       }
      },
-     "x-kubernetes-action": "WATCH",
+     "x-kubernetes-action": "watch",
      "x-kubernetes-group-version-kind": {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     },
     "parameters": [
@@ -9237,6 +9543,13 @@
       "type": "string",
       "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
       "name": "fieldSelector",
+      "in": "query"
+     },
+     {
+      "uniqueItems": true,
+      "type": "boolean",
+      "description": "If true, partially initialized resources are included in the response.",
+      "name": "includeUninitialized",
       "in": "query"
      },
      {
@@ -9575,6 +9888,37 @@
      }
     }
    },
+   "io.k8s.apimachinery.pkg.apis.meta.v1.Initializer": {
+    "description": "Initializer is information about an initializer that has not yet completed.",
+    "required": [
+     "name"
+    ],
+    "properties": {
+     "name": {
+      "description": "name of the process that is responsible for initializing this object.",
+      "type": "string"
+     }
+    }
+   },
+   "io.k8s.apimachinery.pkg.apis.meta.v1.Initializers": {
+    "description": "Initializers tracks the progress of initialization.",
+    "required": [
+     "pending"
+    ],
+    "properties": {
+     "pending": {
+      "description": "Pending is a list of initializers that must execute in order before this object is visible. When the last pending initializer is removed, and no failing result is set, the initializers struct will be set to nil and the object is considered as initialized and visible to all clients.",
+      "type": "array",
+      "items": {
+       "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Initializer"
+      }
+     },
+     "result": {
+      "description": "If result is set with the Failure field, the object will be persisted to storage and then deleted, ensuring that other clients can observe the deletion.",
+      "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Status"
+     }
+    }
+   },
    "io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector": {
     "description": "A label selector is a label query over a set of resources. The result of matchLabels and matchExpressions are ANDed. An empty label selector matches all objects. A null label selector matches no objects.",
     "properties": {
@@ -9676,6 +10020,10 @@
       "description": "A sequence number representing a specific generation of the desired state. Populated by the system. Read-only.",
       "type": "integer",
       "format": "int64"
+     },
+     "initializers": {
+      "description": "An initializer is a controller which enforces some system invariant at object creation time. This field is a list of initializers that have not yet acted on this object. If nil or empty, this object has been completely initialized. Otherwise, the object is considered uninitialized and is hidden (in list/watch and get calls) from clients that haven't explicitly asked to observe uninitialized objects.\n\nWhen an object is created, the system will populate this list with the current set of initializers. Only privileged users may set or modify this list. Once it is empty, it may not be modified further by any user.",
+      "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Initializers"
      },
      "labels": {
       "description": "Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels",
@@ -9973,9 +10321,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "Cluster"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "Cluster"
      }
     ]
    },
@@ -10040,9 +10388,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "federation",
-      "Version": "v1beta1",
-      "Kind": "ClusterList"
+      "group": "federation",
+      "version": "v1beta1",
+      "kind": "ClusterList"
      }
     ]
    },
@@ -10172,6 +10520,10 @@
       "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
       "type": "string"
      },
+     "kind": {
+      "description": "Expected values Shared: mulitple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared",
+      "type": "string"
+     },
      "readOnly": {
       "description": "Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.",
       "type": "boolean"
@@ -10298,9 +10650,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMap"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMap"
      }
     ]
    },
@@ -10365,9 +10717,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ConfigMapList"
+      "group": "",
+      "version": "v1",
+      "kind": "ConfigMapList"
      }
     ]
    },
@@ -10618,6 +10970,10 @@
      "medium": {
       "description": "What type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir",
       "type": "string"
+     },
+     "sizeLimit": {
+      "description": "Total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: http://kubernetes.io/docs/user-guide/volumes#emptydir",
+      "$ref": "#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity"
      }
     }
    },
@@ -10734,9 +11090,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Event"
+      "group": "",
+      "version": "v1",
+      "kind": "Event"
      }
     ]
    },
@@ -10768,9 +11124,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "EventList"
+      "group": "",
+      "version": "v1",
+      "kind": "EventList"
      }
     ]
    },
@@ -11201,9 +11557,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Namespace"
+      "group": "",
+      "version": "v1",
+      "kind": "Namespace"
      }
     ]
    },
@@ -11235,9 +11591,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "NamespaceList"
+      "group": "",
+      "version": "v1",
+      "kind": "NamespaceList"
      }
     ]
    },
@@ -11970,9 +12326,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Secret"
+      "group": "",
+      "version": "v1",
+      "kind": "Secret"
      }
     ]
    },
@@ -12037,9 +12393,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "SecretList"
+      "group": "",
+      "version": "v1",
+      "kind": "SecretList"
      }
     ]
    },
@@ -12144,9 +12500,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "Service"
+      "group": "",
+      "version": "v1",
+      "kind": "Service"
      }
     ]
    },
@@ -12178,9 +12534,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "",
-      "Version": "v1",
-      "Kind": "ServiceList"
+      "group": "",
+      "version": "v1",
+      "kind": "ServiceList"
      }
     ]
    },
@@ -12499,6 +12855,14 @@
       "description": "Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified.",
       "type": "string"
      },
+     "storagePolicyID": {
+      "description": "Storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.",
+      "type": "string"
+     },
+     "storagePolicyName": {
+      "description": "Storage Policy Based Management (SPBM) profile name.",
+      "type": "string"
+     },
      "volumePath": {
       "description": "Path that identifies vSphere volume vmdk",
       "type": "string"
@@ -12549,9 +12913,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSet"
      }
     ]
    },
@@ -12583,9 +12947,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DaemonSetList"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DaemonSetList"
      }
     ]
    },
@@ -12708,9 +13072,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Deployment"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Deployment"
      }
     ]
    },
@@ -12775,9 +13139,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DeploymentList"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DeploymentList"
      }
     ]
    },
@@ -12814,9 +13178,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "DeploymentRollback"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "DeploymentRollback"
      }
     ]
    },
@@ -12875,6 +13239,11 @@
       "description": "Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.",
       "type": "integer",
       "format": "int32"
+     },
+     "collisionCount": {
+      "description": "Count of hash collisions for the Deployment. The Deployment controller uses this field as a collision avoidance mechanism when it needs to create the name for the newest ReplicaSet.",
+      "type": "integer",
+      "format": "int64"
      },
      "conditions": {
       "description": "Represents the latest available observations of a deployment's current state.",
@@ -12982,9 +13351,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Ingress"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Ingress"
      }
     ]
    },
@@ -13033,9 +13402,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "IngressList"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "IngressList"
      }
     ]
    },
@@ -13125,9 +13494,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSet"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSet"
      }
     ]
    },
@@ -13188,9 +13557,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "ReplicaSetList"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "ReplicaSetList"
      }
     ]
    },
@@ -13262,7 +13631,7 @@
    "io.k8s.kubernetes.pkg.apis.extensions.v1beta1.RollbackConfig": {
     "properties": {
      "revision": {
-      "description": "The revision to rollback to. If set to 0, rollbck to the last revision.",
+      "description": "The revision to rollback to. If set to 0, rollback to the last revision.",
       "type": "integer",
       "format": "int64"
      }
@@ -13316,9 +13685,9 @@
     },
     "x-kubernetes-group-version-kind": [
      {
-      "Group": "extensions",
-      "Version": "v1beta1",
-      "Kind": "Scale"
+      "group": "extensions",
+      "version": "v1beta1",
+      "kind": "Scale"
      }
     ]
    },

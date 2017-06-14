@@ -28,11 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
-	kubeapiserveradmission "k8s.io/kubernetes/pkg/kubeapiserver/admission"
 )
 
-func init() {
-	kubeapiserveradmission.Plugins.Register("OwnerReferencesPermissionEnforcement", func(config io.Reader) (admission.Interface, error) {
+// Register registers a plugin
+func Register(plugins *admission.Plugins) {
+	plugins.Register("OwnerReferencesPermissionEnforcement", func(config io.Reader) (admission.Interface, error) {
 		// the pods/status endpoint is ignored by this plugin since old kubelets
 		// corrupt them.  the pod status strategy ensures status updates cannot mutate
 		// ownerRef.

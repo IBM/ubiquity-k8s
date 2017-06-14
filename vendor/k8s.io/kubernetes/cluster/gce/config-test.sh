@@ -67,11 +67,11 @@ fi
 # variable. Also please update corresponding image for node e2e at:
 # https://github.com/kubernetes/kubernetes/blob/master/test/e2e_node/jenkins/image-config.yaml
 CVM_VERSION=${CVM_VERSION:-container-vm-v20170214}
-GCI_VERSION=${KUBE_GCI_VERSION:-gci-stable-56-9000-84-2}
+GCI_VERSION=${KUBE_GCI_VERSION:-cos-beta-59-9460-20-0}
 MASTER_IMAGE=${KUBE_GCE_MASTER_IMAGE:-}
-MASTER_IMAGE_PROJECT=${KUBE_GCE_MASTER_PROJECT:-google-containers}
+MASTER_IMAGE_PROJECT=${KUBE_GCE_MASTER_PROJECT:-cos-cloud}
 NODE_IMAGE=${KUBE_GCE_NODE_IMAGE:-${CVM_VERSION}}
-NODE_IMAGE_PROJECT=${KUBE_GCE_NODE_PROJECT:-google-containers}
+NODE_IMAGE_PROJECT=${KUBE_GCE_NODE_PROJECT:-cos-cloud}
 CONTAINER_RUNTIME=${KUBE_CONTAINER_RUNTIME:-docker}
 GCI_DOCKER_VERSION=${KUBE_GCI_DOCKER_VERSION:-}
 RKT_VERSION=${KUBE_RKT_VERSION:-1.23.0}
@@ -167,6 +167,12 @@ KUBEPROXY_TEST_ARGS="${KUBEPROXY_TEST_ARGS:-} ${TEST_CLUSTER_API_CONTENT_TYPE}"
 # TODO(piosz): remove this in 1.8
 NODE_LABELS="${KUBE_NODE_LABELS:-beta.kubernetes.io/fluentd-ds-ready=true}"
 
+# To avoid running Calico on a node that is not configured appropriately, 
+# label each Node so that the DaemonSet can run the Pods only on ready Nodes.
+if [[ ${NETWORK_POLICY_PROVIDER:-} == "calico" ]]; then
+	NODE_LABELS="$NODE_LABELS,projectcalico.org/ds-ready=true"
+fi
+
 # Optional: Enable node logging.
 ENABLE_NODE_LOGGING="${KUBE_ENABLE_NODE_LOGGING:-true}"
 LOGGING_DESTINATION="${KUBE_LOGGING_DESTINATION:-gcp}" # options: elasticsearch, gcp
@@ -221,16 +227,18 @@ ENABLE_RESCHEDULER="${KUBE_ENABLE_RESCHEDULER:-true}"
 
 # Optional: Enable allocation of pod IPs using IP aliases.
 #
-# ALPHA FEATURE.
+# BETA FEATURE.
 #
 # IP_ALIAS_SIZE is the size of the podCIDR allocated to a node.
 # IP_ALIAS_SUBNETWORK is the subnetwork to allocate from. If empty, a
 #   new subnetwork will be created for the cluster.
 ENABLE_IP_ALIASES=${KUBE_GCE_ENABLE_IP_ALIASES:-false}
 if [ ${ENABLE_IP_ALIASES} = true ]; then
-  # Size of ranges allocated to each node. gcloud alpha supports only /32 and /24.
+  # Size of ranges allocated to each node. gcloud current supports only /32 and /24.
   IP_ALIAS_SIZE=${KUBE_GCE_IP_ALIAS_SIZE:-/24}
   IP_ALIAS_SUBNETWORK=${KUBE_GCE_IP_ALIAS_SUBNETWORK:-${INSTANCE_PREFIX}-subnet-default}
+  # Reserve the services IP space to avoid being allocated for other GCP resources.
+  SERVICE_CLUSTER_IP_SUBNETWORK=${KUBE_GCE_SERVICE_CLUSTER_IP_SUBNETWORK:-${INSTANCE_PREFIX}-subnet-services}
   # NODE_IP_RANGE is used when ENABLE_IP_ALIASES=true. It is the primary range in
   # the subnet and is the range used for node instance IPs.
   NODE_IP_RANGE="${NODE_IP_RANGE:-10.40.0.0/22}"

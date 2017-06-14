@@ -1,5 +1,5 @@
-hash: 0e247021feacfe426852a2e841ef5d623946be6edd8cb86f3941b7a262a9a4ce
-updated: 2017-06-14T12:01:32.808925105-07:00
+hash: 90b449a365cae28d8e086d21e88c7f2cb44605a417cf66a915f062098eb53f19
+updated: 2017-06-14T15:28:37.972254571-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -74,7 +74,7 @@ imports:
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: 4d0e7483d6f924554b7b3d16ee0070c5b1bd9064
+  version: da09196b4a2395330063a18b0ed729c993150c3a
   subpackages:
   - fakes
   - local/spectrumscale
@@ -302,7 +302,7 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 249551461e038df9dae5e1a932334aa66a8dc701
+  version: b9e8d2aee6d59330306cb458c1241f5e2578c40b
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff

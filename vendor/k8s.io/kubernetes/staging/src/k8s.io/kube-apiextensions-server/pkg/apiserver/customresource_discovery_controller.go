@@ -28,6 +28,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
+	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -39,6 +40,7 @@ import (
 type DiscoveryController struct {
 	versionHandler *versionDiscoveryHandler
 	groupHandler   *groupDiscoveryHandler
+	contextMapper  request.RequestContextMapper
 
 	crdLister  listers.CustomResourceDefinitionLister
 	crdsSynced cache.InformerSynced
@@ -49,12 +51,13 @@ type DiscoveryController struct {
 	queue workqueue.RateLimitingInterface
 }
 
-func NewDiscoveryController(crdInformer informers.CustomResourceDefinitionInformer, versionHandler *versionDiscoveryHandler, groupHandler *groupDiscoveryHandler) *DiscoveryController {
+func NewDiscoveryController(crdInformer informers.CustomResourceDefinitionInformer, versionHandler *versionDiscoveryHandler, groupHandler *groupDiscoveryHandler, contextMapper request.RequestContextMapper) *DiscoveryController {
 	c := &DiscoveryController{
 		versionHandler: versionHandler,
 		groupHandler:   groupHandler,
 		crdLister:      crdInformer.Lister(),
 		crdsSynced:     crdInformer.Informer().HasSynced,
+		contextMapper:  contextMapper,
 
 		queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DiscoveryController"),
 	}
@@ -82,8 +85,7 @@ func (c *DiscoveryController) sync(version schema.GroupVersion) error {
 	foundVersion := false
 	foundGroup := false
 	for _, crd := range crds {
-		// if we can't definitively determine that our names are good, don't serve it
-		if !apiextensions.IsCRDConditionFalse(crd, apiextensions.NameConflict) {
+		if !apiextensions.IsCRDConditionTrue(crd, apiextensions.Established) {
 			continue
 		}
 
@@ -101,12 +103,18 @@ func (c *DiscoveryController) sync(version schema.GroupVersion) error {
 		}
 		foundVersion = true
 
+		verbs := metav1.Verbs([]string{"delete", "deletecollection", "get", "list", "patch", "create", "update", "watch"})
+		// if we're terminating we don't allow some verbs
+		if apiextensions.IsCRDConditionTrue(crd, apiextensions.Terminating) {
+			verbs = metav1.Verbs([]string{"delete", "deletecollection", "get", "list", "watch"})
+		}
+
 		apiResourcesForDiscovery = append(apiResourcesForDiscovery, metav1.APIResource{
 			Name:         crd.Status.AcceptedNames.Plural,
 			SingularName: crd.Status.AcceptedNames.Singular,
 			Namespaced:   crd.Spec.Scope == apiextensions.NamespaceScoped,
 			Kind:         crd.Status.AcceptedNames.Kind,
-			Verbs:        metav1.Verbs([]string{"delete", "deletecollection", "get", "list", "patch", "create", "update", "watch"}),
+			Verbs:        verbs,
 			ShortNames:   crd.Status.AcceptedNames.ShortNames,
 		})
 	}
@@ -123,7 +131,7 @@ func (c *DiscoveryController) sync(version schema.GroupVersion) error {
 		// the preferred versions for a group is arbitrary since there cannot be duplicate resources
 		PreferredVersion: apiVersionsForDiscovery[0],
 	}
-	c.groupHandler.setDiscovery(version.Group, discovery.NewAPIGroupHandler(Codecs, apiGroup))
+	c.groupHandler.setDiscovery(version.Group, discovery.NewAPIGroupHandler(Codecs, apiGroup, c.contextMapper))
 
 	if !foundVersion {
 		c.versionHandler.unsetDiscovery(version)
@@ -131,7 +139,7 @@ func (c *DiscoveryController) sync(version schema.GroupVersion) error {
 	}
 	c.versionHandler.setDiscovery(version, discovery.NewAPIVersionHandler(Codecs, version, discovery.APIResourceListerFunc(func() []metav1.APIResource {
 		return apiResourcesForDiscovery
-	})))
+	}), c.contextMapper))
 
 	return nil
 }

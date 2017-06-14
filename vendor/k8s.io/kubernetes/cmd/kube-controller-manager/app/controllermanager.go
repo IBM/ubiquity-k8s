@@ -309,7 +309,8 @@ func NewControllerInitializers() map[string]InitFunc {
 	controllers["disruption"] = startDisruptionController
 	controllers["statefulset"] = startStatefulSetController
 	controllers["cronjob"] = startCronJobController
-	controllers["certificatesigningrequests"] = startCSRController
+	controllers["csrsigning"] = startCSRSigningController
+	controllers["csrapproving"] = startCSRApprovingController
 	controllers["ttl"] = startTTLController
 	controllers["bootstrapsigner"] = startBootstrapSignerController
 	controllers["tokencleaner"] = startTokenCleanerController
@@ -397,14 +398,20 @@ func StartControllers(controllers map[string]InitFunc, s *options.CMServer, root
 				rootCA = rootClientBuilder.ConfigOrDie("tokens-controller").CAData
 			}
 
-			go serviceaccountcontroller.NewTokensController(
+			controller := serviceaccountcontroller.NewTokensController(
+				sharedInformers.Core().V1().ServiceAccounts(),
+				sharedInformers.Core().V1().Secrets(),
 				rootClientBuilder.ClientOrDie("tokens-controller"),
 				serviceaccountcontroller.TokensControllerOptions{
 					TokenGenerator: serviceaccount.JWTTokenGenerator(privateKey),
 					RootCA:         rootCA,
 				},
-			).Run(int(s.ConcurrentSATokenSyncs), stop)
+			)
 			time.Sleep(wait.Jitter(s.ControllerStartInterval.Duration, ControllerStartJitter))
+			go controller.Run(int(s.ConcurrentSATokenSyncs), stop)
+
+			// start the first set of informers now so that other controllers can start
+			sharedInformers.Start(stop)
 		}
 
 	} else {
@@ -449,6 +456,11 @@ func StartControllers(controllers map[string]InitFunc, s *options.CMServer, root
 	cloud, err := cloudprovider.InitCloudProvider(s.CloudProvider, s.CloudConfigFile)
 	if err != nil {
 		return fmt.Errorf("cloud provider could not be initialized: %v", err)
+	}
+
+	if cloud != nil {
+		// Initialize the cloud provider with a reference to the clientBuilder
+		cloud.Initialize(clientBuilder)
 	}
 
 	if ctx.IsControllerEnabled(nodeControllerName) {

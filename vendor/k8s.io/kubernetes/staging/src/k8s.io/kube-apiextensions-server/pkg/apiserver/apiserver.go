@@ -17,8 +17,12 @@ limitations under the License.
 package apiserver
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/golang/glog"
 
 	"k8s.io/apimachinery/pkg/apimachinery/announced"
 	"k8s.io/apimachinery/pkg/apimachinery/registered"
@@ -34,9 +38,10 @@ import (
 
 	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions"
 	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions/install"
-	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions/v1alpha1"
+	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/kube-apiextensions-server/pkg/client/clientset/internalclientset"
 	internalinformers "k8s.io/kube-apiextensions-server/pkg/client/informers/internalversion"
+	"k8s.io/kube-apiextensions-server/pkg/controller/finalizer"
 	"k8s.io/kube-apiextensions-server/pkg/controller/status"
 	"k8s.io/kube-apiextensions-server/pkg/registry/customresourcedefinition"
 
@@ -72,11 +77,14 @@ func init() {
 type Config struct {
 	GenericConfig *genericapiserver.Config
 
-	CustomResourceDefinitionRESTOptionsGetter genericregistry.RESTOptionsGetter
+	CRDRESTOptionsGetter genericregistry.RESTOptionsGetter
 }
 
 type CustomResourceDefinitions struct {
 	GenericAPIServer *genericapiserver.GenericAPIServer
+
+	// provided for easier embedding
+	Informers internalinformers.SharedInformerFactory
 }
 
 type completedConfig struct {
@@ -103,7 +111,7 @@ func (c *Config) SkipComplete() completedConfig {
 
 // New returns a new instance of CustomResourceDefinitions from the given config.
 func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget) (*CustomResourceDefinitions, error) {
-	genericServer, err := c.Config.GenericConfig.SkipComplete().New(genericapiserver.EmptyDelegate) // completion is done in Complete, no need for a second time
+	genericServer, err := c.Config.GenericConfig.SkipComplete().New("kube-apiextensions-server", delegationTarget) // completion is done in Complete, no need for a second time
 	if err != nil {
 		return nil, err
 	}
@@ -113,22 +121,33 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 	}
 
 	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(apiextensions.GroupName, registry, Scheme, metav1.ParameterCodec, Codecs)
-	apiGroupInfo.GroupMeta.GroupVersion = v1alpha1.SchemeGroupVersion
+	apiGroupInfo.GroupMeta.GroupVersion = v1beta1.SchemeGroupVersion
 	customResourceDefintionStorage := customresourcedefinition.NewREST(Scheme, c.GenericConfig.RESTOptionsGetter)
-	v1alpha1storage := map[string]rest.Storage{}
-	v1alpha1storage["customresourcedefinitions"] = customResourceDefintionStorage
-	v1alpha1storage["customresourcedefinitions/status"] = customresourcedefinition.NewStatusREST(Scheme, customResourceDefintionStorage)
-	apiGroupInfo.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1storage
+	v1beta1storage := map[string]rest.Storage{}
+	v1beta1storage["customresourcedefinitions"] = customResourceDefintionStorage
+	v1beta1storage["customresourcedefinitions/status"] = customresourcedefinition.NewStatusREST(Scheme, customResourceDefintionStorage)
+	apiGroupInfo.VersionedResourcesStorageMap["v1beta1"] = v1beta1storage
 
 	if err := s.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {
 		return nil, err
 	}
 
-	customResourceDefinitionClient, err := internalclientset.NewForConfig(s.GenericAPIServer.LoopbackClientConfig)
+	crdClient, err := internalclientset.NewForConfig(s.GenericAPIServer.LoopbackClientConfig)
 	if err != nil {
-		return nil, err
+		// it's really bad that this is leaking here, but until we can fix the test (which I'm pretty sure isn't even testing what it wants to test),
+		// we need to be able to move forward
+		kubeAPIVersions := os.Getenv("KUBE_API_VERSIONS")
+		if len(kubeAPIVersions) == 0 {
+			return nil, fmt.Errorf("failed to create clientset: %v", err)
+		}
+
+		// KUBE_API_VERSIONS is used in test-update-storage-objects.sh, disabling a number of API
+		// groups. This leads to a nil client above and undefined behaviour further down.
+		//
+		// TODO: get rid of KUBE_API_VERSIONS or define sane behaviour if set
+		glog.Errorf("Failed to create clientset with KUBE_API_VERSIONS=%q. KUBE_API_VERSIONS is only for testing. Things will break.", kubeAPIVersions)
 	}
-	customResourceDefinitionInformers := internalinformers.NewSharedInformerFactory(customResourceDefinitionClient, 5*time.Minute)
+	s.Informers = internalinformers.NewSharedInformerFactory(crdClient, 5*time.Minute)
 
 	delegateHandler := delegationTarget.UnprotectedHandler()
 	if delegateHandler == nil {
@@ -143,28 +162,39 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		discovery: map[string]*discovery.APIGroupHandler{},
 		delegate:  delegateHandler,
 	}
-	customResourceDefinitionHandler := NewCustomResourceDefinitionHandler(
+	crdHandler := NewCustomResourceDefinitionHandler(
 		versionDiscoveryHandler,
 		groupDiscoveryHandler,
 		s.GenericAPIServer.RequestContextMapper(),
-		customResourceDefinitionInformers.Apiextensions().InternalVersion().CustomResourceDefinitions().Lister(),
+		s.Informers.Apiextensions().InternalVersion().CustomResourceDefinitions().Lister(),
 		delegateHandler,
-		c.CustomResourceDefinitionRESTOptionsGetter,
+		c.CRDRESTOptionsGetter,
 		c.GenericConfig.AdmissionControl,
 	)
-	s.GenericAPIServer.Handler.PostGoRestfulMux.Handle("/apis", customResourceDefinitionHandler)
-	s.GenericAPIServer.Handler.PostGoRestfulMux.HandlePrefix("/apis/", customResourceDefinitionHandler)
+	s.GenericAPIServer.Handler.NonGoRestfulMux.Handle("/apis", crdHandler)
+	s.GenericAPIServer.Handler.NonGoRestfulMux.HandlePrefix("/apis/", crdHandler)
 
-	customResourceDefinitionController := NewDiscoveryController(customResourceDefinitionInformers.Apiextensions().InternalVersion().CustomResourceDefinitions(), versionDiscoveryHandler, groupDiscoveryHandler)
-	namingController := status.NewNamingConditionController(customResourceDefinitionInformers.Apiextensions().InternalVersion().CustomResourceDefinitions(), customResourceDefinitionClient)
+	crdController := NewDiscoveryController(s.Informers.Apiextensions().InternalVersion().CustomResourceDefinitions(), versionDiscoveryHandler, groupDiscoveryHandler, c.GenericConfig.RequestContextMapper)
+	namingController := status.NewNamingConditionController(s.Informers.Apiextensions().InternalVersion().CustomResourceDefinitions(), crdClient)
+	finalizingController := finalizer.NewCRDFinalizer(
+		s.Informers.Apiextensions().InternalVersion().CustomResourceDefinitions(),
+		crdClient,
+		crdHandler,
+	)
+
+	// this only happens when KUBE_API_VERSIONS is set.  We must return without adding poststarthooks which would affect healthz
+	if crdClient == nil {
+		return s, nil
+	}
 
 	s.GenericAPIServer.AddPostStartHook("start-apiextensions-informers", func(context genericapiserver.PostStartHookContext) error {
-		customResourceDefinitionInformers.Start(context.StopCh)
+		s.Informers.Start(context.StopCh)
 		return nil
 	})
 	s.GenericAPIServer.AddPostStartHook("start-apiextensions-controllers", func(context genericapiserver.PostStartHookContext) error {
-		go customResourceDefinitionController.Run(context.StopCh)
+		go crdController.Run(context.StopCh)
 		go namingController.Run(context.StopCh)
+		go finalizingController.Run(5, context.StopCh)
 		return nil
 	})
 

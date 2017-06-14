@@ -17,9 +17,16 @@ limitations under the License.
 package integration
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/coreos/etcd/clientv3"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,11 +34,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
-	apiextensionsv1alpha1 "k8s.io/kube-apiextensions-server/pkg/apis/apiextensions/v1alpha1"
+	apiextensionsv1beta1 "k8s.io/kube-apiextensions-server/pkg/apis/apiextensions/v1beta1"
+	extensionsapiserver "k8s.io/kube-apiextensions-server/pkg/apiserver"
 	"k8s.io/kube-apiextensions-server/test/integration/testserver"
 )
 
-func instantiateCustomResource(t *testing.T, instanceToCreate *unstructured.Unstructured, client *dynamic.ResourceClient, definition *apiextensionsv1alpha1.CustomResourceDefinition) (*unstructured.Unstructured, error) {
+func instantiateCustomResource(t *testing.T, instanceToCreate *unstructured.Unstructured, client *dynamic.ResourceClient, definition *apiextensionsv1beta1.CustomResourceDefinition) (*unstructured.Unstructured, error) {
 	createdInstance, err := client.Create(instanceToCreate)
 	if err != nil {
 		t.Logf("%#v", createdInstance)
@@ -58,10 +66,10 @@ func instantiateCustomResource(t *testing.T, instanceToCreate *unstructured.Unst
 	return createdInstance, nil
 }
 
-func NewNamespacedCustomResourceClient(ns string, client *dynamic.Client, definition *apiextensionsv1alpha1.CustomResourceDefinition) *dynamic.ResourceClient {
+func NewNamespacedCustomResourceClient(ns string, client *dynamic.Client, definition *apiextensionsv1beta1.CustomResourceDefinition) *dynamic.ResourceClient {
 	return client.Resource(&metav1.APIResource{
 		Name:       definition.Spec.Names.Plural,
-		Namespaced: definition.Spec.Scope == apiextensionsv1alpha1.NamespaceScoped,
+		Namespaced: definition.Spec.Scope == apiextensionsv1beta1.NamespaceScoped,
 	}, ns)
 }
 
@@ -73,7 +81,7 @@ func TestMultipleResourceInstances(t *testing.T) {
 	defer close(stopCh)
 
 	ns := "not-the-default"
-	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1alpha1.NamespaceScoped)
+	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1beta1.NamespaceScoped)
 	noxuVersionClient, err := testserver.CreateNewCustomResourceDefinition(noxuDefinition, apiExtensionClient, clientPool)
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +206,7 @@ func TestMultipleRegistration(t *testing.T) {
 
 	ns := "not-the-default"
 	sameInstanceName := "foo"
-	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1alpha1.NamespaceScoped)
+	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1beta1.NamespaceScoped)
 	noxuVersionClient, err := testserver.CreateNewCustomResourceDefinition(noxuDefinition, apiExtensionClient, clientPool)
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +225,7 @@ func TestMultipleRegistration(t *testing.T) {
 		t.Errorf("expected %v, got %v", e, a)
 	}
 
-	curletDefinition := testserver.NewCurletCustomResourceDefinition()
+	curletDefinition := testserver.NewCurletCustomResourceDefinition(apiextensionsv1beta1.NamespaceScoped)
 	curletVersionClient, err := testserver.CreateNewCustomResourceDefinition(curletDefinition, apiExtensionClient, clientPool)
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +259,7 @@ func TestDeRegistrationAndReRegistration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer close(stopCh)
-	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1alpha1.NamespaceScoped)
+	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1beta1.NamespaceScoped)
 	ns := "not-the-default"
 	sameInstanceName := "foo"
 	func() {
@@ -261,11 +269,6 @@ func TestDeRegistrationAndReRegistration(t *testing.T) {
 		}
 		noxuNamespacedResourceClient := NewNamespacedCustomResourceClient(ns, noxuVersionClient, noxuDefinition)
 		if _, err := instantiateCustomResource(t, testserver.NewNoxuInstance(ns, sameInstanceName), noxuNamespacedResourceClient, noxuDefinition); err != nil {
-			t.Fatal(err)
-		}
-		// Remove sameInstanceName since at the moment there's no finalizers.
-		// TODO: as soon finalizers will be implemented Delete can be removed.
-		if err := noxuNamespacedResourceClient.Delete(sameInstanceName, nil); err != nil {
 			t.Fatal(err)
 		}
 		if err := testserver.DeleteCustomResourceDefinition(noxuDefinition, apiExtensionClient); err != nil {
@@ -337,4 +340,154 @@ func TestDeRegistrationAndReRegistration(t *testing.T) {
 			t.Fatalf("expected %v, got %v", e, a)
 		}
 	}()
+}
+
+func TestEtcdStorage(t *testing.T) {
+	config, err := testserver.DefaultServerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopCh, apiExtensionClient, clientPool, err := testserver.StartServer(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer close(stopCh)
+
+	etcdPrefix := getPrefixFromConfig(t, config)
+
+	ns1 := "another-default-is-possible"
+	curletDefinition := testserver.NewCurletCustomResourceDefinition(apiextensionsv1beta1.ClusterScoped)
+	curletVersionClient, err := testserver.CreateNewCustomResourceDefinition(curletDefinition, apiExtensionClient, clientPool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	curletNamespacedResourceClient := NewNamespacedCustomResourceClient(ns1, curletVersionClient, curletDefinition)
+	if _, err := instantiateCustomResource(t, testserver.NewCurletInstance(ns1, "bar"), curletNamespacedResourceClient, curletDefinition); err != nil {
+		t.Fatalf("unable to create curlet cluster scoped Instance:%v", err)
+	}
+
+	ns2 := "the-cruel-default"
+	noxuDefinition := testserver.NewNoxuCustomResourceDefinition(apiextensionsv1beta1.NamespaceScoped)
+	noxuVersionClient, err := testserver.CreateNewCustomResourceDefinition(noxuDefinition, apiExtensionClient, clientPool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	noxuNamespacedResourceClient := NewNamespacedCustomResourceClient(ns2, noxuVersionClient, noxuDefinition)
+	if _, err := instantiateCustomResource(t, testserver.NewNoxuInstance(ns2, "foo"), noxuNamespacedResourceClient, noxuDefinition); err != nil {
+		t.Fatalf("unable to create noxu namespace scoped Instance:%v", err)
+	}
+
+	testcases := map[string]struct {
+		etcdPath       string
+		expectedObject *metaObject
+	}{
+		"namespacedNoxuDefinition": {
+			etcdPath: path.Join("/", etcdPrefix, "apiextensions.k8s.io/customresourcedefinitions/noxus.mygroup.example.com"), // TODO: Double check this, no namespace?
+			expectedObject: &metaObject{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: "apiextensions.k8s.io/v1beta1",
+				Metadata: Metadata{
+					Name:      "noxus.mygroup.example.com",
+					Namespace: "",
+					SelfLink:  "/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/noxus.mygroup.example.com",
+				},
+			},
+		},
+		"namespacedNoxuInstance": {
+			etcdPath: path.Join("/", etcdPrefix, "mygroup.example.com/noxus/the-cruel-default/foo"),
+			expectedObject: &metaObject{
+				Kind:       "WishIHadChosenNoxu",
+				APIVersion: "mygroup.example.com/v1beta1",
+				Metadata: Metadata{
+					Name:      "foo",
+					Namespace: "the-cruel-default",
+					SelfLink:  "", // TODO double check: empty?
+				},
+			},
+		},
+
+		"clusteredCurletDefinition": {
+			etcdPath: path.Join("/", etcdPrefix, "apiextensions.k8s.io/customresourcedefinitions/curlets.mygroup.example.com"),
+			expectedObject: &metaObject{
+				Kind:       "CustomResourceDefinition",
+				APIVersion: "apiextensions.k8s.io/v1beta1",
+				Metadata: Metadata{
+					Name:      "curlets.mygroup.example.com",
+					Namespace: "",
+					SelfLink:  "/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/curlets.mygroup.example.com",
+				},
+			},
+		},
+
+		"clusteredCurletInstance": {
+			etcdPath: path.Join("/", etcdPrefix, "mygroup.example.com/curlets/bar"),
+			expectedObject: &metaObject{
+				Kind:       "Curlet",
+				APIVersion: "mygroup.example.com/v1beta1",
+				Metadata: Metadata{
+					Name:      "bar",
+					Namespace: "",
+					SelfLink:  "", // TODO double check: empty?
+				},
+			},
+		},
+	}
+
+	etcdURL, ok := os.LookupEnv("KUBE_INTEGRATION_ETCD_URL")
+	if !ok {
+		etcdURL = "http://127.0.0.1:2379"
+	}
+	cfg := clientv3.Config{
+		Endpoints: []string{etcdURL},
+	}
+	c, err := clientv3.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kv := clientv3.NewKV(c)
+	for testName, tc := range testcases {
+		output, err := getFromEtcd(kv, etcdPrefix, tc.etcdPath)
+		if err != nil {
+			t.Fatalf("%s - no path gotten from etcd:%v", testName, err)
+		}
+		if e, a := tc.expectedObject, output; !reflect.DeepEqual(e, a) {
+			t.Errorf("%s - expected %#v\n got %#v\n", testName, e, a)
+		}
+	}
+}
+
+func getPrefixFromConfig(t *testing.T, config *extensionsapiserver.Config) string {
+	extensionsOptionsGetter, ok := config.CRDRESTOptionsGetter.(extensionsapiserver.CRDRESTOptionsGetter)
+	if !ok {
+		t.Fatal("can't obtain etcd prefix: unable to cast config.CRDRESTOptionsGetter to extensionsapiserver.CRDRESTOptionsGetter")
+	}
+	return extensionsOptionsGetter.StoragePrefix
+}
+
+func getFromEtcd(keys clientv3.KV, prefix, localPath string) (*metaObject, error) {
+	internalPath := path.Join("/", prefix, localPath) // TODO: Double check, should we concatenate two prefixes?
+	response, err := keys.Get(context.Background(), internalPath)
+	if err != nil {
+		return nil, err
+	}
+	if response.More || response.Count != 1 || len(response.Kvs) != 1 {
+		return nil, fmt.Errorf("Invalid etcd response (not found == %v): %#v", response.Count == 0, response)
+	}
+	obj := &metaObject{}
+	if err := json.Unmarshal(response.Kvs[0].Value, obj); err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
+
+type metaObject struct {
+	Kind       string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,2,opt,name=apiVersion"`
+	Metadata   `json:"metadata,omitempty" protobuf:"bytes,3,opt,name=metadata"`
+}
+
+type Metadata struct {
+	Name      string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	SelfLink  string `json:"selfLink,omitempty" protobuf:"bytes,3,opt,name=selfLink"`
 }

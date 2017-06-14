@@ -45,6 +45,14 @@
        {
         "type": "boolean",
         "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
         "name": "watch",
         "description": "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
         "required": false,
@@ -173,6 +181,14 @@
        {
         "type": "boolean",
         "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
         "name": "watch",
         "description": "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
         "required": false,
@@ -252,6 +268,14 @@
         "paramType": "query",
         "name": "fieldSelector",
         "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
         "required": false,
         "allowMultiple": false
        },
@@ -605,6 +629,14 @@
        {
         "type": "boolean",
         "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
         "name": "watch",
         "description": "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
         "required": false,
@@ -700,6 +732,14 @@
        {
         "type": "boolean",
         "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
         "name": "watch",
         "description": "Watch for changes to the described resources and return them as a stream of add, update, and remove notifications. Specify resourceVersion.",
         "required": false,
@@ -773,6 +813,14 @@
         "paramType": "query",
         "name": "fieldSelector",
         "description": "A selector to restrict the list of returned objects by their fields. Defaults to everything.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "includeUninitialized",
+        "description": "If true, partially initialized resources are included in the response.",
         "required": false,
         "allowMultiple": false
        },
@@ -1137,6 +1185,10 @@
       },
       "description": "List of objects depended by this object. If ALL objects in the list have been deleted, this object will be garbage collected. If this object is managed by a controller, then an entry in this list will point to this controller, with the controller field set to true. There cannot be more than one managing controller."
      },
+     "initializers": {
+      "$ref": "v1.Initializers",
+      "description": "An initializer is a controller which enforces some system invariant at object creation time. This field is a list of initializers that have not yet acted on this object. If nil or empty, this object has been completely initialized. Otherwise, the object is considered uninitialized and is hidden (in list/watch and get calls) from clients that haven't explicitly asked to observe uninitialized objects.\n\nWhen an object is created, the system will populate this list with the current set of initializers. Only privileged users may set or modify this list. Once it is empty, it may not be modified further by any user."
+     },
      "finalizers": {
       "type": "array",
       "items": {
@@ -1186,101 +1238,36 @@
      }
     }
    },
-   "v1beta1.PodDisruptionBudgetSpec": {
-    "id": "v1beta1.PodDisruptionBudgetSpec",
-    "description": "PodDisruptionBudgetSpec is a description of a PodDisruptionBudget.",
-    "properties": {
-     "minAvailable": {
-      "type": "string",
-      "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod.  So for example you can prevent all voluntary evictions by specifying \"100%\"."
-     },
-     "selector": {
-      "$ref": "v1.LabelSelector",
-      "description": "Label query over pods whose evictions are managed by the disruption budget."
-     }
-    }
-   },
-   "v1.LabelSelector": {
-    "id": "v1.LabelSelector",
-    "description": "A label selector is a label query over a set of resources. The result of matchLabels and matchExpressions are ANDed. An empty label selector matches all objects. A null label selector matches no objects.",
-    "properties": {
-     "matchLabels": {
-      "type": "object",
-      "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is \"key\", the operator is \"In\", and the values array contains only \"value\". The requirements are ANDed."
-     },
-     "matchExpressions": {
-      "type": "array",
-      "items": {
-       "$ref": "v1.LabelSelectorRequirement"
-      },
-      "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed."
-     }
-    }
-   },
-   "v1.LabelSelectorRequirement": {
-    "id": "v1.LabelSelectorRequirement",
-    "description": "A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.",
+   "v1.Initializers": {
+    "id": "v1.Initializers",
+    "description": "Initializers tracks the progress of initialization.",
     "required": [
-     "key",
-     "operator"
+     "pending"
     ],
     "properties": {
-     "key": {
-      "type": "string",
-      "description": "key is the label key that the selector applies to."
-     },
-     "operator": {
-      "type": "string",
-      "description": "operator represents a key's relationship to a set of values. Valid operators ard In, NotIn, Exists and DoesNotExist."
-     },
-     "values": {
+     "pending": {
       "type": "array",
       "items": {
-       "type": "string"
+       "$ref": "v1.Initializer"
       },
-      "description": "values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch."
+      "description": "Pending is a list of initializers that must execute in order before this object is visible. When the last pending initializer is removed, and no failing result is set, the initializers struct will be set to nil and the object is considered as initialized and visible to all clients."
+     },
+     "result": {
+      "$ref": "v1.Status",
+      "description": "If result is set with the Failure field, the object will be persisted to storage and then deleted, ensuring that other clients can observe the deletion."
      }
     }
    },
-   "v1beta1.PodDisruptionBudgetStatus": {
-    "id": "v1beta1.PodDisruptionBudgetStatus",
-    "description": "PodDisruptionBudgetStatus represents information about the status of a PodDisruptionBudget. Status may trail the actual state of a system.",
+   "v1.Initializer": {
+    "id": "v1.Initializer",
+    "description": "Initializer is information about an initializer that has not yet completed.",
     "required": [
-     "disruptedPods",
-     "disruptionsAllowed",
-     "currentHealthy",
-     "desiredHealthy",
-     "expectedPods"
+     "name"
     ],
     "properties": {
-     "observedGeneration": {
-      "type": "integer",
-      "format": "int64",
-      "description": "Most recent generation observed when updating this PDB status. PodDisruptionsAllowed and other status informatio is valid only if observedGeneration equals to PDB's object generation."
-     },
-     "disruptedPods": {
-      "type": "object",
-      "description": "DisruptedPods contains information about pods whose eviction was processed by the API server eviction subresource handler but has not yet been observed by the PodDisruptionBudget controller. A pod will be in this map from the time when the API server processed the eviction request to the time when the pod is seen by PDB controller as having been marked for deletion (or after a timeout). The key in the map is the name of the pod and the value is the time when the API server processed the eviction request. If the deletion didn't occur and a pod is still there it will be removed from the list automatically by PodDisruptionBudget controller after some time. If everything goes smooth this map should be empty for the most of the time. Large number of entries in the map may indicate problems with pod deletions."
-     },
-     "disruptionsAllowed": {
-      "type": "integer",
-      "format": "int32",
-      "description": "Number of pod disruptions that are currently allowed."
-     },
-     "currentHealthy": {
-      "type": "integer",
-      "format": "int32",
-      "description": "current number of healthy pods"
-     },
-     "desiredHealthy": {
-      "type": "integer",
-      "format": "int32",
-      "description": "minimum desired number of healthy pods"
-     },
-     "expectedPods": {
-      "type": "integer",
-      "format": "int32",
-      "description": "total number of pods counted by this disruption budget"
+     "name": {
+      "type": "string",
+      "description": "name of the process that is responsible for initializing this object."
      }
     }
    },
@@ -1372,6 +1359,108 @@
      "field": {
       "type": "string",
       "description": "The field of the resource that has caused this error, as named by its JSON serialization. May include dot and postfix notation for nested attributes. Arrays are zero-indexed.  Fields may appear more than once in an array of causes due to fields having multiple errors. Optional.\n\nExamples:\n  \"name\" - the field \"name\" on the current resource\n  \"items[0].name\" - the field \"name\" on the first array entry in \"items\""
+     }
+    }
+   },
+   "v1beta1.PodDisruptionBudgetSpec": {
+    "id": "v1beta1.PodDisruptionBudgetSpec",
+    "description": "PodDisruptionBudgetSpec is a description of a PodDisruptionBudget.",
+    "properties": {
+     "minAvailable": {
+      "type": "string",
+      "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod.  So for example you can prevent all voluntary evictions by specifying \"100%\"."
+     },
+     "selector": {
+      "$ref": "v1.LabelSelector",
+      "description": "Label query over pods whose evictions are managed by the disruption budget."
+     },
+     "maxUnavailable": {
+      "type": "string",
+      "description": "An eviction is allowed if at most \"maxUnavailable\" pods selected by \"selector\" are unavailable after the eviction, i.e. even in absence of the evicted pod. For example, one can prevent all voluntary evictions by specifying 0. This is a mutually exclusive setting with \"minAvailable\"."
+     }
+    }
+   },
+   "v1.LabelSelector": {
+    "id": "v1.LabelSelector",
+    "description": "A label selector is a label query over a set of resources. The result of matchLabels and matchExpressions are ANDed. An empty label selector matches all objects. A null label selector matches no objects.",
+    "properties": {
+     "matchLabels": {
+      "type": "object",
+      "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is \"key\", the operator is \"In\", and the values array contains only \"value\". The requirements are ANDed."
+     },
+     "matchExpressions": {
+      "type": "array",
+      "items": {
+       "$ref": "v1.LabelSelectorRequirement"
+      },
+      "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed."
+     }
+    }
+   },
+   "v1.LabelSelectorRequirement": {
+    "id": "v1.LabelSelectorRequirement",
+    "description": "A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.",
+    "required": [
+     "key",
+     "operator"
+    ],
+    "properties": {
+     "key": {
+      "type": "string",
+      "description": "key is the label key that the selector applies to."
+     },
+     "operator": {
+      "type": "string",
+      "description": "operator represents a key's relationship to a set of values. Valid operators ard In, NotIn, Exists and DoesNotExist."
+     },
+     "values": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch."
+     }
+    }
+   },
+   "v1beta1.PodDisruptionBudgetStatus": {
+    "id": "v1beta1.PodDisruptionBudgetStatus",
+    "description": "PodDisruptionBudgetStatus represents information about the status of a PodDisruptionBudget. Status may trail the actual state of a system.",
+    "required": [
+     "disruptedPods",
+     "disruptionsAllowed",
+     "currentHealthy",
+     "desiredHealthy",
+     "expectedPods"
+    ],
+    "properties": {
+     "observedGeneration": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Most recent generation observed when updating this PDB status. PodDisruptionsAllowed and other status informatio is valid only if observedGeneration equals to PDB's object generation."
+     },
+     "disruptedPods": {
+      "type": "object",
+      "description": "DisruptedPods contains information about pods whose eviction was processed by the API server eviction subresource handler but has not yet been observed by the PodDisruptionBudget controller. A pod will be in this map from the time when the API server processed the eviction request to the time when the pod is seen by PDB controller as having been marked for deletion (or after a timeout). The key in the map is the name of the pod and the value is the time when the API server processed the eviction request. If the deletion didn't occur and a pod is still there it will be removed from the list automatically by PodDisruptionBudget controller after some time. If everything goes smooth this map should be empty for the most of the time. Large number of entries in the map may indicate problems with pod deletions."
+     },
+     "disruptionsAllowed": {
+      "type": "integer",
+      "format": "int32",
+      "description": "Number of pod disruptions that are currently allowed."
+     },
+     "currentHealthy": {
+      "type": "integer",
+      "format": "int32",
+      "description": "current number of healthy pods"
+     },
+     "desiredHealthy": {
+      "type": "integer",
+      "format": "int32",
+      "description": "minimum desired number of healthy pods"
+     },
+     "expectedPods": {
+      "type": "integer",
+      "format": "int32",
+      "description": "total number of pods counted by this disruption budget"
      }
     }
    },

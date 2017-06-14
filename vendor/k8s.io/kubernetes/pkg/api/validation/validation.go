@@ -29,6 +29,8 @@ import (
 
 	"github.com/golang/glog"
 
+	"math"
+
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
@@ -396,7 +398,12 @@ func validateVolumeSource(source *api.VolumeSource, fldPath *field.Path) field.E
 	allErrs := field.ErrorList{}
 	if source.EmptyDir != nil {
 		numVolumes++
-		// EmptyDirs have nothing to validate
+		if !utilfeature.DefaultFeatureGate.Enabled(features.LocalStorageCapacityIsolation) {
+			unsetSizeLimit := resource.Quantity{}
+			if unsetSizeLimit.Cmp(source.EmptyDir.SizeLimit) != 0 {
+				allErrs = append(allErrs, field.Forbidden(fldPath.Child("emptyDir").Child("sizeLimit"), "SizeLimit field disabled by feature-gate for EmptyDir volumes"))
+			}
+		}
 	}
 	if source.HostPath != nil {
 		if numVolumes > 0 {
@@ -542,10 +549,16 @@ func validateVolumeSource(source *api.VolumeSource, fldPath *field.Path) field.E
 			allErrs = append(allErrs, validateConfigMapVolumeSource(source.ConfigMap, fldPath.Child("configMap"))...)
 		}
 	}
+
 	if source.AzureFile != nil {
-		numVolumes++
-		allErrs = append(allErrs, validateAzureFile(source.AzureFile, fldPath.Child("azureFile"))...)
+		if numVolumes > 0 {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("azureFile"), "may not specify more than 1 volume type"))
+		} else {
+			numVolumes++
+			allErrs = append(allErrs, validateAzureFile(source.AzureFile, fldPath.Child("azureFile"))...)
+		}
 	}
+
 	if source.VsphereVolume != nil {
 		if numVolumes > 0 {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("vsphereVolume"), "may not specify more than 1 volume type"))
@@ -571,8 +584,12 @@ func validateVolumeSource(source *api.VolumeSource, fldPath *field.Path) field.E
 		}
 	}
 	if source.AzureDisk != nil {
-		numVolumes++
-		allErrs = append(allErrs, validateAzureDisk(source.AzureDisk, fldPath.Child("azureDisk"))...)
+		if numVolumes > 0 {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("azureDisk"), "may not specify more than 1 volume type"))
+		} else {
+			numVolumes++
+			allErrs = append(allErrs, validateAzureDisk(source.AzureDisk, fldPath.Child("azureDisk"))...)
+		}
 	}
 	if source.Projected != nil {
 		if numVolumes > 0 {
@@ -1017,19 +1034,39 @@ func validateAzureFile(azure *api.AzureFileVolumeSource, fldPath *field.Path) fi
 	return allErrs
 }
 
-var supportedCachingModes = sets.NewString(string(api.AzureDataDiskCachingNone), string(api.AzureDataDiskCachingReadOnly), string(api.AzureDataDiskCachingReadWrite))
-
 func validateAzureDisk(azure *api.AzureDiskVolumeSource, fldPath *field.Path) field.ErrorList {
+	var supportedCachingModes = sets.NewString(string(api.AzureDataDiskCachingNone), string(api.AzureDataDiskCachingReadOnly), string(api.AzureDataDiskCachingReadWrite))
+	var supportedDiskKinds = sets.NewString(string(api.AzureSharedBlobDisk), string(api.AzureDedicatedBlobDisk), string(api.AzureManagedDisk))
+
+	diskUriSupportedManaged := []string{"/subscriptions/{sub-id}/resourcegroups/{group-name}/providers/microsoft.compute/disks/{disk-id}"}
+	diskUriSupportedblob := []string{"https://{account-name}.blob.core.windows.net/{container-name}/{disk-name}.vhd"}
+
 	allErrs := field.ErrorList{}
 	if azure.DiskName == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("diskName"), ""))
 	}
+
 	if azure.DataDiskURI == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("diskURI"), ""))
 	}
+
 	if azure.CachingMode != nil && !supportedCachingModes.Has(string(*azure.CachingMode)) {
 		allErrs = append(allErrs, field.NotSupported(fldPath.Child("cachingMode"), *azure.CachingMode, supportedCachingModes.List()))
 	}
+
+	if azure.Kind != nil && !supportedDiskKinds.Has(string(*azure.Kind)) {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("kind"), *azure.Kind, supportedDiskKinds.List()))
+	}
+
+	// validate that DiskUri is the correct format
+	if azure.Kind != nil && *azure.Kind == api.AzureManagedDisk && strings.Index(azure.DataDiskURI, "/subscriptions/") != 0 {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("diskURI"), azure.DataDiskURI, diskUriSupportedManaged))
+	}
+
+	if azure.Kind != nil && *azure.Kind != api.AzureManagedDisk && strings.Index(azure.DataDiskURI, "https://") != 0 {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("diskURI"), azure.DataDiskURI, diskUriSupportedblob))
+	}
+
 	return allErrs
 }
 
@@ -1071,6 +1108,14 @@ func validateScaleIOVolumeSource(sio *api.ScaleIOVolumeSource, fldPath *field.Pa
 	return allErrs
 }
 
+func validateLocalVolumeSource(ls *api.LocalVolumeSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if ls.Path == "" {
+		allErrs = append(allErrs, field.Required(fldPath.Child("path"), ""))
+	}
+	return allErrs
+}
+
 // ValidatePersistentVolumeName checks that a name is appropriate for a
 // PersistentVolumeName object.
 var ValidatePersistentVolumeName = NameIsDNSSubdomain
@@ -1080,7 +1125,8 @@ var supportedAccessModes = sets.NewString(string(api.ReadWriteOnce), string(api.
 var supportedReclaimPolicy = sets.NewString(string(api.PersistentVolumeReclaimDelete), string(api.PersistentVolumeReclaimRecycle), string(api.PersistentVolumeReclaimRetain))
 
 func ValidatePersistentVolume(pv *api.PersistentVolume) field.ErrorList {
-	allErrs := ValidateObjectMeta(&pv.ObjectMeta, false, ValidatePersistentVolumeName, field.NewPath("metadata"))
+	metaPath := field.NewPath("metadata")
+	allErrs := ValidateObjectMeta(&pv.ObjectMeta, false, ValidatePersistentVolumeName, metaPath)
 
 	specPath := field.NewPath("spec")
 	if len(pv.Spec.AccessModes) == 0 {
@@ -1108,6 +1154,9 @@ func ValidatePersistentVolume(pv *api.PersistentVolume) field.ErrorList {
 			allErrs = append(allErrs, field.NotSupported(specPath.Child("persistentVolumeReclaimPolicy"), pv.Spec.PersistentVolumeReclaimPolicy, supportedReclaimPolicy.List()))
 		}
 	}
+
+	nodeAffinitySpecified, errs := validateStorageNodeAffinityAnnotation(pv.ObjectMeta.Annotations, metaPath.Child("annotations"))
+	allErrs = append(allErrs, errs...)
 
 	numVolumes := 0
 	if pv.Spec.HostPath != nil {
@@ -1211,9 +1260,15 @@ func ValidatePersistentVolume(pv *api.PersistentVolume) field.ErrorList {
 		allErrs = append(allErrs, validateFlexVolumeSource(pv.Spec.FlexVolume, specPath.Child("flexVolume"))...)
 	}
 	if pv.Spec.AzureFile != nil {
-		numVolumes++
-		allErrs = append(allErrs, validateAzureFile(pv.Spec.AzureFile, specPath.Child("azureFile"))...)
+		if numVolumes > 0 {
+			allErrs = append(allErrs, field.Forbidden(specPath.Child("azureFile"), "may not specify more than 1 volume type"))
+
+		} else {
+			numVolumes++
+			allErrs = append(allErrs, validateAzureFile(pv.Spec.AzureFile, specPath.Child("azureFile"))...)
+		}
 	}
+
 	if pv.Spec.VsphereVolume != nil {
 		if numVolumes > 0 {
 			allErrs = append(allErrs, field.Forbidden(specPath.Child("vsphereVolume"), "may not specify more than 1 volume type"))
@@ -1239,8 +1294,12 @@ func ValidatePersistentVolume(pv *api.PersistentVolume) field.ErrorList {
 		}
 	}
 	if pv.Spec.AzureDisk != nil {
-		numVolumes++
-		allErrs = append(allErrs, validateAzureDisk(pv.Spec.AzureDisk, specPath.Child("azureDisk"))...)
+		if numVolumes > 0 {
+			allErrs = append(allErrs, field.Forbidden(specPath.Child("azureDisk"), "may not specify more than 1 volume type"))
+		} else {
+			numVolumes++
+			allErrs = append(allErrs, validateAzureDisk(pv.Spec.AzureDisk, specPath.Child("azureDisk"))...)
+		}
 	}
 	if pv.Spec.ScaleIO != nil {
 		if numVolumes > 0 {
@@ -1248,6 +1307,22 @@ func ValidatePersistentVolume(pv *api.PersistentVolume) field.ErrorList {
 		} else {
 			numVolumes++
 			allErrs = append(allErrs, validateScaleIOVolumeSource(pv.Spec.ScaleIO, specPath.Child("scaleIO"))...)
+		}
+	}
+	if pv.Spec.Local != nil {
+		if numVolumes > 0 {
+			allErrs = append(allErrs, field.Forbidden(specPath.Child("local"), "may not specify more than 1 volume type"))
+		} else {
+			numVolumes++
+			if !utilfeature.DefaultFeatureGate.Enabled(features.PersistentLocalVolumes) {
+				allErrs = append(allErrs, field.Forbidden(specPath.Child("local"), "Local volumes are disabled by feature-gate"))
+			}
+			allErrs = append(allErrs, validateLocalVolumeSource(pv.Spec.Local, specPath.Child("local"))...)
+
+			// NodeAffinity is required
+			if !nodeAffinitySpecified {
+				allErrs = append(allErrs, field.Required(metaPath.Child("annotations"), "Local volume requires node affinity"))
+			}
 		}
 	}
 
@@ -1325,7 +1400,7 @@ func ValidatePersistentVolumeClaimSpec(spec *api.PersistentVolumeClaimSpec, fldP
 	return allErrs
 }
 
-// ValidatePersistentVolumeClaimUpdate validates an update to a PeristentVolumeClaim
+// ValidatePersistentVolumeClaimUpdate validates an update to a PersistentVolumeClaim
 func ValidatePersistentVolumeClaimUpdate(newPvc, oldPvc *api.PersistentVolumeClaim) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newPvc.ObjectMeta, &oldPvc.ObjectMeta, field.NewPath("metadata"))
 	allErrs = append(allErrs, ValidatePersistentVolumeClaim(newPvc)...)
@@ -1351,7 +1426,7 @@ func ValidatePersistentVolumeClaimUpdate(newPvc, oldPvc *api.PersistentVolumeCla
 	return allErrs
 }
 
-// ValidatePersistentVolumeClaimStatusUpdate validates an update to status of a PeristentVolumeClaim
+// ValidatePersistentVolumeClaimStatusUpdate validates an update to status of a PersistentVolumeClaim
 func ValidatePersistentVolumeClaimStatusUpdate(newPvc, oldPvc *api.PersistentVolumeClaim) field.ErrorList {
 	allErrs := ValidateObjectMetaUpdate(&newPvc.ObjectMeta, &oldPvc.ObjectMeta, field.NewPath("metadata"))
 	if len(newPvc.ResourceVersion) == 0 {
@@ -2120,8 +2195,9 @@ func ValidatePodSpec(spec *api.PodSpec, fldPath *field.Path) field.ErrorList {
 	}
 
 	if spec.ActiveDeadlineSeconds != nil {
-		if *spec.ActiveDeadlineSeconds <= 0 {
-			allErrs = append(allErrs, field.Invalid(fldPath.Child("activeDeadlineSeconds"), spec.ActiveDeadlineSeconds, "must be greater than 0"))
+		value := *spec.ActiveDeadlineSeconds
+		if value < 1 || value > math.MaxInt32 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("activeDeadlineSeconds"), value, validation.InclusiveRangeError(1, math.MaxInt32)))
 		}
 	}
 
@@ -2507,8 +2583,8 @@ func ValidatePodUpdate(newPod, oldPod *api.Pod) field.ErrorList {
 	// 2.  from a positive value to a lesser, non-negative value
 	if newPod.Spec.ActiveDeadlineSeconds != nil {
 		newActiveDeadlineSeconds := *newPod.Spec.ActiveDeadlineSeconds
-		if newActiveDeadlineSeconds < 0 {
-			allErrs = append(allErrs, field.Invalid(specPath.Child("activeDeadlineSeconds"), newActiveDeadlineSeconds, isNegativeErrorMsg))
+		if newActiveDeadlineSeconds < 0 || newActiveDeadlineSeconds > math.MaxInt32 {
+			allErrs = append(allErrs, field.Invalid(specPath.Child("activeDeadlineSeconds"), newActiveDeadlineSeconds, validation.InclusiveRangeError(0, math.MaxInt32)))
 			return allErrs
 		}
 		if oldPod.Spec.ActiveDeadlineSeconds != nil {
@@ -3565,6 +3641,9 @@ func ValidateResourceRequirements(requirements *api.ResourceRequirements, fldPat
 				allErrs = append(allErrs, field.Invalid(limPath, quantity.String(), fmt.Sprintf("must be greater than or equal to %s request", resourceName)))
 			}
 		}
+		if resourceName == api.ResourceStorageOverlay && !utilfeature.DefaultFeatureGate.Enabled(features.LocalStorageCapacityIsolation) {
+			allErrs = append(allErrs, field.Forbidden(limPath, "ResourceStorageOverlay field disabled by feature-gate for ResourceRequirements"))
+		}
 	}
 	for resourceName, quantity := range requirements.Requests {
 		fldPath := reqPath.Key(string(resourceName))
@@ -4003,4 +4082,33 @@ func sysctlIntersection(a []api.Sysctl, b []api.Sysctl) []string {
 		}
 	}
 	return result
+}
+
+// validateStorageNodeAffinityAnnotation tests that the serialized TopologyConstraints in PersistentVolume.Annotations has valid data
+func validateStorageNodeAffinityAnnotation(annotations map[string]string, fldPath *field.Path) (bool, field.ErrorList) {
+	allErrs := field.ErrorList{}
+
+	na, err := helper.GetStorageNodeAffinityFromAnnotation(annotations)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath, api.AlphaStorageNodeAffinityAnnotation, err.Error()))
+		return false, allErrs
+	}
+	if na == nil {
+		return false, allErrs
+	}
+
+	if !utilfeature.DefaultFeatureGate.Enabled(features.PersistentLocalVolumes) {
+		allErrs = append(allErrs, field.Forbidden(fldPath, "Storage node affinity is disabled by feature-gate"))
+	}
+
+	policySpecified := false
+	if na.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		allErrs = append(allErrs, ValidateNodeSelector(na.RequiredDuringSchedulingIgnoredDuringExecution, fldPath.Child("requiredDuringSchedulingIgnoredDuringExecution"))...)
+		policySpecified = true
+	}
+
+	if len(na.PreferredDuringSchedulingIgnoredDuringExecution) > 0 {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("preferredDuringSchedulingIgnoredDuringExection"), "Storage node affinity does not support preferredDuringSchedulingIgnoredDuringExecution"))
+	}
+	return policySpecified, allErrs
 }

@@ -18,7 +18,16 @@ package audit
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+)
+
+// Header keys used by the audit system.
+const (
+	// Header to hold the audit ID as the request is propagated through the serving hierarchy. The
+	// Audit-ID header should be set by the first server to receive the request (e.g. the federation
+	// server or kube-aggregator).
+	HeaderAuditID = "Audit-ID"
 )
 
 // Level defines the amount of information logged during auditing
@@ -33,14 +42,35 @@ const (
 	// LevelRequest provides Metadata level of auditing, and additionally
 	// logs the request object (does not apply for non-resource requests).
 	LevelRequest Level = "Request"
-	// LevelResponse provides Request level of auditing, and additionally
+	// LevelRequestResponse provides Request level of auditing, and additionally
 	// logs the response object (does not apply for non-resource requests).
-	LevelResponse Level = "Response"
+	LevelRequestResponse Level = "RequestResponse"
+)
+
+// Stage defines the stages in request handling that audit events may be generated.
+type Stage string
+
+// Valid audit stages.
+const (
+	// The stage for events generated as soon as the audit handler receives the request, and before it
+	// is delegated down the handler chain.
+	StageRequestReceived = "RequestReceived"
+	// The stage for events generated once the response headers are sent, but before the response body
+	// is sent. This stage is only generated for long-running requests (e.g. watch).
+	StageResponseStarted = "ResponseStarted"
+	// The stage for events generated once the response body has been completed, and no more bytes
+	// will be sent.
+	StageResponseComplete = "ResponseComplete"
+	// The stage for events generated when a panic occured.
+	StagePanic = "Panic"
 )
 
 // Event captures all the information that can be included in an API audit log.
 type Event struct {
 	metav1.TypeMeta
+	// ObjectMeta is included for interoperability with API infrastructure.
+	// +optional
+	metav1.ObjectMeta
 
 	// AuditLevel at which event was generated
 	Level Level
@@ -49,19 +79,22 @@ type Event struct {
 	Timestamp metav1.Time
 	// Unique audit ID, generated for each request.
 	AuditID types.UID
+	// Stage of the request handling when this event instance was generated.
+	Stage Stage
+
 	// RequestURI is the request URI as sent by the client to a server.
 	RequestURI string
 	// Verb is the kubernetes verb associated with the request.
-	// For non-resource requests, this is identical to HttpMethod.
+	// For non-resource requests, this is the lower-cased HTTP method.
 	Verb string
 	// Authenticated user information.
 	User UserInfo
 	// Impersonated user information.
 	// +optional
-	Impersonate *UserInfo
-	// Source IP, from where the request originates.
+	ImpersonatedUser *UserInfo
+	// Source IPs, from where the request originated and intermediate proxies.
 	// +optional
-	SourceIP string
+	SourceIPs []string
 	// Object reference this request is targeted at.
 	// Does not apply for List-type requests, or non-resource requests.
 	// +optional
@@ -75,14 +108,14 @@ type Event struct {
 	// API object from the request, in JSON format. The RequestObject is recorded as-is in the request
 	// (possibly re-encoded as JSON), prior to version conversion, defaulting, admission or
 	// merging. It is an external versioned object type, and may not be a valid object on its own.
-	// Omitted for non-resource requests.  Only logged at RequestObject Level and higher.
+	// Omitted for non-resource requests.  Only logged at Request Level and higher.
 	// +optional
-	RequestBody string
+	RequestObject *runtime.Unknown
 	// API object returned in the response, in JSON. The ResponseObject is recorded after conversion
 	// to the external type, and serialized as JSON.  Omitted for non-resource requests.  Only logged
-	// at ResponseObject Level and higher.
+	// at Response Level.
 	// +optional
-	ResponseBody string
+	ResponseObject *runtime.Unknown
 }
 
 // EventList is a list of audit Events.
@@ -98,11 +131,24 @@ type EventList struct {
 // categories are logged.
 type Policy struct {
 	metav1.TypeMeta
+	// ObjectMeta is included for interoperability with API infrastructure.
+	// +optional
+	metav1.ObjectMeta
 
 	// Rules specify the audit Level a request should be recorded at.
 	// A request may match multiple rules, in which case the FIRST matching rule is used.
 	// The default audit level is None, but can be overridden by a catch-all rule at the end of the list.
+	// PolicyRules are strictly ordered.
 	Rules []PolicyRule
+}
+
+// PolicyList is a list of audit Policies.
+type PolicyList struct {
+	metav1.TypeMeta
+	// +optional
+	metav1.ListMeta
+
+	Items []Policy
 }
 
 // PolicyRule maps requests based off metadata to an audit Level.
@@ -130,9 +176,9 @@ type PolicyRule struct {
 	// non-resource URL paths (such as "/api"), or neither, but not both.
 	// If neither is specified, the rule is treated as a default for all URLs.
 
-	// Resource kinds that this rule matches. An empty list implies all kinds in all API groups.
+	// Resources that this rule matches. An empty list implies all kinds in all API groups.
 	// +optional
-	ResourceKinds []GroupKinds
+	Resources []GroupResources
 	// Namespaces that this rule matches.
 	// The empty string "" matches non-namespaced resources.
 	// An empty list implies every namespace.
@@ -148,22 +194,22 @@ type PolicyRule struct {
 	NonResourceURLs []string
 }
 
-// GroupKinds represents resource kinds in an API group.
-type GroupKinds struct {
+// GroupResources represents resource kinds in an API group.
+type GroupResources struct {
 	// Group is the name of the API group that contains the resources.
 	// The empty string represents the core API group.
 	// +optional
 	Group string
-	// Kinds is a list of kinds of resources within the API group.
+	// Resources is a list of resources within the API group.
 	// Any empty list implies every resource kind in the API group.
 	// +optional
-	Kinds []string
+	Resources []string
 }
 
 // ObjectReference contains enough information to let you inspect or modify the referred object.
 type ObjectReference struct {
 	// +optional
-	Kind string
+	Resource string
 	// +optional
 	Namespace string
 	// +optional
@@ -174,6 +220,8 @@ type ObjectReference struct {
 	APIVersion string
 	// +optional
 	ResourceVersion string
+	// +optional
+	Subresource string
 }
 
 // UserInfo holds the information about the user needed to implement the
