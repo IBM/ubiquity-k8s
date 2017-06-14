@@ -45,14 +45,14 @@ const (
 	Cluster string = "clusterId"
 )
 
-func NewSpectrumLocalClient(logger *log.Logger, config resources.SpectrumScaleConfig, database *gorm.DB) (resources.StorageClient, error) {
+func NewSpectrumLocalClient(logger *log.Logger, config resources.UbiquityServerConfig, database *gorm.DB) (resources.StorageClient, error) {
 	if config.ConfigPath == "" {
 		return nil, fmt.Errorf("spectrumLocalClient: init: missing required parameter 'spectrumConfigPath'")
 	}
-	if config.DefaultFilesystemName == "" {
+	if config.SpectrumScaleConfig.DefaultFilesystemName == "" {
 		return nil, fmt.Errorf("spectrumLocalClient: init: missing required parameter 'spectrumDefaultFileSystem'")
 	}
-	return newSpectrumLocalClient(logger, config, database, resources.SpectrumScale)
+	return newSpectrumLocalClient(logger, config.SpectrumScaleConfig, database, resources.SpectrumScale)
 }
 
 func NewSpectrumLocalClientWithConnectors(logger *log.Logger, connector connectors.SpectrumScaleConnector, spectrumExecutor utils.Executor, config resources.SpectrumScaleConfig, datamodel SpectrumDataModel) (resources.StorageClient, error) {
@@ -366,6 +366,13 @@ func (s *spectrumLocalClient) Attach(attachRequest resources.AttachRequest) (vol
 
 	existingVolume.Volume.Mountpoint = volumeMountpoint
 
+	err = s.dataModel.UpdateVolumeMountpoint(attachRequest.Name, volumeMountpoint)
+
+	if err != nil {
+		s.logger.Println(err.Error())
+		return "", err
+	}
+
 	return volumeMountpoint, nil
 }
 
@@ -396,6 +403,12 @@ func (s *spectrumLocalClient) Detach(detachRequest resources.DetachRequest) (err
 	}
 	if isFilesetLinked == false {
 		return fmt.Errorf("volume not attached")
+	}
+
+	err = s.dataModel.UpdateVolumeMountpoint(detachRequest.Name, "")
+	if err != nil {
+		s.logger.Println(err.Error())
+		return err
 	}
 
 	return nil
