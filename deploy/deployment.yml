@@ -1,0 +1,29 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+
+metadata:
+  name: test-deployment
+  labels:
+     app: write
+
+spec:
+  replicas: 2
+
+  template:
+    metadata:
+      name: test-deployment
+      labels:
+        app: write
+    spec:
+      containers:
+      - name: test-deployment
+        image: midoblgsm/kubenode
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: "/mnt"
+          name: datadir
+      volumes:
+      - name: datadir
+        persistentVolumeClaim:
+          claimName: ubiquity-claim-fileset

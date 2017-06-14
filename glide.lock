@@ -1,5 +1,5 @@
-hash: f8359268904b9cde5cf92f442843522d7e38f51d88cf5f76bd424eb5b224f597
-updated: 2017-04-07T11:31:19.585007-07:00
+hash: 90b449a365cae28d8e086d21e88c7f2cb44605a417cf66a915f062098eb53f19
+updated: 2017-06-14T15:28:37.972254571-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -70,11 +70,11 @@ imports:
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
-  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+  version: bcd8bc72b08df0f70df986b97f95590779502d31
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: 643ba48d3e2222ba6a6477c8c3eddae25e585f01
+  version: da09196b4a2395330063a18b0ed729c993150c3a
   subpackages:
   - fakes
   - local/spectrumscale
@@ -87,7 +87,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
-  version: 460c7bb0abd6e927f2767cadc91aa6ef776a98b4
+  version: 5695738f733662da3e9afc2283bba6f3c879002d
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
   subpackages:
@@ -302,13 +302,13 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 176eb0e509a255dd520de135cda31096f8796be5
+  version: b9e8d2aee6d59330306cb458c1241f5e2578c40b
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
 testImports:
 - name: github.com/onsi/ginkgo
-  version: bb93381d543b0e5725244abe752214a110791d01
+  version: 67b9df7f55fe1165fd9ad49aca7754cce01a42b8
   subpackages:
   - config
   - internal/codelocation
@@ -317,6 +317,7 @@ testImports:
   - internal/leafnodes
   - internal/remote
   - internal/spec
+  - internal/spec_iterator
   - internal/specrunner
   - internal/suite
   - internal/testingtproxy

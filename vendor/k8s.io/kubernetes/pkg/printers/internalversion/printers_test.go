@@ -40,6 +40,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
 	"k8s.io/kubernetes/pkg/apis/batch"
 	"k8s.io/kubernetes/pkg/apis/extensions"
@@ -236,7 +237,7 @@ func TestFormatResourceName(t *testing.T) {
 		{"kind", "name", "kind/name"},
 	}
 	for _, tt := range tests {
-		if got := formatResourceName(tt.kind, tt.name, true); got != tt.want {
+		if got := printers.FormatResourceName(tt.kind, tt.name, true); got != tt.want {
 			t.Errorf("formatResourceName(%q, %q) = %q, want %q", tt.kind, tt.name, got, tt.want)
 		}
 	}
@@ -825,6 +826,43 @@ func TestPrintNodeKernelVersion(t *testing.T) {
 	}
 }
 
+func TestPrintNodeName(t *testing.T) {
+	printer := printers.NewHumanReadablePrinter(nil, nil, printers.PrintOptions{
+		Wide: true,
+	})
+	AddHandlers(printer)
+	table := []struct {
+		node api.Node
+		Name string
+	}{
+		{
+			node: api.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: "127.0.0.1"},
+				Status:     api.NodeStatus{},
+			},
+			Name: "127.0.0.1",
+		},
+		{
+			node: api.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: ""},
+				Status:     api.NodeStatus{},
+			},
+			Name: "<unknown>",
+		},
+	}
+
+	for _, test := range table {
+		buffer := &bytes.Buffer{}
+		err := printer.PrintObj(&test.node, buffer)
+		if err != nil {
+			t.Fatalf("An error occurred printing Node: %#v", err)
+		}
+		if !contains(strings.Fields(buffer.String()), test.Name) {
+			t.Fatalf("Expect printing node %s with node name %#v, got: %#v", test.node.Name, test.Name, buffer.String())
+		}
+	}
+}
+
 func TestPrintNodeExternalIP(t *testing.T) {
 	printer := printers.NewHumanReadablePrinter(nil, nil, printers.PrintOptions{
 		Wide: true,
@@ -852,7 +890,6 @@ func TestPrintNodeExternalIP(t *testing.T) {
 			node: api.Node{
 				ObjectMeta: metav1.ObjectMeta{Name: "foo3"},
 				Status: api.NodeStatus{Addresses: []api.NodeAddress{
-					{Type: api.NodeLegacyHostIP, Address: "1.1.1.1"},
 					{Type: api.NodeExternalIP, Address: "2.2.2.2"},
 					{Type: api.NodeInternalIP, Address: "3.3.3.3"},
 					{Type: api.NodeExternalIP, Address: "4.4.4.4"},
@@ -2143,13 +2180,14 @@ func TestPrintService(t *testing.T) {
 		printService(&test.service, buf, printers.PrintOptions{})
 		// We ignore time
 		if buf.String() != test.expect {
-			t.Fatalf("Expected: %s, got: %s %d", test.expect, buf.String(), strings.Compare(test.expect, buf.String()))
+			t.Fatalf("Expected: %s, but got: %s", test.expect, buf.String())
 		}
 		buf.Reset()
 	}
 }
 
 func TestPrintPodDisruptionBudget(t *testing.T) {
+	minAvailable := intstr.FromInt(22)
 	tests := []struct {
 		pdb    policy.PodDisruptionBudget
 		expect string
@@ -2162,13 +2200,13 @@ func TestPrintPodDisruptionBudget(t *testing.T) {
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
 				},
 				Spec: policy.PodDisruptionBudgetSpec{
-					MinAvailable: intstr.FromInt(22),
+					MinAvailable: &minAvailable,
 				},
 				Status: policy.PodDisruptionBudgetStatus{
 					PodDisruptionsAllowed: 5,
 				},
 			},
-			"pdb1\t22\t5\t0s\n",
+			"pdb1\t22\tN/A\t5\t0s\n",
 		}}
 
 	buf := bytes.NewBuffer([]byte{})
@@ -2219,4 +2257,81 @@ func TestAllowMissingKeys(t *testing.T) {
 			t.Errorf("in %s, expect %q, got %q", test.Name, test.Expect, buf.String())
 		}
 	}
+}
+
+func TestPrintControllerRevision(t *testing.T) {
+	tests := []struct {
+		history apps.ControllerRevision
+		expect  string
+	}{
+		{
+			apps.ControllerRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test1",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Controller: boolP(true),
+							Kind:       "DaemonSet",
+							Name:       "foo",
+						},
+					},
+				},
+				Revision: 1,
+			},
+			"test1\tDaemonSet/foo\t1\t0s\n",
+		},
+		{
+			apps.ControllerRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test2",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Controller: boolP(false),
+							Kind:       "ABC",
+							Name:       "foo",
+						},
+					},
+				},
+				Revision: 2,
+			},
+			"test2\t<none>\t2\t0s\n",
+		},
+		{
+			apps.ControllerRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test3",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
+					OwnerReferences:   []metav1.OwnerReference{},
+				},
+				Revision: 3,
+			},
+			"test3\t<none>\t3\t0s\n",
+		},
+		{
+			apps.ControllerRevision{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test4",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(1.9e9)},
+					OwnerReferences:   nil,
+				},
+				Revision: 4,
+			},
+			"test4\t<none>\t4\t0s\n",
+		},
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	for _, test := range tests {
+		printControllerRevision(&test.history, buf, printers.PrintOptions{})
+		if buf.String() != test.expect {
+			t.Fatalf("Expected: %s, but got: %s", test.expect, buf.String())
+		}
+		buf.Reset()
+	}
+}
+
+func boolP(b bool) *bool {
+	return &b
 }

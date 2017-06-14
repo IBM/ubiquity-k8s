@@ -29,7 +29,6 @@ import (
 
 	// Volume plugins
 	"github.com/golang/glog"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/azure"
@@ -37,7 +36,6 @@ import (
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/openstack"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/photon"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/vsphere"
-	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/util/io"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/aws_ebs"
@@ -49,6 +47,7 @@ import (
 	"k8s.io/kubernetes/pkg/volume/gce_pd"
 	"k8s.io/kubernetes/pkg/volume/glusterfs"
 	"k8s.io/kubernetes/pkg/volume/host_path"
+	"k8s.io/kubernetes/pkg/volume/local"
 	"k8s.io/kubernetes/pkg/volume/nfs"
 	"k8s.io/kubernetes/pkg/volume/photon_pd"
 	"k8s.io/kubernetes/pkg/volume/portworx"
@@ -123,6 +122,7 @@ func ProbeControllerVolumePlugins(cloud cloudprovider.Interface, config componen
 	allPlugins = append(allPlugins, flocker.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, portworx.ProbeVolumePlugins()...)
 	allPlugins = append(allPlugins, scaleio.ProbeVolumePlugins()...)
+	allPlugins = append(allPlugins, local.ProbeVolumePlugins()...)
 
 	if cloud != nil {
 		switch {
@@ -142,45 +142,6 @@ func ProbeControllerVolumePlugins(cloud cloudprovider.Interface, config componen
 	}
 
 	return allPlugins
-}
-
-// NewAlphaVolumeProvisioner returns a volume provisioner to use when running in
-// a cloud or development environment. The alpha implementation of provisioning
-// allows 1 implied provisioner per cloud and is here only for compatibility
-// with Kubernetes 1.3
-// TODO: remove in Kubernetes 1.5
-func NewAlphaVolumeProvisioner(cloud cloudprovider.Interface, config componentconfig.VolumeConfiguration) (volume.ProvisionableVolumePlugin, error) {
-	switch {
-	case !utilfeature.DefaultFeatureGate.Enabled(features.DynamicVolumeProvisioning):
-		return nil, nil
-	case cloud == nil && config.EnableHostPathProvisioning:
-		return getProvisionablePluginFromVolumePlugins(host_path.ProbeVolumePlugins(
-			volume.VolumeConfig{
-				ProvisioningEnabled: true,
-			}))
-	case cloud != nil && aws.ProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(aws_ebs.ProbeVolumePlugins())
-	case cloud != nil && gce.ProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(gce_pd.ProbeVolumePlugins())
-	case cloud != nil && openstack.ProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(cinder.ProbeVolumePlugins())
-	case cloud != nil && vsphere.ProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(vsphere_volume.ProbeVolumePlugins())
-	case cloud != nil && azure.CloudProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(azure_dd.ProbeVolumePlugins())
-	case cloud != nil && photon.ProviderName == cloud.ProviderName():
-		return getProvisionablePluginFromVolumePlugins(photon_pd.ProbeVolumePlugins())
-	}
-	return nil, nil
-}
-
-func getProvisionablePluginFromVolumePlugins(plugins []volume.VolumePlugin) (volume.ProvisionableVolumePlugin, error) {
-	for _, plugin := range plugins {
-		if provisonablePlugin, ok := plugin.(volume.ProvisionableVolumePlugin); ok {
-			return provisonablePlugin, nil
-		}
-	}
-	return nil, fmt.Errorf("ProvisionablePlugin expected but not found in %#v: ", plugins)
 }
 
 // AttemptToLoadRecycler tries decoding a pod from a filepath for use as a recycler for a volume.

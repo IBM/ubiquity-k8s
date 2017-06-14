@@ -17,31 +17,41 @@ var _ = Describe("Controller", func() {
 		var (
 			fakeClient *fakes.FakeStorageClient
 			controller *ctl.Controller
+
+			ubiquityConfig resources.UbiquityPluginConfig
 		)
 		BeforeEach(func() {
+			ubiquityConfig = resources.UbiquityPluginConfig{}
 			fakeClient = new(fakes.FakeStorageClient)
 			controller = ctl.NewControllerWithClient(testLogger, fakeClient)
 		})
 		It("does not error when init is successful", func() {
-			initResponse := controller.Init()
+			initResponse := controller.Init(ubiquityConfig)
 			Expect(initResponse.Status).To(Equal("Success"))
 			Expect(initResponse.Message).To(Equal("Plugin init successfully"))
 			Expect(initResponse.Device).To(Equal(""))
 		})
 
 		Context(".Attach", func() {
-			It("does not error on create with valid opts", func() {
-				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("Volume not found"))
-				fakeClient.CreateVolumeReturns(nil)
-				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+
+			It("fails when attachRequest does not have volumeName", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+				attachRequest := map[string]string{"Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
-				Expect(attachResponse.Status).To(Equal("Success"))
-				Expect(attachResponse.Message).To(Equal("Volume attached successfully"))
-				Expect(attachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(1))
+				Expect(attachResponse.Status).To(Equal("Failure"))
+				Expect(fakeClient.GetVolumeCallCount()).To(Equal(0))
 			})
 
-			It("does not error on create when volume exists", func() {
+			It("fails when client fails to fetch volume", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
+				attachResponse := controller.Attach(attachRequest)
+				Expect(attachResponse.Status).To(Equal("Failure"))
+				Expect(attachResponse.Message).To(Equal("Failed checking volume, call create before attach"))
+				Expect(attachResponse.Device).To(Equal("vol1"))
+			})
+
+			It("Succeeds when volume exists", func() {
 				fakeClient.GetVolumeReturns(resources.Volume{}, nil)
 				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
 				attachResponse := controller.Attach(attachRequest)
@@ -50,28 +60,6 @@ var _ = Describe("Controller", func() {
 				Expect(attachResponse.Device).To(Equal("vol1"))
 				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(0))
 			})
-			It("does error on create when client fails to fetch volume", func() {
-				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
-				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
-				attachResponse := controller.Attach(attachRequest)
-				Expect(attachResponse.Status).To(Equal("Failure"))
-				Expect(attachResponse.Message).To(Equal("Failed checking volume"))
-				Expect(attachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(0))
-			})
-
-			It("does error on create when client fails to attach", func() {
-				err := fmt.Errorf("Spectrum internal error on attach")
-				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("Volume not found"))
-				fakeClient.CreateVolumeReturns(err)
-				attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
-				attachResponse := controller.Attach(attachRequest)
-				Expect(attachResponse.Status).To(Equal("Failure"))
-				Expect(attachResponse.Message).To(Equal(fmt.Sprintf("Failed to attach volume: %#v", err)))
-				Expect(attachResponse.Device).To(Equal("vol1"))
-				Expect(fakeClient.CreateVolumeCallCount()).To(Equal(1))
-			})
-
 		})
 		//
 		//Context(".Detach", func() {
@@ -122,11 +110,11 @@ var _ = Describe("Controller", func() {
 			})
 		})
 		Context(".Unmount", func() {
-			var volumes []resources.VolumeMetadata
+			var volumes []resources.Volume
 			It("succeeds when volume exists and is currently mounted", func() {
 				fakeClient.DetachReturns(nil)
-				volume := resources.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
-				volumes = []resources.VolumeMetadata{volume}
+				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.Volume{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
 				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
@@ -149,7 +137,7 @@ var _ = Describe("Controller", func() {
 				Expect(fakeClient.DetachCallCount()).To(Equal(0))
 			})
 			It("errors when volume does not exist", func() {
-				volumes = []resources.VolumeMetadata{}
+				volumes = []resources.Volume{}
 				fakeClient.ListVolumesReturns(volumes, nil)
 				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
@@ -162,8 +150,8 @@ var _ = Describe("Controller", func() {
 			})
 			It("errors when volume exists and client fails to unmount it", func() {
 				err := fmt.Errorf("error detaching the volume")
-				volume := resources.VolumeMetadata{Name: "vol1", Mountpoint: "some-mountpoint"}
-				volumes = []resources.VolumeMetadata{volume}
+				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.Volume{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
 				fakeClient.DetachReturns(err)
 				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}

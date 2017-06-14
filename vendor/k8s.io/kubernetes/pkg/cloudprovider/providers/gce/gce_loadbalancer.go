@@ -17,11 +17,13 @@ limitations under the License.
 package gce
 
 import (
+	"flag"
 	"fmt"
+	"net"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -34,6 +36,78 @@ import (
 	"github.com/golang/glog"
 	compute "google.golang.org/api/compute/v1"
 )
+
+type cidrs struct {
+	ipn   netsets.IPNet
+	isSet bool
+}
+
+var (
+	lbSrcRngsFlag cidrs
+)
+
+func newLoadBalancerMetricContext(request, region string) *metricContext {
+	return &metricContext{
+		start:      time.Now(),
+		attributes: []string{"loadbalancer_" + request, region, unusedMetricLabel},
+	}
+}
+
+func newTargetPoolMetricContext(request, region string) *metricContext {
+	return &metricContext{
+		start:      time.Now(),
+		attributes: []string{"targetpool_" + request, region, unusedMetricLabel},
+	}
+}
+
+func newAddressMetricContext(request, region string) *metricContext {
+	return &metricContext{
+		start:      time.Now(),
+		attributes: []string{"address_" + request, region, unusedMetricLabel},
+	}
+}
+
+func init() {
+	var err error
+	lbSrcRngsFlag.ipn, err = netsets.ParseIPNets([]string{"130.211.0.0/22", "35.191.0.0/16", "209.85.152.0/22", "209.85.204.0/22"}...)
+	if err != nil {
+		panic("Incorrect default GCE L7 source ranges")
+	}
+
+	flag.Var(&lbSrcRngsFlag, "cloud-provider-gce-lb-src-cidrs", "CIDRS opened in GCE firewall for LB traffic proxy & health checks")
+}
+
+// String is the method to format the flag's value, part of the flag.Value interface.
+func (c *cidrs) String() string {
+	return strings.Join(c.ipn.StringSlice(), ",")
+}
+
+// Set supports a value of CSV or the flag repeated multiple times
+func (c *cidrs) Set(value string) error {
+	// On first Set(), clear the original defaults
+	if !c.isSet {
+		c.isSet = true
+		c.ipn = make(netsets.IPNet)
+	} else {
+		return fmt.Errorf("GCE LB CIDRS have already been set")
+	}
+
+	for _, cidr := range strings.Split(value, ",") {
+		_, ipnet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return err
+		}
+
+		c.ipn.Insert(ipnet)
+	}
+	return nil
+}
+
+// LoadBalancerSrcRanges contains the ranges of ips used by the GCE load balancers (l4 & L7)
+// for proxying client requests and performing health checks.
+func LoadBalancerSrcRanges() []string {
+	return lbSrcRngsFlag.ipn.StringSlice()
+}
 
 // GetLoadBalancer is an implementation of LoadBalancer.GetLoadBalancer
 func (gce *GCECloud) GetLoadBalancer(clusterName string, service *v1.Service) (*v1.LoadBalancerStatus, bool, error) {
@@ -55,6 +129,7 @@ func (gce *GCECloud) GetLoadBalancer(clusterName string, service *v1.Service) (*
 // Our load balancers in GCE consist of four separate GCE resources - a static
 // IP address, a firewall rule, a target pool, and a forwarding rule. This
 // function has to manage all of them.
+//
 // Due to an interesting series of design decisions, this handles both creating
 // new load balancers and updating existing load balancers, recognizing when
 // each is needed.
@@ -64,6 +139,7 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 	}
 
 	hostNames := nodeNames(nodes)
+	supportsNodesHealthCheck := supportsNodesHealthCheck(nodes)
 	hosts, err := gce.getInstancesByNames(hostNames)
 	if err != nil {
 		return nil, err
@@ -80,7 +156,8 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 	affinityType := apiService.Spec.SessionAffinity
 
 	serviceName := types.NamespacedName{Namespace: apiService.Namespace, Name: apiService.Name}
-	glog.V(2).Infof("EnsureLoadBalancer(%v, %v, %v, %v, %v, %v, %v)", loadBalancerName, gce.region, loadBalancerIP, portStr, hostNames, serviceName, apiService.Annotations)
+	glog.V(2).Infof("EnsureLoadBalancer(%v, %v, %v, %v, %v, %v, %v)",
+		loadBalancerName, gce.region, loadBalancerIP, portStr, hostNames, serviceName, apiService.Annotations)
 
 	// Check if the forwarding rule exists, and if so, what its IP is.
 	fwdRuleExists, fwdRuleNeedsUpdate, fwdRuleIP, err := gce.forwardingRuleNeedsUpdate(loadBalancerName, gce.region, loadBalancerIP, ports)
@@ -88,7 +165,8 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 		return nil, err
 	}
 	if !fwdRuleExists {
-		glog.Infof("Forwarding rule %v for Service %v/%v doesn't exist", loadBalancerName, apiService.Namespace, apiService.Name)
+		glog.V(2).Infof("Forwarding rule %v for Service %v/%v doesn't exist",
+			loadBalancerName, apiService.Namespace, apiService.Name)
 	}
 
 	// Make sure we know which IP address will be used and have properly reserved
@@ -211,13 +289,13 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 		// without needing to be deleted and recreated.
 		if firewallExists {
 			glog.Infof("EnsureLoadBalancer(%v(%v)): updating firewall", loadBalancerName, serviceName)
-			if err := gce.updateFirewall(loadBalancerName, gce.region, desc, sourceRanges, ports, hosts); err != nil {
+			if err := gce.updateFirewall(makeFirewallName(loadBalancerName), gce.region, desc, sourceRanges, ports, hosts); err != nil {
 				return nil, err
 			}
 			glog.Infof("EnsureLoadBalancer(%v(%v)): updated firewall", loadBalancerName, serviceName)
 		} else {
 			glog.Infof("EnsureLoadBalancer(%v(%v)): creating firewall", loadBalancerName, serviceName)
-			if err := gce.createFirewall(loadBalancerName, gce.region, desc, sourceRanges, ports, hosts); err != nil {
+			if err := gce.createFirewall(makeFirewallName(loadBalancerName), gce.region, desc, sourceRanges, ports, hosts); err != nil {
 				return nil, err
 			}
 			glog.Infof("EnsureLoadBalancer(%v(%v)): created firewall", loadBalancerName, serviceName)
@@ -232,33 +310,42 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 		glog.Infof("Target pool %v for Service %v/%v doesn't exist", loadBalancerName, apiService.Namespace, apiService.Name)
 	}
 
-	// Ensure health checks are created for this target pool to pass to createTargetPool for health check links
-	// Alternately, if the annotation on the service was removed, we need to recreate the target pool without
-	// health checks. This needs to be prior to the forwarding rule deletion below otherwise it is not possible
-	// to delete just the target pool or http health checks later.
-	var hcToCreate *compute.HttpHealthCheck
-	hcExisting, err := gce.GetHttpHealthCheck(loadBalancerName)
+	clusterID, err := gce.ClusterID.GetID()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster ID %s: %v", loadBalancerName, err)
+	}
+	// Check which health check needs to create and which health check needs to delete.
+	// Health check management is coupled with target pool operation to prevent leaking.
+	var hcToCreate, hcToDelete *compute.HttpHealthCheck
+	hcLocalTrafficExisting, err := gce.GetHttpHealthCheck(loadBalancerName)
 	if err != nil && !isHTTPErrorCode(err, http.StatusNotFound) {
-		return nil, fmt.Errorf("Error checking HTTP health check %s: %v", loadBalancerName, err)
+		return nil, fmt.Errorf("error checking HTTP health check %s: %v", loadBalancerName, err)
 	}
 	if path, healthCheckNodePort := apiservice.GetServiceHealthCheckPathPort(apiService); path != "" {
-		glog.V(4).Infof("service %v (%v) needs health checks on :%d%s)", apiService.Name, loadBalancerName, healthCheckNodePort, path)
-		if err != nil {
-			// This logic exists to detect a transition for a pre-existing service and turn on
-			// the tpNeedsUpdate flag to delete/recreate fwdrule/tpool adding the health check
-			// to the target pool.
-			glog.V(2).Infof("Annotation external-traffic=OnlyLocal added to new or pre-existing service")
+		glog.V(4).Infof("service %v (%v) needs local traffic health checks on: %d%s)", apiService.Name, loadBalancerName, healthCheckNodePort, path)
+		if hcLocalTrafficExisting == nil {
+			// This logic exists to detect a transition for non-OnlyLocal to OnlyLocal service
+			// turn on the tpNeedsUpdate flag to delete/recreate fwdrule/tpool updating the
+			// target pool to use local traffic health check.
+			glog.V(2).Infof("Updating from nodes health checks to local traffic health checks for service %v LB %v", apiService.Name, loadBalancerName)
+			if supportsNodesHealthCheck {
+				hcToDelete = makeHttpHealthCheck(makeNodesHealthCheckName(clusterID), getNodesHealthCheckPath(), GetNodesHealthCheckPort())
+			}
 			tpNeedsUpdate = true
 		}
-		hcToCreate, err = gce.ensureHttpHealthCheck(loadBalancerName, path, healthCheckNodePort)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to ensure health check for localized service %v on node port %v: %v", loadBalancerName, healthCheckNodePort, err)
-		}
+		hcToCreate = makeHttpHealthCheck(loadBalancerName, path, healthCheckNodePort)
 	} else {
-		glog.V(4).Infof("service %v does not need health checks", apiService.Name)
-		if err == nil {
-			glog.V(2).Infof("Deleting stale health checks for service %v LB %v", apiService.Name, loadBalancerName)
+		glog.V(4).Infof("Service %v needs nodes health checks.", apiService.Name)
+		if hcLocalTrafficExisting != nil {
+			// This logic exists to detect a transition from OnlyLocal to non-OnlyLocal service
+			// and turn on the tpNeedsUpdate flag to delete/recreate fwdrule/tpool updating the
+			// target pool to use nodes health check.
+			glog.V(2).Infof("Updating from local traffic health checks to nodes health checks for service %v LB %v", apiService.Name, loadBalancerName)
+			hcToDelete = hcLocalTrafficExisting
 			tpNeedsUpdate = true
+		}
+		if supportsNodesHealthCheck {
+			hcToCreate = makeHttpHealthCheck(makeNodesHealthCheckName(clusterID), getNodesHealthCheckPath(), GetNodesHealthCheckPort())
 		}
 	}
 	// Now we get to some slightly more interesting logic.
@@ -279,17 +366,12 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 		glog.Infof("EnsureLoadBalancer(%v(%v)): deleted forwarding rule", loadBalancerName, serviceName)
 	}
 	if tpExists && tpNeedsUpdate {
-		// Generate the list of health checks for this target pool to pass to deleteTargetPool
-		if path, _ := apiservice.GetServiceHealthCheckPathPort(apiService); path != "" {
-			var err error
-			hcExisting, err = gce.GetHttpHealthCheck(loadBalancerName)
-			if err != nil && !isHTTPErrorCode(err, http.StatusNotFound) {
-				glog.Infof("Failed to retrieve health check %v:%v", loadBalancerName, err)
-			}
+		// Pass healthchecks to deleteTargetPool to cleanup health checks after cleaning up the target pool itself.
+		var hcNames []string
+		if hcToDelete != nil {
+			hcNames = append(hcNames, hcToDelete.Name)
 		}
-
-		// Pass healthchecks to deleteTargetPool to cleanup health checks prior to cleaning up the target pool itself.
-		if err := gce.deleteTargetPool(loadBalancerName, gce.region, hcExisting); err != nil {
+		if err := gce.deleteTargetPool(loadBalancerName, gce.region, hcNames...); err != nil {
 			return nil, fmt.Errorf("failed to delete existing target pool %s for load balancer update: %v", loadBalancerName, err)
 		}
 		glog.Infof("EnsureLoadBalancer(%v(%v)): deleted target pool", loadBalancerName, serviceName)
@@ -303,11 +385,11 @@ func (gce *GCECloud) EnsureLoadBalancer(clusterName string, apiService *v1.Servi
 			createInstances = createInstances[:maxTargetPoolCreateInstances]
 		}
 		// Pass healthchecks to createTargetPool which needs them as health check links in the target pool
-		if err := gce.createTargetPool(loadBalancerName, serviceName.String(), gce.region, createInstances, affinityType, hcToCreate); err != nil {
+		if err := gce.createTargetPool(loadBalancerName, serviceName.String(), ipAddress, gce.region, createInstances, affinityType, hcToCreate); err != nil {
 			return nil, fmt.Errorf("failed to create target pool %s: %v", loadBalancerName, err)
 		}
 		if hcToCreate != nil {
-			glog.Infof("EnsureLoadBalancer(%v(%v)): created health checks for target pool", loadBalancerName, serviceName)
+			glog.Infof("EnsureLoadBalancer(%v(%v)): created health checks %v for target pool", loadBalancerName, serviceName, hcToCreate.Name)
 		}
 		if len(hosts) <= maxTargetPoolCreateInstances {
 			glog.Infof("EnsureLoadBalancer(%v(%v)): created target pool", loadBalancerName, serviceName)
@@ -369,18 +451,29 @@ func (gce *GCECloud) EnsureLoadBalancerDeleted(clusterName string, service *v1.S
 	glog.V(2).Infof("EnsureLoadBalancerDeleted(%v, %v, %v, %v, %v)", clusterName, service.Namespace, service.Name, loadBalancerName,
 		gce.region)
 
-	var hc *compute.HttpHealthCheck
+	var hcNames []string
 	if path, _ := apiservice.GetServiceHealthCheckPathPort(service); path != "" {
-		var err error
-		hc, err = gce.GetHttpHealthCheck(loadBalancerName)
+		hcToDelete, err := gce.GetHttpHealthCheck(loadBalancerName)
 		if err != nil && !isHTTPErrorCode(err, http.StatusNotFound) {
 			glog.Infof("Failed to retrieve health check %v:%v", loadBalancerName, err)
 			return err
 		}
+		hcNames = append(hcNames, hcToDelete.Name)
+	} else {
+		clusterID, err := gce.ClusterID.GetID()
+		if err != nil {
+			return fmt.Errorf("error getting cluster ID %s: %v", loadBalancerName, err)
+		}
+		// EnsureLoadBalancerDeleted() could be triggered by changing service from
+		// LoadBalancer type to others. In this case we have no idea whether it was
+		// using local traffic health check or nodes health check. Attempt to delete
+		// both to prevent leaking.
+		hcNames = append(hcNames, loadBalancerName)
+		hcNames = append(hcNames, makeNodesHealthCheckName(clusterID))
 	}
 
 	errs := utilerrors.AggregateGoroutines(
-		func() error { return gce.deleteFirewall(loadBalancerName, gce.region) },
+		func() error { return gce.deleteFirewall(makeFirewallName(loadBalancerName), gce.region) },
 		// Even though we don't hold on to static IPs for load balancers, it's
 		// possible that EnsureLoadBalancer left one around in a failed
 		// creation/update attempt, so make sure we clean it up here just in case.
@@ -391,7 +484,7 @@ func (gce *GCECloud) EnsureLoadBalancerDeleted(clusterName string, service *v1.S
 			if err := gce.deleteForwardingRule(loadBalancerName, gce.region); err != nil {
 				return err
 			}
-			if err := gce.deleteTargetPool(loadBalancerName, gce.region, hc); err != nil {
+			if err := gce.deleteTargetPool(loadBalancerName, gce.region, hcNames...); err != nil {
 				return err
 			}
 			return nil
@@ -403,8 +496,6 @@ func (gce *GCECloud) EnsureLoadBalancerDeleted(clusterName string, service *v1.S
 	return nil
 }
 
-// XXX ----------
-
 func (gce *GCECloud) DeleteForwardingRule(name string) error {
 	region, err := GetGCERegion(gce.localZone)
 	if err != nil {
@@ -414,15 +505,18 @@ func (gce *GCECloud) DeleteForwardingRule(name string) error {
 }
 
 func (gce *GCECloud) deleteForwardingRule(name, region string) error {
+	mc := newForwardingRuleMetricContext("delete", region)
 	op, err := gce.service.ForwardingRules.Delete(gce.projectID, region, name).Do()
+
 	if err != nil && isHTTPErrorCode(err, http.StatusNotFound) {
 		glog.Infof("Forwarding rule %s already deleted. Continuing to delete other resources.", name)
 	} else if err != nil {
 		glog.Warningf("Failed to delete forwarding rule %s: got error %s.", name, err.Error())
-		return err
+		return mc.Observe(err)
 	} else {
-		if err := gce.waitForRegionOp(op, region); err != nil {
-			glog.Warningf("Failed waiting for forwarding rule %s to be deleted: got error %s.", name, err.Error())
+		if err := gce.waitForRegionOp(op, region, mc); err != nil {
+			glog.Warningf("Failed waiting for forwarding rule %s to be deleted: got error %s.",
+				name, err.Error())
 			return err
 		}
 	}
@@ -430,62 +524,111 @@ func (gce *GCECloud) deleteForwardingRule(name, region string) error {
 }
 
 // DeleteTargetPool deletes the given target pool.
-func (gce *GCECloud) DeleteTargetPool(name string, hc *compute.HttpHealthCheck) error {
+func (gce *GCECloud) DeleteTargetPool(name string, hcNames ...string) error {
 	region, err := GetGCERegion(gce.localZone)
 	if err != nil {
 		return err
 	}
-	return gce.deleteTargetPool(name, region, hc)
+	return gce.deleteTargetPool(name, region, hcNames...)
 }
 
-func (gce *GCECloud) deleteTargetPool(name, region string, hc *compute.HttpHealthCheck) error {
+func (gce *GCECloud) deleteTargetPool(name, region string, hcNames ...string) error {
+	mc := newTargetPoolMetricContext("delete", region)
 	op, err := gce.service.TargetPools.Delete(gce.projectID, region, name).Do()
+
 	if err != nil && isHTTPErrorCode(err, http.StatusNotFound) {
 		glog.Infof("Target pool %s already deleted. Continuing to delete other resources.", name)
 	} else if err != nil {
 		glog.Warningf("Failed to delete target pool %s, got error %s.", name, err.Error())
-		return err
+		return mc.Observe(err)
 	} else {
-		if err := gce.waitForRegionOp(op, region); err != nil {
-			glog.Warningf("Failed waiting for target pool %s to be deleted: got error %s.", name, err.Error())
+		if err := gce.waitForRegionOp(op, region, mc); err != nil {
+			glog.Warningf("Failed waiting for target pool %s to be deleted: got error %s.",
+				name, err.Error())
 			return err
 		}
 	}
+
 	// Deletion of health checks is allowed only after the TargetPool reference is deleted
-	if hc != nil {
-		glog.Infof("Deleting health check %v", hc.Name)
-		if err := gce.DeleteHttpHealthCheck(hc.Name); err != nil {
-			glog.Warningf("Failed to delete health check %v: %v", hc, err)
+	for _, hcName := range hcNames {
+		if err = func() error {
+			// Check whether it is nodes health check, which has different name from the load-balancer.
+			isNodesHealthCheck := hcName != name
+			if isNodesHealthCheck {
+				// Lock to prevent deleting necessary nodes health check before it gets attached
+				// to target pool.
+				gce.sharedResourceLock.Lock()
+				defer gce.sharedResourceLock.Unlock()
+			}
+			glog.Infof("Deleting health check %v", hcName)
+			if err := gce.DeleteHttpHealthCheck(hcName); err != nil {
+				// Delete nodes health checks will fail if any other target pool is using it.
+				if isInUsedByError(err) {
+					glog.V(4).Infof("Health check %v is in used: %v.", hcName, err)
+					return nil
+				} else if !isHTTPErrorCode(err, http.StatusNotFound) {
+					glog.Warningf("Failed to delete health check %v: %v", hcName, err)
+					return err
+				}
+				// StatusNotFound could happen when:
+				// - This is the first attempt but we pass in a healthcheck that is already deleted
+				//   to prevent leaking.
+				// - This is the first attempt but user manually deleted the heathcheck.
+				// - This is a retry and in previous round we failed to delete the healthcheck firewall
+				//   after deleted the healthcheck.
+				// We continue to delete the healthcheck firewall to prevent leaking.
+				glog.V(4).Infof("Health check %v is already deleted.", hcName)
+			}
+			clusterID, err := gce.ClusterID.GetID()
+			if err != nil {
+				return fmt.Errorf("error getting cluster ID: %v", err)
+			}
+			// If health check is deleted without error, it means no load-balancer is using it.
+			// So we should delete the health check firewall as well.
+			fwName := MakeHealthCheckFirewallName(clusterID, hcName, isNodesHealthCheck)
+			glog.Infof("Deleting firewall %v.", fwName)
+			if err := gce.DeleteFirewall(fwName); err != nil {
+				if isHTTPErrorCode(err, http.StatusNotFound) {
+					glog.V(4).Infof("Firewall %v is already deleted.", fwName)
+					return nil
+				}
+				return err
+			}
+			return nil
+		}(); err != nil {
 			return err
 		}
-	} else {
-		// This is a HC cleanup attempt to prevent stale HCs when errors are encountered
-		// during HC deletion in a prior pass through EnsureLoadBalancer.
-		// The HC name matches the load balancer name - normally this is expected to fail.
-		if err := gce.DeleteHttpHealthCheck(name); err == nil {
-			// We only print a warning if this deletion actually succeeded (which
-			// means there was indeed a stale health check with the LB name.
-			glog.Warningf("Deleted stale http health check for LB: %s", name)
-		}
 	}
+
 	return nil
 }
 
-func (gce *GCECloud) createTargetPool(name, serviceName, region string, hosts []*gceInstance, affinityType v1.ServiceAffinity, hc *compute.HttpHealthCheck) error {
-	var instances []string
-	for _, host := range hosts {
-		instances = append(instances, makeHostURL(gce.projectID, host.Zone, host.Name))
-	}
+func (gce *GCECloud) createTargetPool(name, serviceName, ipAddress, region string, hosts []*gceInstance, affinityType v1.ServiceAffinity, hc *compute.HttpHealthCheck) error {
 	// health check management is coupled with targetPools to prevent leaks. A
 	// target pool is the only thing that requires a health check, so we delete
 	// associated checks on teardown, and ensure checks on setup.
 	hcLinks := []string{}
 	if hc != nil {
+		// Check whether it is nodes health check, which has different name from the load-balancer.
+		isNodesHealthCheck := hc.Name != name
+		if isNodesHealthCheck {
+			// Lock to prevent necessary nodes health check / firewall gets deleted.
+			gce.sharedResourceLock.Lock()
+			defer gce.sharedResourceLock.Unlock()
+		}
+		if err := gce.ensureHttpHealthCheckFirewall(serviceName, ipAddress, gce.region, hosts, hc.Name, int32(hc.Port), isNodesHealthCheck); err != nil {
+			return err
+		}
 		var err error
-		if hc, err = gce.ensureHttpHealthCheck(name, hc.RequestPath, int32(hc.Port)); err != nil || hc == nil {
+		if hc, err = gce.ensureHttpHealthCheck(hc.Name, hc.RequestPath, int32(hc.Port)); err != nil || hc == nil {
 			return fmt.Errorf("Failed to ensure health check for %v port %d path %v: %v", name, hc.Port, hc.RequestPath, err)
 		}
 		hcLinks = append(hcLinks, hc.SelfLink)
+	}
+
+	var instances []string
+	for _, host := range hosts {
+		instances = append(instances, makeHostURL(gce.projectID, host.Zone, host.Name))
 	}
 	glog.Infof("Creating targetpool %v with %d healthchecks", name, len(hcLinks))
 	pool := &compute.TargetPool{
@@ -495,12 +638,14 @@ func (gce *GCECloud) createTargetPool(name, serviceName, region string, hosts []
 		SessionAffinity: translateAffinityType(affinityType),
 		HealthChecks:    hcLinks,
 	}
+
+	mc := newTargetPoolMetricContext("insert", region)
 	op, err := gce.service.TargetPools.Insert(gce.projectID, region, pool).Do()
 	if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
-		return err
+		return mc.Observe(err)
 	}
 	if op != nil {
-		err = gce.waitForRegionOp(op, region)
+		err = gce.waitForRegionOp(op, region, mc)
 		if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
 			return err
 		}
@@ -524,22 +669,25 @@ func (gce *GCECloud) updateTargetPool(loadBalancerName string, existing sets.Str
 
 	if len(toAdd) > 0 {
 		add := &compute.TargetPoolsAddInstanceRequest{Instances: toAdd}
+
+		mc := newTargetPoolMetricContext("update", gce.region)
 		op, err := gce.service.TargetPools.AddInstance(gce.projectID, gce.region, loadBalancerName, add).Do()
 		if err != nil {
-			return err
+			return mc.Observe(err)
 		}
-		if err := gce.waitForRegionOp(op, gce.region); err != nil {
+		if err := gce.waitForRegionOp(op, gce.region, mc); err != nil {
 			return err
 		}
 	}
 
 	if len(toRemove) > 0 {
+		mc := newTargetPoolMetricContext("delete", gce.region)
 		rm := &compute.TargetPoolsRemoveInstanceRequest{Instances: toRemove}
 		op, err := gce.service.TargetPools.RemoveInstance(gce.projectID, gce.region, loadBalancerName, rm).Do()
 		if err != nil {
-			return err
+			return mc.Observe(err)
 		}
-		if err := gce.waitForRegionOp(op, gce.region); err != nil {
+		if err := gce.waitForRegionOp(op, gce.region, mc); err != nil {
 			return err
 		}
 	}
@@ -563,8 +711,8 @@ func (gce *GCECloud) targetPoolURL(name, region string) string {
 	return fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s/targetPools/%s", gce.projectID, region, name)
 }
 
-func (gce *GCECloud) ensureHttpHealthCheck(name, path string, port int32) (hc *compute.HttpHealthCheck, err error) {
-	newHC := &compute.HttpHealthCheck{
+func makeHttpHealthCheck(name, path string, port int32) *compute.HttpHealthCheck {
+	return &compute.HttpHealthCheck{
 		Name:               name,
 		Port:               int64(port),
 		RequestPath:        path,
@@ -575,7 +723,10 @@ func (gce *GCECloud) ensureHttpHealthCheck(name, path string, port int32) (hc *c
 		HealthyThreshold:   gceHcHealthyThreshold,
 		UnhealthyThreshold: gceHcUnhealthyThreshold,
 	}
+}
 
+func (gce *GCECloud) ensureHttpHealthCheck(name, path string, port int32) (hc *compute.HttpHealthCheck, err error) {
+	newHC := makeHttpHealthCheck(name, path, port)
 	hc, err = gce.GetHttpHealthCheck(name)
 	if hc == nil || err != nil && isHTTPErrorCode(err, http.StatusNotFound) {
 		glog.Infof("Did not find health check %v, creating port %v path %v", name, port, path)
@@ -755,7 +906,7 @@ func (gce *GCECloud) firewallNeedsUpdate(name, serviceName, region, ipAddress st
 		if isHTTPErrorCode(err, http.StatusNotFound) {
 			return false, true, nil
 		}
-		return false, false, fmt.Errorf("error getting load balancer's target pool: %v", err)
+		return false, false, fmt.Errorf("error getting load balancer's firewall: %v", err)
 	}
 	if fw.Description != makeFirewallDescription(serviceName, ipAddress) {
 		return true, true, nil
@@ -768,7 +919,7 @@ func (gce *GCECloud) firewallNeedsUpdate(name, serviceName, region, ipAddress st
 	for ix := range ports {
 		allowedPorts[ix] = strconv.Itoa(int(ports[ix].Port))
 	}
-	if !slicesEqual(allowedPorts, fw.Allowed[0].Ports) {
+	if !equalStringSets(allowedPorts, fw.Allowed[0].Ports) {
 		return true, true, nil
 	}
 	// The service controller already verified that the protocol matches on all ports, no need to check.
@@ -787,18 +938,47 @@ func (gce *GCECloud) firewallNeedsUpdate(name, serviceName, region, ipAddress st
 	return true, false, nil
 }
 
-func slicesEqual(x, y []string) bool {
-	if len(x) != len(y) {
-		return false
+func (gce *GCECloud) ensureHttpHealthCheckFirewall(serviceName, ipAddress, region string, hosts []*gceInstance, hcName string, hcPort int32, isNodesHealthCheck bool) error {
+	clusterID, err := gce.ClusterID.GetID()
+	if err != nil {
+		return fmt.Errorf("error getting cluster ID: %v", err)
 	}
-	sort.Strings(x)
-	sort.Strings(y)
-	for i := range x {
-		if x[i] != y[i] {
-			return false
+
+	// Prepare the firewall params for creating / checking.
+	desc := fmt.Sprintf(`{"kubernetes.io/cluster-id":"%s"}`, clusterID)
+	if !isNodesHealthCheck {
+		desc = makeFirewallDescription(serviceName, ipAddress)
+	}
+	sourceRanges := lbSrcRngsFlag.ipn
+	ports := []v1.ServicePort{{Protocol: "tcp", Port: hcPort}}
+
+	fwName := MakeHealthCheckFirewallName(clusterID, hcName, isNodesHealthCheck)
+	fw, err := gce.service.Firewalls.Get(gce.projectID, fwName).Do()
+	if err != nil {
+		if !isHTTPErrorCode(err, http.StatusNotFound) {
+			return fmt.Errorf("error getting firewall for health checks: %v", err)
 		}
+		glog.Infof("Creating firewall %v for health checks.", fwName)
+		if err := gce.createFirewall(fwName, region, desc, sourceRanges, ports, hosts); err != nil {
+			return err
+		}
+		glog.Infof("Created firewall %v for health checks.", fwName)
+		return nil
 	}
-	return true
+	// Validate firewall fields.
+	if fw.Description != desc ||
+		len(fw.Allowed) != 1 ||
+		fw.Allowed[0].IPProtocol != string(ports[0].Protocol) ||
+		!equalStringSets(fw.Allowed[0].Ports, []string{string(ports[0].Port)}) ||
+		!equalStringSets(fw.SourceRanges, sourceRanges.StringSlice()) {
+		glog.Warningf("Firewall %v exists but parameters have drifted - updating...", fwName)
+		if err := gce.updateFirewall(fwName, region, desc, sourceRanges, ports, hosts); err != nil {
+			glog.Warningf("Failed to reconcile firewall %v parameters.", fwName)
+			return err
+		}
+		glog.V(4).Infof("Corrected firewall %v parameters successful", fwName)
+	}
+	return nil
 }
 
 func (gce *GCECloud) createForwardingRule(name, serviceName, region, ipAddress string, ports []v1.ServicePort) error {
@@ -815,12 +995,13 @@ func (gce *GCECloud) createForwardingRule(name, serviceName, region, ipAddress s
 		Target:      gce.targetPoolURL(name, region),
 	}
 
+	mc := newForwardingRuleMetricContext("create", region)
 	op, err := gce.service.ForwardingRules.Insert(gce.projectID, region, req).Do()
 	if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
-		return err
+		return mc.Observe(err)
 	}
 	if op != nil {
-		err = gce.waitForRegionOp(op, region)
+		err = gce.waitForRegionOp(op, region, mc)
 		if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
 			return err
 		}
@@ -829,16 +1010,17 @@ func (gce *GCECloud) createForwardingRule(name, serviceName, region, ipAddress s
 }
 
 func (gce *GCECloud) createFirewall(name, region, desc string, sourceRanges netsets.IPNet, ports []v1.ServicePort, hosts []*gceInstance) error {
+	mc := newFirewallMetricContext("create")
 	firewall, err := gce.firewallObject(name, region, desc, sourceRanges, ports, hosts)
 	if err != nil {
-		return err
+		return mc.Observe(err)
 	}
 	op, err := gce.service.Firewalls.Insert(gce.projectID, firewall).Do()
 	if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
-		return err
+		return mc.Observe(err)
 	}
 	if op != nil {
-		err = gce.waitForGlobalOp(op)
+		err = gce.waitForGlobalOp(op, mc)
 		if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
 			return err
 		}
@@ -847,16 +1029,17 @@ func (gce *GCECloud) createFirewall(name, region, desc string, sourceRanges nets
 }
 
 func (gce *GCECloud) updateFirewall(name, region, desc string, sourceRanges netsets.IPNet, ports []v1.ServicePort, hosts []*gceInstance) error {
+	mc := newFirewallMetricContext("update")
 	firewall, err := gce.firewallObject(name, region, desc, sourceRanges, ports, hosts)
 	if err != nil {
-		return err
+		return mc.Observe(err)
 	}
-	op, err := gce.service.Firewalls.Update(gce.projectID, makeFirewallName(name), firewall).Do()
+	op, err := gce.service.Firewalls.Update(gce.projectID, name, firewall).Do()
 	if err != nil && !isHTTPErrorCode(err, http.StatusConflict) {
-		return err
+		return mc.Observe(err)
 	}
 	if op != nil {
-		err = gce.waitForGlobalOp(op)
+		err = gce.waitForGlobalOp(op, mc)
 		if err != nil {
 			return err
 		}
@@ -880,7 +1063,7 @@ func (gce *GCECloud) firewallObject(name, region, desc string, sourceRanges nets
 	}
 
 	firewall := &compute.Firewall{
-		Name:         makeFirewallName(name),
+		Name:         name,
 		Description:  desc,
 		Network:      gce.networkURL,
 		SourceRanges: sourceRanges.StringSlice(),
@@ -898,84 +1081,6 @@ func (gce *GCECloud) firewallObject(name, region, desc string, sourceRanges nets
 		},
 	}
 	return firewall, nil
-}
-
-// ComputeHostTags grabs all tags from all instances being added to the pool.
-// * The longest tag that is a prefix of the instance name is used
-// * If any instance has no matching prefix tag, return error
-// Invoking this method to get host tags is risky since it depends on the format
-// of the host names in the cluster. Only use it as a fallback if gce.nodeTags
-// is unspecified
-func (gce *GCECloud) computeHostTags(hosts []*gceInstance) ([]string, error) {
-	// TODO: We could store the tags in gceInstance, so we could have already fetched it
-	hostNamesByZone := make(map[string]map[string]bool) // map of zones -> map of names -> bool (for easy lookup)
-	nodeInstancePrefix := gce.nodeInstancePrefix
-	for _, host := range hosts {
-		if !strings.HasPrefix(host.Name, gce.nodeInstancePrefix) {
-			glog.Warningf("instance '%s' does not conform to prefix '%s', ignoring filter", host, gce.nodeInstancePrefix)
-			nodeInstancePrefix = ""
-		}
-
-		z, ok := hostNamesByZone[host.Zone]
-		if !ok {
-			z = make(map[string]bool)
-			hostNamesByZone[host.Zone] = z
-		}
-		z[host.Name] = true
-	}
-
-	tags := sets.NewString()
-
-	for zone, hostNames := range hostNamesByZone {
-		pageToken := ""
-		page := 0
-		for ; page == 0 || (pageToken != "" && page < maxPages); page++ {
-			listCall := gce.service.Instances.List(gce.projectID, zone)
-
-			if nodeInstancePrefix != "" {
-				// Add the filter for hosts
-				listCall = listCall.Filter("name eq " + nodeInstancePrefix + ".*")
-			}
-
-			// Add the fields we want
-			// TODO(zmerlynn): Internal bug 29524655
-			// listCall = listCall.Fields("items(name,tags)")
-
-			if pageToken != "" {
-				listCall = listCall.PageToken(pageToken)
-			}
-
-			res, err := listCall.Do()
-			if err != nil {
-				return nil, err
-			}
-			pageToken = res.NextPageToken
-			for _, instance := range res.Items {
-				if !hostNames[instance.Name] {
-					continue
-				}
-
-				longest_tag := ""
-				for _, tag := range instance.Tags.Items {
-					if strings.HasPrefix(instance.Name, tag) && len(tag) > len(longest_tag) {
-						longest_tag = tag
-					}
-				}
-				if len(longest_tag) > 0 {
-					tags.Insert(longest_tag)
-				} else {
-					return nil, fmt.Errorf("Could not find any tag that is a prefix of instance name for instance %s", instance.Name)
-				}
-			}
-		}
-		if page >= maxPages {
-			glog.Errorf("computeHostTags exceeded maxPages=%d for Instances.List: truncating.", maxPages)
-		}
-	}
-	if len(tags) == 0 {
-		return nil, fmt.Errorf("No instances found")
-	}
-	return tags.List(), nil
 }
 
 func (gce *GCECloud) projectOwnsStaticIP(name, region string, ipAddress string) (bool, error) {
@@ -1014,19 +1119,23 @@ func (gce *GCECloud) ensureStaticIP(name, serviceName, region, existingIP string
 		Name:        name,
 		Description: fmt.Sprintf(`{"kubernetes.io/service-name":"%s"}`, serviceName),
 	}
+
 	if existingIP != "" {
 		addressObj.Address = existingIP
 	}
+
+	mc := newAddressMetricContext("create", region)
 	op, err := gce.service.Addresses.Insert(gce.projectID, region, addressObj).Do()
 	if err != nil {
 		if !isHTTPErrorCode(err, http.StatusConflict) {
-			return "", false, fmt.Errorf("error creating gce static IP address: %v", err)
+			return "", false, fmt.Errorf("error creating gce static IP address: %v",
+				mc.Observe(err))
 		}
 		// StatusConflict == the IP exists already.
 		existed = true
 	}
 	if op != nil {
-		err := gce.waitForRegionOp(op, region)
+		err := gce.waitForRegionOp(op, region, mc)
 		if err != nil {
 			if !isHTTPErrorCode(err, http.StatusConflict) {
 				return "", false, fmt.Errorf("error waiting for gce static IP address to be created: %v", err)
@@ -1045,16 +1154,17 @@ func (gce *GCECloud) ensureStaticIP(name, serviceName, region, existingIP string
 }
 
 func (gce *GCECloud) deleteFirewall(name, region string) error {
-	fwName := makeFirewallName(name)
-	op, err := gce.service.Firewalls.Delete(gce.projectID, fwName).Do()
+	mc := newFirewallMetricContext("delete")
+	op, err := gce.service.Firewalls.Delete(gce.projectID, name).Do()
+
 	if err != nil && isHTTPErrorCode(err, http.StatusNotFound) {
-		glog.Infof("Firewall %s already deleted. Continuing to delete other resources.", name)
+		glog.V(2).Infof("Firewall %s already deleted. Continuing to delete other resources.", name)
 	} else if err != nil {
-		glog.Warningf("Failed to delete firewall %s, got error %v", fwName, err)
-		return err
+		glog.Warningf("Failed to delete firewall %s, got error %v", name, err)
+		return mc.Observe(err)
 	} else {
-		if err := gce.waitForGlobalOp(op); err != nil {
-			glog.Warningf("Failed waiting for Firewall %s to be deleted.  Got error: %v", fwName, err)
+		if err := gce.waitForGlobalOp(op, mc); err != nil {
+			glog.Warningf("Failed waiting for Firewall %s to be deleted.  Got error: %v", name, err)
 			return err
 		}
 	}
@@ -1062,14 +1172,15 @@ func (gce *GCECloud) deleteFirewall(name, region string) error {
 }
 
 func (gce *GCECloud) deleteStaticIP(name, region string) error {
+	mc := newAddressMetricContext("delete", region)
 	op, err := gce.service.Addresses.Delete(gce.projectID, region, name).Do()
 	if err != nil && isHTTPErrorCode(err, http.StatusNotFound) {
 		glog.Infof("Static IP address %s is not reserved", name)
 	} else if err != nil {
 		glog.Warningf("Failed to delete static IP address %s, got error %v", name, err)
-		return err
+		return mc.Observe(err)
 	} else {
-		if err := gce.waitForRegionOp(op, region); err != nil {
+		if err := gce.waitForRegionOp(op, region, mc); err != nil {
 			glog.Warningf("Failed waiting for address %s to be deleted, got error: %v", name, err)
 			return err
 		}

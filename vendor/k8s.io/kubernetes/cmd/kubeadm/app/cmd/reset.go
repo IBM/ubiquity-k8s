@@ -105,7 +105,7 @@ func (r *Reset) Run(out io.Writer) error {
 	}
 
 	dockerCheck := preflight.ServiceCheck{Service: "docker", CheckIfActive: true}
-	if warnings, errors := dockerCheck.Check(); len(warnings) == 0 && len(errors) == 0 {
+	if _, errors := dockerCheck.Check(); len(errors) == 0 {
 		fmt.Println("[reset] Removing kubernetes-managed containers")
 		if err := exec.Command("sh", "-c", "docker ps -a --filter name=k8s_ -q | xargs -r docker rm --force --volumes").Run(); err != nil {
 			fmt.Println("[reset] Failed to stop the running containers")
@@ -155,8 +155,7 @@ func cleanDir(filePath string) error {
 		return err
 	}
 	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(filePath, name))
-		if err != nil {
+		if err = os.RemoveAll(filepath.Join(filePath, name)); err != nil {
 			return err
 		}
 	}
@@ -171,8 +170,7 @@ func resetConfigDir(configPathDir, pkiPathDir string) {
 	}
 	fmt.Printf("[reset] Deleting contents of config directories: %v\n", dirsToClean)
 	for _, dir := range dirsToClean {
-		err := cleanDir(dir)
-		if err != nil {
+		if err := cleanDir(dir); err != nil {
 			fmt.Printf("[reset] Failed to remove directory: %q [%v]\n", dir, err)
 		}
 	}
@@ -185,8 +183,7 @@ func resetConfigDir(configPathDir, pkiPathDir string) {
 	}
 	fmt.Printf("[reset] Deleting files: %v\n", filesToClean)
 	for _, path := range filesToClean {
-		err := os.RemoveAll(path)
-		if err != nil {
+		if err := os.RemoveAll(path); err != nil {
 			fmt.Printf("[reset] Failed to remove file: %q [%v]\n", path, err)
 		}
 	}

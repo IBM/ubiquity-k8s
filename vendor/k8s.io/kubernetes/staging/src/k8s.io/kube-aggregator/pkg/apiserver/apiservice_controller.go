@@ -35,10 +35,11 @@ import (
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration"
 	informers "k8s.io/kube-aggregator/pkg/client/informers/internalversion/apiregistration/internalversion"
 	listers "k8s.io/kube-aggregator/pkg/client/listers/apiregistration/internalversion"
+	"k8s.io/kube-aggregator/pkg/controllers"
 )
 
 type APIHandlerManager interface {
-	AddAPIService(apiService *apiregistration.APIService, destinationHost string)
+	AddAPIService(apiService *apiregistration.APIService)
 	RemoveAPIService(apiServiceName string)
 }
 
@@ -95,41 +96,24 @@ func (c *APIServiceRegistrationController) sync(key string) error {
 		return err
 	}
 
-	c.apiHandlerManager.AddAPIService(apiService, c.getDestinationHost(apiService))
+	// remove registration handling for APIServices which are not available
+	if !apiregistration.IsAPIServiceConditionTrue(apiService, apiregistration.Available) {
+		c.apiHandlerManager.RemoveAPIService(key)
+		return nil
+	}
+
+	c.apiHandlerManager.AddAPIService(apiService)
 	return nil
-}
-
-func (c *APIServiceRegistrationController) getDestinationHost(apiService *apiregistration.APIService) string {
-	if apiService.Spec.Service == nil {
-		return ""
-	}
-
-	destinationHost := apiService.Spec.Service.Name + "." + apiService.Spec.Service.Namespace + ".svc"
-	service, err := c.serviceLister.Services(apiService.Spec.Service.Namespace).Get(apiService.Spec.Service.Name)
-	if err != nil {
-		return destinationHost
-	}
-	switch {
-	// use IP from a clusterIP for these service types
-	case service.Spec.Type == v1.ServiceTypeClusterIP,
-		service.Spec.Type == v1.ServiceTypeNodePort,
-		service.Spec.Type == v1.ServiceTypeLoadBalancer:
-		return service.Spec.ClusterIP
-	}
-
-	// return the normal DNS name by default
-	return destinationHost
 }
 
 func (c *APIServiceRegistrationController) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
-	defer glog.Infof("Shutting down APIServiceRegistrationController")
 
 	glog.Infof("Starting APIServiceRegistrationController")
+	defer glog.Infof("Shutting down APIServiceRegistrationController")
 
-	if !cache.WaitForCacheSync(stopCh, c.apiServiceSynced, c.servicesSynced) {
-		utilruntime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+	if !controllers.WaitForCacheSync("APIServiceRegistrationController", stopCh, c.apiServiceSynced, c.servicesSynced) {
 		return
 	}
 

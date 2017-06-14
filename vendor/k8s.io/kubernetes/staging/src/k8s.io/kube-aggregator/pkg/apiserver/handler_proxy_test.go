@@ -31,6 +31,7 @@ import (
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
 
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration"
+	"net/url"
 )
 
 type targetHTTPHandler struct {
@@ -78,17 +79,21 @@ func (*fakeRequestContextMapper) Update(req *http.Request, context genericapireq
 	return nil
 }
 
+type mockedRouter struct {
+	destinationHost string
+}
+
+func (r *mockedRouter) ResolveEndpoint(namespace, name string) (*url.URL, error) {
+	return &url.URL{
+		Scheme: "https",
+		Host:   r.destinationHost,
+	}, nil
+}
+
 func TestProxyHandler(t *testing.T) {
 	target := &targetHTTPHandler{}
 	targetServer := httptest.NewTLSServer(target)
 	defer targetServer.Close()
-
-	handler := &proxyHandler{
-		localDelegate: http.NewServeMux(),
-	}
-
-	server := httptest.NewServer(handler)
-	defer server.Close()
 
 	tests := map[string]struct {
 		user       user.Info
@@ -135,6 +140,7 @@ func TestProxyHandler(t *testing.T) {
 			expectedHeaders: map[string][]string{
 				"X-Forwarded-Proto": {"https"},
 				"X-Forwarded-Uri":   {"/request/path"},
+				"X-Forwarded-For":   {"127.0.0.1"},
 				"X-Remote-User":     {"username"},
 				"User-Agent":        {"Go-http-client/1.1"},
 				"Accept-Encoding":   {"gzip"},
@@ -161,45 +167,53 @@ func TestProxyHandler(t *testing.T) {
 
 	for name, tc := range tests {
 		target.Reset()
-		handler.contextMapper = &fakeRequestContextMapper{user: tc.user}
-		handler.removeAPIService()
-		if tc.apiService != nil {
-			handler.updateAPIService(tc.apiService, tc.apiService.Spec.Service.Name+"."+tc.apiService.Spec.Service.Namespace+".svc")
-			curr := handler.handlingInfo.Load().(proxyHandlingInfo)
-			curr.destinationHost = targetServer.Listener.Addr().String()
-			handler.handlingInfo.Store(curr)
-		}
 
-		resp, err := http.Get(server.URL + tc.path)
-		if err != nil {
-			t.Errorf("%s: %v", name, err)
-			continue
-		}
-		if e, a := tc.expectedStatusCode, resp.StatusCode; e != a {
-			body, _ := httputil.DumpResponse(resp, true)
-			t.Logf("%s: %v", name, string(body))
-			t.Errorf("%s: expected %v, got %v", name, e, a)
-			continue
-		}
-		bytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Errorf("%s: %v", name, err)
-			continue
-		}
-		if !strings.Contains(string(bytes), tc.expectedBody) {
-			t.Errorf("%s: expected %q, got %q", name, tc.expectedBody, string(bytes))
-			continue
-		}
+		func() {
+			handler := &proxyHandler{
+				localDelegate: http.NewServeMux(),
+				routing:       &mockedRouter{destinationHost: targetServer.Listener.Addr().String()},
+			}
+			handler.contextMapper = &fakeRequestContextMapper{user: tc.user}
+			server := httptest.NewServer(handler)
+			defer server.Close()
 
-		if e, a := tc.expectedCalled, target.called; e != a {
-			t.Errorf("%s: expected %v, got %v", name, e, a)
-			continue
-		}
-		// this varies every test
-		delete(target.headers, "X-Forwarded-Host")
-		if e, a := tc.expectedHeaders, target.headers; !reflect.DeepEqual(e, a) {
-			t.Errorf("%s: expected %v, got %v", name, e, a)
-			continue
-		}
+			if tc.apiService != nil {
+				handler.updateAPIService(tc.apiService)
+				curr := handler.handlingInfo.Load().(proxyHandlingInfo)
+				handler.handlingInfo.Store(curr)
+			}
+
+			resp, err := http.Get(server.URL + tc.path)
+			if err != nil {
+				t.Errorf("%s: %v", name, err)
+				return
+			}
+			if e, a := tc.expectedStatusCode, resp.StatusCode; e != a {
+				body, _ := httputil.DumpResponse(resp, true)
+				t.Logf("%s: %v", name, string(body))
+				t.Errorf("%s: expected %v, got %v", name, e, a)
+				return
+			}
+			bytes, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("%s: %v", name, err)
+				return
+			}
+			if !strings.Contains(string(bytes), tc.expectedBody) {
+				t.Errorf("%s: expected %q, got %q", name, tc.expectedBody, string(bytes))
+				return
+			}
+
+			if e, a := tc.expectedCalled, target.called; e != a {
+				t.Errorf("%s: expected %v, got %v", name, e, a)
+				return
+			}
+			// this varies every test
+			delete(target.headers, "X-Forwarded-Host")
+			if e, a := tc.expectedHeaders, target.headers; !reflect.DeepEqual(e, a) {
+				t.Errorf("%s: expected %v, got %v", name, e, a)
+				return
+			}
+		}()
 	}
 }
