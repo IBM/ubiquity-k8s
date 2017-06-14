@@ -38,6 +38,19 @@ import (
 
 type eventType int
 
+func (e eventType) String() string {
+	switch e {
+	case addEvent:
+		return "add"
+	case updateEvent:
+		return "update"
+	case deleteEvent:
+		return "delete"
+	default:
+		return fmt.Sprintf("unknown(%d)", int(e))
+	}
+}
+
 const (
 	addEvent eventType = iota
 	updateEvent
@@ -195,15 +208,15 @@ func (gb *GraphBuilder) Run(stopCh <-chan struct{}) {
 }
 
 var ignoredResources = map[schema.GroupVersionResource]struct{}{
-	schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "replicationcontrollers"}:              {},
-	schema.GroupVersionResource{Group: "", Version: "v1", Resource: "bindings"}:                                           {},
-	schema.GroupVersionResource{Group: "", Version: "v1", Resource: "componentstatuses"}:                                  {},
-	schema.GroupVersionResource{Group: "", Version: "v1", Resource: "events"}:                                             {},
-	schema.GroupVersionResource{Group: "authentication.k8s.io", Version: "v1beta1", Resource: "tokenreviews"}:             {},
-	schema.GroupVersionResource{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "subjectaccessreviews"}:      {},
-	schema.GroupVersionResource{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "selfsubjectaccessreviews"}:  {},
-	schema.GroupVersionResource{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "localsubjectaccessreviews"}: {},
-	schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1alpha1", Resource: "apiservices"}:            {},
+	{Group: "extensions", Version: "v1beta1", Resource: "replicationcontrollers"}:              {},
+	{Group: "", Version: "v1", Resource: "bindings"}:                                           {},
+	{Group: "", Version: "v1", Resource: "componentstatuses"}:                                  {},
+	{Group: "", Version: "v1", Resource: "events"}:                                             {},
+	{Group: "authentication.k8s.io", Version: "v1beta1", Resource: "tokenreviews"}:             {},
+	{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "subjectaccessreviews"}:      {},
+	{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "selfsubjectaccessreviews"}:  {},
+	{Group: "authorization.k8s.io", Version: "v1beta1", Resource: "localsubjectaccessreviews"}: {},
+	{Group: "apiregistration.k8s.io", Version: "v1beta1", Resource: "apiservices"}:             {},
 }
 
 func (gb *GraphBuilder) enqueueChanges(e *event) {
@@ -272,13 +285,13 @@ type ownerRefPair struct {
 // when the number of references is small.
 func referencesDiffs(old []metav1.OwnerReference, new []metav1.OwnerReference) (added []metav1.OwnerReference, removed []metav1.OwnerReference, changed []ownerRefPair) {
 	oldUIDToRef := make(map[string]metav1.OwnerReference)
-	for i := 0; i < len(old); i++ {
-		oldUIDToRef[string(old[i].UID)] = old[i]
+	for _, value := range old {
+		oldUIDToRef[string(value.UID)] = value
 	}
 	oldUIDSet := sets.StringKeySet(oldUIDToRef)
 	newUIDToRef := make(map[string]metav1.OwnerReference)
-	for i := 0; i < len(new); i++ {
-		newUIDToRef[string(new[i].UID)] = new[i]
+	for _, value := range new {
+		newUIDToRef[string(value.UID)] = value
 	}
 	newUIDSet := sets.StringKeySet(newUIDToRef)
 
@@ -427,7 +440,7 @@ func (gb *GraphBuilder) processGraphChanges() bool {
 		utilruntime.HandleError(fmt.Errorf("cannot access obj: %v", err))
 		return true
 	}
-	glog.V(5).Infof("GraphBuilder process object: %s/%s, namespace %s, name %s, event type %s", typeAccessor.GetAPIVersion(), typeAccessor.GetKind(), accessor.GetNamespace(), accessor.GetName(), event.eventType)
+	glog.V(5).Infof("GraphBuilder process object: %s/%s, namespace %s, name %s, event type %v", typeAccessor.GetAPIVersion(), typeAccessor.GetKind(), accessor.GetNamespace(), accessor.GetName(), event.eventType)
 	// Check if the node already exsits
 	existingNode, found := gb.uidToNode.Read(accessor.GetUID())
 	switch {

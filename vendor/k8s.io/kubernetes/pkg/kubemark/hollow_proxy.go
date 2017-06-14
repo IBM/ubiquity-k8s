@@ -17,19 +17,23 @@ limitations under the License.
 package kubemark
 
 import (
+	"fmt"
+	"net"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/record"
 	proxyapp "k8s.io/kubernetes/cmd/kube-proxy/app"
-	"k8s.io/kubernetes/cmd/kube-proxy/app/options"
-	"k8s.io/kubernetes/pkg/api"
 	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/internalversion"
-	proxyconfig "k8s.io/kubernetes/pkg/proxy/config"
+	"k8s.io/kubernetes/pkg/proxy/iptables"
 	"k8s.io/kubernetes/pkg/util"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
+	nodeutil "k8s.io/kubernetes/pkg/util/node"
+	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
 
 	"github.com/golang/glog"
 )
@@ -38,56 +42,79 @@ type HollowProxy struct {
 	ProxyServer *proxyapp.ProxyServer
 }
 
-type FakeProxyHandler struct{}
-
-func (*FakeProxyHandler) OnServiceUpdate(services []*api.Service)      {}
-func (*FakeProxyHandler) OnEndpointsUpdate(endpoints []*api.Endpoints) {}
-
-type FakeProxier struct{}
-
-func (*FakeProxier) OnServiceUpdate(services []*api.Service) {}
-func (*FakeProxier) Sync()                                   {}
-func (*FakeProxier) SyncLoop() {
-	select {}
-}
-
 func NewHollowProxyOrDie(
 	nodeName string,
 	client clientset.Interface,
 	eventClient v1core.EventsGetter,
-	endpointsConfig *proxyconfig.EndpointsConfig,
-	serviceConfig *proxyconfig.ServiceConfig,
-	informerFactory informers.SharedInformerFactory,
 	iptInterface utiliptables.Interface,
+	sysctl utilsysctl.Interface,
+	execer utilexec.Interface,
 	broadcaster record.EventBroadcaster,
 	recorder record.EventRecorder,
-) *HollowProxy {
+) (*HollowProxy, error) {
+	// Create a proxier with fake iptables underneath it.
+	proxier, err := iptables.NewProxier(
+		iptInterface,
+		sysctl,
+		execer,
+		30*time.Second,
+		5*time.Second,
+		false,
+		0,
+		"10.0.0.0/8",
+		nodeName,
+		getNodeIP(client, nodeName),
+		recorder,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create proxier: %v", err)
+	}
+
 	// Create and start Hollow Proxy
-	config := options.NewProxyConfig()
-	config.OOMScoreAdj = util.Int32Ptr(0)
-	config.ResourceContainer = ""
-	config.NodeRef = &clientv1.ObjectReference{
+	nodeRef := &clientv1.ObjectReference{
 		Kind:      "Node",
 		Name:      nodeName,
 		UID:       types.UID(nodeName),
 		Namespace: "",
 	}
 
-	go endpointsConfig.Run(wait.NeverStop)
-	go serviceConfig.Run(wait.NeverStop)
-	go informerFactory.Start(wait.NeverStop)
-
-	hollowProxy, err := proxyapp.NewProxyServer(client, eventClient, config, iptInterface, &FakeProxier{}, broadcaster, recorder, nil, "fake")
-	if err != nil {
-		glog.Fatalf("Error while creating ProxyServer: %v\n", err)
-	}
 	return &HollowProxy{
-		ProxyServer: hollowProxy,
-	}
+		ProxyServer: &proxyapp.ProxyServer{
+			Client:                client,
+			EventClient:           eventClient,
+			IptInterface:          iptInterface,
+			Proxier:               proxier,
+			Broadcaster:           broadcaster,
+			Recorder:              recorder,
+			ProxyMode:             "fake",
+			NodeRef:               nodeRef,
+			OOMScoreAdj:           util.Int32Ptr(0),
+			ResourceContainer:     "",
+			ConfigSyncPeriod:      30 * time.Second,
+			ServiceEventHandler:   proxier,
+			EndpointsEventHandler: proxier,
+		},
+	}, nil
 }
 
 func (hp *HollowProxy) Run() {
 	if err := hp.ProxyServer.Run(); err != nil {
 		glog.Fatalf("Error while running proxy: %v\n", err)
 	}
+}
+
+func getNodeIP(client clientset.Interface, hostname string) net.IP {
+	var nodeIP net.IP
+	node, err := client.Core().Nodes().Get(hostname, metav1.GetOptions{})
+	if err != nil {
+		glog.Warningf("Failed to retrieve node info: %v", err)
+		return nil
+	}
+	nodeIP, err = nodeutil.InternalGetNodeHostIP(node)
+	if err != nil {
+		glog.Warningf("Failed to retrieve node IP: %v", err)
+		return nil
+	}
+	return nodeIP
 }

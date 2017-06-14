@@ -28,7 +28,16 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	controller, err := createController(*configFile)
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in Init %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
+	}
+	controller, err := createController(config)
 	if err != nil {
 		response := resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -37,7 +46,7 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
-	response := controller.Init()
+	response := controller.Init(config)
 	return utils.PrintResponse(response)
 }
 
@@ -56,10 +65,19 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
-	controller, err := createController(*configFile)
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in attach volume %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
+	}
+	controller, err := createController(config)
 
 	if err != nil {
-		panic(fmt.Sprintf("backend %s not found", configFile))
+		panic(fmt.Sprintf("backend %s not found", config))
 	}
 	attachResponse := controller.Attach(attachRequest)
 	return utils.PrintResponse(attachResponse)
@@ -71,7 +89,17 @@ type DetachCommand struct {
 
 func (d *DetachCommand) Execute(args []string) error {
 	mountDevice := args[0]
-	controller, err := createController(*configFile)
+
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in detach %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
+	}
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -107,7 +135,16 @@ func (m *MountCommand) Execute(args []string) error {
 		Opts:        mountOpts,
 	}
 
-	controller, err := createController(*configFile)
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in mount %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
+	}
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -122,7 +159,16 @@ type UnmountCommand struct {
 
 func (u *UnmountCommand) Execute(args []string) error {
 	mountDir := args[0]
-	controller, err := createController(*configFile)
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := resources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in Unmount %#v", err),
+			Device:  "",
+		}
+		return utils.PrintResponse(response)
+	}
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -173,13 +219,7 @@ func main() {
 	}
 }
 
-func createController(configFile string) (*controller.Controller, error) {
-	var config resources.UbiquityPluginConfig
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		fmt.Printf("error decoding config file", err)
-		return nil, err
-
-	}
+func createController(config resources.UbiquityPluginConfig) (*controller.Controller, error) {
 
 	logger, _ := setupLogger(config.LogPath)
 	//defer closeLogs(logFile)
@@ -187,6 +227,16 @@ func createController(configFile string) (*controller.Controller, error) {
 	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
 	controller, err := controller.NewController(logger, storageApiURL, config)
 	return controller, err
+}
+
+func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
+	var config resources.UbiquityPluginConfig
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		fmt.Printf("error decoding config file", err)
+		return resources.UbiquityPluginConfig{}, err
+
+	}
+	return config, nil
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {

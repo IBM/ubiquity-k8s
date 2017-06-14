@@ -173,8 +173,14 @@ func GetFilesystemMountpointInternal(logger *log.Logger, executor utils.Executor
 	if len(tokens) > 8 {
 		if strings.TrimSpace(tokens[6]) == filesystemName {
 			mountpoint := strings.TrimSpace(tokens[8])
-			mountpoint = strings.Replace(mountpoint, "%2F", "/", 10)
-			logger.Printf("Returning mountpoint: %s\n", mountpoint)
+
+			//Todo this should be changed to url.PathUnescape when available
+			mountpoint, err := utils.PathUnescape(mountpoint)
+			if err != nil {
+				logger.Printf("Error decoding mountpoint: %s\n", err)
+			} else {
+				logger.Printf("Returning mountpoint: %s\n", mountpoint)
+			}
 			return mountpoint, nil
 		}
 	}
@@ -192,8 +198,8 @@ func (s *spectrum_mmcli) CreateFileset(filesystemName string, filesetName string
 	spectrumCommand := "/usr/lpp/mmfs/bin/mmcrfileset"
 	args := []string{spectrumCommand, filesystemName, filesetName, "-t", "fileset for container volume"}
 
-	filesetType, filesetTypeSpecified := opts[USER_SPECIFIED_FILESET_TYPE]
-	inodeLimit, inodeLimitSpecified := opts[USER_SPECIFIED_INODE_LIMIT]
+	filesetType, filesetTypeSpecified := opts[UserSpecifiedFilesetType]
+	inodeLimit, inodeLimitSpecified := opts[UserSpecifiedInodeLimit]
 
 	if filesetTypeSpecified && filesetType.(string) == "independent" {
 		args = append(args, "--inode-space", "new")
@@ -323,10 +329,10 @@ func UnlinkFilesetInternal(logger *log.Logger, executor utils.Executor, filesyst
 	return nil
 }
 
-func (s *spectrum_mmcli) ListFilesets(filesystemName string) ([]resources.VolumeMetadata, error) {
+func (s *spectrum_mmcli) ListFilesets(filesystemName string) ([]resources.Volume, error) {
 	return nil, nil
 }
-func (s *spectrum_mmcli) ListFileset(filesystemName string, filesetName string) (resources.VolumeMetadata, error) {
+func (s *spectrum_mmcli) ListFileset(filesystemName string, filesetName string) (resources.Volume, error) {
 	s.logger.Println("spectrumLocalClient: ListFileset start")
 	defer s.logger.Println("spectrumLocalClient: ListFileset end")
 
@@ -334,14 +340,14 @@ func (s *spectrum_mmcli) ListFileset(filesystemName string, filesetName string) 
 	args := []string{spectrumCommand, filesystemName, filesetName, "-Y"}
 	return ListFilesetInternal(s.logger, s.executor, filesystemName, filesetName, "sudo", args)
 }
-func ListFilesetInternal(logger *log.Logger, executor utils.Executor, filesystemName string, filesetName string, command string, args []string) (resources.VolumeMetadata, error) {
+func ListFilesetInternal(logger *log.Logger, executor utils.Executor, filesystemName string, filesetName string, command string, args []string) (resources.Volume, error) {
 	_, err := executor.Execute(command, args)
 	if err != nil {
 		logger.Println(err)
-		return resources.VolumeMetadata{}, err
+		return resources.Volume{}, err
 	}
 	//TODO check what we need to return
-	return resources.VolumeMetadata{Name: filesetName}, err
+	return resources.Volume{Name: filesetName}, err
 }
 
 //TODO modify quota from string to Capacity (see kubernetes)
@@ -396,8 +402,8 @@ func SetFilesetQuotaInternal(logger *log.Logger, executor utils.Executor, filesy
 	output, err := executor.Execute(command, args)
 
 	if err != nil {
-		logger.Printf("Failed to set quota '%s' for fileset '%s'", quota, filesetName)
-		return fmt.Errorf("Failed to set quota '%s' for fileset '%s'", quota, filesetName)
+		logger.Printf("Failed to set quota '%s' for fileset '%s': %s", quota, filesetName, err.Error())
+		return fmt.Errorf("Failed to set quota '%s' for fileset '%s': %s", quota, filesetName, err.Error())
 	}
 
 	logger.Printf("setFilesetQuota output: %s\n", string(output))
