@@ -135,7 +135,7 @@ func (dc *DeploymentController) getAllReplicaSetsAndSyncRevision(d *extensions.D
 // rsList should come from getReplicaSetsForDeployment(d).
 // podMap should come from getPodMapForDeployment(d, rsList).
 func (dc *DeploymentController) rsAndPodsWithHashKeySynced(d *extensions.Deployment, rsList []*extensions.ReplicaSet, podMap map[types.UID]*v1.PodList) ([]*extensions.ReplicaSet, error) {
-	syncedRSList := []*extensions.ReplicaSet{}
+	var syncedRSList []*extensions.ReplicaSet
 	for _, rs := range rsList {
 		// Add pod-template-hash information if it's not in the RS.
 		// Otherwise, new RS produced by Deployment will overlap with pre-existing ones
@@ -515,7 +515,6 @@ func (dc *DeploymentController) cleanupDeployment(oldRSs []*extensions.ReplicaSe
 	glog.V(4).Infof("Looking to cleanup old replica sets for deployment %q", deployment.Name)
 
 	var errList []error
-	// TODO: This should be parallelized.
 	for i := int32(0); i < diff; i++ {
 		rs := cleanableRSes[i]
 		// Avoid delete replica set with non-zero replica counts
@@ -552,7 +551,7 @@ func calculateStatus(allRSs []*extensions.ReplicaSet, newRS *extensions.ReplicaS
 	totalReplicas := deploymentutil.GetReplicaCountForReplicaSets(allRSs)
 	unavailableReplicas := totalReplicas - availableReplicas
 	// If unavailableReplicas is negative, then that means the Deployment has more available replicas running than
-	// desired, eg. whenever it scales down. In such a case we should simply default unavailableReplicas to zero.
+	// desired, e.g. whenever it scales down. In such a case we should simply default unavailableReplicas to zero.
 	if unavailableReplicas < 0 {
 		unavailableReplicas = 0
 	}

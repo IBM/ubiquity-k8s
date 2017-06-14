@@ -33,12 +33,13 @@ func NewControllerWithClient(logger *log.Logger, client resources.StorageClient)
 	return &Controller{logger: logger, Client: client}
 }
 
-//Init method is to initialize the flexvolume, it is a no op right now
-func (c *Controller) Init() resources.FlexVolumeResponse {
+//Init method is to initialize the flexvolume
+func (c *Controller) Init(config resources.UbiquityPluginConfig) resources.FlexVolumeResponse {
 	c.logger.Println("controller-activate-start")
 	defer c.logger.Println("controller-activate-end")
 
-	err := c.Client.Activate()
+	activateRequest := resources.ActivateRequest{Backends: config.Backends}
+	err := c.Client.Activate(activateRequest)
 	if err != nil {
 		return resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -55,7 +56,7 @@ func (c *Controller) Init() resources.FlexVolumeResponse {
 	}
 }
 
-//Attach method attaches a volume/ fileset to a pod
+//Attach method attaches a volume to a host
 func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
@@ -74,42 +75,13 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 
 	}
 
-	c.logger.Printf("Found VolumeName: %s\n", volumeName)
-	opts := make(map[string]interface{})
-
-	for key, value := range attachRequest {
-		opts[key] = value
-	}
-
-	c.logger.Printf("Found opts for attach request: #%v\n", opts)
-
-	_, err := c.Client.GetVolume(volumeName)
+	getVolumeRequest := resources.GetVolumeRequest{Name: volumeName}
+	_, err := c.Client.GetVolume(getVolumeRequest)
 
 	if err != nil {
-		if err.Error() == "Volume not found" {
-			err = c.Client.CreateVolume(volumeName, opts)
-			if err != nil && err.Error() != fmt.Sprintf("Volume `%s` already exists", volumeName) {
-				return resources.FlexVolumeResponse{
-					Status:  "Failure",
-					Message: fmt.Sprintf("Failed to attach volume: %#v", err),
-					Device:  volumeName,
-				}
-			} else if err != nil && err.Error() == fmt.Sprintf("Volume `%s` already exists", volumeName) {
-				return resources.FlexVolumeResponse{
-					Status:  "Success",
-					Message: "Volume already attached",
-					Device:  volumeName,
-				}
-			}
-			return resources.FlexVolumeResponse{
-				Status:  "Success",
-				Message: "Volume attached successfully",
-				Device:  volumeName,
-			}
-		}
 		return resources.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: "Failed checking volume",
+			Message: "Failed checking volume, call create before attach",
 			Device:  volumeName}
 
 	}
@@ -143,7 +115,8 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 	c.logger.Println("controller-mount-start")
 	defer c.logger.Println("controller-mount-end")
 
-	mountedPath, err := c.Client.Attach(mountRequest.MountDevice)
+	attachRequest := resources.AttachRequest{Name: mountRequest.MountDevice, Host: getHost()}
+	mountedPath, err := c.Client.Attach(attachRequest)
 
 	if err != nil {
 		c.logger.Printf("Failed to mount volume %#v", err)
@@ -211,7 +184,8 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 	c.logger.Println("Controller: unmount start")
 	defer c.logger.Println("Controller: unmount end")
 
-	volumes, err := c.Client.ListVolumes()
+	listVolumeRequest := resources.ListVolumesRequest{}
+	volumes, err := c.Client.ListVolumes(listVolumeRequest)
 	if err != nil {
 		return resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -229,7 +203,9 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 		}
 	}
 
-	err = c.Client.Detach(volume.Name)
+	detachRequest := resources.DetachRequest{Name: volume.Name}
+
+	err = c.Client.Detach(detachRequest)
 	if err != nil && err.Error() != "fileset not linked" {
 		return resources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -245,12 +221,21 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 	}
 }
 
-func getVolumeForMountpoint(mountpoint string, volumes []resources.VolumeMetadata) (resources.VolumeMetadata, error) {
+func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (resources.Volume, error) {
 
 	for _, volume := range volumes {
 		if volume.Mountpoint == mountpoint {
 			return volume, nil
 		}
 	}
-	return resources.VolumeMetadata{}, fmt.Errorf("Volume not found")
+	return resources.Volume{}, fmt.Errorf("Volume not found")
+}
+
+//TODO check os.Host
+func getHost() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return hostname
 }
