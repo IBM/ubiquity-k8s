@@ -6,10 +6,12 @@ import (
 	"time"
 
 	"fmt"
+	"path"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/IBM/ubiquity-k8s/volume"
+	"github.com/IBM/ubiquity/logutil"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
@@ -46,6 +48,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	defer logutil.InitFileLogger(logutil.DEBUG, path.Join(ubiquityConfig.LogPath, "ubiquity-provisioner.log"))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
 	defer utils.CloseLogs(logFile)
 
