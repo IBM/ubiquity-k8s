@@ -22,7 +22,7 @@ func NewSpectrumSSH(logger *log.Logger, sshConfig resources.SshConfig) (Spectrum
 	user := sshConfig.User
 	host := sshConfig.Host
 	port := sshConfig.Port
-	return &spectrum_ssh{logger: logger, executor: utils.NewExecutor(logger), user: user, host: host, port: port}, nil
+	return &spectrum_ssh{logger: logger, executor: utils.NewExecutor(), user: user, host: host, port: port}, nil
 }
 func NewSpectrumSSHWithExecutor(logger *log.Logger, sshConfig resources.SshConfig, executor utils.Executor) (SpectrumScaleConnector, error) {
 	user := sshConfig.User
@@ -200,4 +200,26 @@ func (s *spectrum_ssh) SetFilesetQuota(filesystemName string, filesetName string
 	userAndHost := fmt.Sprintf("%s@%s", s.user, s.host)
 	args := []string{userAndHost, "-p", s.port, "sudo", spectrumCommand, filesystemName + ":" + filesetName, "--block", quota + ":" + quota}
 	return SetFilesetQuotaInternal(s.logger, s.executor, filesystemName, filesetName, quota, "ssh", args)
+}
+
+func (s *spectrum_ssh) ExportNfs(volumeMountpoint string, clientConfig string) error {
+
+	s.logger.Println("spectrumLocalClient: ExportNfs start")
+	defer s.logger.Println("spectrumLocalClient: ExportNfs end")
+
+	spectrumCommand := "/usr/lpp/mmfs/bin/mmnfs"
+	userAndHost := fmt.Sprintf("%s@%s", s.user, s.host)
+	args := []string{userAndHost, "-p", s.port, "sudo", spectrumCommand, "export", "add", volumeMountpoint, "--client", clientConfig}
+	return ExportNfsInternal(s.logger, s.executor, "ssh", args)
+}
+
+func (s *spectrum_ssh) UnexportNfs(volumeMountpoint string) error {
+
+	s.logger.Println("spectrumLocalClient: UnexportNfs start")
+	defer s.logger.Println("spectrumLocalClient: UnexportNfs end")
+
+	spectrumCommand := "/usr/lpp/mmfs/bin/mmnfs"
+	userAndHost := fmt.Sprintf("%s@%s", s.user, s.host)
+	args := []string{userAndHost, "-p", s.port, "sudo", spectrumCommand, "export", "remove", volumeMountpoint, "--force"}
+	return UnexportNfsInternal(s.logger, s.executor, "ssh", args)
 }

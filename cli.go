@@ -15,6 +15,7 @@ import (
 
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
+	"github.com/IBM/ubiquity/utils/logs"
 )
 
 var configFile = flag.String(
@@ -37,6 +38,7 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 	if err != nil {
 		response := resources.FlexVolumeResponse{
@@ -74,6 +76,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -99,6 +102,7 @@ func (d *DetachCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -144,6 +148,7 @@ func (m *MountCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -168,6 +173,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 		}
 		return utils.PrintResponse(response)
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 
 	if err != nil {

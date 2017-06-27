@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fmt"
+	"path"
 
 	"github.com/BurntSushi/toml"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
+	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
 	"k8s.io/client-go/kubernetes"
@@ -46,6 +48,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(ubiquityConfig.LogPath, "ubiquity-provisioner.log"))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
 	defer utils.CloseLogs(logFile)
 
