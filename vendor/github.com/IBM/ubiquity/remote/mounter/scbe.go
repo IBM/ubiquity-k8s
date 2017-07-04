@@ -2,10 +2,10 @@ package mounter
 
 import (
 	"fmt"
-	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/IBM/ubiquity/remote/mounter/block_device_mounter_utils"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
+	"github.com/IBM/ubiquity/utils/logs"
 )
 
 type scbeMounter struct {
@@ -25,14 +25,14 @@ func NewScbeMounter() resources.Mounter {
 
 func (s *scbeMounter) Mount(mountRequest resources.MountRequest) (string, error) {
 	defer s.logger.Trace(logs.DEBUG)()
+	volumeWWN := mountRequest.VolumeConfig["Wwn"].(string)
 
 	// Rescan OS
-	if err := s.blockDeviceMounterUtils.RescanAll(true); err != nil {
+	if err := s.blockDeviceMounterUtils.RescanAll(true, volumeWWN, false); err != nil {
 		return "", s.logger.ErrorRet(err, "RescanAll failed")
 	}
 
 	// Discover device
-	volumeWWN := mountRequest.VolumeConfig["Wwn"].(string) // TODO use the const from local/scbe
 	devicePath, err := s.blockDeviceMounterUtils.Discover(volumeWWN)
 	if err != nil {
 		return "", s.logger.ErrorRet(err, "Discover failed", logs.Args{{"volumeWWN", volumeWWN}})
@@ -47,7 +47,15 @@ func (s *scbeMounter) Mount(mountRequest resources.MountRequest) (string, error)
 	}
 
 	// Mount device and mkfs if needed
-	fstype := resources.DefaultForScbeConfigParamDefaultFilesystem // TODO uses volumeConfig['fstype']
+	var fstype string
+	fstypeInterface, ok := mountRequest.VolumeConfig[resources.OptionNameForVolumeFsType]
+	if !ok {
+		// the backend should do this default, but this is just for safe
+		fstype = resources.DefaultForScbeConfigParamDefaultFilesystem
+	} else {
+		fstype = fstypeInterface.(string)
+	}
+
 	if err := s.blockDeviceMounterUtils.MountDeviceFlow(devicePath, fstype, mountRequest.Mountpoint); err != nil {
 		return "", s.logger.ErrorRet(err, "MountDeviceFlow failed", logs.Args{{"devicePath", devicePath}})
 	}
@@ -84,9 +92,10 @@ func (s *scbeMounter) Unmount(unmountRequest resources.UnmountRequest) error {
 
 func (s *scbeMounter) ActionAfterDetach(request resources.AfterDetachRequest) error {
 	defer s.logger.Trace(logs.DEBUG)()
+	volumeWWN := request.VolumeConfig["Wwn"].(string)
 
 	// Rescan OS
-	if err := s.blockDeviceMounterUtils.RescanAll(true); err != nil {
+	if err := s.blockDeviceMounterUtils.RescanAll(true, volumeWWN, true); err != nil {
 		return s.logger.ErrorRet(err, "RescanAll failed")
 	}
 	return nil
