@@ -70,6 +70,17 @@ func (e *provisionParamMissingError) Error() string {
 	return fmt.Sprintf("Fail to provision a volume [%s] because the [%s] option is missing", e.volName, e.param)
 }
 
+type FsTypeNotSupportedError struct {
+	volName        string
+	wrongFStype    string
+	supportedTypes string
+}
+
+func (e *FsTypeNotSupportedError) Error() string {
+	return fmt.Sprintf("Fail to provision a volume [%s]. Supported filesystem types are [%s] (but given [%s])",
+		e.volName, e.supportedTypes, e.wrongFStype)
+}
+
 type provisionParamIsNotNumberError struct {
 	volName string
 	param   string
@@ -88,6 +99,15 @@ func (e *volAlreadyAttachedError) Error() string {
 	return fmt.Sprintf("Volume [%s] already attached to [%s]", e.volName, e.hostName)
 }
 
+type CannotDeleteVolWhichAttachedToHostError struct {
+	volName  string
+	hostName string
+}
+
+func (e *CannotDeleteVolWhichAttachedToHostError) Error() string {
+	return fmt.Sprintf("Cannot delete a volume that is attached to a host. The volume [%s] currently attached to host [%s]", e.volName, e.hostName)
+}
+
 type volNotAttachedError struct {
 	volName string
 }
@@ -103,6 +123,16 @@ type ConfigDefaultSizeNotNumError struct {
 func (e *ConfigDefaultSizeNotNumError) Error() string {
 	return fmt.Sprintf("Error in config file. The parameter [%s] must be a number",
 		"ScbeConfig.DefaultVolumeSize")
+}
+
+type ConfigDefaultFilesystemTypeNotSupported struct {
+	wrongFStype    string
+	supportedTypes string
+}
+
+func (e *ConfigDefaultFilesystemTypeNotSupported) Error() string {
+	return fmt.Sprintf("Error in config file. The parameter [%s] can be the following values [%s] (given [%s])",
+		"ScbeConfig.DefaultFileSystemType", e.supportedTypes, e.wrongFStype)
 }
 
 type ConfigScbeUbiquityInstanceNameWrongSize struct {
