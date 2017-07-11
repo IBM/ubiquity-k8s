@@ -1,5 +1,5 @@
 hash: 90b449a365cae28d8e086d21e88c7f2cb44605a417cf66a915f062098eb53f19
-updated: 2017-06-14T15:28:37.972254571-07:00
+updated: 2017-07-10T14:33:05.899425492-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -74,16 +74,20 @@ imports:
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: da09196b4a2395330063a18b0ed729c993150c3a
+  version: 7b71b94dd26c46f054218bfb539e0a402b3456b8
   subpackages:
   - fakes
+  - local/scbe
   - local/spectrumscale
   - local/spectrumscale/connectors
   - model
   - remote
   - remote/mounter
+  - remote/mounter/block_device_mounter_utils
+  - remote/mounter/block_device_utils
   - resources
   - utils
+  - utils/logs
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
@@ -112,6 +116,8 @@ imports:
   - jwriter
 - name: github.com/mattn/go-sqlite3
   version: ca5e3819723d8eeaf170ad510e7da1d6d2e94a08
+- name: github.com/op/go-logging
+  version: 970db520ece77730c7e4724c61121037378659d9
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/PuerkitoBio/purell
