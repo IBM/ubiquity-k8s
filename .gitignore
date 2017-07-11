@@ -32,6 +32,7 @@ vendor/k8s.io/kubernets/staging
 vendor/k8s.io/kubernets/test
 vendor/k8s.io/kubernetes/third_party
 vendor/k8s.io/kubernets/translations
+vendor/k8s.io/kubernetes/third_party/pkg/volume
 
 # Folders
 _obj
