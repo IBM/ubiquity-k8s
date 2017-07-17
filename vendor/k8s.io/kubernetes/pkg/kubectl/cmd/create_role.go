@@ -52,7 +52,7 @@ var (
 		kubectl create role foo --verb=get,list,watch --resource=pods,pods/status`))
 
 	// Valid resource verb list for validation.
-	validResourceVerbs = []string{"*", "get", "delete", "list", "create", "update", "patch", "watch", "proxy", "redirect", "deletecollection", "use", "bind", "impersonate"}
+	validResourceVerbs = []string{"*", "get", "delete", "list", "create", "update", "patch", "watch", "proxy", "deletecollection", "use", "bind", "impersonate"}
 
 	// Specialized verbs and GroupResources
 	specialVerbs = map[string][]schema.GroupResource{
@@ -199,7 +199,7 @@ func (c *CreateRoleOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args
 	}
 
 	c.PrintObject = func(obj runtime.Object) error {
-		return f.PrintObject(cmd, c.Mapper, obj, c.Out)
+		return f.PrintObject(cmd, false, c.Mapper, obj, c.Out)
 	}
 
 	clientSet, err := f.ClientSet()

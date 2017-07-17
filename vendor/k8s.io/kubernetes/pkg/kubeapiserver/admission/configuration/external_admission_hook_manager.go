@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"reflect"
 
+	"k8s.io/api/admissionregistration/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/apis/admissionregistration/v1alpha1"
 )
 
 type ExternalAdmissionHookConfigurationLister interface {
@@ -31,6 +31,20 @@ type ExternalAdmissionHookConfigurationLister interface {
 
 type ExternalAdmissionHookConfigurationManager struct {
 	*poller
+}
+
+func NewExternalAdmissionHookConfigurationManager(c ExternalAdmissionHookConfigurationLister) *ExternalAdmissionHookConfigurationManager {
+	getFn := func() (runtime.Object, error) {
+		list, err := c.List(metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		return mergeExternalAdmissionHookConfigurations(list), nil
+	}
+
+	return &ExternalAdmissionHookConfigurationManager{
+		newPoller(getFn),
+	}
 }
 
 // ExternalAdmissionHooks returns the merged ExternalAdmissionHookConfiguration.
@@ -46,17 +60,8 @@ func (im *ExternalAdmissionHookConfigurationManager) ExternalAdmissionHooks() (*
 	return externalAdmissionHookConfiguration, nil
 }
 
-func NewExternalAdmissionHookConfigurationManager(c ExternalAdmissionHookConfigurationLister) *ExternalAdmissionHookConfigurationManager {
-	getFn := func() (runtime.Object, error) {
-		list, err := c.List(metav1.ListOptions{})
-		if err != nil {
-			return nil, err
-		}
-		return mergeExternalAdmissionHookConfigurations(list), nil
-	}
-
-	return &ExternalAdmissionHookConfigurationManager{
-		newPoller(getFn)}
+func (im *ExternalAdmissionHookConfigurationManager) Run(stopCh <-chan struct{}) {
+	im.poller.Run(stopCh)
 }
 
 func mergeExternalAdmissionHookConfigurations(

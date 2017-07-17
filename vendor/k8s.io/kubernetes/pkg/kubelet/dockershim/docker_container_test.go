@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	dockertypes "github.com/docker/engine-api/types"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1"
+	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1/runtime"
 	containertest "k8s.io/kubernetes/pkg/kubelet/container/testing"
 )
 
@@ -131,7 +131,7 @@ func TestContainerStatus(t *testing.T) {
 		Annotations: config.Annotations,
 	}
 
-	fDocker.InjectImages([]dockertypes.Image{{ID: imageName}})
+	fDocker.InjectImages([]dockertypes.ImageSummary{{ID: imageName}})
 
 	// Create the container.
 	fClock.SetTime(time.Now().Add(-1 * time.Hour))

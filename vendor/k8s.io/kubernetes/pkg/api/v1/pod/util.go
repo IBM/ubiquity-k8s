@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/api/v1"
 )
 
 // FindPort locates the container port for the given pod and portName.  If the
@@ -172,6 +172,10 @@ func VisitPodSecretNames(pod *v1.Pod, visitor Visitor) bool {
 			}
 		case source.ISCSI != nil:
 			if source.ISCSI.SecretRef != nil && !visitor(source.ISCSI.SecretRef.Name) {
+				return false
+			}
+		case source.StorageOS != nil:
+			if source.StorageOS.SecretRef != nil && !visitor(source.StorageOS.SecretRef.Name) {
 				return false
 			}
 		}

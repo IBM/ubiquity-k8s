@@ -25,14 +25,19 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/golang/glog"
-	computealpha "google.golang.org/api/compute/v0.beta"
+	computebeta "google.golang.org/api/compute/v0.beta"
 	compute "google.golang.org/api/compute/v1"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/cloudprovider"
+	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
+)
+
+const (
+	defaultZone = ""
 )
 
 func newInstancesMetricContext(request, zone string) *metricContext {
@@ -40,6 +45,34 @@ func newInstancesMetricContext(request, zone string) *metricContext {
 		start:      time.Now(),
 		attributes: []string{"instances_" + request, unusedMetricLabel, zone},
 	}
+}
+
+func splitNodesByZone(nodes []*v1.Node) map[string][]*v1.Node {
+	zones := make(map[string][]*v1.Node)
+	for _, n := range nodes {
+		z := getZone(n)
+		if z != defaultZone {
+			zones[z] = append(zones[z], n)
+		}
+	}
+	return zones
+}
+
+func getZone(n *v1.Node) string {
+	zone, ok := n.Labels[kubeletapis.LabelZoneFailureDomain]
+	if !ok {
+		return defaultZone
+	}
+	return zone
+}
+
+// ToInstanceReferences returns instance references by links
+func (gce *GCECloud) ToInstanceReferences(zone string, instanceNames []string) (refs []*compute.InstanceReference) {
+	for _, ins := range instanceNames {
+		instanceLink := makeHostURL(gce.service.BasePath, gce.projectID, zone, ins)
+		refs = append(refs, &compute.InstanceReference{Instance: instanceLink})
+	}
+	return refs
 }
 
 // NodeAddresses is an implementation of Instances.NodeAddresses.
@@ -270,7 +303,7 @@ func (gce *GCECloud) AliasRanges(nodeName types.NodeName) (cidrs []string, err e
 		return
 	}
 
-	var res *computealpha.Instance
+	var res *computebeta.Instance
 	res, err = gce.serviceBeta.Instances.Get(
 		gce.projectID, instance.Zone, instance.Name).Do()
 	if err != nil {

@@ -64,7 +64,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(ubiquityConfig.LogPath, "ubiquity-provisioner.log"))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, "ubiquity-provisioner.log"))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
 	defer utils.CloseLogs(logFile)
 

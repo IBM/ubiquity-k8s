@@ -1,5 +1,5 @@
 hash: 90b449a365cae28d8e086d21e88c7f2cb44605a417cf66a915f062098eb53f19
-updated: 2017-07-10T14:33:05.899425492-07:00
+updated: 2017-07-17T10:57:02.744139935+03:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -56,7 +56,7 @@ imports:
   - proto
   - sortkeys
 - name: github.com/golang/glog
-  version: 44145f04b68cf362d9c4df2182967c2275eaefed
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/groupcache
   version: 02826c3e79038b59d737d3b1c0a1d937f71a4433
   subpackages:
@@ -74,7 +74,7 @@ imports:
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: 7b71b94dd26c46f054218bfb539e0a402b3456b8
+  version: 978017691e784b73c51d5ed3bfb22b2a8bfe24fd
   subpackages:
   - fakes
   - local/scbe
@@ -91,7 +91,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
-  version: 5695738f733662da3e9afc2283bba6f3c879002d
+  version: 75a96bc41ad20ec6cef90037b017c7645bb1a3fe
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
   subpackages:
@@ -184,7 +184,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/apimachinery
-  version: c1c4a7fe832857c75cc1d79c8e40d71d5da15fc6
+  version: a13245d02534abe88286859b547d041816f9a3f4
   subpackages:
   - pkg/types
   - pkg/util/runtime
@@ -308,7 +308,7 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: b9e8d2aee6d59330306cb458c1241f5e2578c40b
+  version: e8eb858b2a28c12d2ffc669f70598ed83304e063
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff
