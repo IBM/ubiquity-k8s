@@ -10,29 +10,29 @@ out/*
 bin/*
 gobin/*
 # Unneeded subpackages from k8s
-# vendor/k8s.io/apimachinery/Godeps
-# vendor/k8s.io/apimachinery/hack
-# vendor/k8s.io/apimachinery/third_party.forked.golang
-# vendor/k8s.io/client-go/examples
-# vendor/k8s.io/client-go/github
-# vendor/k8s.io/client-go/Godeps
-# vendor/k8s.io/kubernetes/build
-# vendor/k8s.io/kubernets/cluster
-# vendor/k8s.io/kubernets/cmd
-# vendor/k8s.io/kubernets/docs
-# vendor/k8s.io/kubernets/examples
-# vendor/k8s.io/kubernets/federation
-# vendor/k8s.io/kubernets/github
-# vendor/k8s.io/kubernets/Godeps
-# vendor/k8s.io/kubernets/hack
-# vendor/k8s.io/kubernets/hooks
-# vendor/k8s.io/kubernets/logo
-# vendor/k8s.io/kubernets/plugin
-# vendor/k8s.io/kubernets/staging
-# vendor/k8s.io/kubernets/test
-# vendor/k8s.io/kubernetes/third_party
-# vendor/k8s.io/kubernets/translations
-# vendor/k8s.io/kubernetes/third_party/pkg/volume
+vendor/k8s.io/apimachinery/Godeps
+vendor/k8s.io/apimachinery/hack
+vendor/k8s.io/apimachinery/third_party.forked.golang
+vendor/k8s.io/client-go/examples
+vendor/k8s.io/client-go/github
+vendor/k8s.io/client-go/Godeps
+vendor/k8s.io/kubernetes/build
+vendor/k8s.io/kubernets/cluster
+vendor/k8s.io/kubernets/cmd
+vendor/k8s.io/kubernets/docs
+vendor/k8s.io/kubernets/examples
+vendor/k8s.io/kubernets/federation
+vendor/k8s.io/kubernets/github
+vendor/k8s.io/kubernets/Godeps
+vendor/k8s.io/kubernets/hack
+vendor/k8s.io/kubernets/hooks
+vendor/k8s.io/kubernets/logo
+vendor/k8s.io/kubernets/plugin
+vendor/k8s.io/kubernets/staging
+vendor/k8s.io/kubernets/test
+vendor/k8s.io/kubernetes/third_party
+vendor/k8s.io/kubernets/translations
+vendor/k8s.io/kubernetes/third_party/pkg/volume
 
 # Folders
 _obj
