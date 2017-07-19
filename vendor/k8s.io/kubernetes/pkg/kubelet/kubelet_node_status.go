@@ -26,15 +26,19 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/types"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
-	"k8s.io/kubernetes/pkg/api/v1"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	k8s_api_v1 "k8s.io/kubernetes/pkg/api/v1"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/features"
+	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/events"
 	"k8s.io/kubernetes/pkg/kubelet/util"
@@ -42,6 +46,7 @@ import (
 	nodeutil "k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/version"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
+	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm"
 )
 
 const (
@@ -193,9 +198,9 @@ func (kl *Kubelet) initialNode() (*v1.Node, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: string(kl.nodeName),
 			Labels: map[string]string{
-				metav1.LabelHostname: kl.hostname,
-				metav1.LabelOS:       goruntime.GOOS,
-				metav1.LabelArch:     goruntime.GOARCH,
+				kubeletapis.LabelHostname: kl.hostname,
+				kubeletapis.LabelOS:       goruntime.GOOS,
+				kubeletapis.LabelArch:     goruntime.GOARCH,
 			},
 		},
 		Spec: v1.NodeSpec{
@@ -206,7 +211,7 @@ func (kl *Kubelet) initialNode() (*v1.Node, error) {
 	if len(kl.kubeletConfiguration.RegisterWithTaints) > 0 {
 		taints := make([]v1.Taint, len(kl.kubeletConfiguration.RegisterWithTaints))
 		for i := range kl.kubeletConfiguration.RegisterWithTaints {
-			if err := v1.Convert_api_Taint_To_v1_Taint(&kl.kubeletConfiguration.RegisterWithTaints[i], &taints[i], nil); err != nil {
+			if err := k8s_api_v1.Convert_api_Taint_To_v1_Taint(&kl.kubeletConfiguration.RegisterWithTaints[i], &taints[i], nil); err != nil {
 				return nil, err
 			}
 		}
@@ -214,7 +219,7 @@ func (kl *Kubelet) initialNode() (*v1.Node, error) {
 	}
 	if kl.externalCloudProvider {
 		taint := v1.Taint{
-			Key:    metav1.TaintExternalCloudProvider,
+			Key:    algorithm.TaintExternalCloudProvider,
 			Value:  "true",
 			Effect: v1.TaintEffectNoSchedule,
 		}
@@ -296,8 +301,8 @@ func (kl *Kubelet) initialNode() (*v1.Node, error) {
 			return nil, err
 		}
 		if instanceType != "" {
-			glog.Infof("Adding node label from cloud provider: %s=%s", metav1.LabelInstanceType, instanceType)
-			node.ObjectMeta.Labels[metav1.LabelInstanceType] = instanceType
+			glog.Infof("Adding node label from cloud provider: %s=%s", kubeletapis.LabelInstanceType, instanceType)
+			node.ObjectMeta.Labels[kubeletapis.LabelInstanceType] = instanceType
 		}
 		// If the cloud has zone information, label the node with the zone information
 		zones, ok := kl.cloud.Zones()
@@ -307,12 +312,12 @@ func (kl *Kubelet) initialNode() (*v1.Node, error) {
 				return nil, fmt.Errorf("failed to get zone from cloud provider: %v", err)
 			}
 			if zone.FailureDomain != "" {
-				glog.Infof("Adding node label from cloud provider: %s=%s", metav1.LabelZoneFailureDomain, zone.FailureDomain)
-				node.ObjectMeta.Labels[metav1.LabelZoneFailureDomain] = zone.FailureDomain
+				glog.Infof("Adding node label from cloud provider: %s=%s", kubeletapis.LabelZoneFailureDomain, zone.FailureDomain)
+				node.ObjectMeta.Labels[kubeletapis.LabelZoneFailureDomain] = zone.FailureDomain
 			}
 			if zone.Region != "" {
-				glog.Infof("Adding node label from cloud provider: %s=%s", metav1.LabelZoneRegion, zone.Region)
-				node.ObjectMeta.Labels[metav1.LabelZoneRegion] = zone.Region
+				glog.Infof("Adding node label from cloud provider: %s=%s", kubeletapis.LabelZoneRegion, zone.Region)
+				node.ObjectMeta.Labels[kubeletapis.LabelZoneRegion] = zone.Region
 			}
 		}
 	} else {
@@ -418,7 +423,10 @@ func (kl *Kubelet) setNodeAddress(node *v1.Node) error {
 		glog.V(2).Infof("Using node IP: %q", kl.nodeIP.String())
 	}
 
-	if kl.cloud != nil {
+	if kl.externalCloudProvider {
+		// We rely on the external cloud provider to supply the addresses.
+		return nil
+	} else if kl.cloud != nil {
 		instances, ok := kl.cloud.Instances()
 		if !ok {
 			return fmt.Errorf("failed to get instances from cloud provider")
@@ -470,7 +478,7 @@ func (kl *Kubelet) setNodeAddress(node *v1.Node) error {
 		// 4) Try to get the IP from the network interface used as default gateway
 		if kl.nodeIP != nil {
 			ipAddr = kl.nodeIP
-			node.ObjectMeta.Annotations[metav1.AnnotationProvidedIPAddr] = kl.nodeIP.String()
+			node.ObjectMeta.Annotations[kubeletapis.AnnotationProvidedIPAddr] = kl.nodeIP.String()
 		} else if addr := net.ParseIP(kl.hostname); addr != nil {
 			ipAddr = addr
 		} else {
@@ -549,6 +557,28 @@ func (kl *Kubelet) setNodeStatusMachineInfo(node *v1.Node) {
 				"Node %s has been rebooted, boot id: %s", kl.nodeName, info.BootID)
 		}
 		node.Status.NodeInfo.BootID = info.BootID
+	}
+
+	if utilfeature.DefaultFeatureGate.Enabled(features.LocalStorageCapacityIsolation) {
+		rootfs, err := kl.GetCachedRootFsInfo()
+		if err != nil {
+			node.Status.Capacity[v1.ResourceStorageScratch] = resource.MustParse("0Gi")
+		} else {
+			for rName, rCap := range cadvisor.StorageScratchCapacityFromFsInfo(rootfs) {
+				node.Status.Capacity[rName] = rCap
+			}
+		}
+
+		if hasDedicatedImageFs, _ := kl.HasDedicatedImageFs(); hasDedicatedImageFs {
+			imagesfs, err := kl.ImagesFsInfo()
+			if err != nil {
+				node.Status.Capacity[v1.ResourceStorageOverlay] = resource.MustParse("0Gi")
+			} else {
+				for rName, rCap := range cadvisor.StorageOverlayCapacityFromFsInfo(imagesfs) {
+					node.Status.Capacity[rName] = rCap
+				}
+			}
+		}
 	}
 
 	// Set Allocatable.

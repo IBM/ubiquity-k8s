@@ -24,6 +24,8 @@ import (
 	"net/url"
 	"strings"
 
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,9 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api"
 	apiutil "k8s.io/kubernetes/pkg/api/util"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 )
 
 type thirdPartyObjectConverter struct {
@@ -528,6 +528,12 @@ func (t *thirdPartyResourceDataEncoder) Encode(obj runtime.Object, stream io.Wri
 		}
 
 		return nil
+	case *metav1.WatchEvent:
+		// This is the same as the InternalEvent case above, except the caller
+		// already did the conversion for us (see #44350).
+		// In theory, we probably don't need the InternalEvent case anymore,
+		// but the test coverage for TPR is too low to risk removing it.
+		return json.NewEncoder(stream).Encode(obj)
 	case *metav1.Status, *metav1.APIResourceList:
 		return t.delegate.Encode(obj, stream)
 	default:

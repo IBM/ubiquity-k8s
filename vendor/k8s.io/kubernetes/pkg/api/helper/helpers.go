@@ -222,6 +222,7 @@ func IsServiceIPRequested(service *api.Service) bool {
 var standardFinalizers = sets.NewString(
 	string(api.FinalizerKubernetes),
 	metav1.FinalizerOrphanDependents,
+	metav1.FinalizerDeleteDependents,
 )
 
 // HasAnnotation returns a bool if passed in annotation exists
@@ -516,21 +517,6 @@ func PodAnnotationsFromSysctls(sysctls []api.Sysctl) string {
 		kvs[i] = fmt.Sprintf("%s=%s", sysctls[i].Name, sysctls[i].Value)
 	}
 	return strings.Join(kvs, ",")
-}
-
-// GetAffinityFromPodAnnotations gets the json serialized affinity data from Pod.Annotations
-// and converts it to the Affinity type in api.
-// TODO: remove when alpha support for affinity is removed
-func GetAffinityFromPodAnnotations(annotations map[string]string) (*api.Affinity, error) {
-	if len(annotations) > 0 && annotations[api.AffinityAnnotationKey] != "" {
-		var affinity api.Affinity
-		err := json.Unmarshal([]byte(annotations[api.AffinityAnnotationKey]), &affinity)
-		if err != nil {
-			return nil, err
-		}
-		return &affinity, nil
-	}
-	return nil, nil
 }
 
 // GetPersistentVolumeClass returns StorageClassName.

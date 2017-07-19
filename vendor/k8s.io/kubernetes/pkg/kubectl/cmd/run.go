@@ -23,6 +23,10 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/spf13/cobra"
 
+	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	batchv1 "k8s.io/api/batch/v1"
+	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/kubernetes/pkg/api"
-	appsv1beta1 "k8s.io/kubernetes/pkg/apis/apps/v1beta1"
-	batchv1 "k8s.io/kubernetes/pkg/apis/batch/v1"
-	batchv2alpha1 "k8s.io/kubernetes/pkg/apis/batch/v2alpha1"
-	extensionsv1beta1 "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	conditions "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/kubectl"
@@ -95,7 +95,7 @@ func NewCmdRun(f cmdutil.Factory, cmdIn io.Reader, cmdOut, cmdErr io.Writer) *co
 		Example: runExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			argsLenAtDash := cmd.ArgsLenAtDash()
-			err := Run(f, cmdIn, cmdOut, cmdErr, cmd, args, argsLenAtDash)
+			err := RunRun(f, cmdIn, cmdOut, cmdErr, cmd, args, argsLenAtDash)
 			cmdutil.CheckErr(err)
 		},
 	}
@@ -136,7 +136,7 @@ func addRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("schedule", "", i18n.T("A schedule in the Cron format the job should be run with."))
 }
 
-func Run(f cmdutil.Factory, cmdIn io.Reader, cmdOut, cmdErr io.Writer, cmd *cobra.Command, args []string, argsLenAtDash int) error {
+func RunRun(f cmdutil.Factory, cmdIn io.Reader, cmdOut, cmdErr io.Writer, cmd *cobra.Command, args []string, argsLenAtDash int) error {
 	// Let kubectl run follow rules for `--`, see #13004 issue
 	if len(args) == 0 || argsLenAtDash == 0 {
 		return cmdutil.UsageError(cmd, "NAME is required for run")
@@ -331,8 +331,7 @@ func Run(f cmdutil.Factory, cmdIn io.Reader, cmdOut, cmdErr io.Writer, cmd *cobr
 			if err != nil {
 				return err
 			}
-			_, typer := f.Object()
-			r := resource.NewBuilder(mapper, f.CategoryExpander(), typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
+			r := f.NewBuilder(true).
 				ContinueOnError().
 				NamespaceParam(namespace).DefaultNamespace().
 				ResourceNames(mapping.Resource, name).
@@ -379,7 +378,7 @@ func Run(f cmdutil.Factory, cmdIn io.Reader, cmdOut, cmdErr io.Writer, cmd *cobr
 
 	outputFormat := cmdutil.GetFlagString(cmd, "output")
 	if outputFormat != "" || cmdutil.GetDryRunFlag(cmd) {
-		return f.PrintObject(cmd, mapper, obj, cmdOut)
+		return f.PrintObject(cmd, false, mapper, obj, cmdOut)
 	}
 	cmdutil.PrintSuccess(mapper, false, cmdOut, mapping.Resource, args[0], cmdutil.GetDryRunFlag(cmd), "created")
 	return nil
@@ -556,7 +555,7 @@ func generateService(f cmdutil.Factory, cmd *cobra.Command, args []string, servi
 	}
 
 	if cmdutil.GetFlagString(cmd, "output") != "" || cmdutil.GetDryRunFlag(cmd) {
-		err := f.PrintObject(cmd, mapper, obj, out)
+		err := f.PrintObject(cmd, false, mapper, obj, out)
 		if err != nil {
 			return err
 		}

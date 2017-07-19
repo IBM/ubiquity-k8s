@@ -32,7 +32,6 @@ import (
 	"k8s.io/kubernetes/pkg/api/validation"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	"k8s.io/kubernetes/pkg/kubectl/resource"
 	"k8s.io/kubernetes/pkg/kubectl/util"
 	"k8s.io/kubernetes/pkg/util/i18n"
 )
@@ -75,10 +74,9 @@ type LogsOptions struct {
 	ResourceArg string
 	Options     runtime.Object
 
-	Mapper       meta.RESTMapper
-	Typer        runtime.ObjectTyper
-	ClientMapper resource.ClientMapper
-	Decoder      runtime.Decoder
+	Mapper  meta.RESTMapper
+	Typer   runtime.ObjectTyper
+	Decoder runtime.Decoder
 
 	Object        runtime.Object
 	GetPodTimeout time.Duration
@@ -181,25 +179,19 @@ func (o *LogsOptions) Complete(f cmdutil.Factory, out io.Writer, cmd *cobra.Comm
 	}
 	o.Options = logOptions
 	o.LogsForObject = f.LogsForObject
-	o.ClientMapper = resource.ClientMapperFunc(f.ClientForMapping)
 	o.Out = out
 
 	if len(selector) != 0 {
 		if logOptions.Follow {
 			return cmdutil.UsageError(cmd, "only one of follow (-f) or selector (-l) is allowed")
 		}
-		if len(logOptions.Container) != 0 {
-			return cmdutil.UsageError(cmd, "a container cannot be specified when using a selector (-l)")
-		}
 		if logOptions.TailLines == nil {
 			logOptions.TailLines = &selectorTail
 		}
 	}
 
-	mapper, typer := f.Object()
-	decoder := f.Decoder(true)
 	if o.Object == nil {
-		builder := resource.NewBuilder(mapper, f.CategoryExpander(), typer, o.ClientMapper, decoder).
+		builder := f.NewBuilder(true).
 			NamespaceParam(o.Namespace).DefaultNamespace().
 			SingleResourceType()
 		if o.ResourceArg != "" {

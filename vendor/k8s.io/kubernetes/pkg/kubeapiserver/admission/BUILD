@@ -24,6 +24,7 @@ go_library(
     srcs = ["initializer.go"],
     tags = ["automanaged"],
     deps = [
+        "//pkg/client/clientset_generated/clientset:go_default_library",
         "//pkg/client/clientset_generated/internalclientset:go_default_library",
         "//pkg/client/informers/informers_generated/internalversion:go_default_library",
         "//pkg/quota:go_default_library",

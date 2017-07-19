@@ -25,6 +25,8 @@ import (
 
 	"github.com/golang/glog"
 
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,9 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/integer"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	internalextensions "k8s.io/kubernetes/pkg/apis/extensions"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	corelisters "k8s.io/kubernetes/pkg/client/listers/core/v1"
 	extensionslisters "k8s.io/kubernetes/pkg/client/listers/extensions/v1beta1"
@@ -65,11 +65,6 @@ const (
 	RollbackTemplateUnchanged = "DeploymentRollbackTemplateUnchanged"
 	// RollbackDone is the done rollback event reason
 	RollbackDone = "DeploymentRollback"
-	// OverlapAnnotation marks deployments with overlapping selector with other deployments
-	// TODO: Delete this annotation when we no longer need to support a client
-	//       talking to a server older than v1.6.
-	OverlapAnnotation = "deployment.kubernetes.io/error-selector-overlapping-with"
-
 	// Reasons for deployment conditions
 	//
 	// Progressing:
@@ -289,7 +284,6 @@ var annotationsToSkip = map[string]bool{
 	RevisionHistoryAnnotation:      true,
 	DesiredReplicasAnnotation:      true,
 	MaxReplicasAnnotation:          true,
-	OverlapAnnotation:              true,
 }
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key

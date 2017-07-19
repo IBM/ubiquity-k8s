@@ -23,13 +23,13 @@ import (
 	"strconv"
 
 	"github.com/golang/glog"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/controller"
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 	labelsutil "k8s.io/kubernetes/pkg/util/labels"
@@ -288,7 +288,7 @@ func (dc *DeploymentController) getNewReplicaSet(d *extensions.Deployment, rsLis
 		return nil, err
 	}
 	newRSTemplate := templateCopy.(v1.PodTemplateSpec)
-	podTemplateSpecHash := fmt.Sprintf("%d", deploymentutil.GetPodTemplateSpecHash(&newRSTemplate, d.Status.CollisionCount))
+	podTemplateSpecHash := fmt.Sprintf("%d", controller.ComputeHash(&newRSTemplate, d.Status.CollisionCount))
 	newRSTemplate.Labels = labelsutil.CloneAndAddLabel(d.Spec.Template.Labels, extensions.DefaultDeploymentUniqueLabelKey, podTemplateSpecHash)
 	// Add podTemplateHash label to selector.
 	newRSSelector := labelsutil.CloneSelectorAndAddLabel(d.Spec.Selector, extensions.DefaultDeploymentUniqueLabelKey, podTemplateSpecHash)
@@ -300,6 +300,7 @@ func (dc *DeploymentController) getNewReplicaSet(d *extensions.Deployment, rsLis
 			Name:            d.Name + "-" + podTemplateSpecHash,
 			Namespace:       d.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*newControllerRef(d)},
+			Finalizers:      []string{metav1.FinalizerDeleteDependents},
 		},
 		Spec: extensions.ReplicaSetSpec{
 			Replicas:        new(int32),

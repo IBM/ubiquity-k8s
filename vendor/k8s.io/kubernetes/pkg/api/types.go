@@ -131,7 +131,7 @@ type ObjectMeta struct {
 	//
 	// Populated by the system when a graceful deletion is requested.
 	// Read-only.
-	// More info: https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#metadata
+	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
 	// +optional
 	DeletionTimestamp *metav1.Time
 
@@ -313,6 +313,9 @@ type VolumeSource struct {
 	// ScaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.
 	// +optional
 	ScaleIO *ScaleIOVolumeSource
+	// StorageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod
+	// +optional
+	StorageOS *StorageOSVolumeSource
 }
 
 // Similar to VolumeSource but meant for the administrator who creates PVs.
@@ -384,6 +387,10 @@ type PersistentVolumeSource struct {
 	// Local represents directly-attached storage with node affinity
 	// +optional
 	Local *LocalVolumeSource
+	// StorageOS represents a StorageOS volume that is attached to the kubelet's host machine and mounted into the pod
+	// More info: https://releases.k8s.io/HEAD/examples/volumes/storageos/README.md
+	// +optional
+	StorageOS *StorageOSPersistentVolumeSource
 }
 
 type PersistentVolumeClaimVolumeSource struct {
@@ -1096,7 +1103,7 @@ const (
 type AzureDiskVolumeSource struct {
 	// The Name of the data disk in the blob storage
 	DiskName string
-	// The URI the the data disk in the blob storage
+	// The URI of the data disk in the blob storage
 	DataDiskURI string
 	// Host Caching mode: None, Read Only, Read Write.
 	// +optional
@@ -1147,6 +1154,62 @@ type ScaleIOVolumeSource struct {
 	// the ReadOnly setting in VolumeMounts.
 	// +optional
 	ReadOnly bool
+}
+
+// Represents a StorageOS persistent volume resource.
+type StorageOSVolumeSource struct {
+	// VolumeName is the human-readable name of the StorageOS volume.  Volume
+	// names are only unique within a namespace.
+	VolumeName string
+	// VolumeNamespace specifies the scope of the volume within StorageOS.  If no
+	// namespace is specified then the Pod's namespace will be used.  This allows the
+	// Kubernetes name scoping to be mirrored within StorageOS for tighter integration.
+	// Set VolumeName to any name to override the default behaviour.
+	// Set to "default" if you are not using namespaces within StorageOS.
+	// Namespaces that do not pre-exist within StorageOS will be created.
+	// +optional
+	VolumeNamespace string
+	// Filesystem type to mount.
+	// Must be a filesystem type supported by the host operating system.
+	// Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
+	// +optional
+	FSType string
+	// Defaults to false (read/write). ReadOnly here will force
+	// the ReadOnly setting in VolumeMounts.
+	// +optional
+	ReadOnly bool
+	// SecretRef specifies the secret to use for obtaining the StorageOS API
+	// credentials.  If not specified, default values will be attempted.
+	// +optional
+	SecretRef *LocalObjectReference
+}
+
+// Represents a StorageOS persistent volume resource.
+type StorageOSPersistentVolumeSource struct {
+	// VolumeName is the human-readable name of the StorageOS volume.  Volume
+	// names are only unique within a namespace.
+	VolumeName string
+	// VolumeNamespace specifies the scope of the volume within StorageOS.  If no
+	// namespace is specified then the Pod's namespace will be used.  This allows the
+	// Kubernetes name scoping to be mirrored within StorageOS for tighter integration.
+	// Set VolumeName to any name to override the default behaviour.
+	// Set to "default" if you are not using namespaces within StorageOS.
+	// Namespaces that do not pre-exist within StorageOS will be created.
+	// +optional
+	VolumeNamespace string
+	// Filesystem type to mount.
+	// Must be a filesystem type supported by the host operating system.
+	// Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
+	// +optional
+	FSType string
+	// Defaults to false (read/write). ReadOnly here will force
+	// the ReadOnly setting in VolumeMounts.
+	// +optional
+	ReadOnly bool
+	// SecretRef specifies the secret to use for obtaining the StorageOS API
+	// credentials.  If not specified, default values will be attempted.
+	// +optional
+	SecretRef *ObjectReference
 }
 
 // Adapts a ConfigMap into a volume.
@@ -2200,7 +2263,7 @@ type PodSecurityContext struct {
 	// PodSecurityContext, the value specified in SecurityContext takes precedence
 	// for that container.
 	// +optional
-	RunAsUser *types.UnixUserID
+	RunAsUser *int64
 	// Indicates that the container must run as a non-root user.
 	// If true, the Kubelet will validate the image at runtime to ensure that it
 	// does not run as UID 0 (root) and fail to start the container if it does.
@@ -2213,7 +2276,7 @@ type PodSecurityContext struct {
 	// to the container's primary GID.  If unspecified, no groups will be added to
 	// any container.
 	// +optional
-	SupplementalGroups []types.UnixGroupID
+	SupplementalGroups []int64
 	// A special supplemental group that applies to all containers in a pod.
 	// Some volume types allow the Kubelet to change the ownership of that volume
 	// to be owned by the pod:
@@ -2224,7 +2287,7 @@ type PodSecurityContext struct {
 	//
 	// If unset, the Kubelet will not modify the ownership and permissions of any volume.
 	// +optional
-	FSGroup *types.UnixGroupID
+	FSGroup *int64
 }
 
 // PodQOSClass defines the supported qos classes of Pods.
@@ -2504,10 +2567,10 @@ const (
 type ServiceExternalTrafficPolicyType string
 
 const (
-	// ServiceExternalTrafficPolicyTypeLocal specifies local endpoints behavior.
+	// ServiceExternalTrafficPolicyTypeLocal specifies node-local endpoints behavior.
 	ServiceExternalTrafficPolicyTypeLocal ServiceExternalTrafficPolicyType = "Local"
-	// ServiceExternalTrafficPolicyTypeGlobal specifies global (legacy) behavior.
-	ServiceExternalTrafficPolicyTypeGlobal ServiceExternalTrafficPolicyType = "Global"
+	// ServiceExternalTrafficPolicyTypeCluster specifies cluster-wide (legacy) behavior.
+	ServiceExternalTrafficPolicyTypeCluster ServiceExternalTrafficPolicyType = "Cluster"
 )
 
 // ServiceStatus represents the current status of a service
@@ -2610,9 +2673,12 @@ type ServiceSpec struct {
 	// +optional
 	LoadBalancerSourceRanges []string
 
-	// externalTrafficPolicy denotes if this Service desires to route external traffic to
-	// local endpoints only. This preserves Source IP and avoids a second hop for
-	// LoadBalancer and Nodeport type services.
+	// externalTrafficPolicy denotes if this Service desires to route external
+	// traffic to node-local or cluster-wide endpoints. "Local" preserves the
+	// client source IP and avoids a second hop for LoadBalancer and Nodeport
+	// type services, but risks potentially imbalanced traffic spreading.
+	// "Cluster" obscures the client source IP and may cause a second hop to
+	// another node, but should have good overall load-spreading.
 	// +optional
 	ExternalTrafficPolicy ServiceExternalTrafficPolicyType
 
@@ -2831,11 +2897,11 @@ type NodeDaemonEndpoints struct {
 // NodeSystemInfo is a set of ids/uuids to uniquely identify the node.
 type NodeSystemInfo struct {
 	// MachineID reported by the node. For unique machine identification
-	// in the cluster this field is prefered. Learn more from man(5)
+	// in the cluster this field is preferred. Learn more from man(5)
 	// machine-id: http://man7.org/linux/man-pages/man5/machine-id.5.html
 	MachineID string
 	// SystemUUID reported by the node. For unique machine identification
-	// MachineID is prefered. This field is specific to Red Hat hosts
+	// MachineID is preferred. This field is specific to Red Hat hosts
 	// https://access.redhat.com/documentation/en-US/Red_Hat_Subscription_Management/1/html/RHSM/getting-system-uuid.html
 	SystemUUID string
 	// Boot ID reported by the node.
@@ -3132,7 +3198,8 @@ type NamespaceList struct {
 	Items []Namespace
 }
 
-// Binding ties one object to another - for example, a pod is bound to a node by a scheduler.
+// Binding ties one object to another; for example, a pod is bound to a node by a scheduler.
+// Deprecated in 1.7, please use the bindings subresource of pods instead.
 type Binding struct {
 	metav1.TypeMeta
 	// ObjectMeta describes the object that is being bound.
@@ -3857,7 +3924,7 @@ type SecurityContext struct {
 	// May also be set in PodSecurityContext.  If set in both SecurityContext and
 	// PodSecurityContext, the value specified in SecurityContext takes precedence.
 	// +optional
-	RunAsUser *types.UnixUserID
+	RunAsUser *int64
 	// Indicates that the container must run as a non-root user.
 	// If true, the Kubelet will validate the image at runtime to ensure that it
 	// does not run as UID 0 (root) and fail to start the container if it does.
@@ -3919,8 +3986,4 @@ const (
 	// When the --hard-pod-affinity-weight scheduler flag is not specified,
 	// DefaultHardPodAffinityWeight defines the weight of the implicit PreferredDuringScheduling affinity rule.
 	DefaultHardPodAffinitySymmetricWeight int = 1
-
-	// When the --failure-domains scheduler flag is not specified,
-	// DefaultFailureDomains defines the set of label keys used when TopologyKey is empty in PreferredDuringScheduling anti-affinity.
-	DefaultFailureDomains string = metav1.LabelHostname + "," + metav1.LabelZoneFailureDomain + "," + metav1.LabelZoneRegion
 )

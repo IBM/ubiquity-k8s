@@ -19,9 +19,9 @@ package eviction
 import (
 	"time"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/api/v1"
 	statsapi "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 	evictionapi "k8s.io/kubernetes/pkg/kubelet/eviction/api"
 )
@@ -79,6 +79,13 @@ type ImageGC interface {
 	// DeleteUnusedImages deletes unused images and returns the number of bytes freed, and an error.
 	// This returns the bytes freed even if an error is returned.
 	DeleteUnusedImages() (int64, error)
+}
+
+// ContainerGC is responsible for performing garbage collection of unused containers.
+type ContainerGC interface {
+	// DeleteAllUnusedContainers deletes all unused containers, even those that belong to pods that are terminated, but not deleted.
+	// It returns an error if it is unsuccessful.
+	DeleteAllUnusedContainers() error
 }
 
 // KillPodFunc kills a pod.

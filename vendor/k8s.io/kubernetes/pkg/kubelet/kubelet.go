@@ -37,6 +37,10 @@ import (
 	clientgoclientset "k8s.io/client-go/kubernetes"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
+	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
+	certificates "k8s.io/api/certificates/v1beta1"
+	"k8s.io/api/core/v1"
+	clientv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -47,15 +51,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/client-go/util/integer"
 	"k8s.io/kubernetes/cmd/kubelet/app/options"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	certificates "k8s.io/kubernetes/pkg/apis/certificates/v1beta1"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	componentconfigv1alpha1 "k8s.io/kubernetes/pkg/apis/componentconfig/v1alpha1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
@@ -506,6 +507,16 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 	}
 	glog.Infof("Hairpin mode set to %q", hairpinMode)
 
+	// TODO(#36485) Remove this workaround once we fix the init-container issue.
+	// Touch iptables lock file, which will be shared among all processes accessing
+	// the iptables.
+	f, err := os.OpenFile(utilipt.LockfilePath16x, os.O_CREATE, 0600)
+	if err != nil {
+		glog.Warningf("Failed to open iptables lock file: %v", err)
+	} else if err = f.Close(); err != nil {
+		glog.Warningf("Failed to close iptables lock file: %v", err)
+	}
+
 	if plug, err := network.InitNetworkPlugin(kubeDeps.NetworkPlugins, crOptions.NetworkPluginName, &criNetworkHost{&networkHost{klet}, &network.NoopPortMappingGetter{}}, hairpinMode, kubeCfg.NonMasqueradeCIDR, int(crOptions.NetworkPluginMTU)); err != nil {
 		return nil, err
 	} else {
@@ -553,7 +564,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 	pluginSettings.LegacyRuntimeHost = nl
 
 	// rktnetes cannot be run with CRI.
-	if kubeCfg.ContainerRuntime != "rkt" {
+	if kubeCfg.ContainerRuntime != kubetypes.RktContainerRuntime {
 		// kubelet defers to the runtime shim to setup networking. Setting
 		// this to nil will prevent it from trying to invoke the plugin.
 		// It's easier to always probe and initialize plugins till cri
@@ -561,7 +572,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 		klet.networkPlugin = nil
 
 		switch kubeCfg.ContainerRuntime {
-		case "docker":
+		case kubetypes.DockerContainerRuntime:
 			// Create and start the CRI shim running as a grpc server.
 			streamingConfig := getStreamingConfig(kubeCfg, kubeDeps)
 			ds, err := dockershim.NewDockerService(kubeDeps.DockerClient, kubeCfg.SeccompProfileRoot, crOptions.PodSandboxImage,
@@ -595,7 +606,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 			if !supported {
 				klet.dockerLegacyService = dockershim.NewDockerLegacyService(kubeDeps.DockerClient)
 			}
-		case "remote":
+		case kubetypes.RemoteContainerRuntime:
 			// No-op.
 			break
 		default:
@@ -670,7 +681,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 	klet.updatePodCIDR(kubeCfg.PodCIDR)
 
 	// setup containerGC
-	containerGC, err := kubecontainer.NewContainerGC(klet.containerRuntime, containerGCPolicy)
+	containerGC, err := kubecontainer.NewContainerGC(klet.containerRuntime, containerGCPolicy, klet.sourcesReady)
 	if err != nil {
 		return nil, err
 	}
@@ -732,7 +743,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 		kubeCfg.ExperimentalCheckNodeCapabilitiesBeforeMount = false
 	}
 	// setup volumeManager
-	klet.volumeManager, err = volumemanager.NewVolumeManager(
+	klet.volumeManager = volumemanager.NewVolumeManager(
 		kubeCfg.EnableControllerAttachDetach,
 		nodeName,
 		klet.podManager,
@@ -760,7 +771,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 	klet.setNodeStatusFuncs = klet.defaultNodeStatusFuncs()
 
 	// setup eviction manager
-	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.imageManager, kubeDeps.Recorder, nodeRef, klet.clock)
+	evictionManager, evictionAdmitHandler := eviction.NewManager(klet.resourceAnalyzer, evictionConfig, killPodNow(klet.podWorkers, kubeDeps.Recorder), klet.imageManager, klet.containerGC, kubeDeps.Recorder, nodeRef, klet.clock)
 
 	klet.evictionManager = evictionManager
 	klet.admitHandlers.AddPodAdmitHandler(evictionAdmitHandler)
@@ -803,7 +814,7 @@ func NewMainKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *Kub
 	klet.appArmorValidator = apparmor.NewValidator(kubeCfg.ContainerRuntime)
 	klet.softAdmitHandlers.AddPodAdmitHandler(lifecycle.NewAppArmorAdmitHandler(klet.appArmorValidator))
 	if utilfeature.DefaultFeatureGate.Enabled(features.Accelerators) {
-		if kubeCfg.ContainerRuntime == "docker" {
+		if kubeCfg.ContainerRuntime == kubetypes.DockerContainerRuntime {
 			if klet.gpuManager, err = nvidia.NewNvidiaGPUManager(klet, kubeDeps.DockerClient); err != nil {
 				return nil, err
 			}
@@ -926,6 +937,9 @@ type Kubelet struct {
 
 	// Cached MachineInfo returned by cadvisor.
 	machineInfo *cadvisorapi.MachineInfo
+
+	//Cached RootFsInfo returned by cadvisor
+	rootfsInfo *cadvisorapiv2.FsInfo
 
 	// Handles certificate rotations.
 	serverCertificateManager certificate.Manager
@@ -1120,16 +1134,25 @@ func initializeServerCertificateManager(kubeClient clientset.Interface, kubeCfg 
 		CertificateSigningRequestClient: certSigningRequestClient,
 		Template: &x509.CertificateRequest{
 			Subject: pkix.Name{
-				CommonName:   string(nodeName),
+				CommonName:   fmt.Sprintf("system:node:%s", nodeName),
 				Organization: []string{"system:nodes"},
 			},
 			DNSNames:    hostnames,
 			IPAddresses: ips,
 		},
 		Usages: []certificates.KeyUsage{
+			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+			//
+			// Digital signature allows the certificate to be used to verify
+			// digital signatures used during TLS negotiation.
+			certificates.UsageDigitalSignature,
+			// KeyEncipherment allows the cert/key pair to be used to encrypt
+			// keys, including the symetric keys negotiated during TLS setup
+			// and used for data transfer.
 			certificates.UsageKeyEncipherment,
+			// ServerAuth allows the cert to be used by a TLS server to
+			// authenticate itself to a TLS client.
 			certificates.UsageServerAuth,
-			certificates.UsageSigning,
 		},
 		CertificateStore: certificateStore,
 	})
@@ -1180,7 +1203,7 @@ func (kl *Kubelet) setupDataDirs() error {
 func (kl *Kubelet) StartGarbageCollection() {
 	loggedContainerGCFailure := false
 	go wait.Until(func() {
-		if err := kl.containerGC.GarbageCollect(kl.sourcesReady.AllReady()); err != nil {
+		if err := kl.containerGC.GarbageCollect(); err != nil {
 			glog.Errorf("Container garbage collection failed: %v", err)
 			kl.recorder.Eventf(kl.nodeRef, v1.EventTypeWarning, events.ContainerGCFailed, err.Error())
 			loggedContainerGCFailure = true
@@ -1798,9 +1821,12 @@ func (kl *Kubelet) syncLoop(updates <-chan kubetypes.PodUpdate, handler SyncHand
 			time.Sleep(5 * time.Second)
 			continue
 		}
+
+		kl.syncLoopMonitor.Store(kl.clock.Now())
 		if !kl.syncLoopIteration(updates, handler, syncTicker.C, housekeepingTicker.C, plegCh) {
 			break
 		}
+		kl.syncLoopMonitor.Store(kl.clock.Now())
 	}
 }
 
@@ -1838,7 +1864,6 @@ func (kl *Kubelet) syncLoop(updates <-chan kubetypes.PodUpdate, handler SyncHand
 //                     containers have failed liveness checks
 func (kl *Kubelet) syncLoopIteration(configCh <-chan kubetypes.PodUpdate, handler SyncHandler,
 	syncCh <-chan time.Time, housekeepingCh <-chan time.Time, plegCh <-chan *pleg.PodLifecycleEvent) bool {
-	kl.syncLoopMonitor.Store(kl.clock.Now())
 	select {
 	case u, open := <-configCh:
 		// Update from a config source; dispatch it to the right handler
@@ -1932,7 +1957,6 @@ func (kl *Kubelet) syncLoopIteration(configCh <-chan kubetypes.PodUpdate, handle
 			}
 		}
 	}
-	kl.syncLoopMonitor.Store(kl.clock.Now())
 	return true
 }
 
@@ -2098,7 +2122,7 @@ func (kl *Kubelet) updateRuntimeUp() {
 	}
 	// rkt uses the legacy, non-CRI integration. Don't check the runtime
 	// conditions for it.
-	if kl.kubeletConfiguration.ContainerRuntime != "rkt" {
+	if kl.kubeletConfiguration.ContainerRuntime != kubetypes.RktContainerRuntime {
 		if s == nil {
 			glog.Errorf("Container runtime status is nil")
 			return

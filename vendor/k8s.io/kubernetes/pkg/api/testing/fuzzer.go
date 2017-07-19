@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/gofuzz"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	apitesting "k8s.io/apimachinery/pkg/api/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +36,6 @@ import (
 	kubeadmfuzzer "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/fuzzer"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/apis/admissionregistration"
 	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
@@ -322,7 +322,7 @@ func coreFuncs(t apitesting.TestingCommon) []interface{} {
 			*p = types[c.Rand.Intn(len(types))]
 		},
 		func(p *api.ServiceExternalTrafficPolicyType, c fuzz.Continue) {
-			types := []api.ServiceExternalTrafficPolicyType{api.ServiceExternalTrafficPolicyTypeGlobal, api.ServiceExternalTrafficPolicyTypeLocal}
+			types := []api.ServiceExternalTrafficPolicyType{api.ServiceExternalTrafficPolicyTypeCluster, api.ServiceExternalTrafficPolicyTypeLocal}
 			*p = types[c.Rand.Intn(len(types))]
 		},
 		func(ct *api.Container, c fuzz.Continue) {
@@ -553,6 +553,11 @@ func extensionFuncs(t apitesting.TestingCommon) []interface{} {
 				}
 			}
 		},
+		func(j *extensions.DaemonSetSpec, c fuzz.Continue) {
+			c.FuzzNoCustom(j) // fuzz self without calling this function again
+			rhl := int32(c.Rand.Int31())
+			j.RevisionHistoryLimit = &rhl
+		},
 		func(j *extensions.DaemonSetUpdateStrategy, c fuzz.Continue) {
 			c.FuzzNoCustom(j) // fuzz self without calling this function again
 			// Ensure that strategyType is one of valid values.
@@ -717,6 +722,13 @@ func appsFuncs(t apitesting.TestingCommon) []interface{} {
 			// match defaulter
 			if len(s.Spec.PodManagementPolicy) == 0 {
 				s.Spec.PodManagementPolicy = apps.OrderedReadyPodManagement
+			}
+			if len(s.Spec.UpdateStrategy.Type) == 0 {
+				s.Spec.UpdateStrategy.Type = apps.RollingUpdateStatefulSetStrategyType
+			}
+			if s.Spec.RevisionHistoryLimit == nil {
+				s.Spec.RevisionHistoryLimit = new(int32)
+				*s.Spec.RevisionHistoryLimit = 10
 			}
 		},
 	}

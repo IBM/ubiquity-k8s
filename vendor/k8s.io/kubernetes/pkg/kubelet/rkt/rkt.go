@@ -41,6 +41,7 @@ import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -49,7 +50,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/events"
@@ -1955,7 +1955,7 @@ func (r *Runtime) getPodSystemdServiceFiles() ([]os.FileInfo, error) {
 // - If the number of containers exceeds gcPolicy.MaxContainers,
 //   then containers whose ages are older than gcPolicy.minAge will
 //   be removed.
-func (r *Runtime) GarbageCollect(gcPolicy kubecontainer.ContainerGCPolicy, allSourcesReady bool) error {
+func (r *Runtime) GarbageCollect(gcPolicy kubecontainer.ContainerGCPolicy, allSourcesReady bool, _ bool) error {
 	var errlist []error
 	var totalInactiveContainers int
 	var inactivePods []*rktapi.Pod

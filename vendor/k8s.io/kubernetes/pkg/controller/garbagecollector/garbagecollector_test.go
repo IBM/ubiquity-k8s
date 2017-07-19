@@ -28,6 +28,7 @@ import (
 
 	_ "k8s.io/kubernetes/pkg/api/install"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +41,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/controller/garbagecollector/metaonly"
@@ -584,5 +584,39 @@ func TestUnblockOwnerReference(t *testing.T) {
 		for _, ref := range got.OwnerReferences {
 			t.Errorf("ref.UID=%s, ref.BlockOwnerDeletion=%v", ref.UID, *ref.BlockOwnerDeletion)
 		}
+	}
+}
+
+func TestOrphanDependentsFailure(t *testing.T) {
+	testHandler := &fakeActionHandler{
+		response: map[string]FakeResponse{
+			"PATCH" + "/api/v1/namespaces/ns1/pods/pod": {
+				409,
+				[]byte{},
+			},
+		},
+	}
+	srv, clientConfig := testServerAndClientConfig(testHandler.ServeHTTP)
+	defer srv.Close()
+
+	gc := setupGC(t, clientConfig)
+	defer close(gc.stop)
+
+	dependents := []*node{
+		{
+			identity: objectReference{
+				OwnerReference: metav1.OwnerReference{
+					Kind:       "Pod",
+					APIVersion: "v1",
+					Name:       "pod",
+				},
+				Namespace: "ns1",
+			},
+		},
+	}
+	err := gc.orphanDependents(objectReference{}, dependents)
+	expected := `the server reported a conflict (patch pods pod)`
+	if err == nil || !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected error contains text %s, got %v", expected, err)
 	}
 }

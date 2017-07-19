@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/controller"
 )
 
@@ -68,6 +68,7 @@ func GetLoadBalancerName(service *v1.Service) string {
 	return ret
 }
 
+// GetInstanceProviderID builds a ProviderID for a node in a cloud.
 func GetInstanceProviderID(cloud Interface, nodeName types.NodeName) (string, error) {
 	instances, ok := cloud.Instances()
 	if !ok {
@@ -149,6 +150,9 @@ type Route struct {
 	// DestinationCIDR is the CIDR format IP range that this routing rule
 	// applies to.
 	DestinationCIDR string
+	// Blackhole is set to true if this is a blackhole route
+	// The node controller will delete the route if it is in the managed range.
+	Blackhole bool
 }
 
 // Routes is an abstract, pluggable interface for advanced routing rules.

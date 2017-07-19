@@ -26,12 +26,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -199,7 +199,7 @@ func RunRollingUpdate(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args
 			return err
 		}
 
-		request := resource.NewBuilder(mapper, f.CategoryExpander(), typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
+		request := f.NewBuilder(true).
 			Schema(schema).
 			NamespaceParam(cmdNamespace).DefaultNamespace().
 			FilenameParam(enforceNamespace, &resource.FilenameOptions{Recursive: false, Filenames: []string{filename}}).
@@ -328,10 +328,10 @@ func RunRollingUpdate(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args
 			oldRcData.WriteString(oldRc.Name)
 			newRcData.WriteString(newRc.Name)
 		} else {
-			if err := f.PrintObject(cmd, mapper, oldRc, oldRcData); err != nil {
+			if err := f.PrintObject(cmd, false, mapper, oldRc, oldRcData); err != nil {
 				return err
 			}
-			if err := f.PrintObject(cmd, mapper, newRc, newRcData); err != nil {
+			if err := f.PrintObject(cmd, false, mapper, newRc, newRcData); err != nil {
 				return err
 			}
 		}
@@ -376,7 +376,7 @@ func RunRollingUpdate(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args
 		return err
 	}
 	if outputFormat != "" {
-		return f.PrintObject(cmd, mapper, newRc, out)
+		return f.PrintObject(cmd, false, mapper, newRc, out)
 	}
 	cmdutil.PrintSuccess(mapper, false, out, "replicationcontrollers", oldName, dryrun, message)
 	return nil

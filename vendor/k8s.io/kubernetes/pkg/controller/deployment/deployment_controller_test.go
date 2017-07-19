@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,8 +30,6 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/controller"
@@ -269,32 +269,6 @@ func TestSyncDeploymentCreatesReplicaSet(t *testing.T) {
 	f.expectUpdateDeploymentStatusAction(d)
 
 	f.run(getKey(d, t))
-}
-
-func TestSyncDeploymentClearsOverlapAnnotation(t *testing.T) {
-	f := newFixture(t)
-
-	d := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	d.Annotations[util.OverlapAnnotation] = "overlap"
-	f.dLister = append(f.dLister, d)
-	f.objects = append(f.objects, d)
-
-	rs := newReplicaSet(d, "deploymentrs-4186632231", 1)
-
-	f.expectUpdateDeploymentStatusAction(d)
-	f.expectCreateRSAction(rs)
-	f.expectUpdateDeploymentStatusAction(d)
-	f.expectUpdateDeploymentStatusAction(d)
-
-	f.run(getKey(d, t))
-
-	d, err := f.client.ExtensionsV1beta1().Deployments(d.Namespace).Get(d.Name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("can't get deployment: %v", err)
-	}
-	if _, ok := d.Annotations[util.OverlapAnnotation]; ok {
-		t.Errorf("OverlapAnnotation = %q, wanted absent", d.Annotations[util.OverlapAnnotation])
-	}
 }
 
 func TestSyncDeploymentDontDoAnythingDuringDeletion(t *testing.T) {

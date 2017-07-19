@@ -35,11 +35,11 @@ import (
 
 	"github.com/golang/glog"
 
+	clientv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/helper"
@@ -458,7 +458,7 @@ func NewProxier(ipt utiliptables.Interface,
 	// are connected to a Linux bridge (but not SDN bridges).  Until most
 	// plugins handle this, log when config is missing
 	if val, err := sysctl.GetSysctl(sysctlBridgeCallIPTables); err == nil && val != 1 {
-		glog.Infof("missing br-netfilter module or unset sysctl br-nf-call-iptables; proxy may not work as intended")
+		glog.Warningf("missing br-netfilter module or unset sysctl br-nf-call-iptables; proxy may not work as intended")
 	}
 
 	// Generate the masquerade mark to use for SNAT rules.
@@ -1175,8 +1175,12 @@ func (proxier *Proxier) syncProxyRules() {
 		)
 		if proxier.masqueradeAll {
 			writeLine(proxier.natRules, append(args, "-j", string(KubeMarkMasqChain))...)
-		}
-		if len(proxier.clusterCIDR) > 0 {
+		} else if len(proxier.clusterCIDR) > 0 {
+			// This masquerades off-cluster traffic to a service VIP.  The idea
+			// is that you can establish a static route for your Service range,
+			// routing to any node, and that node will bridge into the Service
+			// for you.  Since that might bounce off-node, we masquerade here.
+			// If/when we support "Local" policy for VIPs, we should update this.
 			writeLine(proxier.natRules, append(args, "! -s", proxier.clusterCIDR, "-j", string(KubeMarkMasqChain))...)
 		}
 		writeLine(proxier.natRules, append(args, "-j", string(svcChain))...)
@@ -1480,7 +1484,7 @@ func (proxier *Proxier) syncProxyRules() {
 				localEndpointChains = append(localEndpointChains, endpointChains[i])
 			}
 		}
-		// First rule in the chain redirects all pod -> external vip traffic to the
+		// First rule in the chain redirects all pod -> external VIP traffic to the
 		// Service's ClusterIP instead. This happens whether or not we have local
 		// endpoints; only if clusterCIDR is specified
 		if len(proxier.clusterCIDR) > 0 {

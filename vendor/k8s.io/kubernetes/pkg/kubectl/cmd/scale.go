@@ -60,7 +60,7 @@ var (
 func NewCmdScale(f cmdutil.Factory, out io.Writer) *cobra.Command {
 	options := &resource.FilenameOptions{}
 
-	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "job"}
+	validArgs := []string{"deployment", "replicaset", "replicationcontroller", "job", "statefulset"}
 	argAliases := kubectl.ResourceAliases(validArgs)
 
 	cmd := &cobra.Command{
@@ -98,8 +98,8 @@ func RunScale(f cmdutil.Factory, out io.Writer, cmd *cobra.Command, args []strin
 		return err
 	}
 
-	mapper, typer := f.Object()
-	r := resource.NewBuilder(mapper, f.CategoryExpander(), typer, resource.ClientMapperFunc(f.ClientForMapping), f.Decoder(true)).
+	mapper, _ := f.Object()
+	r := f.NewBuilder(true).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
 		FilenameParam(enforceNamespace, options).

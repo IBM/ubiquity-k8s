@@ -92,7 +92,7 @@ __kubectl_config_get_users()
 }
 
 # $1 has to be "contexts", "clusters" or "users"
-__kubectl_config_get()
+__kubectl_parse_config()
 {
     local template kubectl_out
     template="{{ range .$1  }}{{ .name }} {{ end }}"
@@ -208,6 +208,7 @@ __custom_func() {
     * clusters (valid only for federation apiservers)
     * componentstatuses (aka 'cs')
     * configmaps (aka 'cm')
+    * controllerrevisions
     * cronjobs
     * daemonsets (aka 'ds')
     * deployments (aka 'deploy')
@@ -359,6 +360,13 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 		"options",
 		deprecated("kubectl", "delete", cmds, NewCmdStop(f, out)),
 	}
+
+	// Hide the "alpha" subcommand if there are no alpha commands in this build.
+	alpha := NewCmdAlpha(f, in, out, err)
+	if !alpha.HasSubCommands() {
+		filters = append(filters, alpha.Name())
+	}
+
 	templates.ActsAsRootCommand(cmds, filters, groups...)
 
 	for name, completion := range bash_completion_flags {
@@ -373,6 +381,7 @@ func NewKubectlCommand(f cmdutil.Factory, in io.Reader, out, err io.Writer) *cob
 		}
 	}
 
+	cmds.AddCommand(alpha)
 	cmds.AddCommand(cmdconfig.NewCmdConfig(clientcmd.NewDefaultPathOptions(), out, err))
 	cmds.AddCommand(NewCmdPlugin(f, in, out, err))
 	cmds.AddCommand(NewCmdVersion(f, out))
@@ -401,6 +410,7 @@ func deprecatedAlias(deprecatedVersion string, cmd *cobra.Command) *cobra.Comman
 
 	cmd.Use = deprecatedVersion
 	cmd.Deprecated = fmt.Sprintf("use %q instead", originalName)
+	cmd.Short = fmt.Sprintf("%s. This command is deprecated, use %q instead", cmd.Short, originalName)
 	cmd.Hidden = true
 	return cmd
 }

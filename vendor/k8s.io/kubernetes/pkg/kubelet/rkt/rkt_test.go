@@ -31,12 +31,12 @@ import (
 	rktapi "github.com/coreos/rkt/api/v1alpha"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubetypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	utiltesting "k8s.io/client-go/util/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	containertesting "k8s.io/kubernetes/pkg/kubelet/container/testing"
 	kubetesting "k8s.io/kubernetes/pkg/kubelet/container/testing"
@@ -983,10 +983,10 @@ func TestSetApp(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	rootUser := kubetypes.UnixUserID(0)
-	nonRootUser := kubetypes.UnixUserID(42)
+	rootUser := int64(0)
+	nonRootUser := int64(42)
 	runAsNonRootTrue := true
-	fsgid := kubetypes.UnixGroupID(3)
+	fsgid := int64(3)
 
 	tests := []struct {
 		container        *v1.Container
@@ -1092,9 +1092,9 @@ func TestSetApp(t *testing.T) {
 				RunAsNonRoot: &runAsNonRootTrue,
 			},
 			podCtx: &v1.PodSecurityContext{
-				SupplementalGroups: []kubetypes.UnixGroupID{
-					kubetypes.UnixGroupID(1),
-					kubetypes.UnixGroupID(2),
+				SupplementalGroups: []int64{
+					int64(1),
+					int64(2),
 				},
 				FSGroup: &fsgid,
 			},
@@ -1157,9 +1157,9 @@ func TestSetApp(t *testing.T) {
 				RunAsNonRoot: &runAsNonRootTrue,
 			},
 			podCtx: &v1.PodSecurityContext{
-				SupplementalGroups: []kubetypes.UnixGroupID{
-					kubetypes.UnixGroupID(1),
-					kubetypes.UnixGroupID(2),
+				SupplementalGroups: []int64{
+					int64(1),
+					int64(2),
 				},
 				FSGroup: &fsgid,
 			},
@@ -1831,7 +1831,8 @@ func TestGarbageCollect(t *testing.T) {
 		}
 
 		allSourcesReady := true
-		err := rkt.GarbageCollect(tt.gcPolicy, allSourcesReady)
+		evictNonDeletedPods := false
+		err := rkt.GarbageCollect(tt.gcPolicy, allSourcesReady, evictNonDeletedPods)
 		assert.NoError(t, err, testCaseHint)
 
 		sort.Sort(sortedStringList(tt.expectedCommands))

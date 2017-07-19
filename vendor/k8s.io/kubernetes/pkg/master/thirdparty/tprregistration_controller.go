@@ -22,6 +22,9 @@ import (
 
 	"github.com/golang/glog"
 
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	crdinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/internalversion/apiextensions/internalversion"
+	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,9 +33,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration"
-	"k8s.io/kube-apiextensions-server/pkg/apis/apiextensions"
-	crdinformers "k8s.io/kube-apiextensions-server/pkg/client/informers/internalversion/apiextensions/internalversion"
-	crdlisters "k8s.io/kube-apiextensions-server/pkg/client/listers/apiextensions/internalversion"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/internalversion/extensions/internalversion"
 	listers "k8s.io/kubernetes/pkg/client/listers/extensions/internalversion"
@@ -255,9 +255,10 @@ func (c *tprRegistrationController) handleVersionUpdate(groupVersion schema.Grou
 	c.apiServiceRegistration.AddAPIServiceToSync(&apiregistration.APIService{
 		ObjectMeta: metav1.ObjectMeta{Name: apiServiceName},
 		Spec: apiregistration.APIServiceSpec{
-			Group:    groupVersion.Group,
-			Version:  groupVersion.Version,
-			Priority: 500, // TPRs should have relatively low priority
+			Group:                groupVersion.Group,
+			Version:              groupVersion.Version,
+			GroupPriorityMinimum: 1000, // TPRs should have relatively low priority
+			VersionPriority:      100,  // TPRs should have relatively low priority
 		},
 	})
 
