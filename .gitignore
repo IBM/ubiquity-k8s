@@ -16,6 +16,7 @@ vendor/k8s.io/apimachinery/third_party.forked.golang
 vendor/k8s.io/client-go/examples
 vendor/k8s.io/client-go/github
 vendor/k8s.io/client-go/Godeps
+vendor/k8s.io/client-go/testing
 vendor/k8s.io/kubernetes/build
 vendor/k8s.io/kubernets/cluster
 vendor/k8s.io/kubernets/cmd
@@ -33,7 +34,9 @@ vendor/k8s.io/kubernets/test
 vendor/k8s.io/kubernetes/third_party
 vendor/k8s.io/kubernets/translations
 vendor/k8s.io/kubernetes/third_party/pkg/volume
-
+vendor/k8s.io/kubernetes/third_party/pkg/api
+vendor/github.com/kubernetes-incubator/external-storage/nfs
+vendor/github.com/kubernetes-incubator/external-storage/repo-infra
 # Folders
 _obj
 _test
