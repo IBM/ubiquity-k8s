@@ -57,6 +57,8 @@ import (
 	fakerbacv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/rbac/v1alpha1/fake"
 	rbacv1beta1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/rbac/v1beta1"
 	fakerbacv1beta1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/rbac/v1beta1/fake"
+	schedulingv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/scheduling/v1alpha1"
+	fakeschedulingv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/scheduling/v1alpha1/fake"
 	settingsv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/settings/v1alpha1"
 	fakesettingsv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/settings/v1alpha1/fake"
 	storagev1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/storage/v1"
@@ -106,16 +108,6 @@ func (c *Clientset) AdmissionregistrationV1alpha1() admissionregistrationv1alpha
 // Admissionregistration retrieves the AdmissionregistrationV1alpha1Client
 func (c *Clientset) Admissionregistration() admissionregistrationv1alpha1.AdmissionregistrationV1alpha1Interface {
 	return &fakeadmissionregistrationv1alpha1.FakeAdmissionregistrationV1alpha1{Fake: &c.Fake}
-}
-
-// CoreV1 retrieves the CoreV1Client
-func (c *Clientset) CoreV1() corev1.CoreV1Interface {
-	return &fakecorev1.FakeCoreV1{Fake: &c.Fake}
-}
-
-// Core retrieves the CoreV1Client
-func (c *Clientset) Core() corev1.CoreV1Interface {
-	return &fakecorev1.FakeCoreV1{Fake: &c.Fake}
 }
 
 // AppsV1beta1 retrieves the AppsV1beta1Client
@@ -198,6 +190,16 @@ func (c *Clientset) Certificates() certificatesv1beta1.CertificatesV1beta1Interf
 	return &fakecertificatesv1beta1.FakeCertificatesV1beta1{Fake: &c.Fake}
 }
 
+// CoreV1 retrieves the CoreV1Client
+func (c *Clientset) CoreV1() corev1.CoreV1Interface {
+	return &fakecorev1.FakeCoreV1{Fake: &c.Fake}
+}
+
+// Core retrieves the CoreV1Client
+func (c *Clientset) Core() corev1.CoreV1Interface {
+	return &fakecorev1.FakeCoreV1{Fake: &c.Fake}
+}
+
 // ExtensionsV1beta1 retrieves the ExtensionsV1beta1Client
 func (c *Clientset) ExtensionsV1beta1() extensionsv1beta1.ExtensionsV1beta1Interface {
 	return &fakeextensionsv1beta1.FakeExtensionsV1beta1{Fake: &c.Fake}
@@ -241,6 +243,16 @@ func (c *Clientset) Rbac() rbacv1beta1.RbacV1beta1Interface {
 // RbacV1alpha1 retrieves the RbacV1alpha1Client
 func (c *Clientset) RbacV1alpha1() rbacv1alpha1.RbacV1alpha1Interface {
 	return &fakerbacv1alpha1.FakeRbacV1alpha1{Fake: &c.Fake}
+}
+
+// SchedulingV1alpha1 retrieves the SchedulingV1alpha1Client
+func (c *Clientset) SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface {
+	return &fakeschedulingv1alpha1.FakeSchedulingV1alpha1{Fake: &c.Fake}
+}
+
+// Scheduling retrieves the SchedulingV1alpha1Client
+func (c *Clientset) Scheduling() schedulingv1alpha1.SchedulingV1alpha1Interface {
+	return &fakeschedulingv1alpha1.FakeSchedulingV1alpha1{Fake: &c.Fake}
 }
 
 // SettingsV1alpha1 retrieves the SettingsV1alpha1Client

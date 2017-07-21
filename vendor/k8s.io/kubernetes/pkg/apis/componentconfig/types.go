@@ -78,6 +78,8 @@ type KubeProxyConntrackConfiguration struct {
 	TCPCloseWaitTimeout metav1.Duration
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // KubeProxyConfiguration contains everything necessary to configure the
 // Kubernetes proxy server.
 type KubeProxyConfiguration struct {
@@ -165,6 +167,8 @@ const (
 	// dropped by the container bridge.
 	HairpinNone = "none"
 )
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // A configuration field should go in KubeletFlags instead of KubeletConfiguration if any of these are true:
 // - its value will never, or cannot safely be changed during the lifetime of a node
@@ -493,17 +497,17 @@ type KubeletConfiguration struct {
 	// See http://kubernetes.io/docs/user-guide/compute-resources for more detail.
 	KubeReserved ConfigurationMap
 	// This flag helps kubelet identify absolute name of top level cgroup used to enforce `SystemReserved` compute resource reservation for OS system daemons.
-	// Refer to [Node Allocatable](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node-allocatable.md) doc for more information.
+	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node-allocatable.md) doc for more information.
 	SystemReservedCgroup string
 	// This flag helps kubelet identify absolute name of top level cgroup used to enforce `KubeReserved` compute resource reservation for Kubernetes node system daemons.
-	// Refer to [Node Allocatable](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node-allocatable.md) doc for more information.
+	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node-allocatable.md) doc for more information.
 	KubeReservedCgroup string
 	// This flag specifies the various Node Allocatable enforcements that Kubelet needs to perform.
 	// This flag accepts a list of options. Acceptable options are `pods`, `system-reserved` & `kube-reserved`.
-	// Refer to [Node Allocatable](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node-allocatable.md) doc for more information.
+	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node-allocatable.md) doc for more information.
 	EnforceNodeAllocatable []string
 	// This flag, if set, will avoid including `EvictionHard` limits while computing Node Allocatable.
-	// Refer to [Node Allocatable](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node-allocatable.md) doc for more information.
+	// Refer to [Node Allocatable](https://git.k8s.io/community/contributors/design-proposals/node-allocatable.md) doc for more information.
 	ExperimentalNodeAllocatableIgnoreEvictionThreshold bool
 }
 
@@ -562,6 +566,8 @@ type KubeletAnonymousAuthentication struct {
 	// Anonymous requests have a username of system:anonymous, and a group name of system:unauthenticated.
 	Enabled bool
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type KubeSchedulerConfiguration struct {
 	metav1.TypeMeta
@@ -649,6 +655,8 @@ type GroupResource struct {
 	// resource is the resource portion of the GroupResource.
 	Resource string
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type KubeControllerManagerConfiguration struct {
 	metav1.TypeMeta

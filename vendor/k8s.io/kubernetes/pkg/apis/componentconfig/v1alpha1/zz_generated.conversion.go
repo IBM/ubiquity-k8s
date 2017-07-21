@@ -21,17 +21,17 @@ limitations under the License.
 package v1alpha1
 
 import (
+	core_v1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	api "k8s.io/kubernetes/pkg/api"
-	api_v1 "k8s.io/kubernetes/pkg/api/v1"
 	componentconfig "k8s.io/kubernetes/pkg/apis/componentconfig"
 	unsafe "unsafe"
 )
 
 func init() {
-	SchemeBuilder.Register(RegisterConversions)
+	localSchemeBuilder.Register(RegisterConversions)
 }
 
 // RegisterConversions adds conversion functions to the given scheme.
@@ -406,7 +406,9 @@ func autoConvert_v1alpha1_KubeletConfiguration_To_componentconfig_KubeletConfigu
 	if err := v1.Convert_Pointer_int32_To_int32(&in.MaxContainerCount, &out.MaxContainerCount, s); err != nil {
 		return err
 	}
-	out.CAdvisorPort = in.CAdvisorPort
+	if err := v1.Convert_Pointer_int32_To_int32(&in.CAdvisorPort, &out.CAdvisorPort, s); err != nil {
+		return err
+	}
 	out.HealthzPort = in.HealthzPort
 	out.HealthzBindAddress = in.HealthzBindAddress
 	if err := v1.Convert_Pointer_int32_To_int32(&in.OOMScoreAdj, &out.OOMScoreAdj, s); err != nil {
@@ -580,7 +582,9 @@ func autoConvert_componentconfig_KubeletConfiguration_To_v1alpha1_KubeletConfigu
 	if err := v1.Convert_int32_To_Pointer_int32(&in.MaxContainerCount, &out.MaxContainerCount, s); err != nil {
 		return err
 	}
-	out.CAdvisorPort = in.CAdvisorPort
+	if err := v1.Convert_int32_To_Pointer_int32(&in.CAdvisorPort, &out.CAdvisorPort, s); err != nil {
+		return err
+	}
 	out.HealthzPort = in.HealthzPort
 	out.HealthzBindAddress = in.HealthzBindAddress
 	if err := v1.Convert_int32_To_Pointer_int32(&in.OOMScoreAdj, &out.OOMScoreAdj, s); err != nil {
@@ -642,9 +646,9 @@ func autoConvert_componentconfig_KubeletConfiguration_To_v1alpha1_KubeletConfigu
 		return err
 	}
 	if in.RegisterWithTaints == nil {
-		out.RegisterWithTaints = make([]api_v1.Taint, 0)
+		out.RegisterWithTaints = make([]core_v1.Taint, 0)
 	} else {
-		out.RegisterWithTaints = *(*[]api_v1.Taint)(unsafe.Pointer(&in.RegisterWithTaints))
+		out.RegisterWithTaints = *(*[]core_v1.Taint)(unsafe.Pointer(&in.RegisterWithTaints))
 	}
 	out.ContentType = in.ContentType
 	if err := v1.Convert_int32_To_Pointer_int32(&in.KubeAPIQPS, &out.KubeAPIQPS, s); err != nil {

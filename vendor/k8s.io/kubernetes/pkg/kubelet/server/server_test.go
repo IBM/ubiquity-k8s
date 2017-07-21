@@ -38,6 +38,7 @@ import (
 	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,7 +50,8 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	utiltesting "k8s.io/client-go/util/testing"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
+	// Do some initialization to decode the query parameters correctly.
+	_ "k8s.io/kubernetes/pkg/api/install"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	kubecontainertesting "k8s.io/kubernetes/pkg/kubelet/container/testing"
@@ -106,6 +108,10 @@ func (fk *fakeKubelet) GetRawContainerInfo(containerName string, req *cadvisorap
 
 func (fk *fakeKubelet) GetCachedMachineInfo() (*cadvisorapi.MachineInfo, error) {
 	return fk.machineInfoFunc()
+}
+
+func (_ *fakeKubelet) GetVersionInfo() (*cadvisorapi.VersionInfo, error) {
+	return &cadvisorapi.VersionInfo{}, nil
 }
 
 func (fk *fakeKubelet) GetPods() []*v1.Pod {
@@ -246,21 +252,6 @@ func newServerTest() *serverTestFramework {
 	fw.serverUnderTest = &server
 	fw.testHTTPServer = httptest.NewServer(fw.serverUnderTest)
 	return fw
-}
-
-// encodeJSON returns obj marshalled as a JSON string, panicing on any errors
-func encodeJSON(obj interface{}) string {
-	data, err := json.Marshal(obj)
-	if err != nil {
-		panic(err)
-	}
-	return string(data)
-}
-
-func readResp(resp *http.Response) (string, error) {
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	return string(body), err
 }
 
 // A helper function to return the correct pod name.
@@ -605,7 +596,7 @@ func TestAuthFilters(t *testing.T) {
 
 	// This is a sanity check that the Handle->HandleWithFilter() delegation is working
 	// Ideally, these would move to registered web services and this list would get shorter
-	expectedPaths := []string{"/healthz", "/metrics"}
+	expectedPaths := []string{"/healthz", "/metrics", "/metrics/cadvisor"}
 	paths := sets.NewString(fw.serverUnderTest.restfulCont.RegisteredHandlePaths()...)
 	for _, expectedPath := range expectedPaths {
 		if !paths.Has(expectedPath) {

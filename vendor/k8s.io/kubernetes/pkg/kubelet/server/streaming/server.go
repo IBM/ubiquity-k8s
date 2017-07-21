@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	remotecommandconsts "k8s.io/apimachinery/pkg/util/remotecommand"
 	"k8s.io/client-go/tools/remotecommand"
-	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1"
+	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/server/portforward"
 	remotecommandserver "k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
 )
@@ -101,7 +101,7 @@ var DefaultConfig = Config{
 	SupportedPortForwardProtocols:   portforward.SupportedProtocols,
 }
 
-// TODO(timstclair): Add auth(n/z) interface & handling.
+// TODO(tallclair): Add auth(n/z) interface & handling.
 func NewServer(config Config, runtime Runtime) (Server, error) {
 	s := &server{
 		config:  config,
@@ -193,7 +193,7 @@ func (s *server) GetPortForward(req *runtimeapi.PortForwardRequest) (*runtimeapi
 
 func (s *server) Start(stayUp bool) error {
 	if !stayUp {
-		// TODO(timstclair): Implement this.
+		// TODO(tallclair): Implement this.
 		return errors.New("stayUp=false is not yet implemented")
 	}
 
@@ -210,7 +210,7 @@ func (s *server) Start(stayUp bool) error {
 }
 
 func (s *server) Stop() error {
-	// TODO(timstclair): Implement this.
+	// TODO(tallclair): Implement this.
 	return errors.New("not yet implemented")
 }
 

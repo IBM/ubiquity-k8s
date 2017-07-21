@@ -22,20 +22,22 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 
+	clientv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/api"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	fakecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/fake"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/node/testutil"
+	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
+	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm"
 )
 
 // This test checks that the node is deleted when kubelet stops reporting
@@ -108,7 +110,7 @@ func TestNodeDeleted(t *testing.T) {
 		nodeInformer:              factory.Core().V1().Nodes(),
 		cloud:                     &fakecloud.FakeCloud{Err: cloudprovider.InstanceNotFound},
 		nodeMonitorPeriod:         1 * time.Second,
-		recorder:                  eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:                  eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 		nodeStatusUpdateFrequency: 1 * time.Second,
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -147,7 +149,7 @@ func TestNodeInitialized(t *testing.T) {
 				Spec: v1.NodeSpec{
 					Taints: []v1.Taint{
 						{
-							Key:    metav1.TaintExternalCloudProvider,
+							Key:    algorithm.TaintExternalCloudProvider,
 							Value:  "true",
 							Effect: v1.TaintEffectNoSchedule,
 						},
@@ -188,7 +190,7 @@ func TestNodeInitialized(t *testing.T) {
 		nodeInformer:              factory.Core().V1().Nodes(),
 		cloud:                     fakeCloud,
 		nodeMonitorPeriod:         1 * time.Second,
-		recorder:                  eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:                  eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 		nodeStatusUpdateFrequency: 1 * time.Second,
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
@@ -259,7 +261,7 @@ func TestNodeIgnored(t *testing.T) {
 		nodeInformer:      factory.Core().V1().Nodes(),
 		cloud:             fakeCloud,
 		nodeMonitorPeriod: 5 * time.Second,
-		recorder:          eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
 
@@ -294,7 +296,7 @@ func TestGCECondition(t *testing.T) {
 				Spec: v1.NodeSpec{
 					Taints: []v1.Taint{
 						{
-							Key:    metav1.TaintExternalCloudProvider,
+							Key:    algorithm.TaintExternalCloudProvider,
 							Value:  "true",
 							Effect: v1.TaintEffectNoSchedule,
 						},
@@ -336,7 +338,7 @@ func TestGCECondition(t *testing.T) {
 		nodeInformer:      factory.Core().V1().Nodes(),
 		cloud:             fakeCloud,
 		nodeMonitorPeriod: 1 * time.Second,
-		recorder:          eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
 
@@ -386,7 +388,7 @@ func TestZoneInitialized(t *testing.T) {
 				Spec: v1.NodeSpec{
 					Taints: []v1.Taint{
 						{
-							Key:    metav1.TaintExternalCloudProvider,
+							Key:    algorithm.TaintExternalCloudProvider,
 							Value:  "true",
 							Effect: v1.TaintEffectNoSchedule,
 						},
@@ -432,7 +434,7 @@ func TestZoneInitialized(t *testing.T) {
 		nodeInformer:      factory.Core().V1().Nodes(),
 		cloud:             fakeCloud,
 		nodeMonitorPeriod: 5 * time.Second,
-		recorder:          eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
 
@@ -446,11 +448,11 @@ func TestZoneInitialized(t *testing.T) {
 		t.Errorf("Node label for Region and Zone were not set")
 	}
 
-	if fnh.UpdatedNodes[0].ObjectMeta.Labels[metav1.LabelZoneRegion] != "us-west" {
+	if fnh.UpdatedNodes[0].ObjectMeta.Labels[kubeletapis.LabelZoneRegion] != "us-west" {
 		t.Errorf("Node Region not correctly updated")
 	}
 
-	if fnh.UpdatedNodes[0].ObjectMeta.Labels[metav1.LabelZoneFailureDomain] != "us-west-1a" {
+	if fnh.UpdatedNodes[0].ObjectMeta.Labels[kubeletapis.LabelZoneFailureDomain] != "us-west-1a" {
 		t.Errorf("Node FailureDomain not correctly updated")
 	}
 }
@@ -484,7 +486,7 @@ func TestNodeAddresses(t *testing.T) {
 							Effect: v1.TaintEffectNoSchedule,
 						},
 						{
-							Key:    metav1.TaintExternalCloudProvider,
+							Key:    algorithm.TaintExternalCloudProvider,
 							Value:  "true",
 							Effect: v1.TaintEffectNoSchedule,
 						},
@@ -529,7 +531,7 @@ func TestNodeAddresses(t *testing.T) {
 		cloud:                     fakeCloud,
 		nodeMonitorPeriod:         5 * time.Second,
 		nodeStatusUpdateFrequency: 1 * time.Second,
-		recorder:                  eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:                  eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
 
@@ -576,7 +578,7 @@ func TestNodeProvidedIPAddresses(t *testing.T) {
 					CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 					Labels:            map[string]string{},
 					Annotations: map[string]string{
-						metav1.AnnotationProvidedIPAddr: "10.0.0.1",
+						kubeletapis.AnnotationProvidedIPAddr: "10.0.0.1",
 					},
 				},
 				Status: v1.NodeStatus{
@@ -603,7 +605,7 @@ func TestNodeProvidedIPAddresses(t *testing.T) {
 							Effect: v1.TaintEffectNoSchedule,
 						},
 						{
-							Key:    metav1.TaintExternalCloudProvider,
+							Key:    algorithm.TaintExternalCloudProvider,
 							Value:  "true",
 							Effect: v1.TaintEffectNoSchedule,
 						},
@@ -648,7 +650,7 @@ func TestNodeProvidedIPAddresses(t *testing.T) {
 		cloud:                     fakeCloud,
 		nodeMonitorPeriod:         5 * time.Second,
 		nodeStatusUpdateFrequency: 1 * time.Second,
-		recorder:                  eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
+		recorder:                  eventBroadcaster.NewRecorder(scheme.Scheme, clientv1.EventSource{Component: "cloud-controller-manager"}),
 	}
 	eventBroadcaster.StartLogging(glog.Infof)
 

@@ -45,19 +45,6 @@ func (kl *Kubelet) GetContainerInfo(podFullName string, podUID types.UID, contai
 	return &ci, nil
 }
 
-// HasDedicatedImageFs returns true if the imagefs has a dedicated device.
-func (kl *Kubelet) HasDedicatedImageFs() (bool, error) {
-	imageFsInfo, err := kl.ImagesFsInfo()
-	if err != nil {
-		return false, err
-	}
-	rootFsInfo, err := kl.RootFsInfo()
-	if err != nil {
-		return false, err
-	}
-	return imageFsInfo.Device != rootFsInfo.Device, nil
-}
-
 // GetContainerInfoV2 returns stats (from Cadvisor) for containers.
 func (kl *Kubelet) GetContainerInfoV2(name string, options cadvisorapiv2.RequestOptions) (map[string]cadvisorapiv2.ContainerInfo, error) {
 	return kl.cadvisor.ContainerInfoV2(name, options)
@@ -74,19 +61,24 @@ func (kl *Kubelet) RootFsInfo() (cadvisorapiv2.FsInfo, error) {
 	return kl.cadvisor.RootFsInfo()
 }
 
-// Returns stats (from Cadvisor) for a non-Kubernetes container.
+// GetRawContainerInfo returns stats (from Cadvisor) for a non-Kubernetes container.
 func (kl *Kubelet) GetRawContainerInfo(containerName string, req *cadvisorapi.ContainerInfoRequest, subcontainers bool) (map[string]*cadvisorapi.ContainerInfo, error) {
 	if subcontainers {
 		return kl.cadvisor.SubcontainerInfo(containerName, req)
-	} else {
-		containerInfo, err := kl.cadvisor.ContainerInfo(containerName, req)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]*cadvisorapi.ContainerInfo{
-			containerInfo.Name: containerInfo,
-		}, nil
 	}
+
+	containerInfo, err := kl.cadvisor.ContainerInfo(containerName, req)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]*cadvisorapi.ContainerInfo{
+		containerInfo.Name: containerInfo,
+	}, nil
+}
+
+// GetVersionInfo returns information about the version of cAdvisor in use.
+func (kl *Kubelet) GetVersionInfo() (*cadvisorapi.VersionInfo, error) {
+	return kl.cadvisor.VersionInfo()
 }
 
 // GetCachedMachineInfo assumes that the machine info can't change without a reboot
@@ -99,4 +91,16 @@ func (kl *Kubelet) GetCachedMachineInfo() (*cadvisorapi.MachineInfo, error) {
 		kl.machineInfo = info
 	}
 	return kl.machineInfo, nil
+}
+
+// GetCachedRootFsInfo assumes that the rootfs info can't change without a reboot
+func (kl *Kubelet) GetCachedRootFsInfo() (cadvisorapiv2.FsInfo, error) {
+	if kl.rootfsInfo == nil {
+		info, err := kl.cadvisor.RootFsInfo()
+		if err != nil {
+			return cadvisorapiv2.FsInfo{}, err
+		}
+		kl.rootfsInfo = &info
+	}
+	return *kl.rootfsInfo, nil
 }

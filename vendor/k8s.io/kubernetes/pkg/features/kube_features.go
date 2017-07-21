@@ -28,7 +28,7 @@ const (
 	// // alpha: v1.X
 	// MyFeature utilfeature.Feature = "MyFeature"
 
-	// owner: @timstclair
+	// owner: @tallclair
 	// beta: v1.4
 	AppArmor utilfeature.Feature = "AppArmor"
 
@@ -44,7 +44,7 @@ const (
 	// alpha: v1.4
 	DynamicKubeletConfig utilfeature.Feature = "DynamicKubeletConfig"
 
-	// owner: timstclair
+	// owner: tallclair
 	// alpha: v1.5
 	//
 	// StreamingProxyRedirects controls whether the apiserver should intercept (and follow)
@@ -66,13 +66,6 @@ const (
 	// and also prevents them from being evicted from a node.
 	// Note: This feature is not supported for `BestEffort` pods.
 	ExperimentalCriticalPodAnnotation utilfeature.Feature = "ExperimentalCriticalPodAnnotation"
-
-	// owner: @davidopp
-	// alpha: v1.6
-	//
-	// Determines if affinity defined in annotations should be processed
-	// TODO: remove when alpha support for affinity is removed
-	AffinityInAnnotations utilfeature.Feature = "AffinityInAnnotations"
 
 	// owner: @vishh
 	// alpha: v1.6
@@ -97,6 +90,13 @@ const (
 	// certificate as expiration approaches.
 	RotateKubeletServerCertificate utilfeature.Feature = "RotateKubeletServerCertificate"
 
+	// owner: @jcbsmpsn
+	// alpha: v1.7
+	//
+	// Automatically renews the client certificate used for communicating with
+	// the API server as the certificate approaches expiration.
+	RotateKubeletClientCertificate utilfeature.Feature = "RotateKubeletClientCertificate"
+
 	// owner: @msau
 	// alpha: v1.7
 	//
@@ -108,6 +108,24 @@ const (
 	//
 	// New local storage types to support local storage capacity isolation
 	LocalStorageCapacityIsolation utilfeature.Feature = "LocalStorageCapacityIsolation"
+
+	// owner: @verb
+	// alpha: v1.8
+	//
+	// Allows running a "debug container" in a pod namespaces to troubleshoot a running pod.
+	DebugContainers utilfeature.Feature = "DebugContainers"
+
+	// owner: @bsalamat
+	// alpha: v1.8
+	//
+	// Add priority to pods. Priority affects scheduling and preemption of pods.
+	PodPriority utilfeature.Feature = "PodPriority"
+
+	// owner: @resouer
+	// alpha: v1.8
+	//
+	// Enable equivalence class cache for scheduler.
+	EnableEquivalenceClassCache utilfeature.Feature = "EnableEquivalenceClassCache"
 )
 
 func init() {
@@ -124,12 +142,15 @@ var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureS
 	DynamicVolumeProvisioning:                   {Default: true, PreRelease: utilfeature.Alpha},
 	ExperimentalHostUserNamespaceDefaultingGate: {Default: false, PreRelease: utilfeature.Beta},
 	ExperimentalCriticalPodAnnotation:           {Default: false, PreRelease: utilfeature.Alpha},
-	AffinityInAnnotations:                       {Default: false, PreRelease: utilfeature.Alpha},
 	Accelerators:                                {Default: false, PreRelease: utilfeature.Alpha},
 	TaintBasedEvictions:                         {Default: false, PreRelease: utilfeature.Alpha},
 	RotateKubeletServerCertificate:              {Default: false, PreRelease: utilfeature.Alpha},
+	RotateKubeletClientCertificate:              {Default: false, PreRelease: utilfeature.Alpha},
 	PersistentLocalVolumes:                      {Default: false, PreRelease: utilfeature.Alpha},
 	LocalStorageCapacityIsolation:               {Default: false, PreRelease: utilfeature.Alpha},
+	DebugContainers:                             {Default: false, PreRelease: utilfeature.Alpha},
+	PodPriority:                                 {Default: false, PreRelease: utilfeature.Alpha},
+	EnableEquivalenceClassCache:                 {Default: false, PreRelease: utilfeature.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

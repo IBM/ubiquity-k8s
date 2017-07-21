@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -57,6 +56,7 @@ type ApplyOptions struct {
 	GracePeriod     int
 	PruneResources  []pruneResource
 	Timeout         time.Duration
+	cmdBaseName     string
 }
 
 const (
@@ -66,8 +66,6 @@ const (
 	backOffPeriod = 1 * time.Second
 	// how many times we can retry before back off
 	triesBeforeBackOff = 1
-
-	warningNoLastAppliedConfigAnnotation = "Warning: kubectl apply should be used on resource created by either kubectl create --save-config or kubectl apply\n"
 )
 
 var (
@@ -93,10 +91,16 @@ var (
 
 		# Apply the configuration in manifest.yaml and delete all the other configmaps that are not in the file.
 		kubectl apply --prune -f manifest.yaml --all --prune-whitelist=core/v1/ConfigMap`))
+
+	warningNoLastAppliedConfigAnnotation = "Warning: %[1]s apply should be used on resource created by either %[1]s create --save-config or %[1]s apply\n"
 )
 
-func NewCmdApply(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
+func NewCmdApply(baseName string, f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 	var options ApplyOptions
+
+	// Store baseName for use in printing warnings / messages involving the base command name.
+	// This is useful for downstream command that wrap this one.
+	options.cmdBaseName = baseName
 
 	cmd := &cobra.Command{
 		Use:     "apply -f FILENAME",
@@ -138,7 +142,7 @@ func NewCmdApply(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 
 func validateArgs(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return cmdutil.UsageError(cmd, "Unexpected args: %v", args)
+		return cmdutil.UsageErrorf(cmd, "Unexpected args: %v", args)
 	}
 
 	return nil
@@ -193,7 +197,7 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 		return err
 	}
 
-	mapper, typer, err := f.UnstructuredObject()
+	mapper, _, err := f.UnstructuredObject()
 	if err != nil {
 		return err
 	}
@@ -205,7 +209,12 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 		}
 	}
 
-	r := resource.NewBuilder(mapper, f.CategoryExpander(), typer, resource.ClientMapperFunc(f.UnstructuredClientForMapping), unstructured.UnstructuredJSONScheme).
+	builder, err := f.NewUnstructuredBuilder(true)
+	if err != nil {
+		return err
+	}
+
+	r := builder.
 		Schema(schema).
 		ContinueOnError().
 		NamespaceParam(cmdNamespace).DefaultNamespace().
@@ -240,6 +249,17 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 			visitedNamespaces.Insert(info.Namespace)
 		}
 
+		// Add change-cause annotation to resource info if it should be recorded
+		if cmdutil.ShouldRecord(cmd, info) {
+			recordInObj := info.VersionedObject
+			if info.VersionedObject == nil {
+				recordInObj = info.Object
+			}
+			if err := cmdutil.RecordChangeCause(recordInObj, f.Command(cmd, false)); err != nil {
+				glog.V(4).Infof("error recording current command: %v", err)
+			}
+		}
+
 		// Get the modified configuration of the object. Embed the result
 		// as an annotation in the modified configuration, so that it will appear
 		// in the patch sent to the server.
@@ -256,12 +276,6 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 			// First, update the annotation used by kubectl apply
 			if err := kubectl.CreateApplyAnnotation(info, encoder); err != nil {
 				return cmdutil.AddSourceToErr("creating", info.Source, err)
-			}
-
-			if cmdutil.ShouldRecord(cmd, info) {
-				if err := cmdutil.RecordChangeCause(info.Object, f.Command(cmd, false)); err != nil {
-					return cmdutil.AddSourceToErr("creating", info.Source, err)
-				}
 			}
 
 			if !dryRun {
@@ -290,7 +304,7 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 				return err
 			}
 			if _, ok := annotationMap[api.LastAppliedConfigAnnotation]; !ok {
-				fmt.Fprintf(errOut, warningNoLastAppliedConfigAnnotation)
+				fmt.Fprintf(errOut, warningNoLastAppliedConfigAnnotation, options.cmdBaseName)
 			}
 			overwrite := cmdutil.GetFlagBool(cmd, "overwrite")
 			helper := resource.NewHelper(info.Client, info.Mapping)
@@ -299,6 +313,7 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 				decoder:       decoder,
 				mapping:       info.Mapping,
 				helper:        helper,
+				clientFunc:    f.UnstructuredClientForMapping,
 				clientsetFunc: f.ClientSet,
 				overwrite:     overwrite,
 				backOff:       clockwork.NewRealClock(),
@@ -311,16 +326,6 @@ func RunApply(f cmdutil.Factory, cmd *cobra.Command, out, errOut io.Writer, opti
 			patchBytes, patchedObject, err := patcher.patch(info.Object, modified, info.Source, info.Namespace, info.Name)
 			if err != nil {
 				return cmdutil.AddSourceToErr(fmt.Sprintf("applying patch:\n%s\nto:\n%v\nfor:", patchBytes, info), info.Source, err)
-			}
-
-			if cmdutil.ShouldRecord(cmd, info) {
-				if patch, patchType, err := cmdutil.ChangeResourcePatch(info, f.Command(cmd, true)); err == nil {
-					if recordedObject, err := helper.Patch(info.Namespace, info.Name, patchType, patch); err != nil {
-						glog.V(4).Infof("error recording reason: %v", err)
-					} else {
-						patchedObject = recordedObject
-					}
-				}
 			}
 
 			info.Refresh(patchedObject, true)
@@ -492,7 +497,7 @@ func (p *pruner) prune(namespace string, mapping *meta.RESTMapping, shortOutput 
 			return err
 		}
 		if !p.dryRun {
-			if err := p.delete(namespace, name, mapping, c); err != nil {
+			if err := p.delete(namespace, name, mapping); err != nil {
 				return err
 			}
 		}
@@ -501,7 +506,12 @@ func (p *pruner) prune(namespace string, mapping *meta.RESTMapping, shortOutput 
 	return nil
 }
 
-func (p *pruner) delete(namespace, name string, mapping *meta.RESTMapping, c resource.RESTClient) error {
+func (p *pruner) delete(namespace, name string, mapping *meta.RESTMapping) error {
+	c, err := p.clientFunc(mapping)
+	if err != nil {
+		return err
+	}
+
 	return runDelete(namespace, name, mapping, c, nil, p.cascade, p.gracePeriod, p.clientsetFunc)
 }
 
@@ -534,7 +544,11 @@ func runDelete(namespace, name string, mapping *meta.RESTMapping, c resource.RES
 }
 
 func (p *patcher) delete(namespace, name string) error {
-	return runDelete(namespace, name, p.mapping, nil, p.helper, p.cascade, p.gracePeriod, p.clientsetFunc)
+	c, err := p.clientFunc(p.mapping)
+	if err != nil {
+		return err
+	}
+	return runDelete(namespace, name, p.mapping, c, p.helper, p.cascade, p.gracePeriod, p.clientsetFunc)
 }
 
 type patcher struct {
@@ -543,6 +557,7 @@ type patcher struct {
 
 	mapping       *meta.RESTMapping
 	helper        *resource.Helper
+	clientFunc    resource.ClientMapperFunc
 	clientsetFunc func() (internalclientset.Interface, error)
 
 	overwrite bool

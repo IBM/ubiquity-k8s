@@ -24,24 +24,21 @@ import (
 	"strings"
 	"testing"
 
-	apitesting "k8s.io/apimachinery/pkg/api/testing"
+	"github.com/ghodss/yaml"
+
+	"k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/testing/fuzzer"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
 	kapitesting "k8s.io/kubernetes/pkg/api/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-
-	"github.com/ghodss/yaml"
 )
 
 func readPod(filename string) ([]byte, error) {
 	data, err := ioutil.ReadFile("testdata/" + api.Registry.GroupOrDie(api.GroupName).GroupVersion.Version + "/" + filename)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return data, err
 }
 
 func readSwaggerFile() ([]byte, error) {
@@ -149,7 +146,7 @@ func TestValidateOk(t *testing.T) {
 	}
 
 	seed := rand.Int63()
-	apiObjectFuzzer := apitesting.FuzzerFor(kapitesting.FuzzerFuncs(t, api.Codecs), rand.NewSource(seed))
+	apiObjectFuzzer := fuzzer.FuzzerFor(kapitesting.FuzzerFuncs, rand.NewSource(seed), api.Codecs)
 	for i := 0; i < 5; i++ {
 		for _, test := range tests {
 			testObj := test.obj

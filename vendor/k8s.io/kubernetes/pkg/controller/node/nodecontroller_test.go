@@ -22,25 +22,26 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	coreinformers "k8s.io/client-go/informers/core/v1"
+	extensionsinformers "k8s.io/client-go/informers/extensions/v1beta1"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	testcore "k8s.io/client-go/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
-	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
-	coreinformers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions/core/v1"
-	extensionsinformers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	fakecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/fake"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/node/testutil"
+	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
 	"k8s.io/kubernetes/pkg/util/node"
 )
 
@@ -50,7 +51,7 @@ const (
 	testNodeMonitorPeriod      = 5 * time.Second
 	testRateLimiterQPS         = float32(10000)
 	testLargeClusterThreshold  = 20
-	testUnhealtyThreshold      = float32(0.55)
+	testUnhealthyThreshold     = float32(0.55)
 )
 
 func alwaysReady() bool { return true }
@@ -132,6 +133,10 @@ func syncNodeStore(nc *nodeController, fakeNodeHandler *testutil.FakeNodeHandler
 func TestMonitorNodeStatusEvictPods(t *testing.T) {
 	fakeNow := metav1.Date(2015, 1, 1, 12, 0, 0, 0, time.UTC)
 	evictionTimeout := 10 * time.Minute
+	labels := map[string]string{
+		kubeletapis.LabelZoneRegion:        "region1",
+		kubeletapis.LabelZoneFailureDomain: "zone1",
+	}
 
 	// Because of the logic that prevents NC from evicting anything when all Nodes are NotReady
 	// we need second healthy node in tests. Because of how the tests are written we need to update
@@ -166,8 +171,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: fakeNow,
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 					},
@@ -176,8 +181,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -201,6 +206,42 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 			expectedEvictPods:   false,
 			description:         "Node created recently, with no status.",
 		},
+		// Node created recently without FailureDomain labels which is added back later, with no status (happens only at cluster startup).
+		{
+			fakeNodeHandler: &testutil.FakeNodeHandler{
+				Existing: []*v1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "node0",
+							CreationTimestamp: fakeNow,
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:              "node1",
+							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
+						},
+						Status: v1.NodeStatus{
+							Conditions: []v1.NodeCondition{
+								{
+									Type:               v1.NodeReady,
+									Status:             v1.ConditionTrue,
+									LastHeartbeatTime:  metav1.Date(2015, 1, 1, 12, 0, 0, 0, time.UTC),
+									LastTransitionTime: metav1.Date(2015, 1, 1, 12, 0, 0, 0, time.UTC),
+								},
+							},
+						},
+					},
+				},
+				Clientset: fake.NewSimpleClientset(&v1.PodList{Items: []v1.Pod{*testutil.NewPod("pod0", "node0")}}),
+			},
+			daemonSets:          nil,
+			timeToPass:          0,
+			newNodeStatus:       v1.NodeStatus{},
+			secondNodeNewStatus: healthyNodeNewStatus,
+			expectedEvictPods:   false,
+			description:         "Node created recently without FailureDomain labels which is added back later, with no status (happens only at cluster startup).",
+		},
 		// Node created long time ago, and kubelet posted NotReady for a short period of time.
 		{
 			fakeNodeHandler: &testutil.FakeNodeHandler{
@@ -210,8 +251,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -230,8 +271,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -274,8 +315,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -294,8 +335,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -365,8 +406,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -385,8 +426,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -429,8 +470,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -449,8 +490,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -493,8 +534,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -513,8 +554,8 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -558,7 +599,7 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 			testRateLimiterQPS,
 			testRateLimiterQPS,
 			testLargeClusterThreshold,
-			testUnhealtyThreshold,
+			testUnhealthyThreshold,
 			testNodeMonitorGracePeriod,
 			testNodeStartupGracePeriod,
 			testNodeMonitorPeriod,
@@ -582,6 +623,10 @@ func TestMonitorNodeStatusEvictPods(t *testing.T) {
 			nodeController.now = func() metav1.Time { return metav1.Time{Time: fakeNow.Add(item.timeToPass)} }
 			item.fakeNodeHandler.Existing[0].Status = item.newNodeStatus
 			item.fakeNodeHandler.Existing[1].Status = item.secondNodeNewStatus
+		}
+		if len(item.fakeNodeHandler.Existing[0].Labels) == 0 && len(item.fakeNodeHandler.Existing[1].Labels) == 0 {
+			item.fakeNodeHandler.Existing[0].Labels = labels
+			item.fakeNodeHandler.Existing[1].Labels = labels
 		}
 		if err := syncNodeStore(nodeController, item.fakeNodeHandler); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -654,8 +699,8 @@ func TestPodStatusChange(t *testing.T) {
 							Name:              "node0",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -674,8 +719,8 @@ func TestPodStatusChange(t *testing.T) {
 							Name:              "node1",
 							CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 							Labels: map[string]string{
-								metav1.LabelZoneRegion:        "region1",
-								metav1.LabelZoneFailureDomain: "zone1",
+								kubeletapis.LabelZoneRegion:        "region1",
+								kubeletapis.LabelZoneFailureDomain: "zone1",
 							},
 						},
 						Status: v1.NodeStatus{
@@ -714,7 +759,7 @@ func TestPodStatusChange(t *testing.T) {
 
 	for _, item := range table {
 		nodeController, _ := NewNodeControllerFromClient(nil, item.fakeNodeHandler,
-			evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold, testNodeMonitorGracePeriod,
+			evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold, testNodeMonitorGracePeriod,
 			testNodeStartupGracePeriod, testNodeMonitorPeriod, nil, nil, 0, false, false)
 		nodeController.now = func() metav1.Time { return fakeNow }
 		nodeController.recorder = testutil.NewFakeRecorder()
@@ -810,8 +855,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -830,8 +875,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node1",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -865,8 +910,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -885,8 +930,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node1",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region2",
-							metav1.LabelZoneFailureDomain: "zone2",
+							kubeletapis.LabelZoneRegion:        "region2",
+							kubeletapis.LabelZoneFailureDomain: "zone2",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -927,8 +972,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -947,8 +992,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node1",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone2",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone2",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -988,8 +1033,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1008,8 +1053,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node-master",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1047,8 +1092,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1067,8 +1112,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node1",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone2",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone2",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1109,8 +1154,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node0",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1129,8 +1174,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node1",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1149,8 +1194,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node2",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1169,8 +1214,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node3",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1189,8 +1234,8 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 						Name:              "node4",
 						CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 						Labels: map[string]string{
-							metav1.LabelZoneRegion:        "region1",
-							metav1.LabelZoneFailureDomain: "zone1",
+							kubeletapis.LabelZoneRegion:        "region1",
+							kubeletapis.LabelZoneFailureDomain: "zone1",
 						},
 					},
 					Status: v1.NodeStatus{
@@ -1231,7 +1276,7 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 			Clientset: fake.NewSimpleClientset(&v1.PodList{Items: item.podList}),
 		}
 		nodeController, _ := NewNodeControllerFromClient(nil, fakeNodeHandler,
-			evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold, testNodeMonitorGracePeriod,
+			evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold, testNodeMonitorGracePeriod,
 			testNodeStartupGracePeriod, testNodeMonitorPeriod, nil, nil, 0, false, false)
 		nodeController.now = func() metav1.Time { return fakeNow }
 		nodeController.enterPartialDisruptionFunc = func(nodeNum int) float32 {
@@ -1265,29 +1310,19 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 		if err := nodeController.monitorNodeStatus(); err != nil {
 			t.Errorf("%v: unexpected error: %v", item.description, err)
 		}
-		// Give some time for rate-limiter to reload
-		time.Sleep(500 * time.Millisecond)
-
 		for zone, state := range item.expectedFollowingStates {
 			if state != nodeController.zoneStates[zone] {
 				t.Errorf("%v: Unexpected zone state: %v: %v instead %v", item.description, zone, nodeController.zoneStates[zone], state)
 			}
 		}
-		zones := testutil.GetZones(fakeNodeHandler)
-		for _, zone := range zones {
-			// Time for rate-limiter reloading per node.
-			time.Sleep(50 * time.Millisecond)
-			nodeController.zonePodEvictor[zone].Try(func(value TimedValue) (bool, time.Duration) {
-				uid, _ := value.UID.(string)
-				deletePods(fakeNodeHandler, nodeController.recorder, value.Value, uid, nodeController.daemonSetStore)
-				return true, 0
-			})
-		}
-
-		podEvicted := false
-		for _, action := range fakeNodeHandler.Actions() {
-			if action.GetVerb() == "delete" && action.GetResource().Resource == "pods" {
-				podEvicted = true
+		var podEvicted bool
+		start := time.Now()
+		// Infinite loop, used for retrying in case ratelimiter fails to reload for Try function.
+		// this breaks when we have the status that we need for test case or when we don't see the
+		// intended result after 1 minute.
+		for {
+			podEvicted = nodeController.doEviction(fakeNodeHandler)
+			if podEvicted == item.expectedEvictPods || time.Since(start) > 1*time.Minute {
 				break
 			}
 		}
@@ -1296,6 +1331,27 @@ func TestMonitorNodeStatusEvictPodsWithDisruption(t *testing.T) {
 			t.Errorf("%v: expected pod eviction: %+v, got %+v", item.description, item.expectedEvictPods, podEvicted)
 		}
 	}
+}
+
+// doEviction does the fake eviction and returns the status of eviction operation.
+func (nc *nodeController) doEviction(fakeNodeHandler *testutil.FakeNodeHandler) bool {
+	var podEvicted bool
+	zones := testutil.GetZones(fakeNodeHandler)
+	for _, zone := range zones {
+		nc.zonePodEvictor[zone].Try(func(value TimedValue) (bool, time.Duration) {
+			uid, _ := value.UID.(string)
+			deletePods(fakeNodeHandler, nc.recorder, value.Value, uid, nc.daemonSetStore)
+			return true, 0
+		})
+	}
+
+	for _, action := range fakeNodeHandler.Actions() {
+		if action.GetVerb() == "delete" && action.GetResource().Resource == "pods" {
+			podEvicted = true
+			return podEvicted
+		}
+	}
+	return podEvicted
 }
 
 // TestCloudProviderNoRateLimit tests that monitorNodes() immediately deletes
@@ -1325,7 +1381,7 @@ func TestCloudProviderNoRateLimit(t *testing.T) {
 		DeleteWaitChan: make(chan struct{}),
 	}
 	nodeController, _ := NewNodeControllerFromClient(nil, fnh, 10*time.Minute,
-		testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold,
+		testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold,
 		testNodeMonitorGracePeriod, testNodeStartupGracePeriod,
 		testNodeMonitorPeriod, nil, nil, 0, false, false)
 	nodeController.cloud = &fakecloud.FakeCloud{}
@@ -1595,7 +1651,7 @@ func TestMonitorNodeStatusUpdateStatus(t *testing.T) {
 
 	for i, item := range table {
 		nodeController, _ := NewNodeControllerFromClient(nil, item.fakeNodeHandler, 5*time.Minute,
-			testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold,
+			testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold,
 			testNodeMonitorGracePeriod, testNodeStartupGracePeriod, testNodeMonitorPeriod, nil, nil, 0, false, false)
 		nodeController.now = func() metav1.Time { return fakeNow }
 		nodeController.recorder = testutil.NewFakeRecorder()
@@ -1829,7 +1885,7 @@ func TestMonitorNodeStatusMarkPodsNotReady(t *testing.T) {
 
 	for i, item := range table {
 		nodeController, _ := NewNodeControllerFromClient(nil, item.fakeNodeHandler, 5*time.Minute,
-			testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold,
+			testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold,
 			testNodeMonitorGracePeriod, testNodeStartupGracePeriod, testNodeMonitorPeriod, nil, nil, 0, false, false)
 		nodeController.now = func() metav1.Time { return fakeNow }
 		nodeController.recorder = testutil.NewFakeRecorder()
@@ -1873,8 +1929,8 @@ func TestSwapUnreachableNotReadyTaints(t *testing.T) {
 					Name:              "node0",
 					CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 					Labels: map[string]string{
-						metav1.LabelZoneRegion:        "region1",
-						metav1.LabelZoneFailureDomain: "zone1",
+						kubeletapis.LabelZoneRegion:        "region1",
+						kubeletapis.LabelZoneFailureDomain: "zone1",
 					},
 				},
 				Status: v1.NodeStatus{
@@ -1896,8 +1952,8 @@ func TestSwapUnreachableNotReadyTaints(t *testing.T) {
 					Name:              "node1",
 					CreationTimestamp: metav1.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC),
 					Labels: map[string]string{
-						metav1.LabelZoneRegion:        "region1",
-						metav1.LabelZoneFailureDomain: "zone1",
+						kubeletapis.LabelZoneRegion:        "region1",
+						kubeletapis.LabelZoneFailureDomain: "zone1",
 					},
 				},
 				Status: v1.NodeStatus{
@@ -1940,7 +1996,7 @@ func TestSwapUnreachableNotReadyTaints(t *testing.T) {
 	updatedTaint := NotReadyTaintTemplate
 
 	nodeController, _ := NewNodeControllerFromClient(nil, fakeNodeHandler,
-		evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold, testNodeMonitorGracePeriod,
+		evictionTimeout, testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold, testNodeMonitorGracePeriod,
 		testNodeStartupGracePeriod, testNodeMonitorPeriod, nil, nil, 0, false, true)
 	nodeController.now = func() metav1.Time { return fakeNow }
 	nodeController.recorder = testutil.NewFakeRecorder()
@@ -2031,7 +2087,7 @@ func TestNodeEventGeneration(t *testing.T) {
 	}
 
 	nodeController, _ := NewNodeControllerFromClient(nil, fakeNodeHandler, 5*time.Minute,
-		testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealtyThreshold,
+		testRateLimiterQPS, testRateLimiterQPS, testLargeClusterThreshold, testUnhealthyThreshold,
 		testNodeMonitorGracePeriod, testNodeStartupGracePeriod,
 		testNodeMonitorPeriod, nil, nil, 0, false, false)
 	nodeController.cloud = &fakecloud.FakeCloud{}

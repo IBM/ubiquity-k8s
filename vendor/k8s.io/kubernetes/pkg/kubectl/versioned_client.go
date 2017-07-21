@@ -17,9 +17,10 @@ limitations under the License.
 package kubectl
 
 import (
-	externalclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
-	core "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
-	extensions "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/extensions/v1beta1"
+	externalclientset "k8s.io/client-go/kubernetes"
+	apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
+	core "k8s.io/client-go/kubernetes/typed/core/v1"
+	extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	internalclientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 )
 
@@ -29,6 +30,16 @@ func versionedClientsetForDeployment(internalClient internalclientset.Interface)
 	}
 	return &externalclientset.Clientset{
 		CoreV1Client:            core.New(internalClient.Core().RESTClient()),
+		ExtensionsV1beta1Client: extensions.New(internalClient.Extensions().RESTClient()),
+	}
+}
+
+func versionedClientsetForDaemonSet(internalClient internalclientset.Interface) externalclientset.Interface {
+	if internalClient == nil {
+		return &externalclientset.Clientset{}
+	}
+	return &externalclientset.Clientset{
+		AppsV1beta1Client:       apps.New(internalClient.Apps().RESTClient()),
 		ExtensionsV1beta1Client: extensions.New(internalClient.Extensions().RESTClient()),
 	}
 }

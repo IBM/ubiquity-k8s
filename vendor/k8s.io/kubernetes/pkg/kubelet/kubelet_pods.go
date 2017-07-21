@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,7 +43,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/v1"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/api/v1/helper/qos"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -58,9 +58,10 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/status"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
-	"k8s.io/kubernetes/pkg/util"
+	utilfile "k8s.io/kubernetes/pkg/util/file"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
+	volumevalidation "k8s.io/kubernetes/pkg/volume/validation"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 )
 
@@ -138,6 +139,15 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 			return nil, err
 		}
 		if mount.SubPath != "" {
+			if filepath.IsAbs(mount.SubPath) {
+				return nil, fmt.Errorf("error SubPath `%s` must not be an absolute path", mount.SubPath)
+			}
+
+			err = volumevalidation.ValidatePathNoBacksteps(mount.SubPath)
+			if err != nil {
+				return nil, fmt.Errorf("unable to provision SubPath `%s`: %v", mount.SubPath, err)
+			}
+
 			fileinfo, err := os.Lstat(hostPath)
 			if err != nil {
 				return nil, err
@@ -146,7 +156,7 @@ func makeMounts(pod *v1.Pod, podDir string, container *v1.Container, hostName, h
 
 			hostPath = filepath.Join(hostPath, mount.SubPath)
 
-			if subPathExists, err := util.FileExists(hostPath); err != nil {
+			if subPathExists, err := utilfile.FileOrSymlinkExists(hostPath); err != nil {
 				glog.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", hostPath)
 			} else if !subPathExists {
 				// Create the sub path now because if it's auto-created later when referenced, it may have an
@@ -371,7 +381,7 @@ func (kl *Kubelet) getServiceEnvVarMap(ns string) (map[string]string, error) {
 	}
 	services, err := kl.serviceLister.List(labels.Everything())
 	if err != nil {
-		return m, fmt.Errorf("failed to list services when setting up env vars.")
+		return m, fmt.Errorf("failed to list services when setting up env vars")
 	}
 
 	// project the services in namespace ns onto the master services
@@ -536,7 +546,7 @@ func (kl *Kubelet) makeEnvironmentVariables(pod *v1.Pod, container *v1.Container
 					return result, err
 				}
 			case envVar.ValueFrom.ResourceFieldRef != nil:
-				defaultedPod, defaultedContainer, err := kl.defaultPodLimitsForDownwardApi(pod, container)
+				defaultedPod, defaultedContainer, err := kl.defaultPodLimitsForDownwardAPI(pod, container)
 				if err != nil {
 					return result, err
 				}
@@ -659,9 +669,8 @@ func containerResourceRuntimeValue(fs *v1.ResourceFieldSelector, pod *v1.Pod, co
 	containerName := fs.ContainerName
 	if len(containerName) == 0 {
 		return resource.ExtractContainerResourceValue(fs, container)
-	} else {
-		return resource.ExtractResourceValueByContainerName(fs, pod, containerName)
 	}
+	return resource.ExtractResourceValueByContainerName(fs, pod, containerName)
 }
 
 // One of the following arguments must be non-nil: runningPod, status.
@@ -719,9 +728,8 @@ func (kl *Kubelet) getPullSecretsForPod(pod *v1.Pod) []v1.Secret {
 	return pullSecrets
 }
 
-// Returns true if pod is in the terminated state ("Failed" or "Succeeded").
+// podIsTerminated returns true if pod is in the terminated state ("Failed" or "Succeeded").
 func (kl *Kubelet) podIsTerminated(pod *v1.Pod) bool {
-	var status v1.PodStatus
 	// Check the cached pod status which was set after the last sync.
 	status, ok := kl.statusManager.GetPodStatus(pod.UID)
 	if !ok {
@@ -883,12 +891,6 @@ func (kl *Kubelet) HandlePodCleanups() error {
 	// Remove any orphaned mirror pods.
 	kl.podManager.DeleteOrphanedMirrorPods()
 
-	// Clear out any old bandwidth rules
-	err = kl.cleanupBandwidthLimits(allPods)
-	if err != nil {
-		glog.Errorf("Failed cleaning up bandwidth limits: %v", err)
-	}
-
 	// Remove any cgroups in the hierarchy for pods that are no longer running.
 	if kl.cgroupsPerQOS {
 		kl.cleanupOrphanedPodCgroups(cgroupPods, activePods)
@@ -937,7 +939,7 @@ func (kl *Kubelet) podKiller() {
 	}
 }
 
-// checkHostPortConflicts detects pods with conflicted host ports.
+// hasHostPortConflicts detects pods with conflicted host ports.
 func hasHostPortConflicts(pods []*v1.Pod) bool {
 	ports := sets.String{}
 	for _, pod := range pods {
@@ -1350,7 +1352,7 @@ func (kl *Kubelet) convertToAPIContainerStatuses(pod *v1.Pod, podStatus *kubecon
 			continue
 		}
 		status := statuses[container.Name]
-		reason, message, ok := kl.reasonCache.Get(pod.UID, container.Name)
+		reason, ok := kl.reasonCache.Get(pod.UID, container.Name)
 		if !ok {
 			// In fact, we could also apply Waiting state here, but it is less informative,
 			// and the container will be restarted soon, so we prefer the original state here.
@@ -1365,8 +1367,8 @@ func (kl *Kubelet) convertToAPIContainerStatuses(pod *v1.Pod, podStatus *kubecon
 		}
 		status.State = v1.ContainerState{
 			Waiting: &v1.ContainerStateWaiting{
-				Reason:  reason.Error(),
-				Message: message,
+				Reason:  reason.Err.Error(),
+				Message: reason.Message,
 			},
 		}
 		statuses[container.Name] = status
@@ -1387,7 +1389,7 @@ func (kl *Kubelet) convertToAPIContainerStatuses(pod *v1.Pod, podStatus *kubecon
 	return containerStatuses
 }
 
-// Returns logs of current machine.
+// ServeLogs returns logs of current machine.
 func (kl *Kubelet) ServeLogs(w http.ResponseWriter, req *http.Request) {
 	// TODO: whitelist logs we are willing to serve
 	kl.logServer.ServeHTTP(w, req)
@@ -1405,7 +1407,7 @@ func (kl *Kubelet) findContainer(podFullName string, podUID types.UID, container
 	return pod.FindContainerByName(containerName), nil
 }
 
-// Run a command in a container, returns the combined stdout, stderr as an array of bytes
+// RunInContainer runs a command in a container, returns the combined stdout, stderr as an array of bytes
 func (kl *Kubelet) RunInContainer(podFullName string, podUID types.UID, containerName string, cmd []string) ([]byte, error) {
 	container, err := kl.findContainer(podFullName, podUID, containerName)
 	if err != nil {
@@ -1414,7 +1416,7 @@ func (kl *Kubelet) RunInContainer(podFullName string, podUID types.UID, containe
 	if container == nil {
 		return nil, fmt.Errorf("container not found (%q)", containerName)
 	}
-	// TODO(timstclair): Pass a proper timeout value.
+	// TODO(tallclair): Pass a proper timeout value.
 	return kl.runner.RunInContainer(container.ID, cmd, 0)
 }
 
@@ -1650,7 +1652,7 @@ func (kl *Kubelet) hasHostMountPVC(pod *v1.Pod) bool {
 			if pvc != nil {
 				referencedVolume, err := kl.kubeClient.Core().PersistentVolumes().Get(pvc.Spec.VolumeName, metav1.GetOptions{})
 				if err != nil {
-					glog.Warningf("unable to retrieve pvc %s - %v", pvc.Spec.VolumeName, err)
+					glog.Warningf("unable to retrieve pv %s - %v", pvc.Spec.VolumeName, err)
 					continue
 				}
 				if referencedVolume != nil && referencedVolume.Spec.HostPath != nil {

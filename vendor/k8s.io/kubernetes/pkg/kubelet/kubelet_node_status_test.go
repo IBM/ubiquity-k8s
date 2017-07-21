@@ -30,6 +30,7 @@ import (
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	cadvisorapiv2 "github.com/google/cadvisor/info/v2"
+	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -40,9 +41,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
-	"k8s.io/kubernetes/pkg/api/v1"
-	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/util/sliceutils"
@@ -115,10 +115,15 @@ func applyNodeStatusPatch(originalNode *v1.Node, patch []byte) (*v1.Node, error)
 type localCM struct {
 	cm.ContainerManager
 	allocatable v1.ResourceList
+	capacity    v1.ResourceList
 }
 
 func (lcm *localCM) GetNodeAllocatableReservation() v1.ResourceList {
 	return lcm.allocatable
+}
+
+func (lcm *localCM) GetCapacity() v1.ResourceList {
+	return lcm.capacity
 }
 
 func TestUpdateNewNodeStatus(t *testing.T) {
@@ -133,6 +138,10 @@ func TestUpdateNewNodeStatus(t *testing.T) {
 		allocatable: v1.ResourceList{
 			v1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(100E6, resource.BinarySI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(10E9, resource.BinarySI),
 		},
 	}
 	kubeClient := testKubelet.fakeKubeClient
@@ -251,6 +260,18 @@ func TestUpdateNewNodeOutOfDiskStatusWithTransitionFrequency(t *testing.T) {
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
 	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
+	kubelet.containerManager = &localCM{
+		ContainerManager: cm.NewStubContainerManager(),
+		allocatable: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(100E6, resource.BinarySI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(20E9, resource.BinarySI),
+		},
+	}
+
 	kubeClient := testKubelet.fakeKubeClient
 	existingNode := v1.Node{ObjectMeta: metav1.ObjectMeta{Name: testKubeletHostname}}
 	kubeClient.ReactionChain = fake.NewSimpleClientset(&v1.NodeList{Items: []v1.Node{existingNode}}).ReactionChain
@@ -318,6 +339,10 @@ func TestUpdateExistingNodeStatus(t *testing.T) {
 		allocatable: v1.ResourceList{
 			v1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(100E6, resource.BinarySI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(20E9, resource.BinarySI),
 		},
 	}
 
@@ -503,6 +528,18 @@ func TestUpdateExistingNodeOutOfDiskStatusWithTransitionFrequency(t *testing.T) 
 	testKubelet := newTestKubelet(t, false /* controllerAttachDetachEnabled */)
 	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
+	kubelet.containerManager = &localCM{
+		ContainerManager: cm.NewStubContainerManager(),
+		allocatable: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(100E6, resource.BinarySI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(20E9, resource.BinarySI),
+		},
+	}
+
 	clock := testKubelet.fakeClock
 	// Do not set nano second, because apiserver function doesn't support nano second. (Only support
 	// RFC3339).
@@ -657,6 +694,10 @@ func TestUpdateNodeStatusWithRuntimeStateError(t *testing.T) {
 		allocatable: v1.ResourceList{
 			v1.ResourceCPU:    *resource.NewMilliQuantity(200, resource.DecimalSI),
 			v1.ResourceMemory: *resource.NewQuantity(100E6, resource.BinarySI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(10E9, resource.BinarySI),
 		},
 	}
 
@@ -913,7 +954,7 @@ func TestRegisterWithApiServer(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		kubelet.registerWithApiServer()
+		kubelet.registerWithAPIServer()
 		done <- struct{}{}
 	}()
 	select {
@@ -1072,7 +1113,7 @@ func TestTryRegisterWithApiServer(t *testing.T) {
 			return notImplemented(action)
 		})
 
-		result := kubelet.tryRegisterWithApiServer(tc.newNode)
+		result := kubelet.tryRegisterWithAPIServer(tc.newNode)
 		require.Equal(t, tc.expectedResult, result, "test [%s]", tc.name)
 
 		actions := kubeClient.Actions()
@@ -1112,6 +1153,10 @@ func TestUpdateNewNodeStatusTooLargeReservation(t *testing.T) {
 		ContainerManager: cm.NewStubContainerManager(),
 		allocatable: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewMilliQuantity(40000, resource.DecimalSI),
+		},
+		capacity: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(2000, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(10E9, resource.BinarySI),
 		},
 	}
 	kubeClient := testKubelet.fakeKubeClient

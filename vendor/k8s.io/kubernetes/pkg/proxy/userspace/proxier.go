@@ -36,8 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilproxy "k8s.io/kubernetes/pkg/proxy/util"
-	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/iptables"
+	utilexec "k8s.io/utils/exec"
 )
 
 type portal struct {
@@ -166,9 +166,15 @@ func NewCustomProxier(loadBalancer LoadBalancer, listenIP net.IP, iptables iptab
 		return nil, ErrProxyOnLocalhost
 	}
 
-	hostIP, err := utilnet.ChooseHostInterface()
-	if err != nil {
-		return nil, fmt.Errorf("failed to select a host interface: %v", err)
+	// If listenIP is given, assume that is the intended host IP.  Otherwise
+	// try to find a suitable host IP address from network interfaces.
+	var err error
+	hostIP := listenIP
+	if hostIP.Equal(net.IPv4zero) {
+		hostIP, err = utilnet.ChooseHostInterface()
+		if err != nil {
+			return nil, fmt.Errorf("failed to select a host interface: %v", err)
+		}
 	}
 
 	err = setRLimit(64 * 1000)
