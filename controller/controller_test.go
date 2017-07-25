@@ -31,15 +31,16 @@ import (
 var _ = Describe("Controller", func() {
 	Context(".Init", func() {
 		var (
-			fakeClient *fakes.FakeStorageClient
-			controller *ctl.Controller
-
+			fakeClient     *fakes.FakeStorageClient
+			controller     *ctl.Controller
+			fakeExec       *fakes.FakeExecutor
 			ubiquityConfig resources.UbiquityPluginConfig
 		)
 		BeforeEach(func() {
+			fakeExec = new(fakes.FakeExecutor)
 			ubiquityConfig = resources.UbiquityPluginConfig{}
 			fakeClient = new(fakes.FakeStorageClient)
-			controller = ctl.NewControllerWithClient(testLogger, fakeClient)
+			controller = ctl.NewControllerWithClient(testLogger, fakeClient, fakeExec)
 		})
 		It("does not error when init is successful", func() {
 			initResponse := controller.Init(ubiquityConfig)
@@ -120,7 +121,7 @@ var _ = Describe("Controller", func() {
 				mountRequest := resources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Failure"))
-				Expect(mountResponse.Message).To(Equal(fmt.Sprintf("Failed to mount volume %#v", err)))
+				Expect(mountResponse.Message).To(MatchRegexp(err.Error()))
 				Expect(mountResponse.Device).To(Equal(""))
 				Expect(fakeClient.AttachCallCount()).To(Equal(1))
 			})
@@ -128,6 +129,7 @@ var _ = Describe("Controller", func() {
 		Context(".Unmount", func() {
 			var volumes []resources.Volume
 			It("succeeds when volume exists and is currently mounted", func() {
+				fakeExec.EvalSymlinksReturns("/path/gpfs/fs/mountpoint", nil)
 				fakeClient.DetachReturns(nil)
 				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
 				volumes = []resources.Volume{volume}
@@ -147,7 +149,7 @@ var _ = Describe("Controller", func() {
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
-				Expect(unmountResponse.Message).To(Equal(fmt.Sprintf("Error finding the volume %#v", err)))
+				Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
 				Expect(unmountResponse.Device).To(Equal(""))
 				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
 				Expect(fakeClient.DetachCallCount()).To(Equal(0))
@@ -159,7 +161,7 @@ var _ = Describe("Controller", func() {
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
-				Expect(unmountResponse.Message).To(Equal("Error finding the volume &errors.errorString{s:\"Volume not found\"}"))
+				Expect(unmountResponse.Message).To(MatchRegexp("Volume not found"))
 				Expect(unmountResponse.Device).To(Equal(""))
 				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
 				Expect(fakeClient.DetachCallCount()).To(Equal(0))
@@ -174,7 +176,7 @@ var _ = Describe("Controller", func() {
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
-				Expect(unmountResponse.Message).To(Equal(fmt.Sprintf("Failed to unmount volume %#v", err)))
+				Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
 				Expect(unmountResponse.Device).To(Equal(""))
 				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
 				Expect(fakeClient.DetachCallCount()).To(Equal(1))

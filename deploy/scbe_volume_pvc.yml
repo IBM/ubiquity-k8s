@@ -1,7 +1,7 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: "SCBE_acceptance_volume1"
+  name: "scbe-accept-vol1"
   annotations:
     volume.beta.kubernetes.io/storage-class: "gold"
 spec:
