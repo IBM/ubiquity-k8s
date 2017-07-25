@@ -188,7 +188,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	ubiquityParams := make(map[string]interface{})
 	if capacity != 0 {
 		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)    // SSc backend expect quota option
-		ubiquityParams["size"] = fmt.Sprintf("%d", capacity*1024) // SCBE backend expect size option
+		ubiquityParams["size"] = fmt.Sprintf("%d", capacity/1024) // SCBE backend expect size option
 	}
 	for key, value := range options.Parameters {
 		ubiquityParams[key] = value
