@@ -31,10 +31,10 @@ echo "Listing pods"
 kubectl get pods
 
 echo "Writing success.txt to mounted volume"
-kubectl exec write-pod-test -c write-pod touch /mnt/success.txt
+kubectl exec acceptance-pod-test -c write-pod touch /mnt/success.txt
 
 echo "Reading from mounted volume"
-kubectl exec write-pod-test -c write-pod ls /mnt
+kubectl exec acceptance-pod-test -c write-pod ls /mnt
 
 
 echo "Cleaning test environment"

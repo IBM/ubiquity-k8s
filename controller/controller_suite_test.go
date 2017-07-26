@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/IBM/ubiquity/utils/logs"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -32,6 +33,8 @@ var logFile *os.File
 
 func TestController(t *testing.T) {
 	RegisterFailHandler(Fail)
+	defer logs.InitStdoutLogger(logs.DEBUG)()
+
 	RunSpecs(t, "Controller Suite")
 }
 

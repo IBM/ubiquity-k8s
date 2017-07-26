@@ -13,4 +13,4 @@ spec:
   volumes:
     - name: ubiquity-pvc
       persistentVolumeClaim:
-        claimName: SCBE-accept-vol1
+        claimName: scbe-accept-vol1
