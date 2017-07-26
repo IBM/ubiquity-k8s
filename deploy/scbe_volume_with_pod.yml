@@ -4,7 +4,7 @@ metadata:
   name: acceptance-pod-test
 spec:
   containers:
-  - name: write-pod
+  - name: acceptance-pod-test-con
     image: midoblgsm/kubenode
     volumeMounts:
       - name: ubiquity-pvc
