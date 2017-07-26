@@ -232,8 +232,8 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 		c.logger.Println(msg)
 		return resources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
 	}
-
-	if strings.HasPrefix(realMountPoint, "/ubiquity") {
+	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
+	if strings.HasPrefix(realMountPoint, ubiquityMountPrefix) {
 		// SCBE backend flow
 		pvName = path.Base(unmountRequest.MountPath)
 

@@ -182,6 +182,78 @@ var _ = Describe("Controller", func() {
 				Expect(fakeClient.DetachCallCount()).To(Equal(1))
 
 			})
+			It("should fail to umount if mountpoint is not slink", func() {
+				errMsg := fmt.Errorf("not a link")
+				fakeExec.EvalSymlinksReturns("", errMsg)
+
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+			})
+			It("should fail to umount if detach failed", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(errMsg)
+
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+			})
+			It("should fail to umount if detach failed", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(errMsg)
+
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+			})
+
+			It("should fail to umount if fail to remove the slink", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(nil)
+				fakeExec.RemoveReturns(errMsg)
+
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+				Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			})
+			It("should succeed to umount if the scbe umount flow finished ok", func() {
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(nil)
+				fakeExec.RemoveReturns(nil)
+
+				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Success"))
+				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+				Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			})
+
 		})
 	})
 })
