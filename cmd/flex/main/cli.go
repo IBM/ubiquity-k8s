@@ -86,10 +86,10 @@ func (i *InitCommand) Execute(args []string) error {
 }
 
 type GetVolumeNameCommand struct {
-	GetVolumeName func() `short:"gvn" long:"getvolumename" description:"Get Volume Name"`
+	GetVolumeName func() `short:"g" long:"getvolumename" description:"Get Volume Name"`
 }
 
-func (a *GetVolumeNameCommand) Execute(args []string) error {
+func (g *GetVolumeNameCommand) Execute(args []string) error {
 	getVolumeNameRequestOpts := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &getVolumeNameRequestOpts)
 	if err != nil {
