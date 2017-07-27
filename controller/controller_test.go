@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	ctl "github.com/IBM/ubiquity-k8s/controller"
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
 )
@@ -104,7 +105,7 @@ var _ = Describe("Controller", func() {
 		Context(".Mount", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
 				fakeClient.AttachReturns("/tmp/mnt1", nil)
-				mountRequest := resources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Success"))
 				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
@@ -118,7 +119,7 @@ var _ = Describe("Controller", func() {
 			It("errors when volume exists and client fails to mount it", func() {
 				err := fmt.Errorf("failed to mount volume")
 				fakeClient.AttachReturns("", err)
-				mountRequest := resources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Failure"))
 				Expect(mountResponse.Message).To(MatchRegexp(err.Error()))
@@ -134,7 +135,7 @@ var _ = Describe("Controller", func() {
 				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
 				volumes = []resources.Volume{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Success"))
 				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
@@ -145,7 +146,7 @@ var _ = Describe("Controller", func() {
 			It("errors when client fails to get volume related to the mountpoint", func() {
 				err := fmt.Errorf("failed to get fileset")
 				fakeClient.ListVolumesReturns(volumes, err)
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -157,7 +158,7 @@ var _ = Describe("Controller", func() {
 			It("errors when volume does not exist", func() {
 				volumes = []resources.Volume{}
 				fakeClient.ListVolumesReturns(volumes, nil)
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -172,7 +173,7 @@ var _ = Describe("Controller", func() {
 				volumes = []resources.Volume{volume}
 				fakeClient.ListVolumesReturns(volumes, nil)
 				fakeClient.DetachReturns(err)
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -186,7 +187,7 @@ var _ = Describe("Controller", func() {
 				errMsg := fmt.Errorf("not a link")
 				fakeExec.EvalSymlinksReturns("", errMsg)
 
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
 				unmountResponse := controller.Unmount(unmountRequest)
 
 				Expect(unmountResponse.Status).To(Equal("Failure"))
@@ -199,7 +200,7 @@ var _ = Describe("Controller", func() {
 				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
 				fakeClient.DetachReturns(errMsg)
 
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Failure"))
 				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
@@ -213,7 +214,7 @@ var _ = Describe("Controller", func() {
 				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
 				fakeClient.DetachReturns(errMsg)
 
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Failure"))
 				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
@@ -229,7 +230,7 @@ var _ = Describe("Controller", func() {
 				fakeClient.DetachReturns(nil)
 				fakeExec.RemoveReturns(errMsg)
 
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Failure"))
 				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
@@ -244,7 +245,7 @@ var _ = Describe("Controller", func() {
 				fakeClient.DetachReturns(nil)
 				fakeExec.RemoveReturns(nil)
 
-				unmountRequest := resources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
 				unmountResponse := controller.Unmount(unmountRequest)
 				Expect(unmountResponse.Status).To(Equal("Success"))
 				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
