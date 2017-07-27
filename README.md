@@ -9,7 +9,7 @@ The code is provided as is, without warranty. Any issue will be handled on a bes
 
 ## Ubiquity Dynamic Provisioner 
 
-Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent storage in Kubernetes (version 1.5.6) through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
+Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent volumes in Kubernetes (version 1.5.6) through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
   
 ### Installing the Ubiquity Dynamic Provisioner
 Install and configure the Provisioner only on one node in the Kubernetes cluster(minion or master).
@@ -35,19 +35,18 @@ Install and configure the Provisioner only on one node in the Kubernetes cluster
 ### 2. Downloading and installing the Provisioner
 
 * Download and unpack the application package.
-```bash
-mkdir -p /etc/ubiquity
-cd /etc/ubiquity
-curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xf -
-cp provisioner /usr/bin 
-chmod u+x /usr/bin/ubiquity-k8s-provisioner
-#chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
-cp ubiquity-k8s-provisioner.service /usr/lib/systemd/system/ 
-```
-   * To run the Provisioner as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
+     ```bash
+         mkdir -p /etc/ubiquity
+         cd /etc/ubiquity
+         curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xf -
+         cp provisioner /usr/bin 
+         chmod u+x /usr/bin/ubiquity-k8s-provisioner
+         #chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
+         cp ubiquity-k8s-provisioner.service /usr/lib/systemd/system/ 
+     ```
+* To run the Provisioner as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
    
-   * Enable the Provisioner service.
-   
+* Enable the Provisioner service.
 ```bash 
 systemctl enable ubiquity-k8s-provisioner.service      
 ```
@@ -108,13 +107,13 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
 ### 2. Downloading and installing the Ubiquity FlexVolume
 
 * Download and unpack the application package.
-```bash
-mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
-cd $_
-curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
-chmod u+x ubiquity-k8s-flex
-#chown USER:GROUP ubiquity-k8s-flex   ### Run this command only a non-root user.
-```
+     ```bash
+         mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
+         cd $_
+         curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
+         chmod u+x ubiquity-k8s-flex
+         #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only a non-root user.
+     ```
 
 ### 3. Configuring the Ubiquity FlexVolume
 Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-client.conf` file, according to your storage system type.
