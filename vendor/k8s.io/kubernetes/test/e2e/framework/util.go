@@ -72,14 +72,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/testapi"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	nodeutil "k8s.io/kubernetes/pkg/api/v1/node"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	batchinternal "k8s.io/kubernetes/pkg/apis/batch"
 	extensionsinternal "k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/conditions"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/azure"
@@ -90,13 +89,13 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/util/format"
 	"k8s.io/kubernetes/pkg/master/ports"
 	sshutil "k8s.io/kubernetes/pkg/ssh"
+	uexec "k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/system"
 	utilversion "k8s.io/kubernetes/pkg/util/version"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm/predicates"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/schedulercache"
 	"k8s.io/kubernetes/test/e2e/framework/ginkgowrapper"
 	testutil "k8s.io/kubernetes/test/utils"
-	uexec "k8s.io/utils/exec"
 )
 
 const (
@@ -183,12 +182,6 @@ const (
 	ServeHostnameImage = "gcr.io/google_containers/serve_hostname:v1.4"
 	// ssh port
 	sshPort = "22"
-
-	// ImagePrePullingTimeout is the time we wait for the e2e-image-puller
-	// static pods to pull the list of seeded images. If they don't pull
-	// images within this time we simply log their output and carry on
-	// with the tests.
-	ImagePrePullingTimeout = 5 * time.Minute
 )
 
 var (
@@ -2338,7 +2331,7 @@ func isNodeUntainted(node *v1.Node) bool {
 	fakePod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: testapi.Groups[v1.GroupName].GroupVersion().String(),
+			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-not-scheduled",
@@ -2428,53 +2421,24 @@ func WaitForAllNodesSchedulable(c clientset.Interface, timeout time.Duration) er
 	})
 }
 
-func GetPodSecretUpdateTimeout(c clientset.Interface) time.Duration {
-	// With SecretManager(ConfigMapManager), we may have to wait up to full sync period +
-	// TTL of secret(configmap) to elapse before the Kubelet projects the update into the
-	// volume and the container picks it up.
-	// So this timeout is based on default Kubelet sync period (1 minute) + maximum TTL for
-	// secret(configmap) that's based on cluster size + additional time as a fudge factor.
-	secretTTL, err := GetNodeTTLAnnotationValue(c)
-	if err != nil {
-		Logf("Couldn't get node TTL annotation (using default value of 0): %v", err)
-	}
-	podLogTimeout := 240*time.Second + secretTTL
-	return podLogTimeout
-}
-
-func GetNodeTTLAnnotationValue(c clientset.Interface) (time.Duration, error) {
-	nodes, err := c.Core().Nodes().List(metav1.ListOptions{})
-	if err != nil || len(nodes.Items) == 0 {
-		return time.Duration(0), fmt.Errorf("Couldn't list any nodes to get TTL annotation: %v", err)
-	}
-	// Since TTL the kubelet is using is stored in node object, for the timeout
-	// purpose we take it from the first node (all of them should be the same).
-	node := &nodes.Items[0]
+func GetTTLAnnotationFromNode(node *v1.Node) (time.Duration, bool) {
 	if node.Annotations == nil {
-		return time.Duration(0), fmt.Errorf("No annotations found on the node")
+		return time.Duration(0), false
 	}
 	value, ok := node.Annotations[v1.ObjectTTLAnnotationKey]
 	if !ok {
-		return time.Duration(0), fmt.Errorf("No TTL annotation found on the node")
+		return time.Duration(0), false
 	}
 	intValue, err := strconv.Atoi(value)
 	if err != nil {
-		return time.Duration(0), fmt.Errorf("Cannot convert TTL annotation from %#v to int", *node)
+		Logf("Cannot convert TTL annotation from %#v to int", *node)
+		return time.Duration(0), false
 	}
-	return time.Duration(intValue) * time.Second, nil
+	return time.Duration(intValue) * time.Second, true
 }
 
 func AddOrUpdateLabelOnNode(c clientset.Interface, nodeName string, labelKey, labelValue string) {
 	ExpectNoError(testutil.AddLabelsToNode(c, nodeName, map[string]string{labelKey: labelValue}))
-}
-
-func AddOrUpdateLabelOnNodeAndReturnOldValue(c clientset.Interface, nodeName string, labelKey, labelValue string) string {
-	var oldValue string
-	node, err := c.Core().Nodes().Get(nodeName, metav1.GetOptions{})
-	ExpectNoError(err)
-	oldValue = node.Labels[labelKey]
-	ExpectNoError(testutil.AddLabelsToNode(c, nodeName, map[string]string{labelKey: labelValue}))
-	return oldValue
 }
 
 func ExpectNodeHasLabel(c clientset.Interface, nodeName string, labelKey string, labelValue string) {
@@ -4303,24 +4267,17 @@ func CheckConnectivityToHost(f *Framework, nodeName, podName, host string, timeo
 }
 
 // CoreDump SSHs to the master and all nodes and dumps their logs into dir.
-// It shells out to cluster/log-dump/log-dump.sh to accomplish this.
+// It shells out to cluster/log-dump.sh to accomplish this.
 func CoreDump(dir string) {
 	if TestContext.DisableLogDump {
 		Logf("Skipping dumping logs from cluster")
 		return
 	}
-	var cmd *exec.Cmd
-	if TestContext.LogexporterGCSPath != "" {
-		Logf("Dumping logs from nodes to GCS directly at path: %s", TestContext.LogexporterGCSPath)
-		cmd = exec.Command(path.Join(TestContext.RepoRoot, "cluster", "log-dump", "log-dump.sh"), dir, TestContext.LogexporterGCSPath)
-	} else {
-		Logf("Dumping logs locally to: %s", dir)
-		cmd = exec.Command(path.Join(TestContext.RepoRoot, "cluster", "log-dump", "log-dump.sh"), dir)
-	}
+	cmd := exec.Command(path.Join(TestContext.RepoRoot, "cluster", "log-dump.sh"), dir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		Logf("Error running cluster/log-dump/log-dump.sh: %v", err)
+		Logf("Error running cluster/log-dump.sh: %v", err)
 	}
 }
 
@@ -4548,7 +4505,7 @@ func (p *E2ETestNodePreparer) CleanupNodes() error {
 // CleanupGCEResources cleans up GCE Service Type=LoadBalancer resources with
 // the given name. The name is usually the UUID of the Service prefixed with an
 // alpha-numeric character ('a') to work around cloudprovider rules.
-func CleanupGCEResources(c clientset.Interface, loadBalancerName, zone string) (retErr error) {
+func CleanupGCEResources(loadBalancerName, zone string) (retErr error) {
 	gceCloud, err := GetGCECloud()
 	if err != nil {
 		return err
@@ -4579,12 +4536,7 @@ func CleanupGCEResources(c clientset.Interface, loadBalancerName, zone string) (
 	if hc != nil {
 		hcNames = append(hcNames, hc.Name)
 	}
-	clusterID, err := GetClusterID(c)
-	if err != nil {
-		retErr = fmt.Errorf("%v\n%v", retErr, err)
-		return
-	}
-	if err := gceCloud.DeleteExternalTargetPoolAndChecks(loadBalancerName, region, clusterID, hcNames...); err != nil &&
+	if err := gceCloud.DeleteExternalTargetPoolAndChecks(loadBalancerName, region, hcNames...); err != nil &&
 		!IsGoogleAPIHTTPErrorCode(err, http.StatusNotFound) {
 		retErr = fmt.Errorf("%v\n%v", retErr, err)
 	}

@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	versionedfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/federation/apis/federation"
 	fedfake "k8s.io/kubernetes/federation/client/clientset_generated/federation_internalclientset/fake"
 	"k8s.io/kubernetes/pkg/api"
@@ -39,10 +38,11 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/apis/policy"
 	"k8s.io/kubernetes/pkg/apis/storage"
+	versionedfake "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/fake"
 	"k8s.io/kubernetes/pkg/printers"
-	utilpointer "k8s.io/kubernetes/pkg/util/pointer"
+	"k8s.io/kubernetes/pkg/util"
 )
 
 type describeClient struct {
@@ -700,14 +700,6 @@ func TestPersistentVolumeDescriber(t *testing.T) {
 				},
 			},
 		},
-		"fc": {
-			ObjectMeta: metav1.ObjectMeta{Name: "bar"},
-			Spec: api.PersistentVolumeSpec{
-				PersistentVolumeSource: api.PersistentVolumeSource{
-					FC: &api.FCVolumeSource{},
-				},
-			},
-		},
 	}
 
 	for name, pv := range tests {
@@ -731,7 +723,7 @@ func TestDescribeDeployment(t *testing.T) {
 			Namespace: "foo",
 		},
 		Spec: v1beta1.DeploymentSpec{
-			Replicas: utilpointer.Int32Ptr(1),
+			Replicas: util.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{},
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
@@ -1229,7 +1221,7 @@ func TestDescribeEvents(t *testing.T) {
 					Namespace: "foo",
 				},
 				Spec: v1beta1.DeploymentSpec{
-					Replicas: utilpointer.Int32Ptr(1),
+					Replicas: util.Int32Ptr(1),
 					Selector: &metav1.LabelSelector{},
 				},
 			}),
@@ -1498,100 +1490,5 @@ func TestDescribeResourceQuota(t *testing.T) {
 		if !strings.Contains(out, expected) {
 			t.Errorf("expected to find %q in output: %q", expected, out)
 		}
-	}
-}
-
-// boolPtr returns a pointer to a bool
-func boolPtr(b bool) *bool {
-	o := b
-	return &o
-}
-
-func TestControllerRef(t *testing.T) {
-	f := fake.NewSimpleClientset(
-		&api.ReplicationController{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "bar",
-				Namespace: "foo",
-				UID:       "123456",
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind: "ReplicationController",
-			},
-			Spec: api.ReplicationControllerSpec{
-				Replicas: 1,
-				Selector: map[string]string{"abc": "xyz"},
-				Template: &api.PodTemplateSpec{
-					Spec: api.PodSpec{
-						Containers: []api.Container{
-							{Image: "mytest-image:latest"},
-						},
-					},
-				},
-			},
-		},
-		&api.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "barpod",
-				Namespace:       "foo",
-				Labels:          map[string]string{"abc": "xyz"},
-				OwnerReferences: []metav1.OwnerReference{{Name: "bar", UID: "123456", Controller: boolPtr(true)}},
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind: "Pod",
-			},
-			Spec: api.PodSpec{
-				Containers: []api.Container{
-					{Image: "mytest-image:latest"},
-				},
-			},
-			Status: api.PodStatus{
-				Phase: api.PodRunning,
-			},
-		},
-		&api.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "orphan",
-				Namespace: "foo",
-				Labels:    map[string]string{"abc": "xyz"},
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind: "Pod",
-			},
-			Spec: api.PodSpec{
-				Containers: []api.Container{
-					{Image: "mytest-image:latest"},
-				},
-			},
-			Status: api.PodStatus{
-				Phase: api.PodRunning,
-			},
-		},
-		&api.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            "buzpod",
-				Namespace:       "foo",
-				Labels:          map[string]string{"abc": "xyz"},
-				OwnerReferences: []metav1.OwnerReference{{Name: "buz", UID: "654321", Controller: boolPtr(true)}},
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind: "Pod",
-			},
-			Spec: api.PodSpec{
-				Containers: []api.Container{
-					{Image: "mytest-image:latest"},
-				},
-			},
-			Status: api.PodStatus{
-				Phase: api.PodRunning,
-			},
-		})
-	d := ReplicationControllerDescriber{f}
-	out, err := d.Describe("foo", "bar", printers.DescriberSettings{ShowEvents: false})
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if !strings.Contains(out, "1 Running") {
-		t.Errorf("unexpected out: %s", out)
 	}
 }

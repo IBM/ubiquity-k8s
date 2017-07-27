@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	v1qos "k8s.io/kubernetes/pkg/api/v1/helper/qos"
+	corelisters "k8s.io/kubernetes/pkg/client/listers/core/v1"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
 	volumeutil "k8s.io/kubernetes/pkg/volume/util"
@@ -44,7 +44,7 @@ import (
 	"k8s.io/metrics/pkg/client/clientset_generated/clientset"
 )
 
-// PredicateMetadataModifier: Helper types/variables...
+// predicatePrecomputations: Helper types/variables...
 type PredicateMetadataModifier func(pm *predicateMetadata)
 
 var predicatePrecomputeRegisterLock sync.Mutex
@@ -56,7 +56,7 @@ func RegisterPredicatePrecomputation(predicateName string, precomp PredicateMeta
 	predicatePrecomputations[predicateName] = precomp
 }
 
-// NodeInfo: Other types for predicate functions...
+// Other types for predicate functions...
 type NodeInfo interface {
 	GetNodeInfo(nodeID string) (*v1.Node, error)
 }
@@ -377,7 +377,7 @@ type VolumeZoneChecker struct {
 	pvcInfo PersistentVolumeClaimInfo
 }
 
-// NewVolumeZonePredicate evaluates if a pod can fit due to the volumes it requests, given
+// VolumeZonePredicate evaluates if a pod can fit due to the volumes it requests, given
 // that some volumes may have zone scheduling constraints.  The requirement is that any
 // volume zone-labels must match the equivalent zone-labels on the node.  It is OK for
 // the node to have more zone-label constraints (for example, a hypothetical replicated
@@ -474,10 +474,10 @@ func (c *VolumeZoneChecker) predicate(pod *v1.Pod, meta interface{}, nodeInfo *s
 	return true, nil, nil
 }
 
-// GetResourceRequest returns a *schedulercache.Resource that covers the largest
-// width in each resource dimension. Because init-containers run sequentially, we collect
-// the max in each dimension iteratively. In contrast, we sum the resource vectors for
-// regular containers since they run simultaneously.
+// Returns a *schedulercache.Resource that covers the largest width in each
+// resource dimension. Because init-containers run sequentially, we collect the
+// max in each dimension iteratively. In contrast, we sum the resource vectors
+// for regular containers since they run simultaneously.
 //
 // Example:
 //
@@ -499,15 +499,30 @@ func (c *VolumeZoneChecker) predicate(pod *v1.Pod, meta interface{}, nodeInfo *s
 //
 // Result: CPU: 3, Memory: 3G
 func GetResourceRequest(pod *v1.Pod) *schedulercache.Resource {
-	result := &schedulercache.Resource{}
+	result := schedulercache.Resource{}
 	for _, container := range pod.Spec.Containers {
-		result.Add(container.Resources.Requests)
+		for rName, rQuantity := range container.Resources.Requests {
+			switch rName {
+			case v1.ResourceMemory:
+				result.Memory += rQuantity.Value()
+			case v1.ResourceCPU:
+				result.MilliCPU += rQuantity.MilliValue()
+			case v1.ResourceNvidiaGPU:
+				result.NvidiaGPU += rQuantity.Value()
+			case v1.ResourceStorageOverlay:
+				result.StorageOverlay += rQuantity.Value()
+			default:
+				if v1helper.IsOpaqueIntResourceName(rName) {
+					result.AddOpaque(rName, rQuantity.Value())
+				}
+			}
+		}
 	}
-
 	// Account for storage requested by emptydir volumes
 	// If the storage medium is memory, should exclude the size
 	for _, vol := range pod.Spec.Volumes {
 		if vol.EmptyDir != nil && vol.EmptyDir.Medium != v1.StorageMediumMemory {
+
 			result.StorageScratch += vol.EmptyDir.SizeLimit.Value()
 		}
 	}
@@ -542,17 +557,13 @@ func GetResourceRequest(pod *v1.Pod) *schedulercache.Resource {
 			}
 		}
 	}
-
-	return result
+	return &result
 }
 
 func podName(pod *v1.Pod) string {
 	return pod.Namespace + "/" + pod.Name
 }
 
-// PodFitsResources checks if a node has sufficient resources, such as cpu, memory, gpu, opaque int resources etc to run a pod.
-// First return value indicates whether a node has sufficient resources to run a pod while the second return value indicates the
-// predicate failure reasons if the node has insufficient resources to run the pod.
 func PodFitsResources(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	node := nodeInfo.Node()
 	if node == nil {
@@ -682,7 +693,6 @@ func podMatchesNodeLabels(pod *v1.Pod, node *v1.Node) bool {
 	return nodeAffinityMatches
 }
 
-// PodMatchNodeSelector checks if a pod node selector matches the node label.
 func PodMatchNodeSelector(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	node := nodeInfo.Node()
 	if node == nil {
@@ -694,7 +704,6 @@ func PodMatchNodeSelector(pod *v1.Pod, meta interface{}, nodeInfo *schedulercach
 	return false, []algorithm.PredicateFailureReason{ErrNodeSelectorNotMatch}, nil
 }
 
-// PodFitsHost checks if a pod spec node name matches the current node.
 func PodFitsHost(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	if len(pod.Spec.NodeName) == 0 {
 		return true, nil, nil
@@ -855,7 +864,6 @@ func (s *ServiceAffinity) checkServiceAffinity(pod *v1.Pod, meta interface{}, no
 	return false, []algorithm.PredicateFailureReason{ErrServiceAffinityViolated}, nil
 }
 
-// PodFitsHostPorts checks if a node has free ports for the requested pod ports.
 func PodFitsHostPorts(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	var wantPorts map[int]bool
 	if predicateMeta, ok := meta.(*predicateMetadata); ok {
@@ -879,24 +887,16 @@ func PodFitsHostPorts(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.No
 
 // search two arrays and return true if they have at least one common element; return false otherwise
 func haveSame(a1, a2 []string) bool {
-	m := map[string]int{}
-
-	for _, val := range a1 {
-		m[val] = 1
-	}
-	for _, val := range a2 {
-		m[val] = m[val] + 1
-	}
-	for _, val := range m {
-		if val > 1 {
-			return true
+	for _, val1 := range a1 {
+		for _, val2 := range a2 {
+			if val1 == val2 {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// GeneralPredicates checks whether noncriticalPredicates and EssentialPredicates pass. noncriticalPredicates are the predicates
-// that only non-critical pods need and EssentialPredicates are the predicates that all pods, including critical pods, need
 func GeneralPredicates(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	var predicateFails []algorithm.PredicateFailureReason
 	fit, reasons, err := noncriticalPredicates(pod, meta, nodeInfo)
@@ -976,9 +976,6 @@ func NewPodAffinityPredicate(info NodeInfo, podLister algorithm.PodLister) algor
 	return checker.InterPodAffinityMatches
 }
 
-// InterPodAffinityMatches checks if a pod can be scheduled on the specified node with pod affinity/anti-affinity configuration.
-// First return value indicates whether a pod can be scheduled on the specified node while the second return value indicates the
-// predicate failure reasons if the pod cannot be scheduled on the specified node.
 func (c *PodAffinityChecker) InterPodAffinityMatches(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
 	node := nodeInfo.Node()
 	if node == nil {
@@ -1189,7 +1186,7 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod, node
 	for _, term := range getPodAffinityTerms(affinity.PodAffinity) {
 		termMatches, matchingPodExists, err := c.anyPodMatchesPodAffinityTerm(pod, allPods, node, &term)
 		if err != nil {
-			glog.Errorf("Cannot schedule pod %+v onto node %v, because of PodAffinityTerm %v, err: %v",
+			glog.Errorf("Cannot schedule pod %+v onto node %v,because of PodAffinityTerm %v, err: %v",
 				podName(pod), node.Name, term, err)
 			return false
 		}
@@ -1198,8 +1195,8 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod, node
 			// no other such pods, then disregard the requirement. This is necessary to
 			// not block forever because the first pod of the collection can't be scheduled.
 			if matchingPodExists {
-				glog.V(10).Infof("Cannot schedule pod %+v onto node %v, because of PodAffinityTerm %v",
-					podName(pod), node.Name, term)
+				glog.V(10).Infof("Cannot schedule pod %+v onto node %v,because of PodAffinityTerm %v, err: %v",
+					podName(pod), node.Name, term, err)
 				return false
 			}
 			namespaces := priorityutil.GetNamespacesFromPodAffinityTerm(pod, &term)
@@ -1211,8 +1208,8 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod, node
 			}
 			match := priorityutil.PodMatchesTermsNamespaceAndSelector(pod, namespaces, selector)
 			if !match {
-				glog.V(10).Infof("Cannot schedule pod %+v onto node %v, because of PodAffinityTerm %v",
-					podName(pod), node.Name, term)
+				glog.V(10).Infof("Cannot schedule pod %+v onto node %v,because of PodAffinityTerm %v, err: %v",
+					podName(pod), node.Name, term, err)
 				return false
 			}
 		}
@@ -1222,7 +1219,7 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod, node
 	for _, term := range getPodAntiAffinityTerms(affinity.PodAntiAffinity) {
 		termMatches, _, err := c.anyPodMatchesPodAffinityTerm(pod, allPods, node, &term)
 		if err != nil || termMatches {
-			glog.V(10).Infof("Cannot schedule pod %+v onto node %v, because of PodAntiAffinityTerm %v, err: %v",
+			glog.V(10).Infof("Cannot schedule pod %+v onto node %v,because of PodAntiAffinityTerm %v, err: %v",
 				podName(pod), node.Name, term, err)
 			return false
 		}
@@ -1231,34 +1228,22 @@ func (c *PodAffinityChecker) satisfiesPodsAffinityAntiAffinity(pod *v1.Pod, node
 	if glog.V(10) {
 		// We explicitly don't do glog.V(10).Infof() to avoid computing all the parameters if this is
 		// not logged. There is visible performance gain from it.
-		glog.Infof("Schedule Pod %+v on Node %+v is allowed, pod affinity/anti-affinity constraints satisfied.",
+		glog.Infof("Schedule Pod %+v on Node %+v is allowed, pod afinnity/anti-affinity constraints satisfied.",
 			podName(pod), node.Name)
 	}
 	return true
 }
 
-// PodToleratesNodeTaints checks if a pod tolertaions can tolerate the node taints
 func PodToleratesNodeTaints(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
-	return podToleratesNodeTaints(pod, nodeInfo, func(t *v1.Taint) bool {
-		// PodToleratesNodeTaints is only interested in NoSchedule and NoExecute taints.
-		return t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectNoExecute
-	})
-}
-
-// PodToleratesNodeNoExecuteTaints checks if a pod tolertaions can tolerate the node's NoExecute taints
-func PodToleratesNodeNoExecuteTaints(pod *v1.Pod, meta interface{}, nodeInfo *schedulercache.NodeInfo) (bool, []algorithm.PredicateFailureReason, error) {
-	return podToleratesNodeTaints(pod, nodeInfo, func(t *v1.Taint) bool {
-		return t.Effect == v1.TaintEffectNoExecute
-	})
-}
-
-func podToleratesNodeTaints(pod *v1.Pod, nodeInfo *schedulercache.NodeInfo, filter func(t *v1.Taint) bool) (bool, []algorithm.PredicateFailureReason, error) {
 	taints, err := nodeInfo.Taints()
 	if err != nil {
 		return false, nil, err
 	}
 
-	if v1helper.TolerationsTolerateTaintsWithFilter(pod.Spec.Tolerations, taints, filter) {
+	if v1helper.TolerationsTolerateTaintsWithFilter(pod.Spec.Tolerations, taints, func(t *v1.Taint) bool {
+		// PodToleratesNodeTaints is only interested in NoSchedule and NoExecute taints.
+		return t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectNoExecute
+	}) {
 		return true, nil, nil
 	}
 	return false, []algorithm.PredicateFailureReason{ErrTaintsTolerationsNotMatch}, nil
@@ -1307,7 +1292,7 @@ type VolumeNodeChecker struct {
 	client  clientset.Interface
 }
 
-// NewVolumeNodePredicate evaluates if a pod can fit due to the volumes it requests, given
+// VolumeNodeChecker evaluates if a pod can fit due to the volumes it requests, given
 // that some volumes have node topology constraints, particularly when using Local PVs.
 // The requirement is that any pod that uses a PVC that is bound to a PV with topology constraints
 // must be scheduled to a node that satisfies the PV's topology labels.

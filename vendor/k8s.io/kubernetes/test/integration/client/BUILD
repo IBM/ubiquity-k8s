@@ -9,11 +9,9 @@ load(
 
 go_test(
     name = "go_default_test",
-    size = "large",
     srcs = [
         "client_test.go",
         "dynamic_client_test.go",
-        "main_test.go",
     ],
     tags = [
         "automanaged",
@@ -22,6 +20,7 @@ go_test(
     deps = [
         "//pkg/api:go_default_library",
         "//pkg/api/testapi:go_default_library",
+        "//pkg/client/clientset_generated/clientset:go_default_library",
         "//pkg/version:go_default_library",
         "//test/e2e/framework:go_default_library",
         "//test/integration/framework:go_default_library",
@@ -38,7 +37,6 @@ go_test(
         "//vendor/k8s.io/apimachinery/pkg/util/wait:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/watch:go_default_library",
         "//vendor/k8s.io/client-go/dynamic:go_default_library",
-        "//vendor/k8s.io/client-go/kubernetes:go_default_library",
         "//vendor/k8s.io/client-go/rest:go_default_library",
     ],
 )

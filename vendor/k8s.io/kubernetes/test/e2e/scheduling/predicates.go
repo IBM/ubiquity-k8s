@@ -24,11 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	clientset "k8s.io/client-go/kubernetes"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/test/e2e/common"
 	"k8s.io/kubernetes/test/e2e/framework"
 	testutils "k8s.io/kubernetes/test/utils"
@@ -40,6 +39,7 @@ import (
 
 const maxNumberOfPods int64 = 10
 const minPodCPURequest int64 = 500
+const imagePrePullingTimeout = 5 * time.Minute
 
 // variable set in BeforeEach, never modified afterwards
 var masterNodes sets.String
@@ -51,11 +51,9 @@ type pausePodConfig struct {
 	Resources                         *v1.ResourceRequirements
 	Tolerations                       []v1.Toleration
 	NodeName                          string
-	Ports                             []v1.ContainerPort
-	OwnerReferences                   []metav1.OwnerReference
 }
 
-var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
+var _ = framework.KubeDescribe("SchedulerPredicates [Serial]", func() {
 	var cs clientset.Interface
 	var nodeList *v1.NodeList
 	var systemPodsNo int
@@ -100,7 +98,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 		err = framework.WaitForPodsRunningReady(cs, metav1.NamespaceSystem, int32(systemPodsNo), 0, framework.PodReadyBeforeTimeout, ignoreLabels)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = framework.WaitForPodsSuccess(cs, metav1.NamespaceSystem, framework.ImagePullerLabels, framework.ImagePrePullingTimeout)
+		err = framework.WaitForPodsSuccess(cs, metav1.NamespaceSystem, framework.ImagePullerLabels, imagePrePullingTimeout)
 		Expect(err).NotTo(HaveOccurred())
 
 		for _, node := range nodeList.Items {
@@ -153,15 +151,15 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 	// It assumes that cluster add-on pods stay stable and cannot be run in parallel with any other test that touches Nodes or Pods.
 	// It is so because we need to have precise control on what's running in the cluster.
 	It("validates resource limits of pods that are allowed to run [Conformance]", func() {
-		nodeMaxAllocatable := int64(0)
+		nodeMaxCapacity := int64(0)
 
-		nodeToAllocatableMap := make(map[string]int64)
+		nodeToCapacityMap := make(map[string]int64)
 		for _, node := range nodeList.Items {
-			allocatable, found := node.Status.Allocatable["cpu"]
+			capacity, found := node.Status.Capacity["cpu"]
 			Expect(found).To(Equal(true))
-			nodeToAllocatableMap[node.Name] = allocatable.MilliValue()
-			if nodeMaxAllocatable < allocatable.MilliValue() {
-				nodeMaxAllocatable = allocatable.MilliValue()
+			nodeToCapacityMap[node.Name] = capacity.MilliValue()
+			if nodeMaxCapacity < capacity.MilliValue() {
+				nodeMaxCapacity = capacity.MilliValue()
 			}
 		}
 		framework.WaitForStableCluster(cs, masterNodes)
@@ -169,23 +167,23 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 		pods, err := cs.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
 		framework.ExpectNoError(err)
 		for _, pod := range pods.Items {
-			_, found := nodeToAllocatableMap[pod.Spec.NodeName]
+			_, found := nodeToCapacityMap[pod.Spec.NodeName]
 			if found && pod.Status.Phase != v1.PodSucceeded && pod.Status.Phase != v1.PodFailed {
 				framework.Logf("Pod %v requesting resource cpu=%vm on Node %v", pod.Name, getRequestedCPU(pod), pod.Spec.NodeName)
-				nodeToAllocatableMap[pod.Spec.NodeName] -= getRequestedCPU(pod)
+				nodeToCapacityMap[pod.Spec.NodeName] -= getRequestedCPU(pod)
 			}
 		}
 
 		var podsNeededForSaturation int
 
-		milliCpuPerPod := nodeMaxAllocatable / maxNumberOfPods
+		milliCpuPerPod := nodeMaxCapacity / maxNumberOfPods
 		if milliCpuPerPod < minPodCPURequest {
 			milliCpuPerPod = minPodCPURequest
 		}
 		framework.Logf("Using pod capacity: %vm", milliCpuPerPod)
-		for name, leftAllocatable := range nodeToAllocatableMap {
-			framework.Logf("Node: %v has cpu allocatable: %vm", name, leftAllocatable)
-			podsNeededForSaturation += (int)(leftAllocatable / milliCpuPerPod)
+		for name, leftCapacity := range nodeToCapacityMap {
+			framework.Logf("Node: %v has cpu capacity: %vm", name, leftCapacity)
+			podsNeededForSaturation += (int)(leftCapacity / milliCpuPerPod)
 		}
 
 		By(fmt.Sprintf("Starting additional %v Pods to fully saturate the cluster CPU and trying to start another one", podsNeededForSaturation))
@@ -278,7 +276,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 
 		By("Trying to relaunch the pod, now with labels.")
 		labelPodName := "with-labels"
-		createPausePod(f, pausePodConfig{
+		_ = createPausePod(f, pausePodConfig{
 			Name: labelPodName,
 			NodeSelector: map[string]string{
 				"kubernetes.io/hostname": nodeName,
@@ -339,7 +337,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 	})
 
 	// Keep the same steps with the test on NodeSelector,
-	// but specify Affinity in Pod.Spec.Affinity, instead of NodeSelector.
+	// but specify Affinity in Pod.Annotations, instead of NodeSelector.
 	It("validates that required NodeAffinity setting is respected if matching", func() {
 		nodeName := GetNodeThatCanRunPod(f)
 
@@ -352,7 +350,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 
 		By("Trying to relaunch the pod, now with labels.")
 		labelPodName := "with-labels"
-		createPausePod(f, pausePodConfig{
+		_ = createPausePod(f, pausePodConfig{
 			Name: labelPodName,
 			Affinity: &v1.Affinity{
 				NodeAffinity: &v1.NodeAffinity{
@@ -389,7 +387,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 	})
 
 	// labelSelector Operator is DoesNotExist but values are there in requiredDuringSchedulingIgnoredDuringExecution
-	// part of podAffinity, so validation fails.
+	// part of podAffinity,so validation fails.
 	It("validates that a pod with an invalid podAffinity is rejected because of the LabelSelectorRequirement is invalid", func() {
 		By("Trying to launch a pod with an invalid pod Affinity data.")
 		podName := "without-label-" + string(uuid.NewUUID())
@@ -465,7 +463,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 
 		By("Trying to launch the pod, now with podAffinity.")
 		labelPodName := "with-podaffinity-" + string(uuid.NewUUID())
-		createPausePod(f, pausePodConfig{
+		_ = createPausePod(f, pausePodConfig{
 			Name: labelPodName,
 			Affinity: &v1.Affinity{
 				PodAffinity: &v1.PodAffinity{
@@ -576,7 +574,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 
 		By("Trying to launch the pod, now with multiple pod affinities with diff LabelOperators.")
 		labelPodName := "with-podaffinity-" + string(uuid.NewUUID())
-		createPausePod(f, pausePodConfig{
+		_ = createPausePod(f, pausePodConfig{
 			Name: labelPodName,
 			Affinity: &v1.Affinity{
 				PodAffinity: &v1.PodAffinity{
@@ -641,6 +639,30 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 		Expect(labelPod.Spec.NodeName).To(Equal(nodeName))
 	})
 
+	// Verify that an escaped JSON string of pod affinity and pod anti affinity in a YAML PodSpec works.
+	It("validates that embedding the JSON PodAffinity and PodAntiAffinity setting as a string in the annotation value work", func() {
+		nodeName, _ := runAndKeepPodWithLabelAndGetNodeName(f)
+
+		By("Trying to apply a label with fake az info on the found node.")
+		k := "e2e.inter-pod-affinity.kubernetes.io/zone"
+		v := "e2e-az1"
+		framework.AddOrUpdateLabelOnNode(cs, nodeName, k, v)
+		framework.ExpectNodeHasLabel(cs, nodeName, k, v)
+		defer framework.RemoveLabelOffNode(cs, nodeName, k)
+
+		By("Trying to launch a pod that with PodAffinity & PodAntiAffinity setting as embedded JSON string in the annotation value.")
+		pod := createPodWithPodAffinity(f, "kubernetes.io/hostname")
+		// check that pod got scheduled. We intentionally DO NOT check that the
+		// pod is running because this will create a race condition with the
+		// kubelet and the scheduler: the scheduler might have scheduled a pod
+		// already when the kubelet does not know about its new label yet. The
+		// kubelet will then refuse to launch the pod.
+		framework.ExpectNoError(framework.WaitForPodNotPending(cs, ns, pod.Name))
+		labelPod, err := cs.Core().Pods(ns).Get(pod.Name, metav1.GetOptions{})
+		framework.ExpectNoError(err)
+		Expect(labelPod.Spec.NodeName).To(Equal(nodeName))
+	})
+
 	// 1. Run a pod to get an available node, then delete the pod
 	// 2. Taint the node with a random taint
 	// 3. Try to relaunch the pod with tolerations tolerate the taints on node,
@@ -667,7 +689,7 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 
 		By("Trying to relaunch the pod, now with tolerations.")
 		tolerationPodName := "with-tolerations"
-		createPausePod(f, pausePodConfig{
+		_ = createPausePod(f, pausePodConfig{
 			Name:         tolerationPodName,
 			Tolerations:  []v1.Toleration{{Key: testTaint.Key, Value: testTaint.Value, Effect: testTaint.Effect}},
 			NodeSelector: map[string]string{labelKey: labelValue},
@@ -727,10 +749,9 @@ var _ = SIGDescribe("SchedulerPredicates [Serial]", func() {
 func initPausePod(f *framework.Framework, conf pausePodConfig) *v1.Pod {
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            conf.Name,
-			Labels:          conf.Labels,
-			Annotations:     conf.Annotations,
-			OwnerReferences: conf.OwnerReferences,
+			Name:        conf.Name,
+			Labels:      conf.Labels,
+			Annotations: conf.Annotations,
 		},
 		Spec: v1.PodSpec{
 			NodeSelector: conf.NodeSelector,
@@ -739,7 +760,6 @@ func initPausePod(f *framework.Framework, conf pausePodConfig) *v1.Pod {
 				{
 					Name:  conf.Name,
 					Image: framework.GetPauseImageName(f.ClientSet),
-					Ports: conf.Ports,
 				},
 			},
 			Tolerations: conf.Tolerations,
@@ -926,32 +946,6 @@ func verifyResult(c clientset.Interface, expectedScheduled int, expectedNotSched
 
 	Expect(len(notScheduledPods)).To(Equal(expectedNotScheduled), printOnce(fmt.Sprintf("Not scheduled Pods: %#v", notScheduledPods)))
 	Expect(len(scheduledPods)).To(Equal(expectedScheduled), printOnce(fmt.Sprintf("Scheduled Pods: %#v", scheduledPods)))
-}
-
-// verifyReplicasResult is wrapper of verifyResult for a group pods with same "name: labelName" label, which means they belong to same RC
-func verifyReplicasResult(c clientset.Interface, expectedScheduled int, expectedNotScheduled int, ns string, labelName string) {
-	allPods := getPodsByLabels(c, ns, map[string]string{"name": labelName})
-	scheduledPods, notScheduledPods := framework.GetPodsScheduled(masterNodes, allPods)
-
-	printed := false
-	printOnce := func(msg string) string {
-		if !printed {
-			printed = true
-			return msg
-		} else {
-			return ""
-		}
-	}
-
-	Expect(len(notScheduledPods)).To(Equal(expectedNotScheduled), printOnce(fmt.Sprintf("Not scheduled Pods: %#v", notScheduledPods)))
-	Expect(len(scheduledPods)).To(Equal(expectedScheduled), printOnce(fmt.Sprintf("Scheduled Pods: %#v", scheduledPods)))
-}
-
-func getPodsByLabels(c clientset.Interface, ns string, labelsMap map[string]string) *v1.PodList {
-	selector := labels.SelectorFromSet(labels.Set(labelsMap))
-	allPods, err := c.Core().Pods(ns).List(metav1.ListOptions{LabelSelector: selector.String()})
-	framework.ExpectNoError(err)
-	return allPods
 }
 
 func runAndKeepPodWithLabelAndGetNodeName(f *framework.Framework) (string, string) {

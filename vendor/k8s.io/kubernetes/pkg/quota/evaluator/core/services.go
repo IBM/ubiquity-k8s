@@ -27,10 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/client-go/informers"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/quota"
 	"k8s.io/kubernetes/pkg/quota/generic"
 )
@@ -42,33 +41,20 @@ var serviceResources = []api.ResourceName{
 	api.ResourceServicesLoadBalancers,
 }
 
-// listServicesByNamespaceFuncUsingClient returns a service listing function based on the provided client.
-func listServicesByNamespaceFuncUsingClient(kubeClient clientset.Interface) generic.ListFuncByNamespace {
-	// TODO: ideally, we could pass dynamic client pool down into this code, and have one way of doing this.
-	// unfortunately, dynamic client works with Unstructured objects, and when we calculate Usage, we require
-	// structured objects.
-	return func(namespace string, options metav1.ListOptions) ([]runtime.Object, error) {
-		itemList, err := kubeClient.Core().Services(namespace).List(options)
-		if err != nil {
-			return nil, err
-		}
-		results := make([]runtime.Object, 0, len(itemList.Items))
-		for i := range itemList.Items {
-			results = append(results, &itemList.Items[i])
-		}
-		return results, nil
-	}
-}
-
-// NewServiceEvaluator returns an evaluator that can evaluate services
-// if the specified shared informer factory is not nil, evaluator may use it to support listing functions.
-func NewServiceEvaluator(kubeClient clientset.Interface, f informers.SharedInformerFactory) quota.Evaluator {
-	listFuncByNamespace := listServicesByNamespaceFuncUsingClient(kubeClient)
-	if f != nil {
-		listFuncByNamespace = generic.ListResourceUsingInformerFunc(f, v1.SchemeGroupVersion.WithResource("services"))
-	}
+// NewServiceEvaluator returns an evaluator that can evaluate service quotas
+func NewServiceEvaluator(kubeClient clientset.Interface) quota.Evaluator {
 	return &serviceEvaluator{
-		listFuncByNamespace: listFuncByNamespace,
+		listFuncByNamespace: func(namespace string, options metav1.ListOptions) ([]runtime.Object, error) {
+			itemList, err := kubeClient.Core().Services(namespace).List(options)
+			if err != nil {
+				return nil, err
+			}
+			results := make([]runtime.Object, 0, len(itemList.Items))
+			for i := range itemList.Items {
+				results = append(results, &itemList.Items[i])
+			}
+			return results, nil
+		},
 	}
 }
 
@@ -139,7 +125,7 @@ func toInternalServiceOrError(obj runtime.Object) (*api.Service, error) {
 	return svc, nil
 }
 
-// Usage knows how to measure usage associated with services
+// Usage knows how to measure usage associated with pods
 func (p *serviceEvaluator) Usage(item runtime.Object) (api.ResourceList, error) {
 	result := api.ResourceList{}
 	svc, err := toInternalServiceOrError(item)

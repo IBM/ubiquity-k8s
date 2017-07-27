@@ -53,24 +53,23 @@ import (
 	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/internalversion"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/pkg/kubelet/qos"
-	"k8s.io/kubernetes/pkg/master/ports"
 	"k8s.io/kubernetes/pkg/proxy"
 	proxyconfig "k8s.io/kubernetes/pkg/proxy/config"
 	"k8s.io/kubernetes/pkg/proxy/healthcheck"
 	"k8s.io/kubernetes/pkg/proxy/iptables"
 	"k8s.io/kubernetes/pkg/proxy/userspace"
 	"k8s.io/kubernetes/pkg/proxy/winuserspace"
+	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/configz"
 	utildbus "k8s.io/kubernetes/pkg/util/dbus"
+	"k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
 	utilnetsh "k8s.io/kubernetes/pkg/util/netsh"
-	utilnode "k8s.io/kubernetes/pkg/util/node"
+	nodeutil "k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/pkg/util/oom"
-	utilpointer "k8s.io/kubernetes/pkg/util/pointer"
 	"k8s.io/kubernetes/pkg/util/resourcecontainer"
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
 	"k8s.io/kubernetes/pkg/version/verflag"
-	"k8s.io/utils/exec"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -130,15 +129,14 @@ func AddFlags(options *Options, fs *pflag.FlagSet) {
 	fs.StringVar(&options.master, "master", options.master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 	fs.Int32Var(&options.healthzPort, "healthz-port", options.healthzPort, "The port to bind the health check server. Use 0 to disable.")
 	fs.Var(componentconfig.IPVar{Val: &options.config.HealthzBindAddress}, "healthz-bind-address", "The IP address and port for the health check server to serve on (set to 0.0.0.0 for all interfaces)")
-	fs.Var(componentconfig.IPVar{Val: &options.config.MetricsBindAddress}, "metrics-bind-address", "The IP address and port for the metrics server to serve on (set to 0.0.0.0 for all interfaces)")
-	fs.Int32Var(options.config.OOMScoreAdj, "oom-score-adj", utilpointer.Int32PtrDerefOr(options.config.OOMScoreAdj, int32(qos.KubeProxyOOMScoreAdj)), "The oom-score-adj value for kube-proxy process. Values must be within the range [-1000, 1000]")
+	fs.Int32Var(options.config.OOMScoreAdj, "oom-score-adj", util.Int32PtrDerefOr(options.config.OOMScoreAdj, int32(qos.KubeProxyOOMScoreAdj)), "The oom-score-adj value for kube-proxy process. Values must be within the range [-1000, 1000]")
 	fs.StringVar(&options.config.ResourceContainer, "resource-container", options.config.ResourceContainer, "Absolute name of the resource-only container to create and run the Kube-proxy in (Default: /kube-proxy).")
 	fs.MarkDeprecated("resource-container", "This feature will be removed in a later release.")
 	fs.StringVar(&options.config.ClientConnection.KubeConfigFile, "kubeconfig", options.config.ClientConnection.KubeConfigFile, "Path to kubeconfig file with authorization information (the master location is set by the master flag).")
 	fs.Var(componentconfig.PortRangeVar{Val: &options.config.PortRange}, "proxy-port-range", "Range of host ports (beginPort-endPort, inclusive) that may be consumed in order to proxy service traffic. If unspecified (0-0) then ports will be randomly chosen.")
 	fs.StringVar(&options.config.HostnameOverride, "hostname-override", options.config.HostnameOverride, "If non-empty, will use this string as identification instead of the actual hostname.")
 	fs.Var(&options.config.Mode, "proxy-mode", "Which proxy mode to use: 'userspace' (older) or 'iptables' (faster). If blank, use the best-available proxy (currently iptables).  If the iptables proxy is selected, regardless of how, but the system's kernel or iptables versions are insufficient, this always falls back to the userspace proxy.")
-	fs.Int32Var(options.config.IPTables.MasqueradeBit, "iptables-masquerade-bit", utilpointer.Int32PtrDerefOr(options.config.IPTables.MasqueradeBit, 14), "If using the pure iptables proxy, the bit of the fwmark space to mark packets requiring SNAT with.  Must be within the range [0, 31].")
+	fs.Int32Var(options.config.IPTables.MasqueradeBit, "iptables-masquerade-bit", util.Int32PtrDerefOr(options.config.IPTables.MasqueradeBit, 14), "If using the pure iptables proxy, the bit of the fwmark space to mark packets requiring SNAT with.  Must be within the range [0, 31].")
 	fs.DurationVar(&options.config.IPTables.SyncPeriod.Duration, "iptables-sync-period", options.config.IPTables.SyncPeriod.Duration, "The maximum interval of how often iptables rules are refreshed (e.g. '5s', '1m', '2h22m').  Must be greater than 0.")
 	fs.DurationVar(&options.config.IPTables.MinSyncPeriod.Duration, "iptables-min-sync-period", options.config.IPTables.MinSyncPeriod.Duration, "The minimum interval of how often the iptables rules can be refreshed as endpoints and services change (e.g. '5s', '1m', '2h22m').")
 	fs.DurationVar(&options.config.ConfigSyncPeriod.Duration, "config-sync-period", options.config.ConfigSyncPeriod.Duration, "How often configuration from the apiserver is refreshed.  Must be greater than 0.")
@@ -168,7 +166,7 @@ func AddFlags(options *Options, fs *pflag.FlagSet) {
 func NewOptions() (*Options, error) {
 	o := &Options{
 		config:      new(componentconfig.KubeProxyConfiguration),
-		healthzPort: ports.ProxyHealthzPort,
+		healthzPort: 10256,
 	}
 
 	o.scheme = runtime.NewScheme()
@@ -302,7 +300,7 @@ func (o *Options) loadConfig(data []byte) (*componentconfig.KubeProxyConfigurati
 	return config, nil
 }
 
-func (o *Options) ApplyDefaults(in *componentconfig.KubeProxyConfiguration) (*componentconfig.KubeProxyConfiguration, error) {
+func (o *Options) applyDefaults(in *componentconfig.KubeProxyConfiguration) (*componentconfig.KubeProxyConfiguration, error) {
 	external, err := o.scheme.ConvertToVersion(in, v1alpha1.SchemeGroupVersion)
 	if err != nil {
 		return nil, err
@@ -344,7 +342,7 @@ with the apiserver API to configure the proxy.`,
 		},
 	}
 
-	opts.config, err = opts.ApplyDefaults(opts.config)
+	opts.config, err = opts.applyDefaults(opts.config)
 	if err != nil {
 		glog.Fatalf("unable to create flag defaults: %v", err)
 	}
@@ -449,7 +447,7 @@ func NewProxyServer(config *componentconfig.KubeProxyConfiguration, cleanupAndEx
 
 	// We omit creation of pretty much everything if we run in cleanup mode
 	if cleanupAndExit {
-		return &ProxyServer{IptInterface: iptInterface, CleanupAndExit: cleanupAndExit}, nil
+		return &ProxyServer{IptInterface: iptInterface}, nil
 	}
 
 	client, eventClient, err := createClients(config.ClientConnection, master)
@@ -458,15 +456,13 @@ func NewProxyServer(config *componentconfig.KubeProxyConfiguration, cleanupAndEx
 	}
 
 	// Create event recorder
-	hostname := utilnode.GetHostname(config.HostnameOverride)
+	hostname := nodeutil.GetHostname(config.HostnameOverride)
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme, clientv1.EventSource{Component: "kube-proxy", Host: hostname})
 
 	var healthzServer *healthcheck.HealthzServer
-	var healthzUpdater healthcheck.HealthzUpdater
 	if len(config.HealthzBindAddress) > 0 {
 		healthzServer = healthcheck.NewDefaultHealthzServer(config.HealthzBindAddress, 2*config.IPTables.SyncPeriod.Duration)
-		healthzUpdater = healthzServer
 	}
 
 	var proxier proxy.ProxyProvider
@@ -500,7 +496,7 @@ func NewProxyServer(config *componentconfig.KubeProxyConfiguration, cleanupAndEx
 			hostname,
 			nodeIP,
 			recorder,
-			healthzUpdater,
+			healthzServer,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create proxier: %v", err)
@@ -631,9 +627,7 @@ func (s *ProxyServer) Run() error {
 		}
 	}
 
-	if s.Broadcaster != nil && s.EventClient != nil {
-		s.Broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: s.EventClient.Events("")})
-	}
+	s.Broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: s.EventClient.Events("")})
 
 	// Start up a healthz server if requested
 	if s.HealthzServer != nil {
@@ -787,7 +781,7 @@ func getNodeIP(client clientset.Interface, hostname string) net.IP {
 		glog.Warningf("Failed to retrieve node info: %v", err)
 		return nil
 	}
-	nodeIP, err = utilnode.InternalGetNodeHostIP(node)
+	nodeIP, err = nodeutil.InternalGetNodeHostIP(node)
 	if err != nil {
 		glog.Warningf("Failed to retrieve node IP: %v", err)
 		return nil

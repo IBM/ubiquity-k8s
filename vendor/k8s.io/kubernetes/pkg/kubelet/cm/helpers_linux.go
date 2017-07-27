@@ -86,7 +86,10 @@ func MilliCPUToShares(milliCPU int64) int64 {
 // ResourceConfigForPod takes the input pod and outputs the cgroup resource config.
 func ResourceConfigForPod(pod *v1.Pod) *ResourceConfig {
 	// sum requests and limits.
-	reqs, limits := resource.PodRequestsAndLimits(pod)
+	reqs, limits, err := resource.PodRequestsAndLimits(pod)
+	if err != nil {
+		return &ResourceConfig{}
+	}
 
 	cpuRequests := int64(0)
 	cpuLimits := int64(0)

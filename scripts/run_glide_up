@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+scripts=$(dirname $0)
+
+echo "Running glide up with strip vendor flag"
+glide up --strip-vendor

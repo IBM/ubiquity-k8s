@@ -13,6 +13,7 @@ go_library(
     srcs = ["daemonset_util.go"],
     tags = ["automanaged"],
     deps = [
+        "//pkg/api:go_default_library",
         "//pkg/api/v1/helper:go_default_library",
         "//pkg/api/v1/pod:go_default_library",
         "//pkg/util/labels:go_default_library",
@@ -20,7 +21,6 @@ go_library(
         "//vendor/k8s.io/api/core/v1:go_default_library",
         "//vendor/k8s.io/api/extensions/v1beta1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
-        "//vendor/k8s.io/client-go/kubernetes/scheme:go_default_library",
     ],
 )
 

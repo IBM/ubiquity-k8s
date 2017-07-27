@@ -1,5 +1,5 @@
-hash: 90b449a365cae28d8e086d21e88c7f2cb44605a417cf66a915f062098eb53f19
-updated: 2017-07-21T10:06:48.114826946+03:00
+hash: dd03b67bcb44c4ed60a0ddee710c8fbcca858d666d3bc010628fe306d3bed731
+updated: 2017-07-27T10:39:59.467498912-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -9,7 +9,7 @@ imports:
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
 - name: github.com/BurntSushi/toml
-  version: b26d9c308763d68093482582cea63d69be07a0f0
+  version: a368813c5e648fee92e5f6c30e3944ff9d5e8895
 - name: github.com/coreos/go-oidc
   version: 5644a2f50e2d2d5ba0b474bc5bc55fea1925936d
   subpackages:
@@ -35,8 +35,6 @@ imports:
   subpackages:
   - digest
   - reference
-- name: github.com/dustin/go-humanize
-  version: 259d2a102b871d17f30e3cd9881a642961a1e486
 - name: github.com/emicklei/go-restful
   version: 89ef8af493ab468a45a42bb0d89a06fccdd2fb22
   subpackages:
@@ -58,7 +56,7 @@ imports:
   - proto
   - sortkeys
 - name: github.com/golang/glog
-  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
+  version: 44145f04b68cf362d9c4df2182967c2275eaefed
 - name: github.com/golang/groupcache
   version: 02826c3e79038b59d737d3b1c0a1d937f71a4433
   subpackages:
@@ -76,7 +74,7 @@ imports:
 - name: github.com/howeyc/gopass
   version: 3ca23474a7c7203e0a0a070fd33508f6efdb9b3d
 - name: github.com/IBM/ubiquity
-  version: d64525171386506631f9e3fc599e4254242e0c87
+  version: 920e98b3234de12e5f44dc68decf337576e88a4b
   subpackages:
   - fakes
   - local/scbe
@@ -93,7 +91,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/jessevdk/go-flags
-  version: 96dc06278ce32a0e9d957d590bb987c81ee66407
+  version: 6cf8f02b4ae8ba723ddc64dcfd403e530c06d927
 - name: github.com/jinzhu/gorm
   version: 5174cc5c242a728b435ea2be8a2f7f998e15429b
   subpackages:
@@ -186,7 +184,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/apimachinery
-  version: 6134cb2da6d90597b0434e349f90f94fafc9ae51
+  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
   subpackages:
   - pkg/types
   - pkg/util/runtime
@@ -310,7 +308,7 @@ imports:
   - tools/record
   - transport
 - name: k8s.io/kubernetes
-  version: 80582826aab98e6610febb9c1114bc206e6ec2bf
+  version: df7f4b3526a580ef122aaeef61ab52842a60a88b
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/goroutinemap/exponentialbackoff

@@ -32,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = SIGDescribe("Job", func() {
+var _ = framework.KubeDescribe("Job", func() {
 	f := framework.NewDefaultFramework("job")
 	parallelism := int32(2)
 	completions := int32(4)

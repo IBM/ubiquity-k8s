@@ -65,8 +65,6 @@ const (
 	StagePanic = "Panic"
 )
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // Event captures all the information that can be included in an API audit log.
 type Event struct {
 	metav1.TypeMeta
@@ -102,8 +100,8 @@ type Event struct {
 	// +optional
 	ObjectRef *ObjectReference
 	// The response status, populated even when the ResponseObject is not a Status type.
-	// For successful responses, this will only include the Code. For non-status type
-	// error responses, this will be auto-populated with the error Message.
+	// For successful responses, this will only include the Code and StatusSuccess.
+	// For non-status type error responses, this will be auto-populated with the error Message.
 	// +optional
 	ResponseStatus *metav1.Status
 
@@ -120,8 +118,6 @@ type Event struct {
 	ResponseObject *runtime.Unknown
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // EventList is a list of audit Events.
 type EventList struct {
 	metav1.TypeMeta
@@ -130,8 +126,6 @@ type EventList struct {
 
 	Items []Event
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Policy defines the configuration of audit logging, and the rules for how different request
 // categories are logged.
@@ -147,8 +141,6 @@ type Policy struct {
 	// PolicyRules are strictly ordered.
 	Rules []PolicyRule
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PolicyList is a list of audit Policies.
 type PolicyList struct {

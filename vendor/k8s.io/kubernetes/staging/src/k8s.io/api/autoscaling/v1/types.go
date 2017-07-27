@@ -73,7 +73,6 @@ type HorizontalPodAutoscalerStatus struct {
 }
 
 // +genclient=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // configuration of a horizontal pod autoscaler.
 type HorizontalPodAutoscaler struct {
@@ -91,8 +90,6 @@ type HorizontalPodAutoscaler struct {
 	Status HorizontalPodAutoscalerStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // list of horizontal pod autoscaler objects.
 type HorizontalPodAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -103,8 +100,6 @@ type HorizontalPodAutoscalerList struct {
 	// list of horizontal pod autoscaler objects.
 	Items []HorizontalPodAutoscaler `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Scale represents a scaling request for a resource.
 type Scale struct {

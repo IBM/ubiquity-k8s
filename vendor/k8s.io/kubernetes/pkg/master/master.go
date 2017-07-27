@@ -38,7 +38,6 @@ import (
 	policyapiv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1alpha1 "k8s.io/api/rbac/v1alpha1"
 	rbacv1beta1 "k8s.io/api/rbac/v1beta1"
-	schedulingapiv1alpha1 "k8s.io/api/scheduling/v1alpha1"
 	settingv1alpha1 "k8s.io/api/settings/v1alpha1"
 	storageapiv1 "k8s.io/api/storage/v1"
 	storageapiv1beta1 "k8s.io/api/storage/v1beta1"
@@ -46,14 +45,16 @@ import (
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
 	"k8s.io/apiserver/pkg/registry/generic"
+	genericregistry "k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/healthz"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubernetes/cmd/kube-apiserver/app/options"
 	"k8s.io/kubernetes/pkg/api"
+	corev1client "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
 	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	kubeletclient "k8s.io/kubernetes/pkg/kubelet/client"
+	"k8s.io/kubernetes/pkg/master/thirdparty"
 	"k8s.io/kubernetes/pkg/master/tunneler"
 	"k8s.io/kubernetes/pkg/routes"
 	nodeutil "k8s.io/kubernetes/pkg/util/node"
@@ -74,7 +75,6 @@ import (
 	networkingrest "k8s.io/kubernetes/pkg/registry/networking/rest"
 	policyrest "k8s.io/kubernetes/pkg/registry/policy/rest"
 	rbacrest "k8s.io/kubernetes/pkg/registry/rbac/rest"
-	schedulingrest "k8s.io/kubernetes/pkg/registry/scheduling/rest"
 	settingsrest "k8s.io/kubernetes/pkg/registry/settings/rest"
 	storagerest "k8s.io/kubernetes/pkg/registry/storage/rest"
 )
@@ -210,7 +210,7 @@ func (c *Config) SkipComplete() completedConfig {
 // Certain config fields will be set to a default value if unset.
 // Certain config fields must be specified, including:
 //   KubeletClientConfig
-func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget) (*Master, error) {
+func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget, crdRESTOptionsGetter genericregistry.RESTOptionsGetter) (*Master, error) {
 	if reflect.DeepEqual(c.KubeletClientConfig, kubeletclient.KubeletClientConfig{}) {
 		return nil, fmt.Errorf("Master.New() called with empty config.KubeletClientConfig")
 	}
@@ -258,11 +258,11 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		autoscalingrest.RESTStorageProvider{},
 		batchrest.RESTStorageProvider{},
 		certificatesrest.RESTStorageProvider{},
-		extensionsrest.RESTStorageProvider{},
+		// TODO(enisoc): Remove crdRESTOptionsGetter input argument when TPR code is removed.
+		extensionsrest.RESTStorageProvider{ResourceInterface: thirdparty.NewThirdPartyResourceServer(s, s.DiscoveryGroupManager, c.StorageFactory, crdRESTOptionsGetter)},
 		networkingrest.RESTStorageProvider{},
 		policyrest.RESTStorageProvider{},
 		rbacrest.RESTStorageProvider{Authorizer: c.GenericConfig.Authorizer},
-		schedulingrest.RESTStorageProvider{},
 		settingsrest.RESTStorageProvider{},
 		storagerest.RESTStorageProvider{},
 		// keep apps after extensions so legacy clients resolve the extensions versions of shared resource names.
@@ -397,7 +397,6 @@ func DefaultAPIResourceConfigSource() *serverstorage.ResourceConfig {
 		// TODO: disable rbac/v1alpha1 and settings/v1alpha1 by default in 1.8
 		rbacv1alpha1.SchemeGroupVersion,
 		settingv1alpha1.SchemeGroupVersion,
-		schedulingapiv1alpha1.SchemeGroupVersion,
 		storageapiv1.SchemeGroupVersion,
 		storageapiv1beta1.SchemeGroupVersion,
 		certificatesapiv1beta1.SchemeGroupVersion,
@@ -413,6 +412,7 @@ func DefaultAPIResourceConfigSource() *serverstorage.ResourceConfig {
 		extensionsapiv1beta1.SchemeGroupVersion.WithResource("ingresses"),
 		extensionsapiv1beta1.SchemeGroupVersion.WithResource("networkpolicies"),
 		extensionsapiv1beta1.SchemeGroupVersion.WithResource("replicasets"),
+		extensionsapiv1beta1.SchemeGroupVersion.WithResource("thirdpartyresources"),
 		extensionsapiv1beta1.SchemeGroupVersion.WithResource("podsecuritypolicies"),
 	)
 

@@ -27,7 +27,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 )
 
-// OOMWatcher defines the interface of OOM watchers.
 type OOMWatcher interface {
 	Start(ref *v1.ObjectReference) error
 }
@@ -37,7 +36,6 @@ type realOOMWatcher struct {
 	recorder record.EventRecorder
 }
 
-// NewOOMWatcher creates and initializes a OOMWatcher based on parameters.
 func NewOOMWatcher(cadvisor cadvisor.Interface, recorder record.EventRecorder) OOMWatcher {
 	return &realOOMWatcher{
 		cadvisor: cadvisor,

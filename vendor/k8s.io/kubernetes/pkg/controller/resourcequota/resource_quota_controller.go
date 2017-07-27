@@ -31,21 +31,22 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	coreinformers "k8s.io/client-go/informers/core/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	coreinformers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions/core/v1"
+	corelisters "k8s.io/kubernetes/pkg/client/listers/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/quota"
+	"k8s.io/kubernetes/pkg/util/metrics"
 )
 
 // ResourceQuotaControllerOptions holds options for creating a quota controller
 type ResourceQuotaControllerOptions struct {
 	// Must have authority to list all quotas, and update quota status
-	QuotaClient corev1client.ResourceQuotasGetter
+	KubeClient clientset.Interface
 	// Shared informer for resource quotas
 	ResourceQuotaInformer coreinformers.ResourceQuotaInformer
 	// Controls full recalculation of quota usage
@@ -64,7 +65,7 @@ type ResourceQuotaControllerOptions struct {
 // ResourceQuotaController is responsible for tracking quota usage status in the system
 type ResourceQuotaController struct {
 	// Must have authority to list all resources in the system, and update quota status
-	rqClient corev1client.ResourceQuotasGetter
+	kubeClient clientset.Interface
 	// A lister/getter of resource quota objects
 	rqLister corelisters.ResourceQuotaLister
 	// A list of functions that return true when their caches have synced
@@ -86,7 +87,7 @@ type ResourceQuotaController struct {
 func NewResourceQuotaController(options *ResourceQuotaControllerOptions) *ResourceQuotaController {
 	// build the resource quota controller
 	rq := &ResourceQuotaController{
-		rqClient:                 options.QuotaClient,
+		kubeClient:               options.KubeClient,
 		rqLister:                 options.ResourceQuotaInformer.Lister(),
 		informerSyncedFuncs:      []cache.InformerSynced{options.ResourceQuotaInformer.Informer().HasSynced},
 		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "resourcequota_primary"),
@@ -94,6 +95,9 @@ func NewResourceQuotaController(options *ResourceQuotaControllerOptions) *Resour
 		resyncPeriod:             options.ResyncPeriod,
 		registry:                 options.Registry,
 		replenishmentControllers: []cache.Controller{},
+	}
+	if options.KubeClient != nil && options.KubeClient.Core().RESTClient().GetRateLimiter() != nil {
+		metrics.RegisterMetricAndTrackRateLimiterUsage("resource_quota_controller", options.KubeClient.Core().RESTClient().GetRateLimiter())
 	}
 	// set the synchronization handler
 	rq.syncHandler = rq.syncResourceQuotaFromKey
@@ -337,7 +341,7 @@ func (rq *ResourceQuotaController) syncResourceQuota(v1ResourceQuota *v1.Resourc
 		if err := k8s_api_v1.Convert_api_ResourceQuota_To_v1_ResourceQuota(&usage, v1Usage, nil); err != nil {
 			return err
 		}
-		_, err = rq.rqClient.ResourceQuotas(usage.Namespace).UpdateStatus(v1Usage)
+		_, err = rq.kubeClient.Core().ResourceQuotas(usage.Namespace).UpdateStatus(v1Usage)
 		return err
 	}
 	return nil

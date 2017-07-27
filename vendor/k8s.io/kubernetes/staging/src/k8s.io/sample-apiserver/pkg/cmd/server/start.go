@@ -33,7 +33,6 @@ const defaultEtcdPathPrefix = "/registry/wardle.kubernetes.io"
 
 type WardleServerOptions struct {
 	RecommendedOptions *genericoptions.RecommendedOptions
-	Admission          *genericoptions.AdmissionOptions
 
 	StdOut io.Writer
 	StdErr io.Writer
@@ -42,7 +41,6 @@ type WardleServerOptions struct {
 func NewWardleServerOptions(out, errOut io.Writer) *WardleServerOptions {
 	o := &WardleServerOptions{
 		RecommendedOptions: genericoptions.NewRecommendedOptions(defaultEtcdPathPrefix, apiserver.Scheme, apiserver.Codecs.LegacyCodec(v1alpha1.SchemeGroupVersion)),
-		Admission:          genericoptions.NewAdmissionOptions(),
 
 		StdOut: out,
 		StdErr: errOut,
@@ -74,7 +72,6 @@ func NewCommandStartWardleServer(out, errOut io.Writer, stopCh <-chan struct{}) 
 
 	flags := cmd.Flags()
 	o.RecommendedOptions.AddFlags(flags)
-	o.Admission.AddFlags(flags)
 
 	return cmd
 }
@@ -95,10 +92,6 @@ func (o WardleServerOptions) Config() (*apiserver.Config, error) {
 
 	serverConfig := genericapiserver.NewConfig(apiserver.Codecs)
 	if err := o.RecommendedOptions.ApplyTo(serverConfig); err != nil {
-		return nil, err
-	}
-
-	if err := o.Admission.ApplyTo(serverConfig); err != nil {
 		return nil, err
 	}
 

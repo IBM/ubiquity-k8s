@@ -36,7 +36,6 @@ go_library(
     ],
     tags = ["automanaged"],
     deps = [
-        "//vendor/github.com/NYTimes/gziphandler:go_default_library",
         "//vendor/github.com/emicklei/go-restful:go_default_library",
         "//vendor/github.com/go-openapi/spec:go_default_library",
         "//vendor/github.com/golang/protobuf/proto:go_default_library",

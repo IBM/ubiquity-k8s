@@ -18,8 +18,6 @@ package openstack
 
 import (
 	"errors"
-	"fmt"
-	"net/url"
 
 	"github.com/golang/glog"
 	"github.com/gophercloud/gophercloud"
@@ -109,24 +107,7 @@ func (i *Instances) NodeAddresses(name types.NodeName) ([]v1.NodeAddress, error)
 // This method will not be called from the node that is requesting this ID. i.e. metadata service
 // and other local methods cannot be used here
 func (i *Instances) NodeAddressesByProviderID(providerID string) ([]v1.NodeAddress, error) {
-	instanceID, err := instanceIDFromProviderID(providerID)
-
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	server, err := servers.Get(i.compute, instanceID).Extract()
-
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	addresses, err := nodeAddresses(server)
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	return addresses, nil
+	return []v1.NodeAddress{}, errors.New("unimplemented")
 }
 
 // ExternalID returns the cloud provider ID of the specified instance (deprecated).
@@ -161,54 +142,10 @@ func (i *Instances) InstanceID(name types.NodeName) (string, error) {
 // This method will not be called from the node that is requesting this ID. i.e. metadata service
 // and other local methods cannot be used here
 func (i *Instances) InstanceTypeByProviderID(providerID string) (string, error) {
-	instanceID, err := instanceIDFromProviderID(providerID)
-
-	if err != nil {
-		return "", err
-	}
-
-	server, err := servers.Get(i.compute, instanceID).Extract()
-
-	if err != nil {
-		return "", err
-	}
-
-	return srvInstanceType(server)
+	return "", errors.New("unimplemented")
 }
 
 // InstanceType returns the type of the specified instance.
 func (i *Instances) InstanceType(name types.NodeName) (string, error) {
-	srv, err := getServerByName(i.compute, name)
-
-	if err != nil {
-		return "", err
-	}
-
-	return srvInstanceType(srv)
-}
-
-func srvInstanceType(srv *servers.Server) (string, error) {
-	keys := []string{"name", "id", "original_name"}
-	for _, key := range keys {
-		val, found := srv.Flavor[key]
-		if found {
-			flavor, ok := val.(string)
-			if ok {
-				return flavor, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("flavor name/id not found")
-}
-
-func instanceIDFromProviderID(providerID string) (instanceID string, err error) {
-	parsedID, err := url.Parse(providerID)
-	if err != nil {
-		return "", err
-	}
-	if parsedID.Scheme != ProviderName {
-		return "", fmt.Errorf("unrecognized provider %q", parsedID.Scheme)
-	}
-
-	return parsedID.Host, nil
+	return "", nil
 }

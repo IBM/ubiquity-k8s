@@ -85,7 +85,7 @@ func NewCmdTopPod(f cmdutil.Factory, out io.Writer) *cobra.Command {
 				cmdutil.CheckErr(err)
 			}
 			if err := options.Validate(); err != nil {
-				cmdutil.CheckErr(cmdutil.UsageErrorf(cmd, "%v", err))
+				cmdutil.CheckErr(cmdutil.UsageError(cmd, err.Error()))
 			}
 			if err := options.RunTopPod(); err != nil {
 				cmdutil.CheckErr(err)
@@ -105,7 +105,7 @@ func (o *TopPodOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []s
 	if len(args) == 1 {
 		o.ResourceName = args[0]
 	} else if len(args) > 1 {
-		return cmdutil.UsageErrorf(cmd, "%s", cmd.Use)
+		return cmdutil.UsageError(cmd, cmd.Use)
 	}
 
 	o.Namespace, _, err = f.DefaultNamespace()

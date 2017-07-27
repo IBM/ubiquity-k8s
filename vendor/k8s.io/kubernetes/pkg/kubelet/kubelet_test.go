@@ -38,11 +38,11 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/capabilities"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	cadvisortest "k8s.io/kubernetes/pkg/kubelet/cadvisor/testing"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
 	"k8s.io/kubernetes/pkg/kubelet/config"
@@ -356,7 +356,7 @@ func TestSyncPodsStartPod(t *testing.T) {
 	kubelet := testKubelet.kubelet
 	fakeRuntime := testKubelet.fakeRuntime
 	pods := []*v1.Pod{
-		podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+		podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 			Containers: []v1.Container{
 				{Name: "bar"},
 			},
@@ -443,8 +443,8 @@ func TestHandlePortConflicts(t *testing.T) {
 
 	spec := v1.PodSpec{NodeName: string(kl.nodeName), Containers: []v1.Container{{Ports: []v1.ContainerPort{{HostPort: 80}}}}}
 	pods := []*v1.Pod{
-		podWithUIDNameNsSpec("123456789", "newpod", "foo", spec),
-		podWithUIDNameNsSpec("987654321", "oldpod", "foo", spec),
+		podWithUidNameNsSpec("123456789", "newpod", "foo", spec),
+		podWithUidNameNsSpec("987654321", "oldpod", "foo", spec),
 	}
 	// Make sure the Pods are in the reverse order of creation time.
 	pods[1].CreationTimestamp = metav1.NewTime(time.Now())
@@ -488,8 +488,8 @@ func TestHandleHostNameConflicts(t *testing.T) {
 
 	// default NodeName in test is 127.0.0.1
 	pods := []*v1.Pod{
-		podWithUIDNameNsSpec("123456789", "notfittingpod", "foo", v1.PodSpec{NodeName: "127.0.0.2"}),
-		podWithUIDNameNsSpec("987654321", "fittingpod", "foo", v1.PodSpec{NodeName: "127.0.0.1"}),
+		podWithUidNameNsSpec("123456789", "notfittingpod", "foo", v1.PodSpec{NodeName: "127.0.0.2"}),
+		podWithUidNameNsSpec("987654321", "fittingpod", "foo", v1.PodSpec{NodeName: "127.0.0.1"}),
 	}
 
 	notfittingPod := pods[0]
@@ -528,8 +528,8 @@ func TestHandleNodeSelector(t *testing.T) {
 	testKubelet.fakeCadvisor.On("ImagesFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	testKubelet.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	pods := []*v1.Pod{
-		podWithUIDNameNsSpec("123456789", "podA", "foo", v1.PodSpec{NodeSelector: map[string]string{"key": "A"}}),
-		podWithUIDNameNsSpec("987654321", "podB", "foo", v1.PodSpec{NodeSelector: map[string]string{"key": "B"}}),
+		podWithUidNameNsSpec("123456789", "podA", "foo", v1.PodSpec{NodeSelector: map[string]string{"key": "A"}}),
+		podWithUidNameNsSpec("987654321", "podB", "foo", v1.PodSpec{NodeSelector: map[string]string{"key": "B"}}),
 	}
 	// The first pod should be rejected.
 	notfittingPod := pods[0]
@@ -574,8 +574,8 @@ func TestHandleMemExceeded(t *testing.T) {
 		}}},
 	}
 	pods := []*v1.Pod{
-		podWithUIDNameNsSpec("123456789", "newpod", "foo", spec),
-		podWithUIDNameNsSpec("987654321", "oldpod", "foo", spec),
+		podWithUidNameNsSpec("123456789", "newpod", "foo", spec),
+		podWithUidNameNsSpec("987654321", "oldpod", "foo", spec),
 	}
 	// Make sure the Pods are in the reverse order of creation time.
 	pods[1].CreationTimestamp = metav1.NewTime(time.Now())
@@ -768,7 +768,7 @@ func TestCreateMirrorPod(t *testing.T) {
 
 		kl := testKubelet.kubelet
 		manager := testKubelet.fakeMirrorClient
-		pod := podWithUIDNameNs("12345678", "bar", "foo")
+		pod := podWithUidNameNs("12345678", "bar", "foo")
 		pod.Annotations[kubetypes.ConfigSourceAnnotationKey] = "file"
 		pods := []*v1.Pod{pod}
 		kl.podManager.SetPods(pods)
@@ -795,7 +795,7 @@ func TestDeleteOutdatedMirrorPod(t *testing.T) {
 
 	kl := testKubelet.kubelet
 	manager := testKubelet.fakeMirrorClient
-	pod := podWithUIDNameNsSpec("12345678", "foo", "ns", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "ns", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "1234", Image: "foo"},
 		},
@@ -803,7 +803,7 @@ func TestDeleteOutdatedMirrorPod(t *testing.T) {
 	pod.Annotations[kubetypes.ConfigSourceAnnotationKey] = "file"
 
 	// Mirror pod has an outdated spec.
-	mirrorPod := podWithUIDNameNsSpec("11111111", "foo", "ns", v1.PodSpec{
+	mirrorPod := podWithUidNameNsSpec("11111111", "foo", "ns", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "1234", Image: "bar"},
 		},
@@ -966,7 +966,7 @@ func TestHostNetworkAllowed(t *testing.T) {
 			HostNetworkSources: []string{kubetypes.ApiserverSource, kubetypes.FileSource},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -999,7 +999,7 @@ func TestHostNetworkDisallowed(t *testing.T) {
 			HostNetworkSources: []string{},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -1031,7 +1031,7 @@ func TestHostPIDAllowed(t *testing.T) {
 			HostPIDSources: []string{kubetypes.ApiserverSource, kubetypes.FileSource},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -1064,7 +1064,7 @@ func TestHostPIDDisallowed(t *testing.T) {
 			HostPIDSources: []string{},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -1096,7 +1096,7 @@ func TestHostIPCAllowed(t *testing.T) {
 			HostIPCSources: []string{kubetypes.ApiserverSource, kubetypes.FileSource},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -1129,7 +1129,7 @@ func TestHostIPCDisallowed(t *testing.T) {
 			HostIPCSources: []string{},
 		},
 	})
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo"},
 		},
@@ -1160,7 +1160,7 @@ func TestPrivilegeContainerAllowed(t *testing.T) {
 		AllowPrivileged: true,
 	})
 	privileged := true
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo", SecurityContext: &v1.SecurityContext{Privileged: &privileged}},
 		},
@@ -1188,7 +1188,7 @@ func TestPrivilegedContainerDisallowed(t *testing.T) {
 		AllowPrivileged: false,
 	})
 	privileged := true
-	pod := podWithUIDNameNsSpec("12345678", "foo", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "foo", "new", v1.PodSpec{
 		Containers: []v1.Container{
 			{Name: "foo", SecurityContext: &v1.SecurityContext{Privileged: &privileged}},
 		},
@@ -1218,7 +1218,7 @@ func TestNetworkErrorsWithoutHostNetwork(t *testing.T) {
 		},
 	})
 
-	pod := podWithUIDNameNsSpec("12345678", "hostnetwork", "new", v1.PodSpec{
+	pod := podWithUidNameNsSpec("12345678", "hostnetwork", "new", v1.PodSpec{
 		HostNetwork: false,
 
 		Containers: []v1.Container{
@@ -1249,21 +1249,10 @@ func TestFilterOutTerminatedPods(t *testing.T) {
 	defer testKubelet.Cleanup()
 	kubelet := testKubelet.kubelet
 	pods := newTestPods(5)
-	now := metav1.NewTime(time.Now())
 	pods[0].Status.Phase = v1.PodFailed
 	pods[1].Status.Phase = v1.PodSucceeded
-	// The pod is terminating, should not filter out.
 	pods[2].Status.Phase = v1.PodRunning
-	pods[2].DeletionTimestamp = &now
-	pods[2].Status.ContainerStatuses = []v1.ContainerStatus{
-		{State: v1.ContainerState{
-			Running: &v1.ContainerStateRunning{
-				StartedAt: now,
-			},
-		}},
-	}
 	pods[3].Status.Phase = v1.PodPending
-	pods[4].Status.Phase = v1.PodRunning
 
 	expected := []*v1.Pod{pods[2], pods[3], pods[4]}
 	kubelet.podManager.SetPods(pods)
@@ -1372,7 +1361,7 @@ func TestSyncPodsDoesNotSetPodsThatDidNotRunTooLongToFailed(t *testing.T) {
 	assert.NotEqual(t, v1.PodFailed, status.Phase)
 }
 
-func podWithUIDNameNs(uid types.UID, name, namespace string) *v1.Pod {
+func podWithUidNameNs(uid types.UID, name, namespace string) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			UID:         uid,
@@ -1383,8 +1372,8 @@ func podWithUIDNameNs(uid types.UID, name, namespace string) *v1.Pod {
 	}
 }
 
-func podWithUIDNameNsSpec(uid types.UID, name, namespace string, spec v1.PodSpec) *v1.Pod {
-	pod := podWithUIDNameNs(uid, name, namespace)
+func podWithUidNameNsSpec(uid types.UID, name, namespace string, spec v1.PodSpec) *v1.Pod {
+	pod := podWithUidNameNs(uid, name, namespace)
 	pod.Spec = spec
 	return pod
 }
@@ -1399,8 +1388,8 @@ func TestDeletePodDirsForDeletedPods(t *testing.T) {
 	testKubelet.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	kl := testKubelet.kubelet
 	pods := []*v1.Pod{
-		podWithUIDNameNs("12345678", "pod1", "ns"),
-		podWithUIDNameNs("12345679", "pod2", "ns"),
+		podWithUidNameNs("12345678", "pod1", "ns"),
+		podWithUidNameNs("12345679", "pod2", "ns"),
 	}
 
 	kl.podManager.SetPods(pods)
@@ -1439,9 +1428,9 @@ func TestDoesNotDeletePodDirsForTerminatedPods(t *testing.T) {
 	testKubelet.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	kl := testKubelet.kubelet
 	pods := []*v1.Pod{
-		podWithUIDNameNs("12345678", "pod1", "ns"),
-		podWithUIDNameNs("12345679", "pod2", "ns"),
-		podWithUIDNameNs("12345680", "pod3", "ns"),
+		podWithUidNameNs("12345678", "pod1", "ns"),
+		podWithUidNameNs("12345679", "pod2", "ns"),
+		podWithUidNameNs("12345680", "pod3", "ns"),
 	}
 
 	syncAndVerifyPodDir(t, testKubelet, pods, pods, true)
@@ -1465,7 +1454,7 @@ func TestDoesNotDeletePodDirsIfContainerIsRunning(t *testing.T) {
 		Name:      "pod1",
 		Namespace: "ns",
 	}
-	apiPod := podWithUIDNameNs(runningPod.ID, runningPod.Name, runningPod.Namespace)
+	apiPod := podWithUidNameNs(runningPod.ID, runningPod.Name, runningPod.Namespace)
 
 	// Sync once to create pod directory; confirm that the pod directory has
 	// already been created.
@@ -1544,7 +1533,7 @@ func TestGenerateAPIPodStatusWithSortedContainers(t *testing.T) {
 		}
 		specContainerList = append(specContainerList, v1.Container{Name: containerName})
 	}
-	pod := podWithUIDNameNs("uid1", "foo", "test")
+	pod := podWithUidNameNs("uid1", "foo", "test")
 	pod.Spec = v1.PodSpec{
 		Containers: specContainerList,
 	}
@@ -1587,7 +1576,7 @@ func TestGenerateAPIPodStatusWithReasonCache(t *testing.T) {
 	testKubelet.fakeCadvisor.On("ImagesFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	testKubelet.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	kubelet := testKubelet.kubelet
-	pod := podWithUIDNameNs("12345678", "foo", "new")
+	pod := podWithUidNameNs("12345678", "foo", "new")
 	pod.Spec = v1.PodSpec{RestartPolicy: v1.RestartPolicyOnFailure}
 
 	podStatus := &kubecontainer.PodStatus{
@@ -1777,7 +1766,7 @@ func TestGenerateAPIPodStatusWithDifferentRestartPolicies(t *testing.T) {
 	testKubelet.fakeCadvisor.On("ImagesFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	testKubelet.fakeCadvisor.On("RootFsInfo").Return(cadvisorapiv2.FsInfo{}, nil)
 	kubelet := testKubelet.kubelet
-	pod := podWithUIDNameNs("12345678", "foo", "new")
+	pod := podWithUidNameNs("12345678", "foo", "new")
 	containers := []v1.Container{{Name: "succeed"}, {Name: "failed"}}
 	podStatus := &kubecontainer.PodStatus{
 		ID:        pod.UID,

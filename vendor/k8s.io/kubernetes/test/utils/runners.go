@@ -37,11 +37,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
 	batchinternal "k8s.io/kubernetes/pkg/apis/batch"
 	extensionsinternal "k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 
 	"github.com/golang/glog"
@@ -108,7 +108,6 @@ type RunObjectConfig interface {
 	SetClient(clientset.Interface)
 	SetInternalClient(internalclientset.Interface)
 	GetReplicas() int
-	GetLabelValue(string) (string, bool)
 }
 
 type RCConfig struct {
@@ -499,11 +498,6 @@ func (config *RCConfig) SetInternalClient(c internalclientset.Interface) {
 
 func (config *RCConfig) GetReplicas() int {
 	return config.Replicas
-}
-
-func (config *RCConfig) GetLabelValue(key string) (string, bool) {
-	value, found := config.Labels[key]
-	return value, found
 }
 
 func (config *RCConfig) create() error {
@@ -1003,7 +997,7 @@ func makeCreatePod(client clientset.Interface, namespace string, podTemplate *v1
 	return fmt.Errorf("Terminal error while creating pod, won't retry: %v", err)
 }
 
-func CreatePod(client clientset.Interface, namespace string, podCount int, podTemplate *v1.Pod) error {
+func createPod(client clientset.Interface, namespace string, podCount int, podTemplate *v1.Pod) error {
 	var createError error
 	lock := sync.Mutex{}
 	createPodFunc := func(i int) {
@@ -1050,7 +1044,7 @@ func createController(client clientset.Interface, controllerName, namespace stri
 
 func NewCustomCreatePodStrategy(podTemplate *v1.Pod) TestPodCreateStrategy {
 	return func(client clientset.Interface, namespace string, podCount int) error {
-		return CreatePod(client, namespace, podCount, podTemplate)
+		return createPod(client, namespace, podCount, podTemplate)
 	}
 }
 
@@ -1076,7 +1070,7 @@ func NewSimpleWithControllerCreatePodStrategy(controllerName string) TestPodCrea
 		if err := createController(client, controllerName, namespace, podCount, basePod); err != nil {
 			return err
 		}
-		return CreatePod(client, namespace, podCount, basePod)
+		return createPod(client, namespace, podCount, basePod)
 	}
 }
 

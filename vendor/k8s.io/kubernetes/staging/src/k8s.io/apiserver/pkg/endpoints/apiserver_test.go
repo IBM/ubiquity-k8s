@@ -41,7 +41,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	fuzzer "k8s.io/apimachinery/pkg/api/testing/fuzzer"
+	apitesting "k8s.io/apimachinery/pkg/api/testing"
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -174,21 +174,30 @@ func addGrouplessTypes() {
 }
 
 func addTestTypes() {
+	type ListOptions struct {
+		Object          runtime.Object
+		metav1.TypeMeta `json:",inline"`
+		LabelSelector   string `json:"labelSelector,omitempty"`
+		FieldSelector   string `json:"fieldSelector,omitempty"`
+		Watch           bool   `json:"watch,omitempty"`
+		ResourceVersion string `json:"resourceVersion,omitempty"`
+		TimeoutSeconds  *int64 `json:"timeoutSeconds,omitempty"`
+	}
 	scheme.AddKnownTypes(testGroupVersion,
 		&genericapitesting.Simple{}, &genericapitesting.SimpleList{}, &metav1.ExportOptions{},
 		&metav1.DeleteOptions{}, &genericapitesting.SimpleGetOptions{}, &genericapitesting.SimpleRoot{},
-		&genericapitesting.SimpleXGSubresource{})
+		&SimpleXGSubresource{})
 	scheme.AddKnownTypes(testGroupVersion, &examplev1.Pod{})
 	scheme.AddKnownTypes(testInternalGroupVersion,
 		&genericapitesting.Simple{}, &genericapitesting.SimpleList{}, &metav1.ExportOptions{},
 		&genericapitesting.SimpleGetOptions{}, &genericapitesting.SimpleRoot{},
-		&genericapitesting.SimpleXGSubresource{})
+		&SimpleXGSubresource{})
 	scheme.AddKnownTypes(testInternalGroupVersion, &example.Pod{})
 	// Register SimpleXGSubresource in both testGroupVersion and testGroup2Version, and also their
 	// their corresponding internal versions, to verify that the desired group version object is
 	// served in the tests.
-	scheme.AddKnownTypes(testGroup2Version, &genericapitesting.SimpleXGSubresource{}, &metav1.ExportOptions{})
-	scheme.AddKnownTypes(testInternalGroup2Version, &genericapitesting.SimpleXGSubresource{}, &metav1.ExportOptions{})
+	scheme.AddKnownTypes(testGroup2Version, &SimpleXGSubresource{}, &metav1.ExportOptions{})
+	scheme.AddKnownTypes(testInternalGroup2Version, &SimpleXGSubresource{}, &metav1.ExportOptions{})
 	metav1.AddToGroupVersion(scheme, testGroupVersion)
 }
 
@@ -467,9 +476,6 @@ func (s *SimpleStream) Close() error {
 }
 
 func (obj *SimpleStream) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }
-func (obj *SimpleStream) DeepCopyObject() runtime.Object {
-	panic("SimpleStream does not support DeepCopy")
-}
 
 func (s *SimpleStream) InputStream(version, accept string) (io.ReadCloser, bool, string, error) {
 	s.version = version
@@ -1147,10 +1153,10 @@ func TestList(t *testing.T) {
 			t.Errorf("%d: %q unexpected resource namespace: %s", i, testCase.url, simpleStorage.actualNamespace)
 		}
 		if simpleStorage.requestedLabelSelector == nil || simpleStorage.requestedLabelSelector.String() != testCase.label {
-			t.Errorf("%d: unexpected label selector: expected=%v got=%v", i, testCase.label, simpleStorage.requestedLabelSelector)
+			t.Errorf("%d: unexpected label selector: %v", i, simpleStorage.requestedLabelSelector)
 		}
 		if simpleStorage.requestedFieldSelector == nil || simpleStorage.requestedFieldSelector.String() != testCase.field {
-			t.Errorf("%d: unexpected field selector: expected=%v got=%v", i, testCase.field, simpleStorage.requestedFieldSelector)
+			t.Errorf("%d: unexpected field selector: %v", i, simpleStorage.requestedFieldSelector)
 		}
 	}
 }
@@ -3764,13 +3770,6 @@ type UnregisteredAPIObject struct {
 func (obj *UnregisteredAPIObject) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
-func (obj *UnregisteredAPIObject) DeepCopyObject() runtime.Object {
-	if obj == nil {
-		return nil
-	}
-	clone := *obj
-	return &clone
-}
 
 func TestWriteJSONDecodeError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -3936,12 +3935,23 @@ func TestUpdateChecksAPIVersion(t *testing.T) {
 	}
 }
 
+// SimpleXGSubresource is a cross group subresource, i.e. the subresource does not belong to the
+// same group as its parent resource.
+type SimpleXGSubresource struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	SubresourceInfo   string            `json:"subresourceInfo,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+}
+
+func (obj *SimpleXGSubresource) GetObjectKind() schema.ObjectKind { return &obj.TypeMeta }
+
 type SimpleXGSubresourceRESTStorage struct {
-	item genericapitesting.SimpleXGSubresource
+	item SimpleXGSubresource
 }
 
 func (storage *SimpleXGSubresourceRESTStorage) New() runtime.Object {
-	return &genericapitesting.SimpleXGSubresource{}
+	return &SimpleXGSubresource{}
 }
 
 func (storage *SimpleXGSubresourceRESTStorage) Get(ctx request.Context, id string, options *metav1.GetOptions) (runtime.Object, error) {
@@ -3959,7 +3969,7 @@ func TestXGSubresource(t *testing.T) {
 
 	itemID := "theID"
 	subresourceStorage := &SimpleXGSubresourceRESTStorage{
-		item: genericapitesting.SimpleXGSubresource{
+		item: SimpleXGSubresource{
 			SubresourceInfo: "foo",
 		},
 	}
@@ -4008,7 +4018,7 @@ func TestXGSubresource(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected response: %#v", resp)
 	}
-	var itemOut genericapitesting.SimpleXGSubresource
+	var itemOut SimpleXGSubresource
 	body, err := extractBody(resp, &itemOut)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -4020,7 +4030,7 @@ func TestXGSubresource(t *testing.T) {
 	// conversion type list in API scheme and hence cannot be converted from input type object
 	// to output type object. So it's values don't appear in the decoded output object.
 	decoder := json.NewDecoder(strings.NewReader(body))
-	var itemFromBody genericapitesting.SimpleXGSubresource
+	var itemFromBody SimpleXGSubresource
 	err = decoder.Decode(&itemFromBody)
 	if err != nil {
 		t.Errorf("unexpected JSON decoding error: %v", err)
@@ -4104,7 +4114,7 @@ func newTestRequestInfoResolver() *request.RequestInfoFactory {
 const benchmarkSeed = 100
 
 func benchmarkItems(b *testing.B) []example.Pod {
-	clientapiObjectFuzzer := fuzzer.FuzzerFor(examplefuzzer.Funcs, rand.NewSource(benchmarkSeed), codecs)
+	clientapiObjectFuzzer := apitesting.FuzzerFor(examplefuzzer.Funcs(b, codecs), rand.NewSource(benchmarkSeed))
 	items := make([]example.Pod, 3)
 	for i := range items {
 		clientapiObjectFuzzer.Fuzz(&items[i])

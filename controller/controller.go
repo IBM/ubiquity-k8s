@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
@@ -53,15 +54,15 @@ func NewControllerWithClient(logger *log.Logger, client resources.StorageClient,
 	return &Controller{logger: logger, Client: client, exec: exec}
 }
 
-//Init method is to initialize the flexvolume
-func (c *Controller) Init(config resources.UbiquityPluginConfig) resources.FlexVolumeResponse {
+//Init method is to initialize the k8sresourcesvolume
+func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-activate-start")
 	defer c.logger.Println("controller-activate-end")
 
 	activateRequest := resources.ActivateRequest{Backends: config.Backends}
 	err := c.Client.Activate(activateRequest)
 	if err != nil {
-		return resources.FlexVolumeResponse{
+		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Plugin init failed %#v ", err),
 			Device:  "",
@@ -69,7 +70,7 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) resources.FlexV
 
 	}
 
-	return resources.FlexVolumeResponse{
+	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Plugin init successfully",
 		Device:  "",
@@ -77,15 +78,15 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) resources.FlexV
 }
 
 //Attach method attaches a volume to a host
-func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolumeResponse {
+func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
 	c.logger.Printf("attach-details %#v\n", attachRequest)
-	var attachResponse resources.FlexVolumeResponse
+	var attachResponse k8sresources.FlexVolumeResponse
 	volumeName, exists := attachRequest["volumeName"]
 	if !exists {
 
-		attachResponse = resources.FlexVolumeResponse{
+		attachResponse = k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to attach volume: VolumeName not found : #%v", attachRequest),
 			Device:  volumeName,
@@ -99,14 +100,14 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 	_, err := c.Client.GetVolume(getVolumeRequest)
 
 	if err != nil {
-		return resources.FlexVolumeResponse{
+		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: "Failed checking volume, call create before attach",
 			Device:  volumeName}
 
 	}
 
-	return resources.FlexVolumeResponse{
+	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume already attached",
 		Device:  volumeName,
@@ -114,24 +115,70 @@ func (c *Controller) Attach(attachRequest map[string]string) resources.FlexVolum
 
 }
 
+//WaitForAttach Waits for a volume to get attached to the node
+func (c *Controller) WaitForAttach(waitForAttachRequest k8sresources.FlexVolumeWaitForAttachRequest) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-waitForAttach-start")
+	defer c.logger.Println("controller-waitForAttach-end")
+	return k8sresources.FlexVolumeResponse{
+		Status:     "Success",
+		Message:    "Volume attached",
+		VolumeName: waitForAttachRequest.Name,
+		Device:     waitForAttachRequest.Name,
+		Attached:   true,
+	}
+}
+
+//IsAttached checks if volume is attached
+func (c *Controller) IsAttached(isAttachRequest k8sresources.FlexVolumeIsAttachedRequest) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-isAttached-start")
+	defer c.logger.Println("controller-isAttached-end")
+	return k8sresources.FlexVolumeResponse{
+		Status:     "Success",
+		Message:    "Volume is attached",
+		VolumeName: isAttachRequest.Name,
+		Device:     isAttachRequest.Name,
+		Attached:   true,
+	}
+}
+
 //Detach detaches the volume/ fileset from the pod
-func (c *Controller) Detach(detachRequest resources.FlexVolumeDetachRequest) resources.FlexVolumeResponse {
+func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-detach-start")
 	defer c.logger.Println("controller-detach-end")
 
 	c.logger.Printf("detach-details %#v. (no operation done in the detach action)\n", detachRequest)
 
-	// TODO : no-op for now, will change with latest flex api update
+	// TODO : no-op for now, will change with latest k8sresources api update
 
-	return resources.FlexVolumeResponse{
+	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume detached successfully",
 		Device:  detachRequest.Name,
 	}
 }
 
+//MountDevice mounts a device in a given location
+func (c *Controller) MountDevice(mountDeviceRequest k8sresources.FlexVolumeMountDeviceRequest) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-MountDevice-start")
+	defer c.logger.Println("controller-MountDevice-end")
+	return k8sresources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Volume is mounted",
+	}
+}
+
+//UnmountDevice checks if volume is unmounted
+func (c *Controller) UnmountDevice(unmountDeviceRequest k8sresources.FlexVolumeUnmountDeviceRequest) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-UnmountDevice-start")
+	defer c.logger.Println("controller-UnmountDevice-end")
+	return k8sresources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Volume is unmounted",
+	}
+}
+
 //Mount method allows to mount the volume/fileset to a given location for a pod
-func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resources.FlexVolumeResponse {
+func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-mount-start")
 	defer c.logger.Println("controller-mount-end")
 	c.logger.Println(fmt.Sprintf("mountRequest [%#v]", mountRequest))
@@ -142,7 +189,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 	if err != nil {
 		msg := fmt.Sprintf("Failed to mount volume [%s], Error: %#v", mountRequest.MountDevice, err)
 		c.logger.Println(msg)
-		return resources.FlexVolumeResponse{
+		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: msg,
 			Device:  "",
@@ -161,7 +208,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 				msg := fmt.Sprintf("Failed creating volume directory %#v", err)
 				c.logger.Println(msg)
 
-				return resources.FlexVolumeResponse{
+				return k8sresources.FlexVolumeResponse{
 					Status:  "Failure",
 					Message: msg,
 					Device:  "",
@@ -178,7 +225,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 			if err != nil {
 				msg := fmt.Sprintf("Controller: mount failed to symlink %#v", err)
 				c.logger.Println(msg)
-				return resources.FlexVolumeResponse{
+				return k8sresources.FlexVolumeResponse{
 					Status:  "Failure",
 					Message: msg,
 					Device:  "",
@@ -188,7 +235,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 			msg := fmt.Sprintf("Volume mounted successfully to %s", mountedPath)
 			c.logger.Println(msg)
 
-			return resources.FlexVolumeResponse{
+			return k8sresources.FlexVolumeResponse{
 				Status:  "Success",
 				Message: msg,
 				Device:  "",
@@ -199,7 +246,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 			err,
 		)
 		c.logger.Println(msg)
-		return resources.FlexVolumeResponse{
+		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: msg,
 			Device:  "",
@@ -210,7 +257,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 
 	}
 
-	return resources.FlexVolumeResponse{
+	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
 		Device:  "",
@@ -219,7 +266,7 @@ func (c *Controller) Mount(mountRequest resources.FlexVolumeMountRequest) resour
 }
 
 //Unmount methods unmounts the volume from the pod
-func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) resources.FlexVolumeResponse {
+func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("Controller: unmount start")
 	defer c.logger.Println("Controller: unmount end")
 	var detachRequest resources.DetachRequest
@@ -230,7 +277,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 	if err != nil {
 		msg := fmt.Sprintf("Cannot execute umount because the mountPath [%s] is not a symlink as expected. Error: %#v", unmountRequest.MountPath, err)
 		c.logger.Println(msg)
-		return resources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
+		return k8sresources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
 	}
 	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
 	if strings.HasPrefix(realMountPoint, ubiquityMountPrefix) {
@@ -246,7 +293,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 				unmountRequest.MountPath,
 				err)
 			c.logger.Println(msg)
-			return resources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
+			return k8sresources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
 		}
 
 		c.logger.Println(fmt.Sprintf("Removing the slink [%s] to the real mountpoint [%s]", unmountRequest.MountPath, realMountPoint))
@@ -254,7 +301,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 		if err != nil {
 			msg := fmt.Sprintf("fail to remove slink %s. Error %#v", unmountRequest.MountPath, err)
 			c.logger.Println(msg)
-			return resources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
+			return k8sresources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
 		}
 
 	} else {
@@ -264,7 +311,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 		if err != nil {
 			msg := fmt.Sprintf("Error getting the volume list from ubiquity server %#v", err)
 			c.logger.Println(msg)
-			return resources.FlexVolumeResponse{
+			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
 				Device:  "",
@@ -279,7 +326,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 				volumes,
 				err)
 			c.logger.Println(msg)
-			return resources.FlexVolumeResponse{
+			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
 				Device:  "",
@@ -296,7 +343,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 				err)
 			c.logger.Println(msg)
 
-			return resources.FlexVolumeResponse{
+			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
 				Device:  "",
@@ -313,7 +360,7 @@ func (c *Controller) Unmount(unmountRequest resources.FlexVolumeUnmountRequest) 
 	)
 	c.logger.Println(msg)
 
-	return resources.FlexVolumeResponse{
+	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume unmounted successfully",
 		Device:  "",

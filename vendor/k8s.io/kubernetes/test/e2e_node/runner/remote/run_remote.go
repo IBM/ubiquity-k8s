@@ -58,7 +58,6 @@ var buildOnly = flag.Bool("build-only", false, "If true, build e2e_node_test.tar
 var instanceMetadata = flag.String("instance-metadata", "", "key/value metadata for instances separated by '=' or '<', 'k=v' means the key is 'k' and the value is 'v'; 'k<p' means the key is 'k' and the value is extracted from the local path 'p', e.g. k1=v1,k2<p2")
 var gubernator = flag.Bool("gubernator", false, "If true, output Gubernator link to view logs")
 var ginkgoFlags = flag.String("ginkgo-flags", "", "Passed to ginkgo to specify additional flags such as --skip=.")
-var systemSpecName = flag.String("system-spec-name", "", "The name of the system spec used for validating the image in the node conformance test. The specs are at test/e2e_node/system/specs/. If unspecified, the default built-in spec (system.DefaultSpec) will be used.")
 
 const (
 	defaultMachine                = "n1-standard-1"
@@ -164,7 +163,7 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	if *buildOnly {
 		// Build the archive and exit
-		remote.CreateTestArchive(suite, *systemSpecName)
+		remote.CreateTestArchive(suite)
 		return
 	}
 
@@ -283,7 +282,7 @@ func main() {
 			fmt.Printf("Initializing e2e tests using host %s.\n", host)
 			running++
 			go func(host string, junitFilePrefix string) {
-				results <- testHost(host, *cleanup, "", junitFilePrefix, *ginkgoFlags)
+				results <- testHost(host, *cleanup, junitFilePrefix, *ginkgoFlags)
 			}(host, host)
 		}
 	}
@@ -337,7 +336,7 @@ func callGubernator(gubernator bool) {
 }
 
 func (a *Archive) getArchive() (string, error) {
-	a.Do(func() { a.path, a.err = remote.CreateTestArchive(suite, *systemSpecName) })
+	a.Do(func() { a.path, a.err = remote.CreateTestArchive(suite) })
 	return a.path, a.err
 }
 
@@ -369,7 +368,7 @@ func getImageMetadata(input string) *compute.Metadata {
 }
 
 // Run tests in archive against host
-func testHost(host string, deleteFiles bool, imageDesc, junitFilePrefix, ginkgoFlagsStr string) *TestResult {
+func testHost(host string, deleteFiles bool, junitFilePrefix string, ginkgoFlagsStr string) *TestResult {
 	instance, err := computeService.Instances.Get(*project, *zone, host).Do()
 	if err != nil {
 		return &TestResult{
@@ -395,11 +394,11 @@ func testHost(host string, deleteFiles bool, imageDesc, junitFilePrefix, ginkgoF
 	if err != nil {
 		// Don't log fatal because we need to do any needed cleanup contained in "defer" statements
 		return &TestResult{
-			err: fmt.Errorf("unable to create test archive: %v.", err),
+			err: fmt.Errorf("unable to create test archive %v.", err),
 		}
 	}
 
-	output, exitOk, err := remote.RunRemote(suite, path, host, deleteFiles, imageDesc, junitFilePrefix, *testArgs, ginkgoFlagsStr, *systemSpecName)
+	output, exitOk, err := remote.RunRemote(suite, path, host, deleteFiles, junitFilePrefix, *testArgs, ginkgoFlagsStr)
 	return &TestResult{
 		output: output,
 		err:    err,
@@ -485,7 +484,7 @@ func testImage(imageConfig *internalGCEImage, junitFilePrefix string) *TestResul
 	// If we are going to delete the instance, don't bother with cleaning up the files
 	deleteFiles := !*deleteInstances && *cleanup
 
-	result := testHost(host, deleteFiles, imageConfig.image, junitFilePrefix, ginkgoFlagsStr)
+	result := testHost(host, deleteFiles, junitFilePrefix, ginkgoFlagsStr)
 	// This is a temporary solution to collect serial node serial log. Only port 1 contains useful information.
 	// TODO(random-liu): Extract out and unify log collection logic with cluste e2e.
 	serialPortOutput, err := computeService.Instances.GetSerialPortOutput(*project, *zone, host).Port(1).Do()

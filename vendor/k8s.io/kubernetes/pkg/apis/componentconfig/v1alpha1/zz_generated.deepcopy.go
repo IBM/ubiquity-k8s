@@ -27,672 +27,388 @@ import (
 	reflect "reflect"
 )
 
-// Deprecated: register deep-copy functions.
 func init() {
 	SchemeBuilder.Register(RegisterDeepCopies)
 }
 
-// Deprecated: RegisterDeepCopies adds deep-copy functions to the given scheme. Public
+// RegisterDeepCopies adds deep-copy functions to the given scheme. Public
 // to allow building arbitrary schemes.
 func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	return scheme.AddGeneratedDeepCopyFuncs(
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*ClientConnectionConfiguration).DeepCopyInto(out.(*ClientConnectionConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&ClientConnectionConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeProxyConfiguration).DeepCopyInto(out.(*KubeProxyConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&KubeProxyConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeProxyConntrackConfiguration).DeepCopyInto(out.(*KubeProxyConntrackConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&KubeProxyConntrackConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeProxyIPTablesConfiguration).DeepCopyInto(out.(*KubeProxyIPTablesConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&KubeProxyIPTablesConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeSchedulerConfiguration).DeepCopyInto(out.(*KubeSchedulerConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&KubeSchedulerConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletAnonymousAuthentication).DeepCopyInto(out.(*KubeletAnonymousAuthentication))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletAnonymousAuthentication{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletAuthentication).DeepCopyInto(out.(*KubeletAuthentication))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletAuthentication{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletAuthorization).DeepCopyInto(out.(*KubeletAuthorization))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletAuthorization{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletConfiguration).DeepCopyInto(out.(*KubeletConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletConfiguration{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletWebhookAuthentication).DeepCopyInto(out.(*KubeletWebhookAuthentication))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletWebhookAuthentication{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletWebhookAuthorization).DeepCopyInto(out.(*KubeletWebhookAuthorization))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletWebhookAuthorization{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*KubeletX509Authentication).DeepCopyInto(out.(*KubeletX509Authentication))
-			return nil
-		}, InType: reflect.TypeOf(&KubeletX509Authentication{})},
-		conversion.GeneratedDeepCopyFunc{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
-			in.(*LeaderElectionConfiguration).DeepCopyInto(out.(*LeaderElectionConfiguration))
-			return nil
-		}, InType: reflect.TypeOf(&LeaderElectionConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_ClientConnectionConfiguration, InType: reflect.TypeOf(&ClientConnectionConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyConfiguration, InType: reflect.TypeOf(&KubeProxyConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyConntrackConfiguration, InType: reflect.TypeOf(&KubeProxyConntrackConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration, InType: reflect.TypeOf(&KubeProxyIPTablesConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeSchedulerConfiguration, InType: reflect.TypeOf(&KubeSchedulerConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletAnonymousAuthentication, InType: reflect.TypeOf(&KubeletAnonymousAuthentication{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletAuthentication, InType: reflect.TypeOf(&KubeletAuthentication{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletAuthorization, InType: reflect.TypeOf(&KubeletAuthorization{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletConfiguration, InType: reflect.TypeOf(&KubeletConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletWebhookAuthentication, InType: reflect.TypeOf(&KubeletWebhookAuthentication{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletWebhookAuthorization, InType: reflect.TypeOf(&KubeletWebhookAuthorization{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletX509Authentication, InType: reflect.TypeOf(&KubeletX509Authentication{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_LeaderElectionConfiguration, InType: reflect.TypeOf(&LeaderElectionConfiguration{})},
 	)
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *ClientConnectionConfiguration) DeepCopyInto(out *ClientConnectionConfiguration) {
-	*out = *in
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new ClientConnectionConfiguration.
-func (x *ClientConnectionConfiguration) DeepCopy() *ClientConnectionConfiguration {
-	if x == nil {
+// DeepCopy_v1alpha1_ClientConnectionConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_ClientConnectionConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ClientConnectionConfiguration)
+		out := out.(*ClientConnectionConfiguration)
+		*out = *in
 		return nil
 	}
-	out := new(ClientConnectionConfiguration)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeProxyConfiguration) DeepCopyInto(out *KubeProxyConfiguration) {
-	*out = *in
-	out.TypeMeta = in.TypeMeta
-	out.ClientConnection = in.ClientConnection
-	in.IPTables.DeepCopyInto(&out.IPTables)
-	if in.OOMScoreAdj != nil {
-		in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeProxyConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeProxyConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeProxyConfiguration)
+		out := out.(*KubeProxyConfiguration)
+		*out = *in
+		if err := DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration(&in.IPTables, &out.IPTables, c); err != nil {
+			return err
+		}
+		if in.OOMScoreAdj != nil {
+			in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	out.UDPIdleTimeout = in.UDPIdleTimeout
-	out.Conntrack = in.Conntrack
-	out.ConfigSyncPeriod = in.ConfigSyncPeriod
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeProxyConfiguration.
-func (x *KubeProxyConfiguration) DeepCopy() *KubeProxyConfiguration {
-	if x == nil {
-		return nil
-	}
-	out := new(KubeProxyConfiguration)
-	x.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyObject is an autogenerated deepcopy function, copying the receiver, creating a new runtime.Object.
-func (x *KubeProxyConfiguration) DeepCopyObject() runtime.Object {
-	if c := x.DeepCopy(); c != nil {
-		return c
-	} else {
 		return nil
 	}
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeProxyConntrackConfiguration) DeepCopyInto(out *KubeProxyConntrackConfiguration) {
-	*out = *in
-	out.TCPEstablishedTimeout = in.TCPEstablishedTimeout
-	out.TCPCloseWaitTimeout = in.TCPCloseWaitTimeout
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeProxyConntrackConfiguration.
-func (x *KubeProxyConntrackConfiguration) DeepCopy() *KubeProxyConntrackConfiguration {
-	if x == nil {
+// DeepCopy_v1alpha1_KubeProxyConntrackConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeProxyConntrackConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeProxyConntrackConfiguration)
+		out := out.(*KubeProxyConntrackConfiguration)
+		*out = *in
 		return nil
 	}
-	out := new(KubeProxyConntrackConfiguration)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeProxyIPTablesConfiguration) DeepCopyInto(out *KubeProxyIPTablesConfiguration) {
-	*out = *in
-	if in.MasqueradeBit != nil {
-		in, out := &in.MasqueradeBit, &out.MasqueradeBit
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeProxyIPTablesConfiguration)
+		out := out.(*KubeProxyIPTablesConfiguration)
+		*out = *in
+		if in.MasqueradeBit != nil {
+			in, out := &in.MasqueradeBit, &out.MasqueradeBit
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	out.SyncPeriod = in.SyncPeriod
-	out.MinSyncPeriod = in.MinSyncPeriod
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeProxyIPTablesConfiguration.
-func (x *KubeProxyIPTablesConfiguration) DeepCopy() *KubeProxyIPTablesConfiguration {
-	if x == nil {
 		return nil
 	}
-	out := new(KubeProxyIPTablesConfiguration)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeSchedulerConfiguration) DeepCopyInto(out *KubeSchedulerConfiguration) {
-	*out = *in
-	out.TypeMeta = in.TypeMeta
-	if in.EnableProfiling != nil {
-		in, out := &in.EnableProfiling, &out.EnableProfiling
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeSchedulerConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeSchedulerConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeSchedulerConfiguration)
+		out := out.(*KubeSchedulerConfiguration)
+		*out = *in
+		if in.EnableProfiling != nil {
+			in, out := &in.EnableProfiling, &out.EnableProfiling
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	in.LeaderElection.DeepCopyInto(&out.LeaderElection)
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeSchedulerConfiguration.
-func (x *KubeSchedulerConfiguration) DeepCopy() *KubeSchedulerConfiguration {
-	if x == nil {
-		return nil
-	}
-	out := new(KubeSchedulerConfiguration)
-	x.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyObject is an autogenerated deepcopy function, copying the receiver, creating a new runtime.Object.
-func (x *KubeSchedulerConfiguration) DeepCopyObject() runtime.Object {
-	if c := x.DeepCopy(); c != nil {
-		return c
-	} else {
+		if err := DeepCopy_v1alpha1_LeaderElectionConfiguration(&in.LeaderElection, &out.LeaderElection, c); err != nil {
+			return err
+		}
 		return nil
 	}
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletAnonymousAuthentication) DeepCopyInto(out *KubeletAnonymousAuthentication) {
-	*out = *in
-	if in.Enabled != nil {
-		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeletAnonymousAuthentication is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletAnonymousAuthentication(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletAnonymousAuthentication)
+		out := out.(*KubeletAnonymousAuthentication)
+		*out = *in
+		if in.Enabled != nil {
+			in, out := &in.Enabled, &out.Enabled
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletAnonymousAuthentication.
-func (x *KubeletAnonymousAuthentication) DeepCopy() *KubeletAnonymousAuthentication {
-	if x == nil {
 		return nil
 	}
-	out := new(KubeletAnonymousAuthentication)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletAuthentication) DeepCopyInto(out *KubeletAuthentication) {
-	*out = *in
-	out.X509 = in.X509
-	in.Webhook.DeepCopyInto(&out.Webhook)
-	in.Anonymous.DeepCopyInto(&out.Anonymous)
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletAuthentication.
-func (x *KubeletAuthentication) DeepCopy() *KubeletAuthentication {
-	if x == nil {
+// DeepCopy_v1alpha1_KubeletAuthentication is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletAuthentication(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletAuthentication)
+		out := out.(*KubeletAuthentication)
+		*out = *in
+		if err := DeepCopy_v1alpha1_KubeletWebhookAuthentication(&in.Webhook, &out.Webhook, c); err != nil {
+			return err
+		}
+		if err := DeepCopy_v1alpha1_KubeletAnonymousAuthentication(&in.Anonymous, &out.Anonymous, c); err != nil {
+			return err
+		}
 		return nil
 	}
-	out := new(KubeletAuthentication)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletAuthorization) DeepCopyInto(out *KubeletAuthorization) {
-	*out = *in
-	out.Webhook = in.Webhook
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletAuthorization.
-func (x *KubeletAuthorization) DeepCopy() *KubeletAuthorization {
-	if x == nil {
+// DeepCopy_v1alpha1_KubeletAuthorization is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletAuthorization(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletAuthorization)
+		out := out.(*KubeletAuthorization)
+		*out = *in
 		return nil
 	}
-	out := new(KubeletAuthorization)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
-	*out = *in
-	out.TypeMeta = in.TypeMeta
-	out.SyncFrequency = in.SyncFrequency
-	out.FileCheckFrequency = in.FileCheckFrequency
-	out.HTTPCheckFrequency = in.HTTPCheckFrequency
-	if in.EnableServer != nil {
-		in, out := &in.EnableServer, &out.EnableServer
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeletConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletConfiguration)
+		out := out.(*KubeletConfiguration)
+		*out = *in
+		if in.EnableServer != nil {
+			in, out := &in.EnableServer, &out.EnableServer
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	in.Authentication.DeepCopyInto(&out.Authentication)
-	out.Authorization = in.Authorization
-	if in.AllowPrivileged != nil {
-		in, out := &in.AllowPrivileged, &out.AllowPrivileged
-		if *in == nil {
-			*out = nil
-		} else {
+		if err := DeepCopy_v1alpha1_KubeletAuthentication(&in.Authentication, &out.Authentication, c); err != nil {
+			return err
+		}
+		if in.AllowPrivileged != nil {
+			in, out := &in.AllowPrivileged, &out.AllowPrivileged
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.HostNetworkSources != nil {
-		in, out := &in.HostNetworkSources, &out.HostNetworkSources
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.HostPIDSources != nil {
-		in, out := &in.HostPIDSources, &out.HostPIDSources
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.HostIPCSources != nil {
-		in, out := &in.HostIPCSources, &out.HostIPCSources
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.RegistryPullQPS != nil {
-		in, out := &in.RegistryPullQPS, &out.RegistryPullQPS
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.HostNetworkSources != nil {
+			in, out := &in.HostNetworkSources, &out.HostNetworkSources
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.HostPIDSources != nil {
+			in, out := &in.HostPIDSources, &out.HostPIDSources
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.HostIPCSources != nil {
+			in, out := &in.HostIPCSources, &out.HostIPCSources
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.RegistryPullQPS != nil {
+			in, out := &in.RegistryPullQPS, &out.RegistryPullQPS
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.EventRecordQPS != nil {
-		in, out := &in.EventRecordQPS, &out.EventRecordQPS
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.EventRecordQPS != nil {
+			in, out := &in.EventRecordQPS, &out.EventRecordQPS
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.EnableDebuggingHandlers != nil {
-		in, out := &in.EnableDebuggingHandlers, &out.EnableDebuggingHandlers
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.EnableDebuggingHandlers != nil {
+			in, out := &in.EnableDebuggingHandlers, &out.EnableDebuggingHandlers
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	out.MinimumGCAge = in.MinimumGCAge
-	if in.MaxContainerCount != nil {
-		in, out := &in.MaxContainerCount, &out.MaxContainerCount
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.MaxContainerCount != nil {
+			in, out := &in.MaxContainerCount, &out.MaxContainerCount
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.CAdvisorPort != nil {
-		in, out := &in.CAdvisorPort, &out.CAdvisorPort
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.CAdvisorPort != nil {
+			in, out := &in.CAdvisorPort, &out.CAdvisorPort
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.OOMScoreAdj != nil {
-		in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.OOMScoreAdj != nil {
+			in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.RegisterNode != nil {
-		in, out := &in.RegisterNode, &out.RegisterNode
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.RegisterNode != nil {
+			in, out := &in.RegisterNode, &out.RegisterNode
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.ClusterDNS != nil {
-		in, out := &in.ClusterDNS, &out.ClusterDNS
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	out.StreamingConnectionIdleTimeout = in.StreamingConnectionIdleTimeout
-	out.NodeStatusUpdateFrequency = in.NodeStatusUpdateFrequency
-	out.ImageMinimumGCAge = in.ImageMinimumGCAge
-	if in.ImageGCHighThresholdPercent != nil {
-		in, out := &in.ImageGCHighThresholdPercent, &out.ImageGCHighThresholdPercent
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.ClusterDNS != nil {
+			in, out := &in.ClusterDNS, &out.ClusterDNS
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.ImageGCHighThresholdPercent != nil {
+			in, out := &in.ImageGCHighThresholdPercent, &out.ImageGCHighThresholdPercent
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.ImageGCLowThresholdPercent != nil {
-		in, out := &in.ImageGCLowThresholdPercent, &out.ImageGCLowThresholdPercent
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.ImageGCLowThresholdPercent != nil {
+			in, out := &in.ImageGCLowThresholdPercent, &out.ImageGCLowThresholdPercent
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	out.VolumeStatsAggPeriod = in.VolumeStatsAggPeriod
-	if in.CgroupsPerQOS != nil {
-		in, out := &in.CgroupsPerQOS, &out.CgroupsPerQOS
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.CgroupsPerQOS != nil {
+			in, out := &in.CgroupsPerQOS, &out.CgroupsPerQOS
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	out.RuntimeRequestTimeout = in.RuntimeRequestTimeout
-	if in.LockFilePath != nil {
-		in, out := &in.LockFilePath, &out.LockFilePath
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.LockFilePath != nil {
+			in, out := &in.LockFilePath, &out.LockFilePath
 			*out = new(string)
 			**out = **in
 		}
-	}
-	if in.CPUCFSQuota != nil {
-		in, out := &in.CPUCFSQuota, &out.CPUCFSQuota
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.CPUCFSQuota != nil {
+			in, out := &in.CPUCFSQuota, &out.CPUCFSQuota
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.Containerized != nil {
-		in, out := &in.Containerized, &out.Containerized
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.Containerized != nil {
+			in, out := &in.Containerized, &out.Containerized
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.RegisterSchedulable != nil {
-		in, out := &in.RegisterSchedulable, &out.RegisterSchedulable
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.RegisterSchedulable != nil {
+			in, out := &in.RegisterSchedulable, &out.RegisterSchedulable
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.RegisterWithTaints != nil {
-		in, out := &in.RegisterWithTaints, &out.RegisterWithTaints
-		*out = make([]v1.Taint, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		if in.RegisterWithTaints != nil {
+			in, out := &in.RegisterWithTaints, &out.RegisterWithTaints
+			*out = make([]v1.Taint, len(*in))
+			for i := range *in {
+				if err := v1.DeepCopy_v1_Taint(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
 		}
-	}
-	if in.KubeAPIQPS != nil {
-		in, out := &in.KubeAPIQPS, &out.KubeAPIQPS
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.KubeAPIQPS != nil {
+			in, out := &in.KubeAPIQPS, &out.KubeAPIQPS
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.SerializeImagePulls != nil {
-		in, out := &in.SerializeImagePulls, &out.SerializeImagePulls
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.SerializeImagePulls != nil {
+			in, out := &in.SerializeImagePulls, &out.SerializeImagePulls
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	out.OutOfDiskTransitionFrequency = in.OutOfDiskTransitionFrequency
-	if in.NodeLabels != nil {
-		in, out := &in.NodeLabels, &out.NodeLabels
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		if in.NodeLabels != nil {
+			in, out := &in.NodeLabels, &out.NodeLabels
+			*out = make(map[string]string)
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
-	}
-	if in.EvictionHard != nil {
-		in, out := &in.EvictionHard, &out.EvictionHard
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.EvictionHard != nil {
+			in, out := &in.EvictionHard, &out.EvictionHard
 			*out = new(string)
 			**out = **in
 		}
-	}
-	out.EvictionPressureTransitionPeriod = in.EvictionPressureTransitionPeriod
-	if in.ExperimentalKernelMemcgNotification != nil {
-		in, out := &in.ExperimentalKernelMemcgNotification, &out.ExperimentalKernelMemcgNotification
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.ExperimentalKernelMemcgNotification != nil {
+			in, out := &in.ExperimentalKernelMemcgNotification, &out.ExperimentalKernelMemcgNotification
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.EnableControllerAttachDetach != nil {
-		in, out := &in.EnableControllerAttachDetach, &out.EnableControllerAttachDetach
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.EnableControllerAttachDetach != nil {
+			in, out := &in.EnableControllerAttachDetach, &out.EnableControllerAttachDetach
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.ExperimentalQOSReserved != nil {
-		in, out := &in.ExperimentalQOSReserved, &out.ExperimentalQOSReserved
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		if in.ExperimentalQOSReserved != nil {
+			in, out := &in.ExperimentalQOSReserved, &out.ExperimentalQOSReserved
+			*out = make(map[string]string)
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
-	}
-	if in.MakeIPTablesUtilChains != nil {
-		in, out := &in.MakeIPTablesUtilChains, &out.MakeIPTablesUtilChains
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.MakeIPTablesUtilChains != nil {
+			in, out := &in.MakeIPTablesUtilChains, &out.MakeIPTablesUtilChains
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	if in.IPTablesMasqueradeBit != nil {
-		in, out := &in.IPTablesMasqueradeBit, &out.IPTablesMasqueradeBit
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.IPTablesMasqueradeBit != nil {
+			in, out := &in.IPTablesMasqueradeBit, &out.IPTablesMasqueradeBit
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.IPTablesDropBit != nil {
-		in, out := &in.IPTablesDropBit, &out.IPTablesDropBit
-		if *in == nil {
-			*out = nil
-		} else {
+		if in.IPTablesDropBit != nil {
+			in, out := &in.IPTablesDropBit, &out.IPTablesDropBit
 			*out = new(int32)
 			**out = **in
 		}
-	}
-	if in.AllowedUnsafeSysctls != nil {
-		in, out := &in.AllowedUnsafeSysctls, &out.AllowedUnsafeSysctls
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.SystemReserved != nil {
-		in, out := &in.SystemReserved, &out.SystemReserved
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		if in.AllowedUnsafeSysctls != nil {
+			in, out := &in.AllowedUnsafeSysctls, &out.AllowedUnsafeSysctls
+			*out = make([]string, len(*in))
+			copy(*out, *in)
 		}
-	}
-	if in.KubeReserved != nil {
-		in, out := &in.KubeReserved, &out.KubeReserved
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
+		if in.SystemReserved != nil {
+			in, out := &in.SystemReserved, &out.SystemReserved
+			*out = make(map[string]string)
+			for key, val := range *in {
+				(*out)[key] = val
+			}
 		}
-	}
-	if in.EnforceNodeAllocatable != nil {
-		in, out := &in.EnforceNodeAllocatable, &out.EnforceNodeAllocatable
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletConfiguration.
-func (x *KubeletConfiguration) DeepCopy() *KubeletConfiguration {
-	if x == nil {
-		return nil
-	}
-	out := new(KubeletConfiguration)
-	x.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyObject is an autogenerated deepcopy function, copying the receiver, creating a new runtime.Object.
-func (x *KubeletConfiguration) DeepCopyObject() runtime.Object {
-	if c := x.DeepCopy(); c != nil {
-		return c
-	} else {
+		if in.KubeReserved != nil {
+			in, out := &in.KubeReserved, &out.KubeReserved
+			*out = make(map[string]string)
+			for key, val := range *in {
+				(*out)[key] = val
+			}
+		}
+		if in.EnforceNodeAllocatable != nil {
+			in, out := &in.EnforceNodeAllocatable, &out.EnforceNodeAllocatable
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
 		return nil
 	}
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletWebhookAuthentication) DeepCopyInto(out *KubeletWebhookAuthentication) {
-	*out = *in
-	if in.Enabled != nil {
-		in, out := &in.Enabled, &out.Enabled
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_KubeletWebhookAuthentication is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletWebhookAuthentication(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletWebhookAuthentication)
+		out := out.(*KubeletWebhookAuthentication)
+		*out = *in
+		if in.Enabled != nil {
+			in, out := &in.Enabled, &out.Enabled
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	out.CacheTTL = in.CacheTTL
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletWebhookAuthentication.
-func (x *KubeletWebhookAuthentication) DeepCopy() *KubeletWebhookAuthentication {
-	if x == nil {
 		return nil
 	}
-	out := new(KubeletWebhookAuthentication)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletWebhookAuthorization) DeepCopyInto(out *KubeletWebhookAuthorization) {
-	*out = *in
-	out.CacheAuthorizedTTL = in.CacheAuthorizedTTL
-	out.CacheUnauthorizedTTL = in.CacheUnauthorizedTTL
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletWebhookAuthorization.
-func (x *KubeletWebhookAuthorization) DeepCopy() *KubeletWebhookAuthorization {
-	if x == nil {
+// DeepCopy_v1alpha1_KubeletWebhookAuthorization is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletWebhookAuthorization(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletWebhookAuthorization)
+		out := out.(*KubeletWebhookAuthorization)
+		*out = *in
 		return nil
 	}
-	out := new(KubeletWebhookAuthorization)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletX509Authentication) DeepCopyInto(out *KubeletX509Authentication) {
-	*out = *in
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new KubeletX509Authentication.
-func (x *KubeletX509Authentication) DeepCopy() *KubeletX509Authentication {
-	if x == nil {
+// DeepCopy_v1alpha1_KubeletX509Authentication is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_KubeletX509Authentication(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeletX509Authentication)
+		out := out.(*KubeletX509Authentication)
+		*out = *in
 		return nil
 	}
-	out := new(KubeletX509Authentication)
-	x.DeepCopyInto(out)
-	return out
 }
 
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *LeaderElectionConfiguration) DeepCopyInto(out *LeaderElectionConfiguration) {
-	*out = *in
-	if in.LeaderElect != nil {
-		in, out := &in.LeaderElect, &out.LeaderElect
-		if *in == nil {
-			*out = nil
-		} else {
+// DeepCopy_v1alpha1_LeaderElectionConfiguration is an autogenerated deepcopy function.
+func DeepCopy_v1alpha1_LeaderElectionConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*LeaderElectionConfiguration)
+		out := out.(*LeaderElectionConfiguration)
+		*out = *in
+		if in.LeaderElect != nil {
+			in, out := &in.LeaderElect, &out.LeaderElect
 			*out = new(bool)
 			**out = **in
 		}
-	}
-	out.LeaseDuration = in.LeaseDuration
-	out.RenewDeadline = in.RenewDeadline
-	out.RetryPeriod = in.RetryPeriod
-	return
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, creating a new LeaderElectionConfiguration.
-func (x *LeaderElectionConfiguration) DeepCopy() *LeaderElectionConfiguration {
-	if x == nil {
 		return nil
 	}
-	out := new(LeaderElectionConfiguration)
-	x.DeepCopyInto(out)
-	return out
 }

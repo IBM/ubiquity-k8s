@@ -83,7 +83,7 @@ func NewCmdTopNode(f cmdutil.Factory, out io.Writer) *cobra.Command {
 				cmdutil.CheckErr(err)
 			}
 			if err := options.Validate(); err != nil {
-				cmdutil.CheckErr(cmdutil.UsageErrorf(cmd, "%v", err))
+				cmdutil.CheckErr(cmdutil.UsageError(cmd, err.Error()))
 			}
 			if err := options.RunTopNode(); err != nil {
 				cmdutil.CheckErr(err)
@@ -101,7 +101,7 @@ func (o *TopNodeOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []
 	if len(args) == 1 {
 		o.ResourceName = args[0]
 	} else if len(args) > 1 {
-		return cmdutil.UsageErrorf(cmd, "%s", cmd.Use)
+		return cmdutil.UsageError(cmd, cmd.Use)
 	}
 
 	clientset, err := f.ClientSet()

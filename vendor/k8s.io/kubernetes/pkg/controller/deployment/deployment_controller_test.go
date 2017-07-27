@@ -27,23 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	_ "k8s.io/kubernetes/pkg/api/install"
-	_ "k8s.io/kubernetes/pkg/apis/apps/install"
-	_ "k8s.io/kubernetes/pkg/apis/authentication/install"
-	_ "k8s.io/kubernetes/pkg/apis/authorization/install"
-	_ "k8s.io/kubernetes/pkg/apis/autoscaling/install"
-	_ "k8s.io/kubernetes/pkg/apis/batch/install"
-	_ "k8s.io/kubernetes/pkg/apis/certificates/install"
-	_ "k8s.io/kubernetes/pkg/apis/extensions/install"
-	_ "k8s.io/kubernetes/pkg/apis/policy/install"
-	_ "k8s.io/kubernetes/pkg/apis/rbac/install"
-	_ "k8s.io/kubernetes/pkg/apis/settings/install"
-	_ "k8s.io/kubernetes/pkg/apis/storage/install"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/deployment/util"
 )
@@ -401,81 +389,11 @@ func TestPodDeletionDoesntEnqueueRecreateDeployment(t *testing.T) {
 
 	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
 	foo.Spec.Strategy.Type = extensions.RecreateDeploymentStrategyType
-	rs1 := newReplicaSet(foo, "foo-1", 1)
-	rs2 := newReplicaSet(foo, "foo-1", 1)
-	pod1 := generatePodFromRS(rs1)
-	pod2 := generatePodFromRS(rs2)
+	rs := newReplicaSet(foo, "foo-1", 1)
+	pod := generatePodFromRS(rs)
 
 	f.dLister = append(f.dLister, foo)
-	// Let's pretend this is a different pod. The gist is that the pod lister needs to
-	// return a non-empty list.
-	f.podLister = append(f.podLister, pod1, pod2)
-
-	c, _ := f.newController()
-	enqueued := false
-	c.enqueueDeployment = func(d *extensions.Deployment) {
-		if d.Name == "foo" {
-			enqueued = true
-		}
-	}
-
-	c.deletePod(pod1)
-
-	if enqueued {
-		t.Errorf("expected deployment %q not to be queued after pod deletion", foo.Name)
-	}
-}
-
-// TestPodDeletionPartialReplicaSetOwnershipEnqueueRecreateDeployment ensures that
-// the deletion of a pod will requeue a Recreate deployment iff there is no other
-// pod returned from the client in the case where a deployment has multiple replica
-// sets, some of which have empty owner references.
-func TestPodDeletionPartialReplicaSetOwnershipEnqueueRecreateDeployment(t *testing.T) {
-	f := newFixture(t)
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.Spec.Strategy.Type = extensions.RecreateDeploymentStrategyType
-	rs1 := newReplicaSet(foo, "foo-1", 1)
-	rs2 := newReplicaSet(foo, "foo-2", 2)
-	rs2.OwnerReferences = nil
-	pod := generatePodFromRS(rs1)
-
-	f.dLister = append(f.dLister, foo)
-	f.rsLister = append(f.rsLister, rs1, rs2)
-	f.objects = append(f.objects, foo, rs1, rs2)
-
-	c, _ := f.newController()
-	enqueued := false
-	c.enqueueDeployment = func(d *extensions.Deployment) {
-		if d.Name == "foo" {
-			enqueued = true
-		}
-	}
-
-	c.deletePod(pod)
-
-	if !enqueued {
-		t.Errorf("expected deployment %q to be queued after pod deletion", foo.Name)
-	}
-}
-
-// TestPodDeletionPartialReplicaSetOwnershipDoesntEnqueueRecreateDeployment that the
-// deletion of a pod will not requeue a Recreate deployment iff there are other pods
-// returned from the client in the case where a deployment has multiple replica sets,
-// some of which have empty owner references.
-func TestPodDeletionPartialReplicaSetOwnershipDoesntEnqueueRecreateDeployment(t *testing.T) {
-	f := newFixture(t)
-
-	foo := newDeployment("foo", 1, nil, nil, nil, map[string]string{"foo": "bar"})
-	foo.Spec.Strategy.Type = extensions.RecreateDeploymentStrategyType
-	rs1 := newReplicaSet(foo, "foo-1", 1)
-	rs2 := newReplicaSet(foo, "foo-2", 2)
-	rs2.OwnerReferences = nil
-	pod := generatePodFromRS(rs1)
-
-	f.dLister = append(f.dLister, foo)
-	f.rsLister = append(f.rsLister, rs1, rs2)
-	f.objects = append(f.objects, foo, rs1, rs2)
+	f.rsLister = append(f.rsLister, rs)
 	// Let's pretend this is a different pod. The gist is that the pod lister needs to
 	// return a non-empty list.
 	f.podLister = append(f.podLister, pod)

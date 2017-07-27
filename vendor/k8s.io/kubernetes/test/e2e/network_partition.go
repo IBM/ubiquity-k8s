@@ -31,23 +31,14 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"k8s.io/api/core/v1"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	nodepkg "k8s.io/kubernetes/pkg/controller/node"
-	"k8s.io/kubernetes/test/e2e/common"
 	"k8s.io/kubernetes/test/e2e/framework"
 	testutils "k8s.io/kubernetes/test/utils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-)
-
-const (
-	timeout                = 60 * time.Second
-	podReadyTimeout        = 2 * time.Minute
-	podNotReadyTimeout     = 1 * time.Minute
-	nodeReadinessTimeout   = 3 * time.Minute
-	resizeNodeReadyTimeout = 2 * time.Minute
 )
 
 func expectNodeReadiness(isReady bool, newNode chan *v1.Node) {
@@ -103,7 +94,7 @@ func newPodOnNode(c clientset.Interface, namespace, podName, nodeName string) er
 	return err
 }
 
-var _ = framework.KubeDescribe("[sig-apps] Network Partition [Disruptive] [Slow]", func() {
+var _ = framework.KubeDescribe("Network Partition [Disruptive] [Slow]", func() {
 	f := framework.NewDefaultFramework("network-partition")
 	var systemPodsNo int32
 	var c clientset.Interface
@@ -236,9 +227,9 @@ var _ = framework.KubeDescribe("[sig-apps] Network Partition [Disruptive] [Slow]
 			// Create a replication controller for a service that serves its hostname.
 			// The source for the Docker container kubernetes/serve_hostname is in contrib/for-demos/serve_hostname
 			name := "my-hostname-net"
-			common.NewSVCByName(c, ns, name)
+			newSVCByName(c, ns, name)
 			replicas := int32(framework.TestContext.CloudConfig.NumNodes)
-			common.NewRCByName(c, ns, name, replicas, nil)
+			newRCByName(c, ns, name, replicas, nil)
 			err := framework.VerifyPods(c, ns, name, true, replicas)
 			Expect(err).NotTo(HaveOccurred(), "Each pod should start running and responding")
 
@@ -301,9 +292,9 @@ var _ = framework.KubeDescribe("[sig-apps] Network Partition [Disruptive] [Slow]
 			name := "my-hostname-net"
 			gracePeriod := int64(30)
 
-			common.NewSVCByName(c, ns, name)
+			newSVCByName(c, ns, name)
 			replicas := int32(framework.TestContext.CloudConfig.NumNodes)
-			common.NewRCByName(c, ns, name, replicas, &gracePeriod)
+			newRCByName(c, ns, name, replicas, &gracePeriod)
 			err := framework.VerifyPods(c, ns, name, true, replicas)
 			Expect(err).NotTo(HaveOccurred(), "Each pod should start running and responding")
 
@@ -377,7 +368,7 @@ var _ = framework.KubeDescribe("[sig-apps] Network Partition [Disruptive] [Slow]
 			nn := framework.TestContext.CloudConfig.NumNodes
 			nodeNames, err := framework.CheckNodesReady(f.ClientSet, framework.NodeReadyInitialTimeout, nn)
 			framework.ExpectNoError(err)
-			common.RestartNodes(f.ClientSet, nodeNames)
+			restartNodes(f, nodeNames)
 
 			By("waiting for pods to be running again")
 			pst.WaitForRunningAndReady(*ps.Spec.Replicas, ps)

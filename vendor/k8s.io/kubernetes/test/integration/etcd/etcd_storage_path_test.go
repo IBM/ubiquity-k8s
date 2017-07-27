@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
-	clientset "k8s.io/client-go/kubernetes"
 	kclient "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -51,6 +50,7 @@ import (
 	"k8s.io/kubernetes/cmd/kube-apiserver/app"
 	"k8s.io/kubernetes/cmd/kube-apiserver/app/options"
 	kapi "k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/util"
 	"k8s.io/kubernetes/test/integration/framework"
 
@@ -197,6 +197,10 @@ var etcdStorageData = map[schema.GroupVersionResource]struct {
 		stub:             `{"metadata": {"name": "psp1"}, "spec": {"fsGroup": {"rule": "RunAsAny"}, "privileged": true, "runAsUser": {"rule": "RunAsAny"}, "seLinux": {"rule": "MustRunAs"}, "supplementalGroups": {"rule": "RunAsAny"}}}`,
 		expectedEtcdPath: "/registry/podsecuritypolicy/psp1",
 	},
+	gvr("extensions", "v1beta1", "thirdpartyresources"): {
+		stub:             `{"description": "third party", "metadata": {"name": "kind.domain.tld"}, "versions": [{"name": "v3"}]}`,
+		expectedEtcdPath: "/registry/thirdpartyresources/kind.domain.tld",
+	},
 	gvr("extensions", "v1beta1", "ingresses"): {
 		stub:             `{"metadata": {"name": "ingress1"}, "spec": {"backend": {"serviceName": "service", "servicePort": 5000}}}`,
 		expectedEtcdPath: "/registry/ingress/etcdstoragepathtestnamespace/ingress1",
@@ -303,14 +307,6 @@ var etcdStorageData = map[schema.GroupVersionResource]struct {
 		stub:             `{"metadata":{"name":"hook1","creationTimestamp":null},"externalAdmissionHooks":[{"name":"externaladmissionhook.k8s.io","clientConfig":{"service":{"namespace":"","name":""},"caBundle":null},"rules":[{"operations":["CREATE"],"apiGroups":["group"],"apiVersions":["version"],"resources":["resource"]}],"failurePolicy":"Ignore"}]}`,
 		expectedEtcdPath: "/registry/externaladmissionhookconfigurations/hook1",
 	},
-	// --
-
-	// k8s.io/kubernetes/pkg/apis/scheduling/v1alpha1
-	gvr("scheduling.k8s.io", "v1alpha1", "priorityclasses"): {
-		stub:             `{"metadata":{"name":"pc1"},"Value":1000}`,
-		expectedEtcdPath: "/registry/priorityclasses/pc1",
-	},
-	// --
 }
 
 // Be very careful when whitelisting an object as ephemeral.
@@ -376,7 +372,6 @@ var ephemeralWhiteList = createEphemeralWhiteList(
 	gvr("extensions", "v1beta1", "replicationcontrollerdummies"), // not stored in etcd
 	gvr("extensions", "v1beta1", "scales"),                       // not stored in etcd, part of kapiv1.ReplicationController
 	gvr("extensions", "v1beta1", "thirdpartyresourcedatas"),      // we cannot create this
-	gvr("extensions", "v1beta1", "thirdpartyresources"),          // these have been removed from the API server, but kept for the client
 	// --
 
 	// k8s.io/kubernetes/pkg/apis/imagepolicy/v1alpha1
@@ -596,7 +591,7 @@ func startRealMasterOrDie(t *testing.T, certDir string) (*allClient, clientv3.KV
 			kubeAPIServerOptions := options.NewServerRunOptions()
 			kubeAPIServerOptions.SecureServing.BindAddress = net.ParseIP("127.0.0.1")
 			kubeAPIServerOptions.SecureServing.ServerCert.CertDirectory = certDir
-			kubeAPIServerOptions.Etcd.StorageConfig.ServerList = []string{framework.GetEtcdURL()}
+			kubeAPIServerOptions.Etcd.StorageConfig.ServerList = []string{framework.GetEtcdURLFromEnv()}
 			kubeAPIServerOptions.Etcd.DefaultStorageMediaType = runtime.ContentTypeJSON // TODO use protobuf?
 			kubeAPIServerOptions.ServiceClusterIPRange = *defaultServiceClusterIPRange
 			kubeAPIServerOptions.Authorization.Mode = "RBAC"
@@ -620,7 +615,7 @@ func startRealMasterOrDie(t *testing.T, certDir string) (*allClient, clientv3.KV
 
 			kubeAPIServerConfig.APIResourceConfigSource = &allResourceSource{} // force enable all resources
 
-			kubeAPIServer, err := app.CreateKubeAPIServer(kubeAPIServerConfig, genericapiserver.EmptyDelegate, sharedInformers)
+			kubeAPIServer, err := app.CreateKubeAPIServer(kubeAPIServerConfig, genericapiserver.EmptyDelegate, sharedInformers, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/watch"
 	genericapirequest "k8s.io/apiserver/pkg/endpoints/request"
@@ -629,119 +628,119 @@ var (
 	errEmptiedFinalizers = fmt.Errorf("emptied finalizers")
 )
 
-// shouldOrphanDependents returns true if the finalizer for orphaning should be set
+// shouldUpdateFinalizerOrphanDependents returns if the finalizers need to be
 // updated for FinalizerOrphanDependents. In the order of highest to lowest
 // priority, there are three factors affect whether to add/remove the
 // FinalizerOrphanDependents: options, existing finalizers of the object,
 // and e.DeleteStrategy.DefaultGarbageCollectionPolicy.
-func shouldOrphanDependents(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) bool {
+func shouldUpdateFinalizerOrphanDependents(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) (shouldUpdate bool, shouldOrphan bool) {
+	shouldOrphan = false
+	// Get default orphan policy from this REST object type
 	if gcStrategy, ok := e.DeleteStrategy.(rest.GarbageCollectionDeleteStrategy); ok {
-		if gcStrategy.DefaultGarbageCollectionPolicy() == rest.Unsupported {
-			// return  false to indicate that we should NOT orphan
-			return false
-		}
-	}
-
-	// An explicit policy was set at deletion time, that overrides everything
-	if options != nil && options.OrphanDependents != nil {
-		return *options.OrphanDependents
-	}
-	if options != nil && options.PropagationPolicy != nil {
-		switch *options.PropagationPolicy {
-		case metav1.DeletePropagationOrphan:
-			return true
-		case metav1.DeletePropagationBackground, metav1.DeletePropagationForeground:
-			return false
+		if gcStrategy.DefaultGarbageCollectionPolicy() == rest.OrphanDependents {
+			shouldOrphan = true
 		}
 	}
 
 	// If a finalizer is set in the object, it overrides the default
-	// validation should make sure the two cases won't be true at the same time.
+	hasOrphanFinalizer := false
 	finalizers := accessor.GetFinalizers()
 	for _, f := range finalizers {
+		// validation should make sure the two cases won't be true at the same
+		// time.
 		switch f {
 		case metav1.FinalizerOrphanDependents:
-			return true
+			shouldOrphan = true
+			hasOrphanFinalizer = true
+			break
 		case metav1.FinalizerDeleteDependents:
-			return false
+			shouldOrphan = false
+			break
 		}
-	}
-
-	// Get default orphan policy from this REST object type if it exists
-	if gcStrategy, ok := e.DeleteStrategy.(rest.GarbageCollectionDeleteStrategy); ok {
-		if gcStrategy.DefaultGarbageCollectionPolicy() == rest.OrphanDependents {
-			return true
-		}
-	}
-	return false
-}
-
-// shouldDeleteDependents returns true if the finalizer for foreground deletion should be set
-// updated for FinalizerDeleteDependents. In the order of highest to lowest
-// priority, there are three factors affect whether to add/remove the
-// FinalizerDeleteDependents: options, existing finalizers of the object, and
-// e.DeleteStrategy.DefaultGarbageCollectionPolicy.
-func shouldDeleteDependents(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) bool {
-	// Get default orphan policy from this REST object type
-	if gcStrategy, ok := e.DeleteStrategy.(rest.GarbageCollectionDeleteStrategy); ok && gcStrategy.DefaultGarbageCollectionPolicy() == rest.Unsupported {
-		// return false to indicate that we should NOT delete in foreground
-		return false
 	}
 
 	// If an explicit policy was set at deletion time, that overrides both
 	if options != nil && options.OrphanDependents != nil {
-		return false
+		shouldOrphan = *options.OrphanDependents
+	}
+	if options != nil && options.PropagationPolicy != nil {
+		switch *options.PropagationPolicy {
+		case metav1.DeletePropagationOrphan:
+			shouldOrphan = true
+		case metav1.DeletePropagationBackground, metav1.DeletePropagationForeground:
+			shouldOrphan = false
+		}
+	}
+
+	shouldUpdate = shouldOrphan != hasOrphanFinalizer
+	return shouldUpdate, shouldOrphan
+}
+
+// shouldUpdateFinalizerDeleteDependents returns if the finalizers need to be
+// updated for FinalizerDeleteDependents. In the order of highest to lowest
+// priority, there are three factors affect whether to add/remove the
+// FinalizerDeleteDependents: options, existing finalizers of the object, and
+// e.DeleteStrategy.DefaultGarbageCollectionPolicy.
+func shouldUpdateFinalizerDeleteDependents(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) (shouldUpdate bool, shouldDeleteDependentInForeground bool) {
+	// default to false
+	shouldDeleteDependentInForeground = false
+
+	// If a finalizer is set in the object, it overrides the default
+	hasFinalizerDeleteDependents := false
+	finalizers := accessor.GetFinalizers()
+	for _, f := range finalizers {
+		// validation has made sure the two cases won't be true at the same
+		// time.
+		switch f {
+		case metav1.FinalizerDeleteDependents:
+			shouldDeleteDependentInForeground = true
+			hasFinalizerDeleteDependents = true
+			break
+		case metav1.FinalizerOrphanDependents:
+			shouldDeleteDependentInForeground = false
+			break
+		}
+	}
+
+	// If an explicit policy was set at deletion time, that overrides both
+	if options != nil && options.OrphanDependents != nil {
+		shouldDeleteDependentInForeground = false
 	}
 	if options != nil && options.PropagationPolicy != nil {
 		switch *options.PropagationPolicy {
 		case metav1.DeletePropagationForeground:
-			return true
+			shouldDeleteDependentInForeground = true
 		case metav1.DeletePropagationBackground, metav1.DeletePropagationOrphan:
-			return false
+			shouldDeleteDependentInForeground = false
 		}
 	}
 
-	// If a finalizer is set in the object, it overrides the default
-	// validation has made sure the two cases won't be true at the same time.
-	finalizers := accessor.GetFinalizers()
-	for _, f := range finalizers {
-		switch f {
-		case metav1.FinalizerDeleteDependents:
-			return true
-		case metav1.FinalizerOrphanDependents:
-			return false
-		}
-	}
-
-	return false
+	shouldUpdate = shouldDeleteDependentInForeground != hasFinalizerDeleteDependents
+	return shouldUpdate, shouldDeleteDependentInForeground
 }
 
-// deletionFinalizers returns the deletion finalizers we should set on the object and a bool indicate they did or
-// did not change.
-func deletionFinalizers(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) (bool, []string) {
-	shouldOrphan := shouldOrphanDependents(e, accessor, options)
-	shouldDeleteDependentInForeground := shouldDeleteDependents(e, accessor, options)
-	newFinalizers := []string{}
+// shouldUpdateFinalizers returns if we need to update the finalizers of the
+// object, and the desired list of finalizers.
+func shouldUpdateFinalizers(e *Store, accessor metav1.Object, options *metav1.DeleteOptions) (shouldUpdate bool, newFinalizers []string) {
+	shouldUpdate1, shouldOrphan := shouldUpdateFinalizerOrphanDependents(e, accessor, options)
+	shouldUpdate2, shouldDeleteDependentInForeground := shouldUpdateFinalizerDeleteDependents(e, accessor, options)
+	oldFinalizers := accessor.GetFinalizers()
+	if !shouldUpdate1 && !shouldUpdate2 {
+		return false, oldFinalizers
+	}
 
 	// first remove both finalizers, add them back if needed.
-	for _, f := range accessor.GetFinalizers() {
+	for _, f := range oldFinalizers {
 		if f == metav1.FinalizerOrphanDependents || f == metav1.FinalizerDeleteDependents {
 			continue
 		}
 		newFinalizers = append(newFinalizers, f)
 	}
-
 	if shouldOrphan {
 		newFinalizers = append(newFinalizers, metav1.FinalizerOrphanDependents)
 	}
 	if shouldDeleteDependentInForeground {
 		newFinalizers = append(newFinalizers, metav1.FinalizerDeleteDependents)
-	}
-
-	oldFinalizerSet := sets.NewString(accessor.GetFinalizers()...)
-	newFinalizersSet := sets.NewString(newFinalizers...)
-	if oldFinalizerSet.Equal(newFinalizersSet) {
-		return false, accessor.GetFinalizers()
 	}
 	return true, newFinalizers
 }
@@ -872,8 +871,8 @@ func (e *Store) updateForGracefulDeletionAndFinalizers(ctx genericapirequest.Con
 			if err != nil {
 				return nil, err
 			}
-			needsUpdate, newFinalizers := deletionFinalizers(e, existingAccessor, options)
-			if needsUpdate {
+			shouldUpdate, newFinalizers := shouldUpdateFinalizers(e, existingAccessor, options)
+			if shouldUpdate {
 				existingAccessor.SetFinalizers(newFinalizers)
 			}
 
@@ -965,7 +964,7 @@ func (e *Store) Delete(ctx genericapirequest.Context, name string, options *meta
 	// Handle combinations of graceful deletion and finalization by issuing
 	// the correct updates.
 	if e.EnableGarbageCollection {
-		shouldUpdateFinalizers, _ := deletionFinalizers(e, accessor, options)
+		shouldUpdateFinalizers, _ := shouldUpdateFinalizers(e, accessor, options)
 		// TODO: remove the check, because we support no-op updates now.
 		if graceful || pendingFinalizers || shouldUpdateFinalizers {
 			err, ignoreNotFound, deleteImmediately, out, lastExisting = e.updateForGracefulDeletionAndFinalizers(ctx, name, key, options, preconditions, obj)
@@ -1150,7 +1149,7 @@ func (e *Store) Watch(ctx genericapirequest.Context, options *metainternalversio
 	return e.WatchPredicate(ctx, predicate, resourceVersion)
 }
 
-// WatchPredicate starts a watch for the items that matches.
+// WatchPredicate starts a watch for the items that m matches.
 func (e *Store) WatchPredicate(ctx genericapirequest.Context, p storage.SelectionPredicate, resourceVersion string) (watch.Interface, error) {
 	if name, ok := p.MatchesSingle(); ok {
 		if key, err := e.KeyFunc(ctx, name); err == nil {
@@ -1276,7 +1275,7 @@ func (e *Store) CompleteWithOptions(options *generic.StoreOptions) error {
 		return err
 	}
 
-	// ResourcePrefix must come from the underlying factory
+	// Resource prefix must come from the underlying factory
 	prefix := opts.ResourcePrefix
 	if !strings.HasPrefix(prefix, "/") {
 		prefix = "/" + prefix

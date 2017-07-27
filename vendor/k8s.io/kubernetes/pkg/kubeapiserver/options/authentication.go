@@ -32,6 +32,7 @@ import (
 
 type BuiltInAuthenticationOptions struct {
 	Anonymous       *AnonymousAuthenticationOptions
+	AnyToken        *AnyTokenAuthenticationOptions
 	BootstrapToken  *BootstrapTokenAuthenticationOptions
 	ClientCert      *genericoptions.ClientCertAuthenticationOptions
 	Keystone        *KeystoneAuthenticationOptions
@@ -41,6 +42,10 @@ type BuiltInAuthenticationOptions struct {
 	ServiceAccounts *ServiceAccountAuthenticationOptions
 	TokenFile       *TokenFileAuthenticationOptions
 	WebHook         *WebHookAuthenticationOptions
+}
+
+type AnyTokenAuthenticationOptions struct {
+	Allow bool
 }
 
 type AnonymousAuthenticationOptions struct {
@@ -89,6 +94,7 @@ func NewBuiltInAuthenticationOptions() *BuiltInAuthenticationOptions {
 func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 	return s.
 		WithAnyonymous().
+		WithAnyToken().
 		WithBootstrapToken().
 		WithClientCert().
 		WithKeystone().
@@ -102,6 +108,11 @@ func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 
 func (s *BuiltInAuthenticationOptions) WithAnyonymous() *BuiltInAuthenticationOptions {
 	s.Anonymous = &AnonymousAuthenticationOptions{Allow: true}
+	return s
+}
+
+func (s *BuiltInAuthenticationOptions) WithAnyToken() *BuiltInAuthenticationOptions {
+	s.AnyToken = &AnyTokenAuthenticationOptions{}
 	return s
 }
 
@@ -169,6 +180,13 @@ func (s *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 			"Enables anonymous requests to the secure port of the API server. "+
 			"Requests that are not rejected by another authentication method are treated as anonymous requests. "+
 			"Anonymous requests have a username of system:anonymous, and a group name of system:unauthenticated.")
+	}
+
+	if s.AnyToken != nil {
+		fs.BoolVar(&s.AnyToken.Allow, "insecure-allow-any-token", s.AnyToken.Allow, ""+
+			"If set, your server will be INSECURE.  Any token will be allowed and user information will be parsed "+
+			"from the token as `username/group1,group2`")
+
 	}
 
 	if s.BootstrapToken != nil {
@@ -254,6 +272,10 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() authenticator.Au
 
 	if s.Anonymous != nil {
 		ret.Anonymous = s.Anonymous.Allow
+	}
+
+	if s.AnyToken != nil {
+		ret.AnyToken = s.AnyToken.Allow
 	}
 
 	if s.BootstrapToken != nil {

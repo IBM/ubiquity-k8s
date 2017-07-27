@@ -266,7 +266,9 @@ func MakePayload(mappings []v1.KeyToPath, configMap *v1.ConfigMap, defaultMode *
 				if optional {
 					continue
 				}
-				return nil, fmt.Errorf("configmap references non-existent config key: %s", ktp.Key)
+				err_msg := "references non-existent config key"
+				glog.Errorf(err_msg)
+				return nil, fmt.Errorf(err_msg)
 			}
 
 			fileProjection.Data = []byte(content)

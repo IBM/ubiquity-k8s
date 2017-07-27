@@ -558,26 +558,26 @@ func (c *noSuchPod) Get(name string, options metav1.GetOptions) (*api.Pod, error
 	return nil, fmt.Errorf("%s does not exist", name)
 }
 
-type noDeletePod struct {
-	coreclient.PodInterface
+type noDeleteService struct {
+	coreclient.ServiceInterface
 }
 
-func (c *noDeletePod) Delete(name string, o *metav1.DeleteOptions) error {
+func (c *noDeleteService) Delete(service string, o *metav1.DeleteOptions) error {
 	return fmt.Errorf("I'm afraid I can't do that, Dave")
 }
 
 type reaperFake struct {
 	*fake.Clientset
-	noSuchPod, noDeletePod bool
+	noSuchPod, noDeleteService bool
 }
 
 func (c *reaperFake) Core() coreclient.CoreInterface {
-	return &reaperCoreFake{c.Clientset.Core(), c.noSuchPod, c.noDeletePod}
+	return &reaperCoreFake{c.Clientset.Core(), c.noSuchPod, c.noDeleteService}
 }
 
 type reaperCoreFake struct {
 	coreclient.CoreInterface
-	noSuchPod, noDeletePod bool
+	noSuchPod, noDeleteService bool
 }
 
 func (c *reaperCoreFake) Pods(namespace string) coreclient.PodInterface {
@@ -585,14 +585,23 @@ func (c *reaperCoreFake) Pods(namespace string) coreclient.PodInterface {
 	if c.noSuchPod {
 		return &noSuchPod{pods}
 	}
-	if c.noDeletePod {
-		return &noDeletePod{pods}
-	}
 	return pods
+}
+
+func (c *reaperCoreFake) Services(namespace string) coreclient.ServiceInterface {
+	services := c.CoreInterface.Services(namespace)
+	if c.noDeleteService {
+		return &noDeleteService{services}
+	}
+	return services
 }
 
 func pod() *api.Pod {
 	return &api.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: metav1.NamespaceDefault, Name: "foo"}}
+}
+
+func service() *api.Service {
+	return &api.Service{ObjectMeta: metav1.ObjectMeta{Namespace: metav1.NamespaceDefault, Name: "foo"}}
 }
 
 func TestSimpleStop(t *testing.T) {
@@ -617,6 +626,18 @@ func TestSimpleStop(t *testing.T) {
 		},
 		{
 			fake: &reaperFake{
+				Clientset: fake.NewSimpleClientset(service()),
+			},
+			kind: api.Kind("Service"),
+			actions: []testcore.Action{
+				testcore.NewGetAction(api.Resource("services").WithVersion(""), metav1.NamespaceDefault, "foo"),
+				testcore.NewDeleteAction(api.Resource("services").WithVersion(""), metav1.NamespaceDefault, "foo"),
+			},
+			expectError: false,
+			test:        "stop service succeeds",
+		},
+		{
+			fake: &reaperFake{
 				Clientset: fake.NewSimpleClientset(),
 				noSuchPod: true,
 			},
@@ -627,15 +648,15 @@ func TestSimpleStop(t *testing.T) {
 		},
 		{
 			fake: &reaperFake{
-				Clientset:   fake.NewSimpleClientset(pod()),
-				noDeletePod: true,
+				Clientset:       fake.NewSimpleClientset(service()),
+				noDeleteService: true,
 			},
-			kind: api.Kind("Pod"),
+			kind: api.Kind("Service"),
 			actions: []testcore.Action{
-				testcore.NewGetAction(api.Resource("pods").WithVersion(""), metav1.NamespaceDefault, "foo"),
+				testcore.NewGetAction(api.Resource("services").WithVersion(""), metav1.NamespaceDefault, "foo"),
 			},
 			expectError: true,
-			test:        "stop pod fails, can't delete",
+			test:        "stop service fails, can't delete",
 		},
 	}
 	for _, test := range tests {

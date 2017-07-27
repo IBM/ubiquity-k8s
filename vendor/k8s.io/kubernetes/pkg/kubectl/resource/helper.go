@@ -58,7 +58,6 @@ func (m *Helper) Get(namespace, name string, export bool) (runtime.Object, error
 		Resource(m.Resource).
 		Name(name)
 	if export {
-		// TODO: I should be part of GetOptions
 		req.Param("export", strconv.FormatBool(export))
 	}
 	return req.Do().Get()
@@ -69,11 +68,8 @@ func (m *Helper) List(namespace, apiVersion string, selector labels.Selector, ex
 	req := m.RESTClient.Get().
 		NamespaceIfScoped(namespace, m.NamespaceScoped).
 		Resource(m.Resource).
-		VersionedParams(&metav1.ListOptions{
-			LabelSelector: selector.String(),
-		}, metav1.ParameterCodec)
+		LabelsSelectorParam(selector)
 	if export {
-		// TODO: I should be part of ListOptions
 		req.Param("export", strconv.FormatBool(export))
 	}
 	return req.Do().Get()
@@ -83,11 +79,9 @@ func (m *Helper) Watch(namespace, resourceVersion, apiVersion string, labelSelec
 	return m.RESTClient.Get().
 		NamespaceIfScoped(namespace, m.NamespaceScoped).
 		Resource(m.Resource).
-		VersionedParams(&metav1.ListOptions{
-			ResourceVersion: resourceVersion,
-			Watch:           true,
-			LabelSelector:   labelSelector.String(),
-		}, metav1.ParameterCodec).
+		Param("resourceVersion", resourceVersion).
+		Param("watch", "true").
+		LabelsSelectorParam(labelSelector).
 		Watch()
 }
 
@@ -95,11 +89,9 @@ func (m *Helper) WatchSingle(namespace, name, resourceVersion string) (watch.Int
 	return m.RESTClient.Get().
 		NamespaceIfScoped(namespace, m.NamespaceScoped).
 		Resource(m.Resource).
-		VersionedParams(&metav1.ListOptions{
-			ResourceVersion: resourceVersion,
-			Watch:           true,
-			FieldSelector:   fields.OneTermEqualSelector("metadata.name", name).String(),
-		}, metav1.ParameterCodec).
+		Param("resourceVersion", resourceVersion).
+		Param("watch", "true").
+		FieldsSelectorParam(fields.OneTermEqualSelector("metadata.name", name)).
 		Watch()
 }
 

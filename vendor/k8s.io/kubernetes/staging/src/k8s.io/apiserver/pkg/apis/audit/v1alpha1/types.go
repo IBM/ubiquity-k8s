@@ -66,8 +66,6 @@ const (
 	StagePanic = "Panic"
 )
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // Event captures all the information that can be included in an API audit log.
 type Event struct {
 	metav1.TypeMeta `json:",inline"`
@@ -121,8 +119,6 @@ type Event struct {
 	ResponseObject *runtime.Unknown `json:"responseObject,omitempty" protobuf:"bytes,14,opt,name=responseObject"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // EventList is a list of audit Events.
 type EventList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -131,8 +127,6 @@ type EventList struct {
 
 	Items []Event `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Policy defines the configuration of audit logging, and the rules for how different request
 // categories are logged.
@@ -148,8 +142,6 @@ type Policy struct {
 	// PolicyRules are strictly ordered.
 	Rules []PolicyRule `json:"rules" protobuf:"bytes,2,rep,name=rules"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PolicyList is a list of audit Policies.
 type PolicyList struct {

@@ -21,8 +21,7 @@ and then relate the `kubernetes-e2e` charm.
 ```shell
 juju deploy kubernetes-core
 juju deploy cs:~containers/kubernetes-e2e
-juju add-relation kubernetes-e2e:kube-control kubernetes-master:kube-control
-juju add-relation kubernetes-e2e:kubernetes-master kubernetes-master:kube-api-endpoint
+juju add-relation kubernetes-e2e kubernetes-master
 juju add-relation kubernetes-e2e easyrsa
 ```
 

@@ -34,9 +34,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1/helper"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	awscloud "k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	gcecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/gce"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
@@ -716,21 +716,16 @@ func createPD(zone string) (string, error) {
 	} else if TestContext.Provider == "azure" {
 		pdName := fmt.Sprintf("%s-%s", TestContext.Prefix, string(uuid.NewUUID()))
 		azureCloud, err := GetAzureCloud()
-
 		if err != nil {
 			return "", err
 		}
 
-		if azureCloud.BlobDiskController == nil {
-			return "", fmt.Errorf("BlobDiskController is nil, it's not expected.")
-		}
-
-		diskUri, err := azureCloud.BlobDiskController.CreateBlobDisk(pdName, "standard_lrs", 1, false)
+		_, diskUri, _, err := azureCloud.CreateVolume(pdName, "" /* account */, "" /* sku */, "" /* location */, 1 /* sizeGb */)
 		if err != nil {
 			return "", err
 		}
-
 		return diskUri, nil
+
 	} else {
 		return "", fmt.Errorf("provider does not support volume creation")
 	}
@@ -775,11 +770,8 @@ func deletePD(pdName string) error {
 		if err != nil {
 			return err
 		}
-		if azureCloud.BlobDiskController == nil {
-			return fmt.Errorf("BlobDiskController is nil, it's not expected.")
-		}
 		diskName := pdName[(strings.LastIndex(pdName, "/") + 1):]
-		err = azureCloud.BlobDiskController.DeleteBlobDisk(diskName, false)
+		err = azureCloud.DeleteVolume(diskName, pdName)
 		if err != nil {
 			Logf("failed to delete Azure volume %q: %v", pdName, err)
 			return err
@@ -805,7 +797,7 @@ func MakePod(ns string, pvclaims []*v1.PersistentVolumeClaim, isPrivileged bool,
 	podSpec := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: testapi.Groups[v1.GroupName].GroupVersion().String(),
+			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "pvc-tester-",

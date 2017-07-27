@@ -28,12 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/strings"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/kubernetes/pkg/volume/util/volumehelper"
-	"k8s.io/utils/exec"
 )
 
 // ProbeVolumePlugins is the primary entrypoint for volume plugins.
@@ -365,7 +365,6 @@ func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, 
 	}
 	provisioner.config = "BASE"
 	provisioner.tenant = "DEFAULT"
-	createQuota := false
 
 	cfg, err := parseAPIConfig(provisioner.plugin, provisioner.options.Parameters)
 	if err != nil {
@@ -383,8 +382,6 @@ func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, 
 			provisioner.tenant = v
 		case "quobyteconfig":
 			provisioner.config = v
-		case "createquota":
-			createQuota = gostrings.ToLower(v) == "true"
 		case "adminsecretname",
 			"adminsecretnamespace",
 			"quobyteapiserver":
@@ -405,7 +402,7 @@ func (provisioner *quobyteVolumeProvisioner) Provision() (*v1.PersistentVolume, 
 		config: cfg,
 	}
 
-	vol, sizeGB, err := manager.createVolume(provisioner, createQuota)
+	vol, sizeGB, err := manager.createVolume(provisioner)
 	if err != nil {
 		return nil, err
 	}

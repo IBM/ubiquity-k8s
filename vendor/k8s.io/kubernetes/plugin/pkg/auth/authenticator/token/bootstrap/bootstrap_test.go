@@ -52,8 +52,6 @@ const (
 )
 
 func TestTokenAuthenticator(t *testing.T) {
-	now := metav1.Now()
-
 	tests := []struct {
 		name string
 
@@ -135,25 +133,6 @@ func TestTokenAuthenticator(t *testing.T) {
 				},
 			},
 			token:        "barfoo" + "." + tokenSecret,
-			wantNotFound: true,
-		},
-		{
-			name: "deleted token",
-			secrets: []*api.Secret{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:              bootstrapapi.BootstrapTokenSecretPrefix + tokenID,
-						DeletionTimestamp: &now,
-					},
-					Data: map[string][]byte{
-						bootstrapapi.BootstrapTokenIDKey:               []byte(tokenID),
-						bootstrapapi.BootstrapTokenSecretKey:           []byte(tokenSecret),
-						bootstrapapi.BootstrapTokenUsageAuthentication: []byte("true"),
-					},
-					Type: "bootstrap.kubernetes.io/token",
-				},
-			},
-			token:        tokenID + "." + tokenSecret,
 			wantNotFound: true,
 		},
 		{

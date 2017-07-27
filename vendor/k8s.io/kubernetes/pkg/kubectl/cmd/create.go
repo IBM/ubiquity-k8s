@@ -64,7 +64,7 @@ func NewCmdCreate(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 		Long:    createLong,
 		Example: createExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			if cmdutil.IsFilenameSliceEmpty(options.FilenameOptions.Filenames) {
+			if cmdutil.IsFilenameEmpty(options.FilenameOptions.Filenames) {
 				defaultRunFunc := cmdutil.DefaultSubCommandRun(errOut)
 				defaultRunFunc(cmd, args)
 				return
@@ -106,7 +106,7 @@ func NewCmdCreate(f cmdutil.Factory, out, errOut io.Writer) *cobra.Command {
 
 func ValidateArgs(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return cmdutil.UsageErrorf(cmd, "Unexpected args: %v", args)
+		return cmdutil.UsageError(cmd, "Unexpected args: %v", args)
 	}
 	return nil
 }
@@ -229,7 +229,7 @@ func createAndRefresh(info *resource.Info) error {
 // NameFromCommandArgs is a utility function for commands that assume the first argument is a resource name
 func NameFromCommandArgs(cmd *cobra.Command, args []string) (string, error) {
 	if len(args) == 0 {
-		return "", cmdutil.UsageErrorf(cmd, "NAME is required")
+		return "", cmdutil.UsageError(cmd, "NAME is required")
 	}
 	return args[0], nil
 }
@@ -241,7 +241,8 @@ type CreateSubcommandOptions struct {
 	// StructuredGenerator is the resource generator for the object being created
 	StructuredGenerator kubectl.StructuredGenerator
 	// DryRun is true if the command should be simulated but not run against the server
-	DryRun       bool
+	DryRun bool
+	// OutputFormat
 	OutputFormat string
 }
 

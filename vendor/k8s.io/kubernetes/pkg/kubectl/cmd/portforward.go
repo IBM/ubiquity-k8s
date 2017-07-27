@@ -19,7 +19,6 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -29,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubernetes/pkg/api"
 	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
@@ -82,7 +81,7 @@ func NewCmdPortForward(f cmdutil.Factory, cmdOut, cmdErr io.Writer) *cobra.Comma
 				cmdutil.CheckErr(err)
 			}
 			if err := opts.Validate(); err != nil {
-				cmdutil.CheckErr(cmdutil.UsageErrorf(cmd, "%v", err.Error()))
+				cmdutil.CheckErr(cmdutil.UsageError(cmd, err.Error()))
 			}
 			if err := opts.RunPortForward(); err != nil {
 				cmdutil.CheckErr(err)
@@ -103,11 +102,10 @@ type defaultPortForwarder struct {
 }
 
 func (f *defaultPortForwarder) ForwardPorts(method string, url *url.URL, opts PortForwardOptions) error {
-	transport, upgrader, err := spdy.RoundTripperFor(opts.Config)
+	dialer, err := remotecommand.NewExecutor(opts.Config, method, url)
 	if err != nil {
 		return err
 	}
-	dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, method, url)
 	fw, err := portforward.New(dialer, opts.Ports, opts.StopChannel, opts.ReadyChannel, f.cmdOut, f.cmdErr)
 	if err != nil {
 		return err
@@ -120,7 +118,7 @@ func (o *PortForwardOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, arg
 	var err error
 	o.PodName = cmdutil.GetFlagString(cmd, "pod")
 	if len(o.PodName) == 0 && len(args) == 0 {
-		return cmdutil.UsageErrorf(cmd, "POD is required for port-forward")
+		return cmdutil.UsageError(cmd, "POD is required for port-forward")
 	}
 
 	if len(o.PodName) != 0 {

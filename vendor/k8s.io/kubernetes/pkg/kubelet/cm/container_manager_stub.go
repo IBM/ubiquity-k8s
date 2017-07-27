@@ -58,10 +58,6 @@ func (cm *containerManagerStub) GetNodeAllocatableReservation() v1.ResourceList 
 	return nil
 }
 
-func (cm *containerManagerStub) GetCapacity() v1.ResourceList {
-	return nil
-}
-
 func (cm *containerManagerStub) NewPodContainerManager() PodContainerManager {
 	return &podContainerManagerStub{}
 }

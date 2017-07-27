@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
-	kubeclientset "k8s.io/client-go/kubernetes"
 	federationapi "k8s.io/kubernetes/federation/apis/federation/v1beta1"
 	fedclientset "k8s.io/kubernetes/federation/client/clientset_generated/federation_clientset"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/test/e2e/common"
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -248,7 +248,7 @@ func cleanupServiceShardsAndProviderResources(namespace string, service *v1.Serv
 			zone := fedframework.GetZoneFromClusterName(name)
 			serviceLBName := cloudprovider.GetLoadBalancerName(cSvc)
 			framework.Logf("cleaning cloud provider resource for service %q in namespace %q, in cluster %q", service.Name, namespace, name)
-			framework.CleanupServiceResources(c.Clientset, serviceLBName, zone)
+			framework.CleanupServiceResources(serviceLBName, zone)
 		}
 
 		err = cleanupServiceShard(c.Clientset, name, namespace, cSvc, fedframework.FederatedDefaultTestTimeout)

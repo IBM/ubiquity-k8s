@@ -28,8 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/api/v1/service"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/controller/endpoint"
@@ -57,7 +57,7 @@ var _ = framework.KubeDescribe("Services", func() {
 		}
 		for _, lb := range serviceLBNames {
 			framework.Logf("cleaning gce resource for %s", lb)
-			framework.CleanupServiceGCEResources(cs, lb, framework.TestContext.CloudConfig.Zone)
+			framework.CleanupServiceGCEResources(lb, framework.TestContext.CloudConfig.Zone)
 		}
 		//reset serviceLBNames
 		serviceLBNames = []string{}
@@ -789,101 +789,6 @@ var _ = framework.KubeDescribe("Services", func() {
 		}
 	})
 
-	It("should be able to change the type from ExternalName to ClusterIP", func() {
-		serviceName := "externalname-service"
-		ns := f.Namespace.Name
-		jig := framework.NewServiceTestJig(cs, serviceName)
-
-		By("creating a service " + serviceName + " with the type=ExternalName in namespace " + ns)
-		externalNameService := jig.CreateExternalNameServiceOrFail(ns, nil)
-		defer func() {
-			framework.Logf("Cleaning up the ExternalName to ClusterIP test service")
-			err := cs.Core().Services(ns).Delete(serviceName, nil)
-			Expect(err).NotTo(HaveOccurred())
-		}()
-		jig.SanityCheckService(externalNameService, v1.ServiceTypeExternalName)
-		By("changing the ExternalName service to type=ClusterIP")
-		clusterIPService := jig.UpdateServiceOrFail(ns, externalNameService.Name, func(s *v1.Service) {
-			s.Spec.Type = v1.ServiceTypeClusterIP
-			s.Spec.ExternalName = ""
-			s.Spec.Ports = []v1.ServicePort{
-				{Port: 80, Name: "http", Protocol: "TCP"},
-			}
-		})
-		jig.SanityCheckService(clusterIPService, v1.ServiceTypeClusterIP)
-	})
-
-	It("should be able to change the type from ExternalName to NodePort", func() {
-		serviceName := "externalname-service"
-		ns := f.Namespace.Name
-		jig := framework.NewServiceTestJig(cs, serviceName)
-
-		By("creating a service " + serviceName + " with the type=ExternalName in namespace " + ns)
-		externalNameService := jig.CreateExternalNameServiceOrFail(ns, nil)
-		defer func() {
-			framework.Logf("Cleaning up the ExternalName to NodePort test service")
-			err := cs.Core().Services(ns).Delete(serviceName, nil)
-			Expect(err).NotTo(HaveOccurred())
-		}()
-		jig.SanityCheckService(externalNameService, v1.ServiceTypeExternalName)
-		By("changing the ExternalName service to type=NodePort")
-		nodePortService := jig.UpdateServiceOrFail(ns, externalNameService.Name, func(s *v1.Service) {
-			s.Spec.Type = v1.ServiceTypeNodePort
-			s.Spec.ExternalName = ""
-			s.Spec.Ports = []v1.ServicePort{
-				{Port: 80, Name: "http", Protocol: "TCP"},
-			}
-		})
-		jig.SanityCheckService(nodePortService, v1.ServiceTypeNodePort)
-	})
-
-	It("should be able to change the type from ClusterIP to ExternalName", func() {
-		serviceName := "clusterip-service"
-		ns := f.Namespace.Name
-		jig := framework.NewServiceTestJig(cs, serviceName)
-
-		By("creating a service " + serviceName + " with the type=ClusterIP in namespace " + ns)
-		clusterIPService := jig.CreateTCPServiceOrFail(ns, nil)
-		defer func() {
-			framework.Logf("Cleaning up the ClusterIP to ExternalName test service")
-			err := cs.Core().Services(ns).Delete(serviceName, nil)
-			Expect(err).NotTo(HaveOccurred())
-		}()
-		jig.SanityCheckService(clusterIPService, v1.ServiceTypeClusterIP)
-		By("changing the ClusterIP service to type=ExternalName")
-		externalNameService := jig.UpdateServiceOrFail(ns, clusterIPService.Name, func(s *v1.Service) {
-			s.Spec.Type = v1.ServiceTypeExternalName
-			s.Spec.ExternalName = "foo.example.com"
-			s.Spec.ClusterIP = ""
-		})
-		jig.SanityCheckService(externalNameService, v1.ServiceTypeExternalName)
-	})
-
-	It("should be able to change the type from NodePort to ExternalName", func() {
-		serviceName := "nodeport-service"
-		ns := f.Namespace.Name
-		jig := framework.NewServiceTestJig(cs, serviceName)
-
-		By("creating a service " + serviceName + " with the type=NodePort in namespace " + ns)
-		nodePortService := jig.CreateTCPServiceOrFail(ns, func(svc *v1.Service) {
-			svc.Spec.Type = v1.ServiceTypeNodePort
-		})
-		defer func() {
-			framework.Logf("Cleaning up the NodePort to ExternalName test service")
-			err := cs.Core().Services(ns).Delete(serviceName, nil)
-			Expect(err).NotTo(HaveOccurred())
-		}()
-		jig.SanityCheckService(nodePortService, v1.ServiceTypeNodePort)
-		By("changing the NodePort service to type=ExternalName")
-		externalNameService := jig.UpdateServiceOrFail(ns, nodePortService.Name, func(s *v1.Service) {
-			s.Spec.Type = v1.ServiceTypeExternalName
-			s.Spec.ExternalName = "foo.example.com"
-			s.Spec.ClusterIP = ""
-			s.Spec.Ports[0].NodePort = 0
-		})
-		jig.SanityCheckService(externalNameService, v1.ServiceTypeExternalName)
-	})
-
 	It("should use same NodePort with same port but different protocols", func() {
 		serviceName := "nodeports"
 		ns := f.Namespace.Name
@@ -961,7 +866,7 @@ var _ = framework.KubeDescribe("Services", func() {
 		}
 		port := result.Spec.Ports[0]
 		if port.NodePort == 0 {
-			framework.Failf("got unexpected Spec.Ports[0].NodePort for new service: %v", result)
+			framework.Failf("got unexpected Spec.Ports[0].nodePort for new service: %v", result)
 		}
 
 		By("creating service " + serviceName2 + " with conflicting NodePort")
@@ -1432,7 +1337,7 @@ var _ = framework.KubeDescribe("ESIPP [Slow]", func() {
 		}
 		for _, lb := range serviceLBNames {
 			framework.Logf("cleaning gce resource for %s", lb)
-			framework.CleanupServiceGCEResources(cs, lb, framework.TestContext.CloudConfig.Zone)
+			framework.CleanupServiceGCEResources(lb, framework.TestContext.CloudConfig.Zone)
 		}
 		//reset serviceLBNames
 		serviceLBNames = []string{}

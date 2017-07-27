@@ -324,20 +324,17 @@ function create-master-pki {
   ln -sf "${APISERVER_SERVER_KEY_PATH}" /etc/srv/kubernetes/server.key
   ln -sf "${APISERVER_SERVER_CERT_PATH}" /etc/srv/kubernetes/server.cert
 
+  AGGREGATOR_CA_KEY_PATH="${pki_dir}/aggr_ca.key"
+  echo "${AGGREGATOR_CA_KEY:-}" | base64 --decode > "${AGGREGATOR_CA_KEY_PATH}"
 
-  if [[ ! -z "${REQUESTHEADER_CA_CERT:-}" ]]; then
-    AGGREGATOR_CA_KEY_PATH="${pki_dir}/aggr_ca.key"
-    echo "${AGGREGATOR_CA_KEY}" | base64 --decode > "${AGGREGATOR_CA_KEY_PATH}"
+  REQUESTHEADER_CA_CERT_PATH="${pki_dir}/aggr_ca.crt"
+  echo "${REQUESTHEADER_CA_CERT:-}" | base64 --decode > "${REQUESTHEADER_CA_CERT_PATH}"
 
-    REQUESTHEADER_CA_CERT_PATH="${pki_dir}/aggr_ca.crt"
-    echo "${REQUESTHEADER_CA_CERT}" | base64 --decode > "${REQUESTHEADER_CA_CERT_PATH}"
+  PROXY_CLIENT_KEY_PATH="${pki_dir}/proxy_client.key"
+  echo "${PROXY_CLIENT_KEY:-}" | base64 --decode > "${PROXY_CLIENT_KEY_PATH}"
 
-    PROXY_CLIENT_KEY_PATH="${pki_dir}/proxy_client.key"
-    echo "${PROXY_CLIENT_KEY}" | base64 --decode > "${PROXY_CLIENT_KEY_PATH}"
-
-    PROXY_CLIENT_CERT_PATH="${pki_dir}/proxy_client.crt"
-    echo "${PROXY_CLIENT_CERT}" | base64 --decode > "${PROXY_CLIENT_CERT_PATH}"
-  fi
+  PROXY_CLIENT_CERT_PATH="${pki_dir}/proxy_client.crt"
+  echo "${PROXY_CLIENT_CERT:-}" | base64 --decode > "${PROXY_CLIENT_CERT_PATH}"
 }
 
 # After the first boot and on upgrade, these files exist on the master-pd
@@ -369,6 +366,9 @@ function create-master-auth {
   if [[ -n "${KUBE_SCHEDULER_TOKEN:-}" ]]; then
     append_or_replace_prefixed_line "${known_tokens_csv}" "${KUBE_SCHEDULER_TOKEN},"          "system:kube-scheduler,uid:system:kube-scheduler"
   fi
+  if [[ -n "${KUBELET_TOKEN:-}" ]]; then
+    append_or_replace_prefixed_line "${known_tokens_csv}" "${KUBELET_TOKEN},"                 "kubelet,uid:kubelet,system:nodes"
+  fi
   if [[ -n "${KUBE_PROXY_TOKEN:-}" ]]; then
     append_or_replace_prefixed_line "${known_tokens_csv}" "${KUBE_PROXY_TOKEN},"              "system:kube-proxy,uid:kube_proxy"
   fi
@@ -379,11 +379,6 @@ function create-master-auth {
   cat <<EOF >/etc/gce.conf
 [global]
 EOF
-  if [[ -n "${GCE_API_ENDPOINT:-}" ]]; then
-    cat <<EOF >>/etc/gce.conf
-api-endpoint = ${GCE_API_ENDPOINT}
-EOF
-  fi
   if [[ -n "${PROJECT_ID:-}" && -n "${TOKEN_URL:-}" && -n "${TOKEN_BODY:-}" && -n "${NODE_NETWORK:-}" ]]; then
     use_cloud_config="true"
     cat <<EOF >>/etc/gce.conf
@@ -392,11 +387,6 @@ token-body = ${TOKEN_BODY}
 project-id = ${PROJECT_ID}
 network-name = ${NODE_NETWORK}
 EOF
-    if [[ -n "${NETWORK_PROJECT_ID:-}" ]]; then
-        cat <<EOF >>/etc/gce.conf
-network-project-id = ${NETWORK_PROJECT_ID}
-EOF
-    fi
     if [[ -n "${NODE_SUBNETWORK:-}" ]]; then
       cat <<EOF >>/etc/gce.conf
 subnetwork-name = ${NODE_SUBNETWORK}
@@ -890,7 +880,7 @@ function start-kubelet {
     flags+=" --port=${KUBELET_PORT}"
   fi
   if [[ "${KUBERNETES_MASTER:-}" == "true" ]]; then
-    flags+=" ${MASTER_KUBELET_TEST_ARGS:-}"
+    flags+="${MASTER_KUBELET_TEST_ARGS:-}"
     flags+=" --enable-debugging-handlers=false"
     flags+=" --hairpin-mode=none"
     if [[ "${REGISTER_MASTER_KUBELET:-false}" == "true" ]]; then
@@ -905,7 +895,7 @@ function start-kubelet {
       flags+=" --pod-cidr=${MASTER_IP_RANGE}"
     fi
   else # For nodes
-    flags+=" ${NODE_KUBELET_TEST_ARGS:-}"
+    flags+="${NODE_KUBELET_TEST_ARGS:-}"
     flags+=" --enable-debugging-handlers=true"
     flags+=" --bootstrap-kubeconfig=/var/lib/kubelet/bootstrap-kubeconfig"
     flags+=" --require-kubeconfig"
@@ -922,11 +912,7 @@ function start-kubelet {
     flags+=" --cni-bin-dir=/home/kubernetes/bin"
     if [[ "${NETWORK_POLICY_PROVIDER:-}" == "calico" ]]; then
       # Calico uses CNI always.
-      if [[ "${KUBERNETES_PRIVATE_MASTER:-}" == "true" ]]; then
-        flags+=" --network-plugin=${NETWORK_PROVIDER}"
-      else
-        flags+=" --network-plugin=cni"
-      fi
+      flags+=" --network-plugin=cni"
     else
       # Otherwise use the configured value.
       flags+=" --network-plugin=${NETWORK_PROVIDER}"
@@ -997,8 +983,6 @@ function start-node-problem-detector {
   flags+=" --logtostderr"
   flags+=" --system-log-monitors=${km_config},${dm_config}"
   flags+=" --apiserver-override=https://${KUBERNETES_MASTER_NAME}?inClusterConfig=false&auth=/var/lib/node-problem-detector/kubeconfig"
-  local -r npd_port=${NODE_PROBLEM_DETECTOR_PORT:-20256}
-  flags+=" --port=${npd_port}"
 
   # Write the systemd service file for node problem detector.
   cat <<EOF >/etc/systemd/system/node-problem-detector.service
@@ -1198,7 +1182,6 @@ function prepare-mounter-rootfs {
   mount --make-rshared "${CONTAINERIZED_MOUNTER_ROOTFS}/var/lib/kubelet"
   mount --bind -o ro /proc "${CONTAINERIZED_MOUNTER_ROOTFS}/proc"
   mount --bind -o ro /dev "${CONTAINERIZED_MOUNTER_ROOTFS}/dev"
-  mount --bind -o ro /etc/resolv.conf "${CONTAINERIZED_MOUNTER_ROOTFS}/etc/resolv.conf"
 }
 
 # A helper function for removing salt configuration and comments from a file.
@@ -1237,7 +1220,7 @@ function start-kube-apiserver {
   params+=" --secure-port=443"
   params+=" --tls-cert-file=${APISERVER_SERVER_CERT_PATH}"
   params+=" --tls-private-key-file=${APISERVER_SERVER_KEY_PATH}"
-  if [[ -s "${REQUESTHEADER_CA_CERT_PATH:-}" ]]; then
+  if [[ ! -z "${REQUESTHEADER_CA_CERT:-}" ]]; then
     params+=" --requestheader-client-ca-file=${REQUESTHEADER_CA_CERT_PATH}"
     params+=" --requestheader-allowed-names=aggregator"
     params+=" --requestheader-extra-headers-prefix=X-Remote-Extra-"
@@ -1415,16 +1398,7 @@ function start-kube-apiserver {
 
   local container_env=""
   if [[ -n "${ENABLE_CACHE_MUTATION_DETECTOR:-}" ]]; then
-    container_env="\"name\": \"KUBE_CACHE_MUTATION_DETECTOR\", \"value\": \"${ENABLE_CACHE_MUTATION_DETECTOR}\""
-  fi
-  if [[ -n "${ENABLE_PATCH_CONVERSION_DETECTOR:-}" ]]; then
-    if [[ -n "${container_env}" ]]; then
-      container_env="${container_env}, "
-    fi
-    container_env="\"name\": \"KUBE_PATCH_CONVERSION_DETECTOR\", \"value\": \"${ENABLE_PATCH_CONVERSION_DETECTOR}\""
-  fi
-  if [[ -n "${container_env}" ]]; then
-    container_env="\"env\":[{${container_env}}],"
+    container_env="\"env\":[{\"name\": \"KUBE_CACHE_MUTATION_DETECTOR\", \"value\": \"${ENABLE_CACHE_MUTATION_DETECTOR}\"}],"
   fi
 
   if [[ -n "${ENCRYPTION_PROVIDER_CONFIG:-}" ]]; then
@@ -1623,8 +1597,6 @@ function setup-addon-manifests {
 }
 
 # Prepares the manifests of k8s addons, and starts the addon manager.
-# Vars assumed:
-#   CLUSTER_NAME
 function start-kube-addons {
   echo "Prepare kube-addons manifests and start kube addon manager"
   local -r src_dir="${KUBE_HOME}/kube-manifests/kubernetes/gci-trusty"
@@ -1662,7 +1634,6 @@ function start-kube-addons {
       controller_yaml="${controller_yaml}/heapster-controller.yaml"
     fi
     remove-salt-config-comments "${controller_yaml}"
-    sed -i -e "s@{{ cluster_name }}@${CLUSTER_NAME}@g" "${controller_yaml}"
     sed -i -e "s@{{ *base_metrics_memory *}}@${base_metrics_memory}@g" "${controller_yaml}"
     sed -i -e "s@{{ *base_metrics_cpu *}}@${base_metrics_cpu}@g" "${controller_yaml}"
     sed -i -e "s@{{ *base_eventer_memory *}}@${base_eventer_memory}@g" "${controller_yaml}"
@@ -1730,7 +1701,7 @@ function start-kube-addons {
     sed -i -e "s@__CALICO_TYPHA_CPU__@$(get-calico-typha-cpu)@g" "${typha_dep_file}"
     sed -i -e "s@__CALICO_TYPHA_REPLICAS__@$(get-calico-typha-replicas)@g" "${typha_dep_file}"
   else
-    # If not configured to use Calico, the set the typha replica count to 0, but only if the
+    # If not configured to use Calico, the set the typha replica count to 0, but only if the 
     # addon is present.
     local -r typha_dep_file="${dst_dir}/calico-policy-controller/typha-deployment.yaml"
     if [[ -e $typha_dep_file ]]; then

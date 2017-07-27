@@ -19,6 +19,7 @@ go_library(
     deps = [
         "//pkg/cloudprovider:go_default_library",
         "//pkg/cloudprovider/providers/photon:go_default_library",
+        "//pkg/util/exec:go_default_library",
         "//pkg/util/mount:go_default_library",
         "//pkg/util/strings:go_default_library",
         "//pkg/volume:go_default_library",
@@ -29,7 +30,6 @@ go_library(
         "//vendor/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/types:go_default_library",
-        "//vendor/k8s.io/utils/exec:go_default_library",
     ],
 )
 

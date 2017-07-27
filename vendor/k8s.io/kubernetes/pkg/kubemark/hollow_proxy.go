@@ -32,11 +32,11 @@ import (
 	"k8s.io/kubernetes/pkg/proxy"
 	proxyconfig "k8s.io/kubernetes/pkg/proxy/config"
 	"k8s.io/kubernetes/pkg/proxy/iptables"
+	"k8s.io/kubernetes/pkg/util"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
-	utilnode "k8s.io/kubernetes/pkg/util/node"
-	utilpointer "k8s.io/kubernetes/pkg/util/pointer"
+	nodeutil "k8s.io/kubernetes/pkg/util/node"
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
-	utilexec "k8s.io/utils/exec"
 
 	"github.com/golang/glog"
 )
@@ -122,7 +122,7 @@ func NewHollowProxyOrDie(
 			Recorder:              recorder,
 			ProxyMode:             "fake",
 			NodeRef:               nodeRef,
-			OOMScoreAdj:           utilpointer.Int32Ptr(0),
+			OOMScoreAdj:           util.Int32Ptr(0),
 			ResourceContainer:     "",
 			ConfigSyncPeriod:      30 * time.Second,
 			ServiceEventHandler:   serviceHandler,
@@ -144,7 +144,7 @@ func getNodeIP(client clientset.Interface, hostname string) net.IP {
 		glog.Warningf("Failed to retrieve node info: %v", err)
 		return nil
 	}
-	nodeIP, err = utilnode.InternalGetNodeHostIP(node)
+	nodeIP, err = nodeutil.InternalGetNodeHostIP(node)
 	if err != nil {
 		glog.Warningf("Failed to retrieve node IP: %v", err)
 		return nil

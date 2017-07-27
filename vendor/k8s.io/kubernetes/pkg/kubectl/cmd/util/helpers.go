@@ -45,10 +45,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/resource"
 	"k8s.io/kubernetes/pkg/printers"
-	utilexec "k8s.io/utils/exec"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 )
 
 const (
@@ -116,32 +117,31 @@ var ErrExit = fmt.Errorf("exit")
 // This method is generic to the command in use and may be used by non-Kubectl
 // commands.
 func CheckErr(err error) {
-	checkErr(err, fatalErrHandler)
+	checkErr("", err, fatalErrHandler)
 }
 
 // checkErrWithPrefix works like CheckErr, but adds a caller-defined prefix to non-nil errors
 func checkErrWithPrefix(prefix string, err error) {
-	checkErr(err, fatalErrHandler)
+	checkErr(prefix, err, fatalErrHandler)
 }
 
 // checkErr formats a given error as a string and calls the passed handleErr
 // func with that string and an kubectl exit code.
-func checkErr(err error, handleErr func(string, int)) {
+func checkErr(prefix string, err error, handleErr func(string, int)) {
 	// unwrap aggregates of 1
 	if agg, ok := err.(utilerrors.Aggregate); ok && len(agg.Errors()) == 1 {
 		err = agg.Errors()[0]
 	}
 
-	if err == nil {
-		return
-	}
-
 	switch {
+	case err == nil:
+		return
 	case err == ErrExit:
 		handleErr("", DefaultErrorExitCode)
+		return
 	case kerrors.IsInvalid(err):
 		details := err.(*kerrors.StatusError).Status().Details
-		s := fmt.Sprintf("The %s %q is invalid", details.Kind, details.Name)
+		s := fmt.Sprintf("%sThe %s %q is invalid", prefix, details.Kind, details.Name)
 		if len(details.Causes) > 0 {
 			errs := statusCausesToAggrError(details.Causes)
 			handleErr(MultilineError(s+": ", errs), DefaultErrorExitCode)
@@ -149,24 +149,25 @@ func checkErr(err error, handleErr func(string, int)) {
 			handleErr(s, DefaultErrorExitCode)
 		}
 	case clientcmd.IsConfigurationInvalid(err):
-		handleErr(MultilineError("Error in configuration: ", err), DefaultErrorExitCode)
+		handleErr(MultilineError(fmt.Sprintf("%sError in configuration: ", prefix), err), DefaultErrorExitCode)
 	default:
 		switch err := err.(type) {
 		case *meta.NoResourceMatchError:
 			switch {
 			case len(err.PartialResource.Group) > 0 && len(err.PartialResource.Version) > 0:
-				handleErr(fmt.Sprintf("the server doesn't have a resource type %q in group %q and version %q", err.PartialResource.Resource, err.PartialResource.Group, err.PartialResource.Version), DefaultErrorExitCode)
+				handleErr(fmt.Sprintf("%sthe server doesn't have a resource type %q in group %q and version %q", prefix, err.PartialResource.Resource, err.PartialResource.Group, err.PartialResource.Version), DefaultErrorExitCode)
 			case len(err.PartialResource.Group) > 0:
-				handleErr(fmt.Sprintf("the server doesn't have a resource type %q in group %q", err.PartialResource.Resource, err.PartialResource.Group), DefaultErrorExitCode)
+				handleErr(fmt.Sprintf("%sthe server doesn't have a resource type %q in group %q", prefix, err.PartialResource.Resource, err.PartialResource.Group), DefaultErrorExitCode)
 			case len(err.PartialResource.Version) > 0:
-				handleErr(fmt.Sprintf("the server doesn't have a resource type %q in version %q", err.PartialResource.Resource, err.PartialResource.Version), DefaultErrorExitCode)
+				handleErr(fmt.Sprintf("%sthe server doesn't have a resource type %q in version %q", prefix, err.PartialResource.Resource, err.PartialResource.Version), DefaultErrorExitCode)
 			default:
-				handleErr(fmt.Sprintf("the server doesn't have a resource type %q", err.PartialResource.Resource), DefaultErrorExitCode)
+				handleErr(fmt.Sprintf("%sthe server doesn't have a resource type %q", prefix, err.PartialResource.Resource), DefaultErrorExitCode)
 			}
 		case utilerrors.Aggregate:
-			handleErr(MultipleErrors(``, err.Errors()), DefaultErrorExitCode)
+			handleErr(MultipleErrors(prefix, err.Errors()), DefaultErrorExitCode)
 		case utilexec.ExitError:
-			handleErr(err.Error(), err.ExitStatus())
+			// do not print anything, only terminate with given error
+			handleErr("", err.ExitStatus())
 		default: // for any other error type
 			msg, ok := StandardErrorMessage(err)
 			if !ok {
@@ -296,23 +297,26 @@ func messageForError(err error) string {
 	return msg
 }
 
-func UsageErrorf(cmd *cobra.Command, format string, args ...interface{}) error {
+func UsageError(cmd *cobra.Command, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s\nSee '%s -h' for help and examples.", msg, cmd.CommandPath())
 }
 
-func IsFilenameSliceEmpty(filenames []string) bool {
+func IsFilenameEmpty(filenames []string) bool {
 	return len(filenames) == 0
 }
 
 // Whether this cmd need watching objects.
 func isWatch(cmd *cobra.Command) bool {
-	if w, err := cmd.Flags().GetBool("watch"); err == nil && w {
+	if w, err := cmd.Flags().GetBool("watch"); w && err == nil {
 		return true
 	}
 
-	wo, err := cmd.Flags().GetBool("watch-only")
-	return err == nil && wo
+	if wo, err := cmd.Flags().GetBool("watch-only"); wo && err == nil {
+		return true
+	}
+
+	return false
 }
 
 func GetFlagString(cmd *cobra.Command, flag string) string {
@@ -529,6 +533,7 @@ func UpdateObject(info *resource.Info, codec runtime.Codec, updateFn func(runtim
 	return info.Object, nil
 }
 
+// AddCmdRecordFlag adds --record flag to command
 func AddRecordFlag(cmd *cobra.Command) {
 	cmd.Flags().Bool("record", false, "Record current kubectl command in the resource annotation. If set to false, do not record the command. If set to true, record the command. If not set, default to updating the existing annotation value only if one already exists.")
 }
@@ -674,6 +679,18 @@ func ParsePairs(pairArgs []string, pairType string, supportRemove bool) (newPair
 	return
 }
 
+// MaybeConvertObject attempts to convert an object to a specific group/version.  If the object is
+// a third party resource it is simply passed through.
+func MaybeConvertObject(obj runtime.Object, gv schema.GroupVersion, converter runtime.ObjectConvertor) (runtime.Object, error) {
+	switch obj.(type) {
+	case *extensions.ThirdPartyResourceData:
+		// conversion is not supported for 3rd party objects
+		return obj, nil
+	default:
+		return converter.ConvertToVersion(obj, gv)
+	}
+}
+
 // MustPrintWithKinds determines if printer is dealing
 // with multiple resource kinds, in which case it will
 // return true, indicating resource kind will be
@@ -785,7 +802,7 @@ func DefaultSubCommandRun(out io.Writer) func(c *cobra.Command, args []string) {
 // RequireNoArguments exits with a usage error if extra arguments are provided.
 func RequireNoArguments(c *cobra.Command, args []string) {
 	if len(args) > 0 {
-		CheckErr(UsageErrorf(c, "unknown command %q", strings.Join(args, " ")))
+		CheckErr(UsageError(c, fmt.Sprintf(`unknown command %q`, strings.Join(args, " "))))
 	}
 }
 

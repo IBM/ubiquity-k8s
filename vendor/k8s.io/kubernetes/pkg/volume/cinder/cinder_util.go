@@ -29,10 +29,10 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
+	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/volume"
-	"k8s.io/utils/exec"
 )
 
 type CinderDiskUtil struct{}

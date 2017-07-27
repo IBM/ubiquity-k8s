@@ -116,10 +116,6 @@ func (o *SelectorOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args [
 	mapper, _ := f.Object()
 	o.mapper = mapper
 	o.encoder = f.JSONEncoder()
-	o.resources, o.selector, err = getResourcesAndSelector(args)
-	if err != nil {
-		return err
-	}
 
 	o.builder = f.NewBuilder(!o.local).
 		ContinueOnError().
@@ -139,12 +135,14 @@ func (o *SelectorOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args [
 	o.ClientForMapping = func(mapping *meta.RESTMapping) (resource.RESTClient, error) {
 		return f.ClientForMapping(mapping)
 	}
+
+	o.resources, o.selector, err = getResourcesAndSelector(args)
 	return err
 }
 
 // Validate basic inputs
 func (o *SelectorOptions) Validate() error {
-	if len(o.resources) < 1 && cmdutil.IsFilenameSliceEmpty(o.fileOptions.Filenames) {
+	if len(o.resources) < 1 && cmdutil.IsFilenameEmpty(o.fileOptions.Filenames) {
 		return fmt.Errorf("one or more resources must be specified as <resource> <name> or <resource>/<name>")
 	}
 	if o.selector == nil {

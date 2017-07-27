@@ -35,8 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
-	kubeclientset "k8s.io/client-go/kubernetes"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	cache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/flowcontrol"
@@ -50,6 +48,8 @@ import (
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/deletionhelper"
 	"k8s.io/kubernetes/federation/pkg/federation-controller/util/eventsink"
 	"k8s.io/kubernetes/pkg/api"
+	kubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	corelisters "k8s.io/kubernetes/pkg/client/listers/core/v1"
 	"k8s.io/kubernetes/pkg/controller"
 )
 
@@ -409,7 +409,7 @@ func (s *ServiceController) reconcileService(key string) reconciliationStatus {
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		runtime.HandleError(fmt.Errorf("Invalid key %q received, unable to split key to namespace and name, err: %v", key, err))
+		runtime.HandleError(fmt.Errorf("Invalid key %q recieved, unable to split key to namespace and name, err: %v", key, err))
 		return statusNonRecoverableError
 	}
 
@@ -432,7 +432,7 @@ func (s *ServiceController) reconcileService(key string) reconciliationStatus {
 	}
 	fedService, ok := fedServiceObj.(*v1.Service)
 	if err != nil || !ok {
-		runtime.HandleError(fmt.Errorf("Unknown obj received from store: %#v, %v", fedServiceObj, err))
+		runtime.HandleError(fmt.Errorf("Unknown obj recieved from store: %#v, %v", fedServiceObj, err))
 		return statusNonRecoverableError
 	}
 

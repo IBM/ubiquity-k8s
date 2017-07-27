@@ -59,7 +59,7 @@ ENABLE_CLUSTER_DNS=${KUBE_ENABLE_CLUSTER_DNS:-true}
 DNS_SERVER_IP=${KUBE_DNS_SERVER_IP:-10.0.0.10}
 DNS_DOMAIN=${KUBE_DNS_NAME:-"cluster.local"}
 KUBECTL=${KUBECTL:-cluster/kubectl.sh}
-WAIT_FOR_URL_API_SERVER=${WAIT_FOR_URL_API_SERVER:-20}
+WAIT_FOR_URL_API_SERVER=${WAIT_FOR_URL_API_SERVER:-10}
 ENABLE_DAEMON=${ENABLE_DAEMON:-false}
 HOSTNAME_OVERRIDE=${HOSTNAME_OVERRIDE:-"127.0.0.1"}
 CLOUD_PROVIDER=${CLOUD_PROVIDER:-""}
@@ -76,7 +76,8 @@ ENABLE_CLUSTER_DASHBOARD=${KUBE_ENABLE_CLUSTER_DASHBOARD:-false}
 ENABLE_APISERVER_BASIC_AUDIT=${ENABLE_APISERVER_BASIC_AUDIT:-false}
 
 # RBAC Mode options
-ENABLE_RBAC=${ENABLE_RBAC:-true}
+ALLOW_ANY_TOKEN=${ALLOW_ANY_TOKEN:-false}
+ENABLE_RBAC=${ENABLE_RBAC:-false}
 AUTHORIZATION_MODE=${AUTHORIZATION_MODE:-""}
 KUBECONFIG_TOKEN=${KUBECONFIG_TOKEN:-""}
 AUTH_ARGS=${AUTH_ARGS:-""}
@@ -96,9 +97,6 @@ ADMISSION_CONTROL_CONFIG_FILE=${ADMISSION_CONTROL_CONFIG_FILE:-""}
 
 # START_MODE can be 'all', 'kubeletonly', or 'nokubelet'
 START_MODE=${START_MODE:-"all"}
-
-# A list of controllers to enable
-KUBE_CONTROLLERS="${KUBE_CONTROLLERS:-"*"}"
 
 # sanity check for OpenStack provider
 if [ "${CLOUD_PROVIDER}" == "openstack" ]; then
@@ -151,7 +149,7 @@ do
             ;;
         O)
             GO_OUT=$(guess_built_binary_path)
-            if [ "$GO_OUT" == "" ]; then
+            if [ $GO_OUT == "" ]; then
                 echo "Could not guess the correct output directory to use."
                 exit 1
             fi
@@ -433,6 +431,11 @@ function start_apiserver {
       swagger_arg="--enable-swagger-ui=true "
     fi
 
+    anytoken_arg=""
+    if [[ "${ALLOW_ANY_TOKEN}" = true ]]; then
+      anytoken_arg="--insecure-allow-any-token "
+      KUBECONFIG_TOKEN="${KUBECONFIG_TOKEN:-system:admin/system:masters}"
+    fi
     authorizer_arg=""
     if [[ "${ENABLE_RBAC}" = true ]]; then
       authorizer_arg="--authorization-mode=RBAC "
@@ -492,7 +495,7 @@ function start_apiserver {
 
 
     APISERVER_LOG=${LOG_DIR}/kube-apiserver.log
-    ${CONTROLPLANE_SUDO} "${GO_OUT}/hyperkube" apiserver ${swagger_arg} ${audit_arg} ${authorizer_arg} ${priv_arg} ${runtime_config}\
+    ${CONTROLPLANE_SUDO} "${GO_OUT}/hyperkube" apiserver ${swagger_arg} ${audit_arg} ${anytoken_arg} ${authorizer_arg} ${priv_arg} ${runtime_config}\
       ${advertise_address} \
       --v=${LOG_LEVEL} \
       --vmodule="${LOG_SPEC}" \
@@ -530,7 +533,7 @@ function start_apiserver {
     # this uses the API port because if you don't have any authenticator, you can't seem to use the secure port at all.
     # this matches what happened with the combination in 1.4.
     # TODO change this conditionally based on whether API_PORT is on or off
-    kube::util::wait_for_url "https://${API_HOST_IP}:${API_SECURE_PORT}/healthz" "apiserver: " 1 ${WAIT_FOR_URL_API_SERVER} \
+    kube::util::wait_for_url "http://${API_HOST_IP}:${API_SECURE_PORT}/healthz" "apiserver: " 1 ${WAIT_FOR_URL_API_SERVER} \
         || { echo "check apiserver logs: ${APISERVER_LOG}" ; exit 1 ; }
 
     # Create kubeconfigs for all components, using client certs
@@ -542,7 +545,17 @@ function start_apiserver {
     kube::util::write_client_kubeconfig "${CONTROLPLANE_SUDO}" "${CERT_DIR}" "${ROOT_CA_FILE}" "${API_HOST}" "${API_SECURE_PORT}" scheduler
 
     if [[ -z "${AUTH_ARGS}" ]]; then
-        AUTH_ARGS="--client-key=${CERT_DIR}/client-admin.key --client-certificate=${CERT_DIR}/client-admin.crt"
+        if [[ "${ALLOW_ANY_TOKEN}" = true ]]; then
+            # use token authentication
+            if [[ -n "${KUBECONFIG_TOKEN}" ]]; then
+                AUTH_ARGS="--token=${KUBECONFIG_TOKEN}"
+            else
+                AUTH_ARGS="--token=system:admin/system:masters"
+            fi
+        else
+            # default to the admin client cert/key
+            AUTH_ARGS="--client-key=${CERT_DIR}/client-admin.key --client-certificate=${CERT_DIR}/client-admin.crt"
+        fi
     fi
 
     ${CONTROLPLANE_SUDO} cp "${CERT_DIR}/admin.kubeconfig" "${CERT_DIR}/admin-kube-aggregator.kubeconfig"
@@ -561,7 +574,6 @@ function start_controller_manager {
     CTLRMGR_LOG=${LOG_DIR}/kube-controller-manager.log
     ${CONTROLPLANE_SUDO} "${GO_OUT}/hyperkube" controller-manager \
       --v=${LOG_LEVEL} \
-      --vmodule="${LOG_SPEC}" \
       --service-account-private-key-file="${SERVICE_ACCOUNT_KEY}" \
       --root-ca-file="${ROOT_CA_FILE}" \
       --cluster-signing-cert-file="${CLUSTER_SIGNING_CERT_FILE}" \
@@ -574,7 +586,6 @@ function start_controller_manager {
       --cloud-config="${CLOUD_CONFIG}" \
       --kubeconfig "$CERT_DIR"/controller.kubeconfig \
       --use-service-account-credentials \
-      --controllers="${KUBE_CONTROLLERS}" \
       --master="https://${API_HOST}:${API_SECURE_PORT}" >"${CTLRMGR_LOG}" 2>&1 &
     CTLRMGR_PID=$!
 }
@@ -638,7 +649,6 @@ function start_kubelet {
 
       sudo -E "${GO_OUT}/hyperkube" kubelet ${priv_arg}\
         --v=${LOG_LEVEL} \
-        --vmodule="${LOG_SPEC}" \
         --chaos-chance="${CHAOS_CHANCE}" \
         --container-runtime="${CONTAINER_RUNTIME}" \
         --rkt-path="${RKT_PATH}" \

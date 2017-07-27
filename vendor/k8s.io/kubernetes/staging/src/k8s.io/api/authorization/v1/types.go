@@ -25,7 +25,6 @@ import (
 // +genclient=true
 // +nonNamespaced=true
 // +noMethods=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SubjectAccessReview checks whether or not a user or group can perform an action.
 type SubjectAccessReview struct {
@@ -44,7 +43,6 @@ type SubjectAccessReview struct {
 // +genclient=true
 // +nonNamespaced=true
 // +noMethods=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SelfSubjectAccessReview checks whether or the current user can perform an action.  Not filling in a
 // spec.namespace means "in all namespaces".  Self is a special case, because users should always be able
@@ -64,7 +62,6 @@ type SelfSubjectAccessReview struct {
 
 // +genclient=true
 // +noMethods=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // LocalSubjectAccessReview checks whether or not a user or group can perform an action in a given namespace.
 // Having a namespace scoped resource makes it much easier to grant namespace scoped policy that includes permissions
@@ -134,7 +131,7 @@ type SubjectAccessReviewSpec struct {
 	// User is the user you're testing for.
 	// If you specify "User" but not "Groups", then is it interpreted as "What if User were not a member of any groups
 	// +optional
-	User string `json:"user,omitempty" protobuf:"bytes,3,opt,name=user"`
+	User string `json:"user,omitempty" protobuf:"bytes,3,opt,name=verb"`
 	// Groups is the groups you're testing for.
 	// +optional
 	Groups []string `json:"groups,omitempty" protobuf:"bytes,4,rep,name=groups"`

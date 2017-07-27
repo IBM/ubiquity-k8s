@@ -34,15 +34,15 @@ import (
 
 	clientv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
-	ref "k8s.io/client-go/tools/reference"
+	"k8s.io/kubernetes/pkg/api/v1/ref"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes/fake"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	v1core "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
 	utilnode "k8s.io/kubernetes/pkg/util/node"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/evanphx/json-patch"
 	"github.com/golang/glog"
 )
 

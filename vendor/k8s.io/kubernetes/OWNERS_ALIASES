@@ -3,13 +3,11 @@ aliases:
     - davidopp
     - timothysc
     - wojtek-t
-    - k82cn
   sig-scheduling:
     - davidopp
-    - bsalamat
     - timothysc
     - wojtek-t
-    - k82cn
+    - k82cn 
     - jayunit100
   sig-cli-maintainers:
     - adohe
@@ -30,11 +28,12 @@ aliases:
     - ericchiang
     - fabianofranz
     - ghodss
-    - mengqiy
+    - pwittrock
     - rootfs
     - smarterclayton
     - soltysh
     - sttts
+    - ymqytw
   test-infra-maintainers:
     - fejta
     - ixdy
@@ -53,7 +52,7 @@ aliases:
     - pmorie
     - resouer
     - sjpotter
-    - tallclair
+    - timstclair
     - tmrts
     - vishh
     - yifan-gu

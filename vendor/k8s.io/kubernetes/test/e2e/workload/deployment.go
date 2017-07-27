@@ -34,14 +34,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
-	clientset "k8s.io/client-go/kubernetes"
-	extensionsclient "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	extensionsinternal "k8s.io/kubernetes/pkg/apis/extensions"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	extensionsclient "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/extensions/v1beta1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/controller"
 	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 	"k8s.io/kubernetes/pkg/kubectl"
-	utilpointer "k8s.io/kubernetes/pkg/util/pointer"
+	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/test/e2e/framework"
 	testutil "k8s.io/kubernetes/test/utils"
 )
@@ -55,7 +55,7 @@ var (
 	nilRs *extensions.ReplicaSet
 )
 
-var _ = SIGDescribe("Deployment", func() {
+var _ = framework.KubeDescribe("Deployment", func() {
 	var ns string
 	var c clientset.Interface
 
@@ -370,7 +370,7 @@ func testDeploymentCleanUpPolicy(f *framework.Framework) {
 	}
 	rsName := "test-cleanup-controller"
 	replicas := int32(1)
-	revisionHistoryLimit := utilpointer.Int32Ptr(0)
+	revisionHistoryLimit := util.Int32Ptr(0)
 	_, err := c.Extensions().ReplicaSets(ns).Create(newRS(rsName, replicas, rsPodLabels, NginxImageName, NginxImage))
 	Expect(err).NotTo(HaveOccurred())
 

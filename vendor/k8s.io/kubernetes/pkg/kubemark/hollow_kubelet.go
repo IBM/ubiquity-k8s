@@ -19,12 +19,12 @@ package kubemark
 import (
 	"time"
 
-	clientset "k8s.io/client-go/kubernetes"
 	kubeletapp "k8s.io/kubernetes/cmd/kubelet/app"
 	"k8s.io/kubernetes/cmd/kubelet/app/options"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/apis/componentconfig/v1alpha1"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/kubelet"
 	"k8s.io/kubernetes/pkg/kubelet/cadvisor"
 	"k8s.io/kubernetes/pkg/kubelet/cm"
@@ -44,7 +44,7 @@ import (
 type HollowKubelet struct {
 	KubeletFlags         *options.KubeletFlags
 	KubeletConfiguration *componentconfig.KubeletConfiguration
-	KubeletDeps          *kubelet.Dependencies
+	KubeletDeps          *kubelet.KubeletDeps
 }
 
 func NewHollowKubelet(
@@ -66,7 +66,7 @@ func NewHollowKubelet(
 	// -----------------
 	volumePlugins := empty_dir.ProbeVolumePlugins()
 	volumePlugins = append(volumePlugins, secret.ProbeVolumePlugins()...)
-	d := &kubelet.Dependencies{
+	d := &kubelet.KubeletDeps{
 		KubeClient:        client,
 		DockerClient:      dockerClient,
 		CAdvisorInterface: cadvisorInterface,

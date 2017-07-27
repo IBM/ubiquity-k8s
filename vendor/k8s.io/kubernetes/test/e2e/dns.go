@@ -29,8 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -46,7 +46,7 @@ func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd string, useAnnotatio
 	dnsPod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: testapi.Groups[v1.GroupName].GroupVersion().String(),
+			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "dns-test-" + string(uuid.NewUUID()),
@@ -225,6 +225,7 @@ func assertFilesContain(fileNames []string, fileDir string, pod *v1.Pod, client 
 }
 
 func validateDNSResults(f *framework.Framework, pod *v1.Pod, fileNames []string) {
+
 	By("submitting the pod to kubernetes")
 	podClient := f.ClientSet.Core().Pods(f.Namespace.Name)
 	defer func() {
@@ -253,6 +254,7 @@ func validateDNSResults(f *framework.Framework, pod *v1.Pod, fileNames []string)
 }
 
 func validateTargetedProbeOutput(f *framework.Framework, pod *v1.Pod, fileNames []string, value string) {
+
 	By("submitting the pod to kubernetes")
 	podClient := f.ClientSet.Core().Pods(f.Namespace.Name)
 	defer func() {
@@ -399,10 +401,6 @@ var _ = framework.KubeDescribe("DNS", func() {
 	})
 
 	It("should provide DNS for ExternalName services", func() {
-		// TODO(xiangpengzhao): allow AWS when pull-kubernetes-e2e-kops-aws and pull-kubernetes-e2e-gce-etcd3
-		// have the same "service-cluster-ip-range". See: https://github.com/kubernetes/kubernetes/issues/47224
-		framework.SkipUnlessProviderIs("gce")
-
 		// Create a test ExternalName service.
 		By("Creating a test externalName service")
 		serviceName := "dns-test-service-3"
@@ -448,7 +446,7 @@ var _ = framework.KubeDescribe("DNS", func() {
 		By("changing the service to type=ClusterIP")
 		_, err = framework.UpdateService(f.ClientSet, f.Namespace.Name, serviceName, func(s *v1.Service) {
 			s.Spec.Type = v1.ServiceTypeClusterIP
-			s.Spec.ClusterIP = "10.0.0.123"
+			s.Spec.ClusterIP = "127.1.2.3"
 			s.Spec.Ports = []v1.ServicePort{
 				{Port: 80, Name: "http", Protocol: "TCP"},
 			}
@@ -463,6 +461,6 @@ var _ = framework.KubeDescribe("DNS", func() {
 		By("creating a third pod to probe DNS")
 		pod3 := createDNSPod(f.Namespace.Name, wheezyProbeCmd, jessieProbeCmd, true)
 
-		validateTargetedProbeOutput(f, pod3, []string{wheezyFileName, jessieFileName}, "10.0.0.123")
+		validateTargetedProbeOutput(f, pod3, []string{wheezyFileName, jessieFileName}, "127.1.2.3")
 	})
 })

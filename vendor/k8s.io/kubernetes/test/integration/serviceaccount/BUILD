@@ -9,18 +9,16 @@ load(
 
 go_test(
     name = "go_default_test",
-    size = "large",
-    srcs = [
-        "main_test.go",
-        "service_account_test.go",
-    ],
+    srcs = ["service_account_test.go"],
     tags = [
         "automanaged",
         "integration",
     ],
     deps = [
-        "//pkg/api/testapi:go_default_library",
+        "//pkg/api:go_default_library",
+        "//pkg/client/clientset_generated/clientset:go_default_library",
         "//pkg/client/clientset_generated/internalclientset:go_default_library",
+        "//pkg/client/informers/informers_generated/externalversions:go_default_library",
         "//pkg/client/informers/informers_generated/internalversion:go_default_library",
         "//pkg/controller:go_default_library",
         "//pkg/controller/serviceaccount:go_default_library",
@@ -39,8 +37,6 @@ go_test(
         "//vendor/k8s.io/apiserver/pkg/authentication/serviceaccount:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/authentication/user:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/authorization/authorizer:go_default_library",
-        "//vendor/k8s.io/client-go/informers:go_default_library",
-        "//vendor/k8s.io/client-go/kubernetes:go_default_library",
         "//vendor/k8s.io/client-go/rest:go_default_library",
     ],
 )

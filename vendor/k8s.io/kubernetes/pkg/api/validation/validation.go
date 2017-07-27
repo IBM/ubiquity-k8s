@@ -276,10 +276,6 @@ var ValidateClusterName = genericvalidation.ValidateClusterName
 // (where it should be) and this file.
 var ValidateClassName = NameIsDNSSubdomain
 
-// ValidatePiorityClassName can be used to check whether the given priority
-// class name is valid.
-var ValidatePriorityClassName = NameIsDNSSubdomain
-
 // TODO update all references to these functions to point to the genericvalidation ones
 // NameIsDNSSubdomain is a ValidateNameFunc for names that must be a DNS subdomain.
 func NameIsDNSSubdomain(name string, prefix bool) []string {
@@ -808,8 +804,7 @@ var validDownwardAPIFieldPathExpressions = sets.NewString(
 	"metadata.name",
 	"metadata.namespace",
 	"metadata.labels",
-	"metadata.annotations",
-	"metadata.uid")
+	"metadata.annotations")
 
 func validateDownwardAPIVolumeFile(file *api.DownwardAPIVolumeFile, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -1557,7 +1552,7 @@ func ValidateEnv(vars []api.EnvVar, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
-var validFieldPathExpressionsEnv = sets.NewString("metadata.name", "metadata.namespace", "metadata.uid", "spec.nodeName", "spec.serviceAccountName", "status.hostIP", "status.podIP")
+var validFieldPathExpressionsEnv = sets.NewString("metadata.name", "metadata.namespace", "spec.nodeName", "spec.serviceAccountName", "status.hostIP", "status.podIP")
 var validContainerResourceFieldPathExpressions = sets.NewString("limits.cpu", "limits.memory", "requests.cpu", "requests.memory")
 
 func validateEnvVarValueFrom(ev api.EnvVar, fldPath *field.Path) field.ErrorList {
@@ -1759,9 +1754,6 @@ func ValidateVolumeMounts(mounts []api.VolumeMount, volumes sets.String, fldPath
 		}
 		if mountpoints.Has(mnt.MountPath) {
 			allErrs = append(allErrs, field.Invalid(idxPath.Child("mountPath"), mnt.MountPath, "must be unique"))
-		}
-		if !path.IsAbs(mnt.MountPath) {
-			allErrs = append(allErrs, field.Invalid(idxPath.Child("mountPath"), mnt.MountPath, "must be an absolute path"))
 		}
 		mountpoints.Insert(mnt.MountPath)
 		if len(mnt.SubPath) > 0 {
@@ -2302,20 +2294,6 @@ func ValidatePodSpec(spec *api.PodSpec, fldPath *field.Path) field.ErrorList {
 
 	if len(spec.HostAliases) > 0 {
 		allErrs = append(allErrs, ValidateHostAliases(spec.HostAliases, fldPath.Child("hostAliases"))...)
-	}
-
-	if len(spec.PriorityClassName) > 0 {
-		if !utilfeature.DefaultFeatureGate.Enabled(features.PodPriority) {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("priorityClassName"), "Pod priority is disabled by feature-gate"))
-		} else {
-			for _, msg := range ValidatePriorityClassName(spec.PriorityClassName, false) {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("priorityClassName"), spec.PriorityClassName, msg))
-			}
-		}
-	}
-
-	if spec.Priority != nil && !utilfeature.DefaultFeatureGate.Enabled(features.PodPriority) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("priority"), "Pod priority is disabled by feature-gate"))
 	}
 
 	return allErrs
@@ -2911,22 +2889,6 @@ func ValidateService(service *api.Service) field.ErrorList {
 			allErrs = append(allErrs, field.Duplicate(portPath.Child("nodePort"), port.NodePort))
 		}
 		nodePorts[key] = true
-	}
-
-	// Check for duplicate TargetPort
-	portsPath = specPath.Child("ports")
-	targetPorts := make(map[api.ServicePort]bool)
-	for i, port := range service.Spec.Ports {
-		if (port.TargetPort.Type == intstr.Int && port.TargetPort.IntVal == 0) || (port.TargetPort.Type == intstr.String && port.TargetPort.StrVal == "") {
-			continue
-		}
-		portPath := portsPath.Index(i)
-		key := api.ServicePort{Protocol: port.Protocol, TargetPort: port.TargetPort}
-		_, found := targetPorts[key]
-		if found {
-			allErrs = append(allErrs, field.Duplicate(portPath.Child("targetPort"), port.TargetPort))
-		}
-		targetPorts[key] = true
 	}
 
 	// Validate SourceRange field and annotation
@@ -4032,10 +3994,12 @@ func validateEndpointSubsets(subsets []api.EndpointSubset, oldSubsets []api.Endp
 		ss := &subsets[i]
 		idxPath := fldPath.Index(i)
 
-		// EndpointSubsets must include endpoint address. For headless service, we allow its endpoints not to have ports.
 		if len(ss.Addresses) == 0 && len(ss.NotReadyAddresses) == 0 {
 			//TODO: consider adding a RequiredOneOf() error for this and similar cases
 			allErrs = append(allErrs, field.Required(idxPath, "must specify `addresses` or `notReadyAddresses`"))
+		}
+		if len(ss.Ports) == 0 {
+			allErrs = append(allErrs, field.Required(idxPath.Child("ports"), ""))
 		}
 		for addr := range ss.Addresses {
 			allErrs = append(allErrs, validateEndpointAddress(&ss.Addresses[addr], idxPath.Child("addresses").Index(addr), ipToNodeName)...)

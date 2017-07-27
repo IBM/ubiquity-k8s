@@ -168,11 +168,12 @@ func TestRunArgsFollowDashRules(t *testing.T) {
 			Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Path == "/namespaces/test/replicationcontrollers" {
 					return &http.Response{StatusCode: 201, Header: defaultHeader(), Body: objBody(codec, rc)}, nil
+				} else {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       ioutil.NopCloser(bytes.NewBuffer([]byte("{}"))),
+					}, nil
 				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewBuffer([]byte("{}"))),
-				}, nil
 			}),
 		}
 		tf.Namespace = "test"
@@ -296,12 +297,14 @@ func TestGenerateService(t *testing.T) {
 					body := objBody(codec, &test.service)
 					data, err := ioutil.ReadAll(req.Body)
 					if err != nil {
-						t.Fatalf("unexpected error: %v", err)
+						t.Errorf("unexpected error: %v", err)
+						t.FailNow()
 					}
 					defer req.Body.Close()
 					svc := &api.Service{}
 					if err := runtime.DecodeInto(codec, data, svc); err != nil {
-						t.Fatalf("unexpected error: %v", err)
+						t.Errorf("unexpected error: %v", err)
+						t.FailNow()
 					}
 					// Copy things that are defaulted by the system
 					test.service.Annotations = svc.Annotations
@@ -334,7 +337,7 @@ func TestGenerateService(t *testing.T) {
 		}
 
 		buff := &bytes.Buffer{}
-		_, err := generateService(f, cmd, test.args, test.serviceGenerator, test.params, "namespace", buff)
+		err := generateService(f, cmd, test.args, test.serviceGenerator, test.params, "namespace", buff)
 		if test.expectErr {
 			if err == nil {
 				t.Error("unexpected non-error")

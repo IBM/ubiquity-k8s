@@ -25,13 +25,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	vsphere "k8s.io/kubernetes/pkg/cloudprovider/providers/vsphere"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
 // Testing configurations of single a PV/PVC pair attached to a vSphere Disk
-var _ = SIGDescribe("PersistentVolumes:vsphere", func() {
+var _ = framework.KubeDescribe("PersistentVolumes:vsphere", func() {
 	var (
 		c          clientset.Interface
 		ns         string

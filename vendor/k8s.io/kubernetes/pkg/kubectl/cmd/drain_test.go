@@ -33,13 +33,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest/fake"
 	"k8s.io/kubernetes/pkg/api"
@@ -57,27 +55,27 @@ const (
 	DeleteMethod   = "Delete"
 )
 
-var node *v1.Node
-var cordoned_node *v1.Node
+var node *api.Node
+var cordoned_node *api.Node
 
 func boolptr(b bool) *bool { return &b }
 
 func TestMain(m *testing.M) {
 	// Create a node.
-	node = &v1.Node{
+	node = &api.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "node",
 			CreationTimestamp: metav1.Time{Time: time.Now()},
 		},
-		Spec: v1.NodeSpec{
+		Spec: api.NodeSpec{
 			ExternalID: "node",
 		},
-		Status: v1.NodeStatus{},
+		Status: api.NodeStatus{},
 	}
 	clone, _ := api.Scheme.DeepCopy(node)
 
 	// A copy of the same node, but cordoned.
-	cordoned_node = clone.(*v1.Node)
+	cordoned_node = clone.(*api.Node)
 	cordoned_node.Spec.Unschedulable = true
 	os.Exit(m.Run())
 }
@@ -85,8 +83,8 @@ func TestMain(m *testing.M) {
 func TestCordon(t *testing.T) {
 	tests := []struct {
 		description string
-		node        *v1.Node
-		expected    *v1.Node
+		node        *api.Node
+		expected    *api.Node
 		cmd         func(cmdutil.Factory, io.Writer) *cobra.Command
 		arg         string
 		expectFatal bool
@@ -151,7 +149,7 @@ func TestCordon(t *testing.T) {
 
 	for _, test := range tests {
 		f, tf, codec, ns := cmdtesting.NewAPIFactory()
-		new_node := &v1.Node{}
+		new_node := &api.Node{}
 		updated := false
 		tf.Client = &fake.RESTClient{
 			APIRegistry:          api.Registry,
@@ -163,25 +161,17 @@ func TestCordon(t *testing.T) {
 					return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(codec, test.node)}, nil
 				case m.isFor("GET", "/nodes/bar"):
 					return &http.Response{StatusCode: 404, Header: defaultHeader(), Body: stringBody("nope")}, nil
-				case m.isFor("PATCH", "/nodes/node"):
+				case m.isFor("PUT", "/nodes/node"):
 					data, err := ioutil.ReadAll(req.Body)
 					if err != nil {
 						t.Fatalf("%s: unexpected error: %v", test.description, err)
 					}
 					defer req.Body.Close()
-					oldJSON, err := runtime.Encode(codec, node)
-					if err != nil {
-						t.Fatalf("%s: unexpected error: %v", test.description, err)
-					}
-					appliedPatch, err := strategicpatch.StrategicMergePatch(oldJSON, data, &v1.Node{})
-					if err != nil {
-						t.Fatalf("%s: unexpected error: %v", test.description, err)
-					}
-					if err := runtime.DecodeInto(codec, appliedPatch, new_node); err != nil {
+					if err := runtime.DecodeInto(codec, data, new_node); err != nil {
 						t.Fatalf("%s: unexpected error: %v", test.description, err)
 					}
 					if !reflect.DeepEqual(test.expected.Spec, new_node.Spec) {
-						t.Fatalf("%s: expected:\n%v\nsaw:\n%v\n", test.description, test.expected.Spec.Unschedulable, new_node.Spec.Unschedulable)
+						t.Fatalf("%s: expected:\n%v\nsaw:\n%v\n", test.description, test.expected.Spec, new_node.Spec)
 					}
 					updated = true
 					return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(codec, new_node)}, nil
@@ -453,8 +443,8 @@ func TestDrain(t *testing.T) {
 
 	tests := []struct {
 		description  string
-		node         *v1.Node
-		expected     *v1.Node
+		node         *api.Node
+		expected     *api.Node
 		pods         []api.Pod
 		rcs          []api.ReplicationController
 		replicaSets  []extensions.ReplicaSet
@@ -592,7 +582,7 @@ func TestDrain(t *testing.T) {
 			currMethod = DeleteMethod
 		}
 		for _, test := range tests {
-			new_node := &v1.Node{}
+			new_node := &api.Node{}
 			deleted := false
 			evicted := false
 			f, tf, codec, ns := cmdtesting.NewAPIFactory()
@@ -659,21 +649,13 @@ func TestDrain(t *testing.T) {
 						return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(codec, &api.PodList{Items: test.pods})}, nil
 					case m.isFor("GET", "/replicationcontrollers"):
 						return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(codec, &api.ReplicationControllerList{Items: test.rcs})}, nil
-					case m.isFor("PATCH", "/nodes/node"):
+					case m.isFor("PUT", "/nodes/node"):
 						data, err := ioutil.ReadAll(req.Body)
 						if err != nil {
 							t.Fatalf("%s: unexpected error: %v", test.description, err)
 						}
 						defer req.Body.Close()
-						oldJSON, err := runtime.Encode(codec, node)
-						if err != nil {
-							t.Fatalf("%s: unexpected error: %v", test.description, err)
-						}
-						appliedPatch, err := strategicpatch.StrategicMergePatch(oldJSON, data, &v1.Node{})
-						if err != nil {
-							t.Fatalf("%s: unexpected error: %v", test.description, err)
-						}
-						if err := runtime.DecodeInto(codec, appliedPatch, new_node); err != nil {
+						if err := runtime.DecodeInto(codec, data, new_node); err != nil {
 							t.Fatalf("%s: unexpected error: %v", test.description, err)
 						}
 						if !reflect.DeepEqual(test.expected.Spec, new_node.Spec) {
@@ -710,6 +692,7 @@ func TestDrain(t *testing.T) {
 				cmd.SetArgs(test.args)
 				cmd.Execute()
 			}()
+
 			if test.expectFatal {
 				if !saw_fatal {
 					t.Fatalf("%s: unexpected non-error when using %s", test.description, currMethod)

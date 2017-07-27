@@ -9,11 +9,7 @@ load(
 
 go_test(
     name = "go_default_test",
-    size = "large",
-    srcs = [
-        "apiserver_test.go",
-        "main_test.go",
-    ],
+    srcs = ["apiserver_test.go"],
     tags = [
         "automanaged",
         "integration",

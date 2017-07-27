@@ -23,7 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
-	"k8s.io/client-go/discovery"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -264,21 +263,6 @@ func GetVersionedClientForRBACOrFail(hostFactory cmdutil.Factory) (client.Interf
 	if err != nil {
 		return nil, err
 	}
-
-	rbacVersion, err := getRBACVersion(discoveryclient)
-	if err != nil && !discoveryclient.Fresh() {
-		discoveryclient.Invalidate()
-		rbacVersion, err = getRBACVersion(discoveryclient)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return hostFactory.ClientSetForVersion(rbacVersion)
-}
-
-func getRBACVersion(discoveryclient discovery.CachedDiscoveryInterface) (*schema.GroupVersion, error) {
-
 	groupList, err := discoveryclient.ServerGroups()
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't get clientset to create RBAC roles in the host cluster: %v", err)
@@ -291,7 +275,7 @@ func getRBACVersion(discoveryclient discovery.CachedDiscoveryInterface) (*schema
 				if err != nil {
 					return nil, err
 				}
-				return &gv, nil
+				return hostFactory.ClientSetForVersion(&gv)
 			}
 			for _, version := range g.Versions {
 				if version.GroupVersion != "" {
@@ -299,7 +283,7 @@ func getRBACVersion(discoveryclient discovery.CachedDiscoveryInterface) (*schema
 					if err != nil {
 						return nil, err
 					}
-					return &gv, nil
+					return hostFactory.ClientSetForVersion(&gv)
 				}
 			}
 		}

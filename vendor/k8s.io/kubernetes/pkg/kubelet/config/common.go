@@ -29,10 +29,6 @@ import (
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/helper"
-	// TODO: remove this import if
-	// api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String() is changed
-	// to "v1"?
-	_ "k8s.io/kubernetes/pkg/api/install"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/api/validation"
 	kubetypes "k8s.io/kubernetes/pkg/kubelet/types"
@@ -114,14 +110,12 @@ func tryDecodeSinglePod(data []byte, defaultFn defaultFunc) (parsed bool, pod *v
 	if err != nil {
 		return false, pod, err
 	}
-
-	newPod, ok := obj.(*api.Pod)
 	// Check whether the object could be converted to single pod.
-	if !ok {
+	if _, ok := obj.(*api.Pod); !ok {
 		err = fmt.Errorf("invalid pod: %#v", obj)
 		return false, pod, err
 	}
-
+	newPod := obj.(*api.Pod)
 	// Apply default values and validate the pod.
 	if err = defaultFn(newPod); err != nil {
 		return true, pod, err
@@ -142,14 +136,12 @@ func tryDecodePodList(data []byte, defaultFn defaultFunc) (parsed bool, pods v1.
 	if err != nil {
 		return false, pods, err
 	}
-
-	newPods, ok := obj.(*api.PodList)
 	// Check whether the object could be converted to list of pods.
-	if !ok {
+	if _, ok := obj.(*api.PodList); !ok {
 		err = fmt.Errorf("invalid pods list: %#v", obj)
 		return false, pods, err
 	}
-
+	newPods := obj.(*api.PodList)
 	// Apply default values and validate pods.
 	for i := range newPods.Items {
 		newPod := &newPods.Items[i]

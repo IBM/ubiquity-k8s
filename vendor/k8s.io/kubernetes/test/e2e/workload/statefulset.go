@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
@@ -50,7 +50,7 @@ const (
 
 // GCE Quota requirements: 3 pds, one per stateful pod manifest declared above.
 // GCE Api requirements: nodes and master need storage r/w permissions.
-var _ = SIGDescribe("StatefulSet", func() {
+var _ = framework.KubeDescribe("StatefulSet", func() {
 	f := framework.NewDefaultFramework("statefulset")
 	var ns string
 	var c clientset.Interface

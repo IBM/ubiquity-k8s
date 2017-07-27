@@ -75,10 +75,10 @@ type LoadBalancer struct {
 }
 
 type LoadBalancerOpts struct {
-	LBVersion            string     `gcfg:"lb-version"`          // overrides autodetection. v1 or v2
-	SubnetId             string     `gcfg:"subnet-id"`           // required
-	FloatingNetworkId    string     `gcfg:"floating-network-id"` // If specified, will create floating ip for loadbalancer, or do not create floating ip.
-	LBMethod             string     `gcfg:"lb-method"`           // default to ROUND_ROBIN.
+	LBVersion            string     `gcfg:"lb-version"` // overrides autodetection. v1 or v2
+	SubnetId             string     `gcfg:"subnet-id"`  // required
+	FloatingNetworkId    string     `gcfg:"floating-network-id"`
+	LBMethod             string     `gcfg:"lb-method"`
 	CreateMonitor        bool       `gcfg:"create-monitor"`
 	MonitorDelay         MyDuration `gcfg:"monitor-delay"`
 	MonitorTimeout       MyDuration `gcfg:"monitor-timeout"`
@@ -216,41 +216,6 @@ func readInstanceID() (string, error) {
 	return md.Uuid, nil
 }
 
-// check opts for OpenStack
-func checkOpenStackOpts(openstackOpts *OpenStack) error {
-	lbOpts := openstackOpts.lbOpts
-
-	// subnet-id is required
-	if len(lbOpts.SubnetId) == 0 {
-		glog.Warningf("subnet-id not set in cloud provider config. " +
-			"OpenStack Load balancer will not work.")
-	}
-
-	// if need to create health monitor for Neutron LB,
-	// monitor-delay, monitor-timeout and monitor-max-retries should be set.
-	emptyDuration := MyDuration{}
-	if lbOpts.CreateMonitor {
-		if lbOpts.MonitorDelay == emptyDuration {
-			return fmt.Errorf("monitor-delay not set in cloud provider config")
-		}
-		if lbOpts.MonitorTimeout == emptyDuration {
-			return fmt.Errorf("monitor-timeout not set in cloud provider config")
-		}
-		if lbOpts.MonitorMaxRetries == uint(0) {
-			return fmt.Errorf("monitor-max-retries not set in cloud provider config")
-		}
-	}
-
-	// if enable ManageSecurityGroups, node-security-group should be set.
-	if lbOpts.ManageSecurityGroups {
-		if len(lbOpts.NodeSecurityGroupID) == 0 {
-			return fmt.Errorf("node-security-group not set in cloud provider config")
-		}
-	}
-
-	return nil
-}
-
 func newOpenStack(cfg Config) (*OpenStack, error) {
 	provider, err := openstack.NewClient(cfg.Global.AuthUrl)
 	if err != nil {
@@ -293,11 +258,6 @@ func newOpenStack(cfg Config) (*OpenStack, error) {
 		bsOpts:          cfg.BlockStorage,
 		routeOpts:       cfg.Route,
 		localInstanceID: id,
-	}
-
-	err = checkOpenStackOpts(&os)
-	if err != nil {
-		return nil, err
 	}
 
 	return &os, nil

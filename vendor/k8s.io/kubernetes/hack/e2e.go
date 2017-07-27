@@ -144,9 +144,8 @@ func (t tester) getKubetest(get bool, old time.Duration) (string, error) {
 		return "", fmt.Errorf("Cannot install kubetest until $GOPATH is set")
 	}
 	log.Print("Updating kubetest binary...")
-	cmd := []string{"go", "get", "-u", "k8s.io/test-infra/kubetest"}
-	if err = t.wait(cmd[0], cmd[1:]...); err != nil {
-		return "", fmt.Errorf("%s: %v", strings.Join(cmd, " "), err) // Could not upgrade
+	if err = t.wait("go", "get", "-u", "k8s.io/test-infra/kubetest"); err != nil {
+		return "", err // Could not upgrade
 	}
 	if p, err = t.lookKubetest(); err != nil {
 		return "", err // Cannot find kubetest

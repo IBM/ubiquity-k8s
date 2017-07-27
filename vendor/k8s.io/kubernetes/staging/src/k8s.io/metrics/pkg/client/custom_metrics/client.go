@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
@@ -181,9 +180,7 @@ func (m *rootScopedMetrics) GetForObjects(groupKind schema.GroupKind, selector l
 		Resource(resourceName).
 		Name(v1alpha1.AllObjects).
 		SubResource(metricName).
-		VersionedParams(&metav1.ListOptions{
-			LabelSelector: selector.String(),
-		}, metav1.ParameterCodec).
+		LabelsSelectorParam(selector).
 		Do().
 		Into(res)
 
@@ -237,9 +234,7 @@ func (m *namespacedMetrics) GetForObjects(groupKind schema.GroupKind, selector l
 		Namespace(m.namespace).
 		Name(v1alpha1.AllObjects).
 		SubResource(metricName).
-		VersionedParams(&metav1.ListOptions{
-			LabelSelector: selector.String(),
-		}, metav1.ParameterCodec).
+		LabelsSelectorParam(selector).
 		Do().
 		Into(res)
 

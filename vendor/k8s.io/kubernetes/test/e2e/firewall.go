@@ -21,7 +21,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	gcecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/gce"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
@@ -160,7 +160,7 @@ var _ = framework.KubeDescribe("Firewall rule", func() {
 		}
 
 		By("Checking if e2e firewall rules are correct")
-		for _, expFw := range framework.GetE2eFirewalls(cloudConfig.MasterName, cloudConfig.MasterTag, cloudConfig.NodeTag, cloudConfig.Network, cloudConfig.ClusterIPRange) {
+		for _, expFw := range framework.GetE2eFirewalls(cloudConfig.MasterName, cloudConfig.MasterTag, cloudConfig.NodeTag, cloudConfig.Network) {
 			fw, err := gceCloud.GetFirewall(expFw.Name)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(framework.VerifyFirewallRule(fw, expFw, cloudConfig.Network, false)).NotTo(HaveOccurred())

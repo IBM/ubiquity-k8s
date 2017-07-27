@@ -7,10 +7,7 @@ load(
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "umask.go",
-        "util.go",
-    ],
+    srcs = ["util.go"],
     tags = ["automanaged"],
     visibility = ["//build/visible_to:pkg_kubectl_util_CONSUMERS"],
     deps = [
@@ -28,12 +25,7 @@ filegroup(
 
 filegroup(
     name = "all-srcs",
-    srcs = [
-        ":package-srcs",
-        "//pkg/kubectl/util/crlf:all-srcs",
-        "//pkg/kubectl/util/slice:all-srcs",
-        "//pkg/kubectl/util/term:all-srcs",
-    ],
+    srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//build/visible_to:pkg_kubectl_util_CONSUMERS"],
 )

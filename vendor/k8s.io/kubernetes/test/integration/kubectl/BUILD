@@ -9,11 +9,7 @@ load(
 
 go_test(
     name = "go_default_test",
-    size = "large",
-    srcs = [
-        "kubectl_test.go",
-        "main_test.go",
-    ],
+    srcs = ["kubectl_test.go"],
     tags = [
         "automanaged",
         "integration",

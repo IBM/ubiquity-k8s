@@ -18,8 +18,6 @@ package apiregistration
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // APIServiceList is a list of APIService objects.
 type APIServiceList struct {
 	metav1.TypeMeta
@@ -113,7 +111,6 @@ type APIServiceStatus struct {
 
 // +genclient=true
 // +nonNamespaced=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // APIService represents a server for a particular GroupVersion.
 // Name must be "version.group".

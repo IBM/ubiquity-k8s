@@ -9,22 +9,18 @@ load(
 
 go_test(
     name = "go_default_test",
-    size = "large",
-    srcs = [
-        "main_test.go",
-        "pods_test.go",
-    ],
+    srcs = ["pods_test.go"],
     tags = [
         "automanaged",
         "integration",
     ],
     deps = [
-        "//pkg/api/testapi:go_default_library",
+        "//pkg/api:go_default_library",
+        "//pkg/client/clientset_generated/clientset:go_default_library",
         "//test/integration:go_default_library",
         "//test/integration/framework:go_default_library",
         "//vendor/k8s.io/api/core/v1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
-        "//vendor/k8s.io/client-go/kubernetes:go_default_library",
         "//vendor/k8s.io/client-go/rest:go_default_library",
     ],
 )

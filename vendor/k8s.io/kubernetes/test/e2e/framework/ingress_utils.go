@@ -46,12 +46,12 @@ import (
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	gcecloud "k8s.io/kubernetes/pkg/cloudprovider/providers/gce"
-	utilfile "k8s.io/kubernetes/pkg/util/file"
+	"k8s.io/kubernetes/pkg/util"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/test/e2e/manifest"
 	testutils "k8s.io/kubernetes/test/utils"
-	utilexec "k8s.io/utils/exec"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -715,7 +715,8 @@ func (cont *GCEIngressController) Init() {
 func (cont *GCEIngressController) CreateStaticIP(name string) string {
 	gceCloud := cont.Cloud.Provider.(*gcecloud.GCECloud)
 	addr := &compute.Address{Name: name}
-	if err := gceCloud.ReserveGlobalAddress(addr); err != nil {
+	ip, err := gceCloud.ReserveGlobalAddress(addr)
+	if err != nil {
 		if delErr := gceCloud.DeleteGlobalAddress(name); delErr != nil {
 			if cont.isHTTPErrorCode(delErr, http.StatusNotFound) {
 				Logf("Static ip with name %v was not allocated, nothing to delete", name)
@@ -723,14 +724,8 @@ func (cont *GCEIngressController) CreateStaticIP(name string) string {
 				Logf("Failed to delete static ip %v: %v", name, delErr)
 			}
 		}
-		Failf("Failed to allocate static ip %v: %v", name, err)
+		Failf("Failed to allocated static ip %v: %v", name, err)
 	}
-
-	ip, err := gceCloud.GetGlobalAddress(name)
-	if err != nil {
-		Failf("Failed to get newly created static ip %v: %v", name, err)
-	}
-
 	cont.staticIPName = ip.Name
 	Logf("Reserved static ip %v: %v", cont.staticIPName, ip.Address)
 	return ip.Address
@@ -823,7 +818,7 @@ func (j *IngressTestJig) CreateIngress(manifestPath, ns string, ingAnnotations m
 	Logf("creating service")
 	RunKubectlOrDie("create", "-f", mkpath("svc.yaml"), fmt.Sprintf("--namespace=%v", ns))
 
-	if exists, _ := utilfile.FileExists(mkpath("secret.yaml")); exists {
+	if exists, _ := util.FileExists(mkpath("secret.yaml")); exists {
 		Logf("creating secret")
 		RunKubectlOrDie("create", "-f", mkpath("secret.yaml"), fmt.Sprintf("--namespace=%v", ns))
 	}
@@ -887,12 +882,9 @@ func (j *IngressTestJig) GetRootCA(secretName string) (rootCA []byte) {
 	return
 }
 
-// TryDeleteIngress attempts to delete the ingress resource and logs errors if they occur.
-func (j *IngressTestJig) TryDeleteIngress() {
-	err := j.Client.Extensions().Ingresses(j.Ingress.Namespace).Delete(j.Ingress.Name, nil)
-	if err != nil {
-		Logf("Error while deleting the ingress %v/%v: %v", j.Ingress.Namespace, j.Ingress.Name, err)
-	}
+// DeleteIngress deletes the ingress resource
+func (j *IngressTestJig) DeleteIngress() {
+	ExpectNoError(j.Client.Extensions().Ingresses(j.Ingress.Namespace).Delete(j.Ingress.Name, nil))
 }
 
 // WaitForIngress waits till the ingress acquires an IP, then waits for its
@@ -981,13 +973,13 @@ func (j *IngressTestJig) GetIngressNodePorts() []string {
 }
 
 // ConstructFirewallForIngress returns the expected GCE firewall rule for the ingress resource
-func (j *IngressTestJig) ConstructFirewallForIngress(gceController *GCEIngressController, nodeTags []string) *compute.Firewall {
+func (j *IngressTestJig) ConstructFirewallForIngress(gceController *GCEIngressController, nodeTag string) *compute.Firewall {
 	nodePorts := j.GetIngressNodePorts()
 
 	fw := compute.Firewall{}
 	fw.Name = gceController.GetFirewallRuleName()
 	fw.SourceRanges = gcecloud.LoadBalancerSrcRanges()
-	fw.TargetTags = nodeTags
+	fw.TargetTags = []string{nodeTag}
 	fw.Allowed = []*compute.FirewallAllowed{
 		{
 			IPProtocol: "tcp",

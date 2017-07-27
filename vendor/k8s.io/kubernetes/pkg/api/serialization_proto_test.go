@@ -27,7 +27,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/testing/fuzzer"
+	apitesting "k8s.io/apimachinery/pkg/api/testing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -98,7 +98,7 @@ func fieldsHaveProtobufTags(obj reflect.Type) error {
 
 func TestProtobufRoundTrip(t *testing.T) {
 	obj := &v1.Pod{}
-	fuzzer.FuzzerFor(kapitesting.FuzzerFuncs, rand.NewSource(benchmarkSeed), api.Codecs).Fuzz(obj)
+	apitesting.FuzzerFor(kapitesting.FuzzerFuncs(t, api.Codecs), rand.NewSource(benchmarkSeed)).Fuzz(obj)
 	// InitContainers are turned into annotations by conversion.
 	obj.Spec.InitContainers = nil
 	obj.Status.InitContainerStatuses = nil

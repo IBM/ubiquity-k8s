@@ -23,6 +23,7 @@ go_library(
         "//pkg/api:go_default_library",
         "//pkg/api/helper:go_default_library",
         "//pkg/proxy:go_default_library",
+        "//pkg/util/exec:go_default_library",
         "//pkg/util/ipconfig:go_default_library",
         "//pkg/util/netsh:go_default_library",
         "//pkg/util/slice:go_default_library",
@@ -31,7 +32,6 @@ go_library(
         "//vendor/k8s.io/apimachinery/pkg/types:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/util/net:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/util/runtime:go_default_library",
-        "//vendor/k8s.io/utils/exec:go_default_library",
     ],
 )
 

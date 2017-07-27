@@ -74,8 +74,6 @@ type KubeProxyConntrackConfiguration struct {
 	TCPCloseWaitTimeout metav1.Duration `json:"tcpCloseWaitTimeout"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // KubeProxyConfiguration contains everything necessary to configure the
 // Kubernetes proxy server.
 type KubeProxyConfiguration struct {
@@ -145,8 +143,6 @@ const (
 	ProxyModeUserspace ProxyMode = "userspace"
 	ProxyModeIPTables  ProxyMode = "iptables"
 )
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type KubeSchedulerConfiguration struct {
 	metav1.TypeMeta `json:",inline"`
@@ -244,8 +240,6 @@ type LeaderElectionConfiguration struct {
 	// during leader election cycles.
 	ResourceLock string `json:"resourceLock"`
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // A configuration field should go in KubeletFlags instead of KubeletConfiguration if any of these are true:
 // - its value will never, or cannot safely be changed during the lifetime of a node

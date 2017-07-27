@@ -26,8 +26,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	apitesting "k8s.io/apimachinery/pkg/api/testing"
-	"k8s.io/apimachinery/pkg/api/testing/fuzzer"
-	genericfuzzer "k8s.io/apimachinery/pkg/apis/meta/fuzzer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -51,7 +49,7 @@ import (
 
 // overrideGenericFuncs override some generic fuzzer funcs from k8s.io/apiserver in order to have more realistic
 // values in a Kubernetes context.
-func overrideGenericFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func overrideGenericFuncs(t apitesting.TestingCommon, codecs runtimeserializer.CodecFactory) []interface{} {
 	return []interface{}{
 		func(j *runtime.Object, c fuzz.Continue) {
 			// TODO: uncomment when round trip starts from a versioned object
@@ -85,7 +83,8 @@ func overrideGenericFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 			// Convert the object to raw bytes
 			bytes, err := runtime.Encode(codec, obj)
 			if err != nil {
-				panic(fmt.Sprintf("Failed to encode object: %v", err))
+				t.Errorf("Failed to encode object: %v", err)
+				return
 			}
 
 			// Set the bytes field on the RawExtension
@@ -94,7 +93,7 @@ func overrideGenericFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func coreFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func coreFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(q *resource.Quantity, c fuzz.Continue) {
 			*q = *resource.NewQuantity(c.Int63n(1000), resource.DecimalExponent)
@@ -501,7 +500,7 @@ func coreFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func extensionFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func extensionFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(j *extensions.DeploymentSpec, c fuzz.Continue) {
 			c.FuzzNoCustom(j) // fuzz self without calling this function again
@@ -581,7 +580,7 @@ func extensionFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func batchFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func batchFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(j *batch.JobSpec, c fuzz.Continue) {
 			c.FuzzNoCustom(j) // fuzz self without calling this function again
@@ -618,7 +617,7 @@ func batchFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func autoscalingFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func autoscalingFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(s *autoscaling.HorizontalPodAutoscalerSpec, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
@@ -681,7 +680,7 @@ func autoscalingFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func rbacFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func rbacFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(r *rbac.RoleRef, c fuzz.Continue) {
 			c.FuzzNoCustom(r) // fuzz self without calling this function again
@@ -715,7 +714,7 @@ func rbacFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func appsFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func appsFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(s *apps.StatefulSet, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
@@ -734,7 +733,7 @@ func appsFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 		},
 	}
 }
-func policyFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func policyFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(s *policy.PodDisruptionBudgetStatus, c fuzz.Continue) {
 			c.FuzzNoCustom(s) // fuzz self without calling this function again
@@ -743,7 +742,7 @@ func policyFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func certificateFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func certificateFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(obj *certificates.CertificateSigningRequestSpec, c fuzz.Continue) {
 			c.FuzzNoCustom(obj) // fuzz self without calling this function again
@@ -752,7 +751,7 @@ func certificateFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
 	}
 }
 
-func admissionregistrationFuncs(codecs runtimeserializer.CodecFactory) []interface{} {
+func admissionregistrationFuncs(t apitesting.TestingCommon) []interface{} {
 	return []interface{}{
 		func(obj *admissionregistration.ExternalAdmissionHook, c fuzz.Continue) {
 			c.FuzzNoCustom(obj) // fuzz self without calling this function again
@@ -767,20 +766,22 @@ func admissionregistrationFuncs(codecs runtimeserializer.CodecFactory) []interfa
 	}
 }
 
-var FuzzerFuncs = fuzzer.MergeFuzzerFuncs(
-	genericfuzzer.Funcs,
-	overrideGenericFuncs,
-	coreFuncs,
-	extensionFuncs,
-	appsFuncs,
-	batchFuncs,
-	autoscalingFuncs,
-	rbacFuncs,
-	kubeadmfuzzer.Funcs,
-	policyFuncs,
-	certificateFuncs,
-	admissionregistrationFuncs,
-)
+func FuzzerFuncs(t apitesting.TestingCommon, codecs runtimeserializer.CodecFactory) []interface{} {
+	return apitesting.MergeFuzzerFuncs(t,
+		apitesting.GenericFuzzerFuncs(t, codecs),
+		overrideGenericFuncs(t, codecs),
+		coreFuncs(t),
+		extensionFuncs(t),
+		appsFuncs(t),
+		batchFuncs(t),
+		autoscalingFuncs(t),
+		rbacFuncs(t),
+		kubeadmfuzzer.KubeadmFuzzerFuncs(t),
+		policyFuncs(t),
+		certificateFuncs(t),
+		admissionregistrationFuncs(t),
+	)
+}
 
 func newBool(val bool) *bool {
 	p := new(bool)

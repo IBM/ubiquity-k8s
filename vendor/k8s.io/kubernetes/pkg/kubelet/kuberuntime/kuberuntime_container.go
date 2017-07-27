@@ -17,7 +17,6 @@ limitations under the License.
 package kuberuntime
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -49,12 +48,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/tail"
 )
 
-var (
-	ErrCreateContainerConfig = errors.New("CreateContainerConfigError")
-	ErrCreateContainer       = errors.New("CreateContainerError")
-	ErrPostStartHook         = errors.New("PostStartHookError")
-)
-
 // recordContainerEvent should be used by the runtime manager for all container related events.
 // it has sanity checks to ensure that we do not write events that can abuse our masters.
 // in particular, it ensures that a containerID never appears in an event message as that
@@ -76,7 +69,7 @@ func (m *kubeGenericRuntimeManager) recordContainerEvent(pod *v1.Pod, container 
 	if containerID != "" {
 		eventMessage = strings.Replace(eventMessage, containerID, container.Name, -1)
 	}
-	m.recorder.Event(ref, eventType, reason, eventMessage)
+	m.recorder.Event(events.ToObjectReference(ref), eventType, reason, eventMessage)
 }
 
 // startContainer starts a container and returns a message indicates why it is failed on error.
@@ -109,12 +102,12 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 	containerConfig, err := m.generateContainerConfig(container, pod, restartCount, podIP, imageRef)
 	if err != nil {
 		m.recordContainerEvent(pod, container, "", v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", grpc.ErrorDesc(err))
-		return grpc.ErrorDesc(err), ErrCreateContainerConfig
+		return "Generate Container Config Failed", err
 	}
 	containerID, err := m.runtimeService.CreateContainer(podSandboxID, containerConfig, podSandboxConfig)
 	if err != nil {
 		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToCreateContainer, "Error: %v", grpc.ErrorDesc(err))
-		return grpc.ErrorDesc(err), ErrCreateContainer
+		return "Create Container Failed", err
 	}
 	m.recordContainerEvent(pod, container, containerID, v1.EventTypeNormal, events.CreatedContainer, "Created container")
 
@@ -129,7 +122,7 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 	err = m.runtimeService.StartContainer(containerID)
 	if err != nil {
 		m.recordContainerEvent(pod, container, containerID, v1.EventTypeWarning, events.FailedToStartContainer, "Error: %v", grpc.ErrorDesc(err))
-		return grpc.ErrorDesc(err), kubecontainer.ErrRunContainer
+		return "Start Container Failed", err
 	}
 	m.recordContainerEvent(pod, container, containerID, v1.EventTypeNormal, events.StartedContainer, "Started container")
 
@@ -155,11 +148,8 @@ func (m *kubeGenericRuntimeManager) startContainer(podSandboxID string, podSandb
 		msg, handlerErr := m.runner.Run(kubeContainerID, pod, container, container.Lifecycle.PostStart)
 		if handlerErr != nil {
 			m.recordContainerEvent(pod, container, kubeContainerID.ID, v1.EventTypeWarning, events.FailedPostStartHook, msg)
-			if err := m.killContainer(pod, kubeContainerID, container.Name, "FailedPostStartHook", nil); err != nil {
-				glog.Errorf("Failed to kill container %q(id=%q) in pod %q: %v, %v",
-					container.Name, kubeContainerID.String(), format.Pod(pod), ErrPostStartHook, err)
-			}
-			return msg, ErrPostStartHook
+			m.killContainer(pod, kubeContainerID, container.Name, "FailedPostStartHook", nil)
+			return "PostStart Hook Failed", err
 		}
 	}
 
@@ -550,10 +540,7 @@ func (m *kubeGenericRuntimeManager) restoreSpecsFromContainerLabels(containerID 
 func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubecontainer.ContainerID, containerName string, reason string, gracePeriodOverride *int64) error {
 	var containerSpec *v1.Container
 	if pod != nil {
-		if containerSpec = kubecontainer.GetContainerSpec(pod, containerName); containerSpec == nil {
-			return fmt.Errorf("failed to get containerSpec %q(id=%q) in pod %q when killing container for reason %q",
-				containerName, containerID.String(), format.Pod(pod), reason)
-		}
+		containerSpec = kubecontainer.GetContainerSpec(pod, containerName)
 	} else {
 		// Restore necessary information if one of the specs is nil.
 		restoredPod, restoredContainer, err := m.restoreSpecsFromContainerLabels(containerID)
@@ -562,7 +549,6 @@ func (m *kubeGenericRuntimeManager) killContainer(pod *v1.Pod, containerID kubec
 		}
 		pod, containerSpec = restoredPod, restoredContainer
 	}
-
 	// From this point , pod and container must be non-nil.
 	gracePeriod := int64(minimumGracePeriodInSeconds)
 	switch {
@@ -764,7 +750,7 @@ func (m *kubeGenericRuntimeManager) GetAttach(id kubecontainer.ContainerID, stdi
 // RunInContainer synchronously executes the command in the container, and returns the output.
 func (m *kubeGenericRuntimeManager) RunInContainer(id kubecontainer.ContainerID, cmd []string, timeout time.Duration) ([]byte, error) {
 	stdout, stderr, err := m.runtimeService.ExecSync(id.ID, cmd, 0)
-	// NOTE(tallclair): This does not correctly interleave stdout & stderr, but should be sufficient
+	// NOTE(timstclair): This does not correctly interleave stdout & stderr, but should be sufficient
 	// for logging purposes. A combined output option will need to be added to the ExecSyncRequest
 	// if more precise output ordering is ever required.
 	return append(stdout, stderr...), err

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	admissionv1alpha1 "k8s.io/api/admission/v1alpha1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,7 +24,7 @@ import (
 )
 
 // NewAdmissionReview returns an AdmissionReview for the provided admission.Attributes
-func NewAdmissionReview(attr admission.Attributes) admissionv1alpha1.AdmissionReview {
+func NewAdmissionReview(attr admission.Attributes) AdmissionReview {
 	gvk := attr.GetKind()
 	gvr := attr.GetResource()
 	aUserInfo := attr.GetUserInfo()
@@ -41,8 +40,8 @@ func NewAdmissionReview(attr admission.Attributes) admissionv1alpha1.AdmissionRe
 		userInfo.Extra[key] = authenticationv1.ExtraValue(val)
 	}
 
-	return admissionv1alpha1.AdmissionReview{
-		Spec: admissionv1alpha1.AdmissionReviewSpec{
+	return AdmissionReview{
+		Spec: AdmissionReviewSpec{
 			Name:      attr.GetName(),
 			Namespace: attr.GetNamespace(),
 			Resource: metav1.GroupVersionResource{

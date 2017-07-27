@@ -28,11 +28,10 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/util/exec"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/empty_dir"
 	volumetest "k8s.io/kubernetes/pkg/volume/testing"
-	"k8s.io/utils/exec"
-	fakeexec "k8s.io/utils/exec/testing"
 )
 
 func newTestHost(t *testing.T) (string, volume.VolumeHost) {
@@ -321,8 +320,8 @@ func doTestSetUp(scenario struct {
 	allErrs := []error{}
 
 	// Construct combined outputs from expected commands
-	var fakeOutputs []fakeexec.FakeCombinedOutputAction
-	var fcmd fakeexec.FakeCmd
+	var fakeOutputs []exec.FakeCombinedOutputAction
+	var fcmd exec.FakeCmd
 	for _, expected := range expecteds {
 		if expected.cmd[1] == "clone" {
 			fakeOutputs = append(fakeOutputs, func() ([]byte, error) {
@@ -337,19 +336,19 @@ func doTestSetUp(scenario struct {
 			})
 		}
 	}
-	fcmd = fakeexec.FakeCmd{
+	fcmd = exec.FakeCmd{
 		CombinedOutputScript: fakeOutputs,
 	}
 
 	// Construct fake exec outputs from fcmd
-	var fakeAction []fakeexec.FakeCommandAction
+	var fakeAction []exec.FakeCommandAction
 	for i := 0; i < len(expecteds); i++ {
 		fakeAction = append(fakeAction, func(cmd string, args ...string) exec.Cmd {
-			return fakeexec.InitFakeCmd(&fcmd, cmd, args...)
+			return exec.InitFakeCmd(&fcmd, cmd, args...)
 		})
 
 	}
-	fake := fakeexec.FakeExec{
+	fake := exec.FakeExec{
 		CommandScript: fakeAction,
 	}
 

@@ -63,7 +63,6 @@ type AuditLogOptions struct {
 	MaxAge     int
 	MaxBackups int
 	MaxSize    int
-	Format     string
 }
 
 // AuditWebhookOptions control the webhook configuration for audit events.
@@ -79,59 +78,7 @@ type AuditWebhookOptions struct {
 func NewAuditOptions() *AuditOptions {
 	return &AuditOptions{
 		WebhookOptions: AuditWebhookOptions{Mode: pluginwebhook.ModeBatch},
-		LogOptions:     AuditLogOptions{Format: pluginlog.FormatLegacy},
 	}
-}
-
-// Validate checks invalid config combination
-func (o *AuditOptions) Validate() []error {
-	allErrors := []error{}
-
-	if !advancedAuditingEnabled() {
-		if len(o.PolicyFile) > 0 {
-			allErrors = append(allErrors, fmt.Errorf("feature '%s' must be enabled to set option --audit-policy-file", features.AdvancedAuditing))
-		}
-		if len(o.WebhookOptions.ConfigFile) > 0 {
-			allErrors = append(allErrors, fmt.Errorf("feature '%s' must be enabled to set option --audit-webhook-config-file", features.AdvancedAuditing))
-		}
-	} else {
-		// check webhook mode
-		validMode := false
-		for _, m := range pluginwebhook.AllowedModes {
-			if m == o.WebhookOptions.Mode {
-				validMode = true
-				break
-			}
-		}
-		if !validMode {
-			allErrors = append(allErrors, fmt.Errorf("invalid audit webhook mode %s, allowed modes are %q", o.WebhookOptions.Mode, strings.Join(pluginwebhook.AllowedModes, ",")))
-		}
-
-		// check log format
-		validFormat := false
-		for _, f := range pluginlog.AllowedFormats {
-			if f == o.LogOptions.Format {
-				validFormat = true
-				break
-			}
-		}
-		if !validFormat {
-			allErrors = append(allErrors, fmt.Errorf("invalid audit log format %s, allowed formats are %q", o.LogOptions.Format, strings.Join(pluginlog.AllowedFormats, ",")))
-		}
-	}
-
-	// Check validities of MaxAge, MaxBackups and MaxSize of log options
-	if o.LogOptions.MaxAge < 0 {
-		allErrors = append(allErrors, fmt.Errorf("--audit-log-maxage %v can't be a negative number", o.LogOptions.MaxAge))
-	}
-	if o.LogOptions.MaxBackups < 0 {
-		allErrors = append(allErrors, fmt.Errorf("--audit-log-maxbackup %v can't be a negative number", o.LogOptions.MaxBackups))
-	}
-	if o.LogOptions.MaxSize < 0 {
-		allErrors = append(allErrors, fmt.Errorf("--audit-log-maxsize %v can't be a negative number", o.LogOptions.MaxSize))
-	}
-
-	return allErrors
 }
 
 func (o *AuditOptions) AddFlags(fs *pflag.FlagSet) {
@@ -144,19 +91,13 @@ func (o *AuditOptions) AddFlags(fs *pflag.FlagSet) {
 }
 
 func (o *AuditOptions) ApplyTo(c *server.Config) error {
-	// Apply legacy audit options if advanced audit is not enabled.
-	if !advancedAuditingEnabled() {
-		return o.LogOptions.legacyApplyTo(c)
-	}
-
-	// Apply advanced options if advanced audit is enabled.
-	// 1. Apply generic options.
+	// Apply generic options.
 	if err := o.applyTo(c); err != nil {
 		return err
 	}
 
-	// 2. Apply plugin options.
-	if err := o.LogOptions.advancedApplyTo(c); err != nil {
+	// Apply plugin options.
+	if err := o.LogOptions.applyTo(c); err != nil {
 		return err
 	}
 	if err := o.WebhookOptions.applyTo(c); err != nil {
@@ -170,6 +111,9 @@ func (o *AuditOptions) applyTo(c *server.Config) error {
 		return nil
 	}
 
+	if !advancedAuditingEnabled() {
+		return fmt.Errorf("feature '%s' must be enabled to set an audit policy", features.AdvancedAuditing)
+	}
 	p, err := policy.LoadPolicyFromFile(o.PolicyFile)
 	if err != nil {
 		return fmt.Errorf("loading audit policy file: %v", err)
@@ -187,13 +131,9 @@ func (o *AuditLogOptions) AddFlags(fs *pflag.FlagSet) {
 		"The maximum number of old audit log files to retain.")
 	fs.IntVar(&o.MaxSize, "audit-log-maxsize", o.MaxSize,
 		"The maximum size in megabytes of the audit log file before it gets rotated.")
-	fs.StringVar(&o.Format, "audit-log-format", o.Format,
-		"Format of saved audits. \"legacy\" indicates 1-line text format for each event."+
-			" \"json\" indicates structured json format. Requires the 'AdvancedAuditing' feature"+
-			" gate. Known formats are "+strings.Join(pluginlog.AllowedFormats, ",")+".")
 }
 
-func (o *AuditLogOptions) getWriter() io.Writer {
+func (o *AuditLogOptions) applyTo(c *server.Config) error {
 	if o.Path == "" {
 		return nil
 	}
@@ -207,18 +147,11 @@ func (o *AuditLogOptions) getWriter() io.Writer {
 			MaxSize:    o.MaxSize,
 		}
 	}
-	return w
-}
+	c.LegacyAuditWriter = w
 
-func (o *AuditLogOptions) advancedApplyTo(c *server.Config) error {
-	if w := o.getWriter(); w != nil {
-		c.AuditBackend = appendBackend(c.AuditBackend, pluginlog.NewBackend(w, o.Format))
+	if advancedAuditingEnabled() {
+		c.AuditBackend = appendBackend(c.AuditBackend, pluginlog.NewBackend(w))
 	}
-	return nil
-}
-
-func (o *AuditLogOptions) legacyApplyTo(c *server.Config) error {
-	c.LegacyAuditWriter = o.getWriter()
 	return nil
 }
 
@@ -237,6 +170,9 @@ func (o *AuditWebhookOptions) applyTo(c *server.Config) error {
 		return nil
 	}
 
+	if !advancedAuditingEnabled() {
+		return fmt.Errorf("feature '%s' must be enabled to set an audit webhook", features.AdvancedAuditing)
+	}
 	webhook, err := pluginwebhook.NewBackend(o.ConfigFile, o.Mode)
 	if err != nil {
 		return fmt.Errorf("initializing audit webhook: %v", err)

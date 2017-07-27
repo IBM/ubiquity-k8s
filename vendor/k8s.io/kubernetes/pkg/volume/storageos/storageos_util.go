@@ -23,7 +23,7 @@ import (
 	"path"
 	"strings"
 
-	"k8s.io/utils/exec"
+	"k8s.io/kubernetes/pkg/util/exec"
 
 	"github.com/golang/glog"
 	storageosapi "github.com/storageos/go-api"

@@ -27,8 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/test/e2e/framework"
 	testutils "k8s.io/kubernetes/test/utils"
 
@@ -130,6 +130,19 @@ func updateNodeLabels(c clientset.Interface, nodeNames sets.String, toAdd, toRem
 	}
 }
 
+// Calls startVolumeServer to create and run a nfs-server pod. Returns server pod and its
+// ip address.
+// Note: startVolumeServer() waits for the nfs-server pod to be Running and sleeps some
+//   so that the nfs server can start up.
+func createNfsServerPod(c clientset.Interface, config framework.VolumeTestConfig) (*v1.Pod, string) {
+	pod := framework.StartVolumeServer(c, config)
+	Expect(pod).NotTo(BeNil())
+	ip := pod.Status.PodIP
+	Expect(len(ip)).NotTo(BeZero())
+	framework.Logf("NFS server IP address: %v", ip)
+	return pod, ip
+}
+
 // Restart the passed-in nfs-server by issuing a `/usr/sbin/rpc.nfsd 1` command in the
 // pod's (only) container. This command changes the number of nfs server threads from
 // (presumably) zero back to 1, and therefore allows nfs to open connections again.
@@ -159,7 +172,7 @@ func createPodUsingNfs(f *framework.Framework, c clientset.Interface, ns, nfsIP,
 	pod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: testapi.Groups[v1.GroupName].GroupVersion().String(),
+			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "pod-nfs-vol-",
@@ -383,7 +396,7 @@ var _ = framework.KubeDescribe("kubelet", func() {
 	})
 
 	// Test host cleanup when disrupting the volume environment.
-	framework.KubeDescribe("host cleanup with volume mounts [sig-storage][HostCleanup][Flaky]", func() {
+	framework.KubeDescribe("host cleanup with volume mounts [Volume][HostCleanup][Flaky]", func() {
 
 		type hostCleanupTest struct {
 			itDescr string
@@ -418,7 +431,14 @@ var _ = framework.KubeDescribe("kubelet", func() {
 
 			BeforeEach(func() {
 				framework.SkipUnlessProviderIs(framework.ProvidersWithSSH...)
-				NFSconfig, nfsServerPod, nfsIP = framework.NewNFSServer(c, ns, []string{"-G", "777", "/exports"})
+				NFSconfig = framework.VolumeTestConfig{
+					Namespace:   ns,
+					Prefix:      "nfs",
+					ServerImage: framework.NfsServerImage,
+					ServerPorts: []int{2049},
+					ServerArgs:  []string{"-G", "777", "/exports"},
+				}
+				nfsServerPod, nfsIP = createNfsServerPod(c, NFSconfig)
 			})
 
 			AfterEach(func() {

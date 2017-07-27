@@ -45,7 +45,6 @@ import (
 	etcdtesting "k8s.io/apiserver/pkg/storage/etcd/testing"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
@@ -55,6 +54,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/certificates"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/apis/rbac"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	kubeletclient "k8s.io/kubernetes/pkg/kubelet/client"
 	kubeversion "k8s.io/kubernetes/pkg/version"
 
@@ -115,7 +115,7 @@ func setUp(t *testing.T) (*etcdtesting.EtcdTestServer, Config, *assert.Assertion
 func newMaster(t *testing.T) (*Master, *etcdtesting.EtcdTestServer, Config, *assert.Assertions) {
 	etcdserver, config, assert := setUp(t)
 
-	master, err := config.Complete().New(genericapiserver.EmptyDelegate)
+	master, err := config.Complete().New(genericapiserver.EmptyDelegate, nil)
 	if err != nil {
 		t.Fatalf("Error in bringing up the master: %v", err)
 	}
@@ -141,7 +141,7 @@ func limitedAPIResourceConfigSource() *serverstorage.ResourceConfig {
 func newLimitedMaster(t *testing.T) (*Master, *etcdtesting.EtcdTestServer, Config, *assert.Assertions) {
 	etcdserver, config, assert := setUp(t)
 	config.APIResourceConfigSource = limitedAPIResourceConfigSource()
-	master, err := config.Complete().New(genericapiserver.EmptyDelegate)
+	master, err := config.Complete().New(genericapiserver.EmptyDelegate, nil)
 	if err != nil {
 		t.Fatalf("Error in bringing up the master: %v", err)
 	}

@@ -19,6 +19,8 @@ package app
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -35,6 +37,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	certificates "k8s.io/api/certificates/v1beta1"
 	"k8s.io/api/core/v1"
 	clientv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -48,7 +51,6 @@ import (
 	"k8s.io/apiserver/pkg/server/healthz"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	clientgoclientset "k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	clientauth "k8s.io/client-go/tools/auth"
@@ -62,6 +64,7 @@ import (
 	componentconfigv1alpha1 "k8s.io/kubernetes/pkg/apis/componentconfig/v1alpha1"
 	"k8s.io/kubernetes/pkg/capabilities"
 	"k8s.io/kubernetes/pkg/client/chaosclient"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 	"k8s.io/kubernetes/pkg/credentialprovider"
 	"k8s.io/kubernetes/pkg/features"
@@ -126,9 +129,9 @@ HTTP server: The kubelet can also listen for HTTP and respond to a simple API
 	return cmd
 }
 
-// UnsecuredDependencies returns a Dependencies suitable for being run, or an error if the server setup
+// UnsecuredKubeletDeps returns a KubeletDeps suitable for being run, or an error if the server setup
 // is not valid.  It will not start any background processes, and does not include authentication/authorization
-func UnsecuredDependencies(s *options.KubeletServer) (*kubelet.Dependencies, error) {
+func UnsecuredKubeletDeps(s *options.KubeletServer) (*kubelet.KubeletDeps, error) {
 	// Initialize the TLS Options
 	tlsOptions, err := InitializeTLS(&s.KubeletFlags, &s.KubeletConfiguration)
 	if err != nil {
@@ -151,7 +154,7 @@ func UnsecuredDependencies(s *options.KubeletServer) (*kubelet.Dependencies, err
 		dockerClient = nil
 	}
 
-	return &kubelet.Dependencies{
+	return &kubelet.KubeletDeps{
 		Auth:               nil, // default does not enforce auth[nz]
 		CAdvisorInterface:  nil, // cadvisor.New launches background processes (bg http.ListenAndServe, and some bg cleaners), not set here
 		Cloud:              nil, // cloud provider might start background processes
@@ -182,7 +185,7 @@ func getKubeClient(s *options.KubeletServer) (*clientset.Clientset, error) {
 }
 
 // Tries to download the kubelet-<node-name> configmap from "kube-system" namespace via the API server and returns a JSON string or error
-func getRemoteKubeletConfig(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) (string, error) {
+func getRemoteKubeletConfig(s *options.KubeletServer, kubeDeps *kubelet.KubeletDeps) (string, error) {
 	// TODO(mtaufen): should probably cache clientset and pass into this function rather than regenerate on every request
 	kubeClient, err := getKubeClient(s)
 	if err != nil {
@@ -281,11 +284,11 @@ func initKubeletConfigSync(s *options.KubeletServer) (*componentconfig.KubeletCo
 	}
 }
 
-// Run runs the specified KubeletServer with the given Dependencies.  This should never exit.
+// Run runs the specified KubeletServer with the given KubeletDeps.  This should never exit.
 // The kubeDeps argument may be nil - if so, it is initialized from the settings on KubeletServer.
-// Otherwise, the caller is assumed to have set up the Dependencies object and a default one will
+// Otherwise, the caller is assumed to have set up the KubeletDeps object and a default one will
 // not be generated.
-func Run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) error {
+func Run(s *options.KubeletServer, kubeDeps *kubelet.KubeletDeps) error {
 	if err := run(s, kubeDeps); err != nil {
 		return fmt.Errorf("failed to run Kubelet: %v", err)
 	}
@@ -339,7 +342,7 @@ func validateConfig(s *options.KubeletServer) error {
 }
 
 // makeEventRecorder sets up kubeDeps.Recorder if its nil. Its a no-op otherwise.
-func makeEventRecorder(s *componentconfig.KubeletConfiguration, kubeDeps *kubelet.Dependencies, nodeName types.NodeName) {
+func makeEventRecorder(s *componentconfig.KubeletConfiguration, kubeDeps *kubelet.KubeletDeps, nodeName types.NodeName) {
 	if kubeDeps.Recorder != nil {
 		return
 	}
@@ -354,7 +357,7 @@ func makeEventRecorder(s *componentconfig.KubeletConfiguration, kubeDeps *kubele
 	}
 }
 
-func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) (err error) {
+func run(s *options.KubeletServer, kubeDeps *kubelet.KubeletDeps) (err error) {
 	// TODO: this should be replaced by a --standalone flag
 	standaloneMode := (len(s.APIServerList) == 0 && !s.RequireKubeConfig)
 
@@ -417,15 +420,13 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) (err error) {
 	}
 
 	if kubeDeps == nil {
-		kubeDeps, err = UnsecuredDependencies(s)
-		if err != nil {
-			return err
-		}
-	}
+		var kubeClient clientset.Interface
+		var eventClient v1core.EventsGetter
+		var externalKubeClient clientgoclientset.Interface
+		var cloud cloudprovider.Interface
 
-	if kubeDeps.Cloud == nil {
 		if !cloudprovider.IsExternal(s.CloudProvider) && s.CloudProvider != componentconfigv1alpha1.AutoDetectCloudProvider {
-			cloud, err := cloudprovider.InitCloudProvider(s.CloudProvider, s.CloudConfigFile)
+			cloud, err = cloudprovider.InitCloudProvider(s.CloudProvider, s.CloudConfigFile)
 			if err != nil {
 				return err
 			}
@@ -434,33 +435,29 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) (err error) {
 			} else {
 				glog.V(2).Infof("Successfully initialized cloud provider: %q from the config file: %q\n", s.CloudProvider, s.CloudConfigFile)
 			}
-			kubeDeps.Cloud = cloud
 		}
-	}
 
-	nodeName, err := getNodeName(kubeDeps.Cloud, nodeutil.GetHostname(s.HostnameOverride))
-	if err != nil {
-		return err
-	}
-
-	if s.BootstrapKubeconfig != "" {
-		if err := bootstrapClientCert(s.KubeConfig.Value(), s.BootstrapKubeconfig, s.CertDirectory, nodeName); err != nil {
+		nodeName, err := getNodeName(cloud, nodeutil.GetHostname(s.HostnameOverride))
+		if err != nil {
 			return err
 		}
-	}
 
-	// initialize clients if any of the clients are not provided
-	if kubeDeps.KubeClient == nil || kubeDeps.ExternalKubeClient == nil || kubeDeps.EventClient == nil {
-		var kubeClient clientset.Interface
-		var eventClient v1core.EventsGetter
-		var externalKubeClient clientgoclientset.Interface
+		if s.BootstrapKubeconfig != "" {
+			if err := bootstrapClientCert(s.KubeConfig.Value(), s.BootstrapKubeconfig, s.CertDirectory, nodeName); err != nil {
+				return err
+			}
+		}
 
 		clientConfig, err := CreateAPIServerClientConfig(s)
 
 		var clientCertificateManager certificate.Manager
 		if err == nil {
 			if utilfeature.DefaultFeatureGate.Enabled(features.RotateKubeletClientCertificate) {
-				clientCertificateManager, err = certificate.NewKubeletClientCertificateManager(s.CertDirectory, nodeName, clientConfig.CertData, clientConfig.KeyData, clientConfig.CertFile, clientConfig.KeyFile)
+				nodeName, err := getNodeName(cloud, nodeutil.GetHostname(s.HostnameOverride))
+				if err != nil {
+					return err
+				}
+				clientCertificateManager, err = initializeClientCertificateManager(s.CertDirectory, nodeName, clientConfig.CertData, clientConfig.KeyData, clientConfig.CertFile, clientConfig.KeyFile)
 				if err != nil {
 					return err
 				}
@@ -490,19 +487,30 @@ func run(s *options.KubeletServer, kubeDeps *kubelet.Dependencies) (err error) {
 				glog.Warningf("Failed to create API Server client: %v", err)
 			}
 		} else {
-			switch {
-			case s.RequireKubeConfig:
+			if s.RequireKubeConfig {
 				return fmt.Errorf("invalid kubeconfig: %v", err)
-			case standaloneMode:
-				glog.Warningf("No API client: %v", err)
-			case s.KubeConfig.Provided():
+			} else if s.KubeConfig.Provided() && !standaloneMode {
 				glog.Warningf("Invalid kubeconfig: %v", err)
+			}
+			if standaloneMode {
+				glog.Warningf("No API client: %v", err)
 			}
 		}
 
+		kubeDeps, err = UnsecuredKubeletDeps(s)
+		if err != nil {
+			return err
+		}
+
+		kubeDeps.Cloud = cloud
 		kubeDeps.KubeClient = kubeClient
 		kubeDeps.ExternalKubeClient = externalKubeClient
 		kubeDeps.EventClient = eventClient
+	}
+
+	nodeName, err := getNodeName(kubeDeps.Cloud, nodeutil.GetHostname(s.HostnameOverride))
+	if err != nil {
+		return err
 	}
 
 	if kubeDeps.Auth == nil {
@@ -650,6 +658,52 @@ func updateTransport(clientConfig *restclient.Config, clientCertificateManager c
 	clientConfig.CAData = nil
 	clientConfig.CAFile = ""
 	return nil
+}
+
+// initializeClientCertificateManager sets up a certificate manager without a
+// client that can be used to sign new certificates (or rotate). It answers with
+// whatever certificate it is initialized with. If a CSR client is set later, it
+// may begin rotating/renewing the client cert
+func initializeClientCertificateManager(certDirectory string, nodeName types.NodeName, certData []byte, keyData []byte, certFile string, keyFile string) (certificate.Manager, error) {
+	certificateStore, err := certificate.NewFileStore(
+		"kubelet-client",
+		certDirectory,
+		certDirectory,
+		certFile,
+		keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize certificate store: %v", err)
+	}
+	clientCertificateManager, err := certificate.NewManager(&certificate.Config{
+		Template: &x509.CertificateRequest{
+			Subject: pkix.Name{
+				Organization: []string{"system:nodes"},
+				CommonName:   fmt.Sprintf("system:node:%s", nodeName),
+			},
+		},
+		Usages: []certificates.KeyUsage{
+			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+			//
+			// DigitalSignature allows the certificate to be used to verify
+			// digital signatures including signatures used during TLS
+			// negotiation.
+			certificates.UsageDigitalSignature,
+			// KeyEncipherment allows the cert/key pair to be used to encrypt
+			// keys, including the symetric keys negotiated during TLS setup
+			// and used for data transfer..
+			certificates.UsageKeyEncipherment,
+			// ClientAuth allows the cert to be used by a TLS client to
+			// authenticate itself to the TLS server.
+			certificates.UsageClientAuth,
+		},
+		CertificateStore:        certificateStore,
+		BootstrapCertificatePEM: certData,
+		BootstrapKeyPEM:         keyData,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize certificate manager: %v", err)
+	}
+	return clientCertificateManager, nil
 }
 
 // getNodeName returns the node name according to the cloud provider
@@ -817,7 +871,7 @@ func addChaosToClientConfig(s *options.KubeletServer, config *restclient.Config)
 //   2 Kubelet binary
 //   3 Standalone 'kubernetes' binary
 // Eventually, #2 will be replaced with instances of #3
-func RunKubelet(kubeFlags *options.KubeletFlags, kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.Dependencies, runOnce bool, standaloneMode bool) error {
+func RunKubelet(kubeFlags *options.KubeletFlags, kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.KubeletDeps, runOnce bool, standaloneMode bool) error {
 	hostname := nodeutil.GetHostname(kubeFlags.HostnameOverride)
 	// Query the cloud provider for our node name, default to hostname if kcfg.Cloud == nil
 	nodeName, err := getNodeName(kubeDeps.Cloud, hostname)
@@ -891,7 +945,7 @@ func RunKubelet(kubeFlags *options.KubeletFlags, kubeCfg *componentconfig.Kubele
 	return nil
 }
 
-func startKubelet(k kubelet.Bootstrap, podCfg *config.PodConfig, kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.Dependencies) {
+func startKubelet(k kubelet.KubeletBootstrap, podCfg *config.PodConfig, kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.KubeletDeps) {
 	// start the kubelet
 	go wait.Until(func() { k.Run(podCfg.Updates()) }, 0, wait.NeverStop)
 
@@ -908,7 +962,7 @@ func startKubelet(k kubelet.Bootstrap, podCfg *config.PodConfig, kubeCfg *compon
 	}
 }
 
-func CreateAndInitKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.Dependencies, crOptions *options.ContainerRuntimeOptions, standaloneMode bool, hostnameOverride, nodeIP, providerID string) (k kubelet.Bootstrap, err error) {
+func CreateAndInitKubelet(kubeCfg *componentconfig.KubeletConfiguration, kubeDeps *kubelet.KubeletDeps, crOptions *options.ContainerRuntimeOptions, standaloneMode bool, hostnameOverride, nodeIP, providerID string) (k kubelet.KubeletBootstrap, err error) {
 	// TODO: block until all sources have delivered at least one update to the channel, or break the sync loop
 	// up into "per source" synchronizations
 

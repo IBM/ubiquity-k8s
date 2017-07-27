@@ -28,7 +28,7 @@ const (
 	// // alpha: v1.X
 	// MyFeature utilfeature.Feature = "MyFeature"
 
-	// owner: @tallclair
+	// owner: @timstclair
 	// beta: v1.4
 	AppArmor utilfeature.Feature = "AppArmor"
 
@@ -44,7 +44,7 @@ const (
 	// alpha: v1.4
 	DynamicKubeletConfig utilfeature.Feature = "DynamicKubeletConfig"
 
-	// owner: tallclair
+	// owner: timstclair
 	// alpha: v1.5
 	//
 	// StreamingProxyRedirects controls whether the apiserver should intercept (and follow)
@@ -114,18 +114,6 @@ const (
 	//
 	// Allows running a "debug container" in a pod namespaces to troubleshoot a running pod.
 	DebugContainers utilfeature.Feature = "DebugContainers"
-
-	// owner: @bsalamat
-	// alpha: v1.8
-	//
-	// Add priority to pods. Priority affects scheduling and preemption of pods.
-	PodPriority utilfeature.Feature = "PodPriority"
-
-	// owner: @resouer
-	// alpha: v1.8
-	//
-	// Enable equivalence class cache for scheduler.
-	EnableEquivalenceClassCache utilfeature.Feature = "EnableEquivalenceClassCache"
 )
 
 func init() {
@@ -149,8 +137,6 @@ var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureS
 	PersistentLocalVolumes:                      {Default: false, PreRelease: utilfeature.Alpha},
 	LocalStorageCapacityIsolation:               {Default: false, PreRelease: utilfeature.Alpha},
 	DebugContainers:                             {Default: false, PreRelease: utilfeature.Alpha},
-	PodPriority:                                 {Default: false, PreRelease: utilfeature.Alpha},
-	EnableEquivalenceClassCache:                 {Default: false, PreRelease: utilfeature.Alpha},
 
 	// inherited features from generic apiserver, relisted here to get a conflict if it is changed
 	// unintentionally on either side:

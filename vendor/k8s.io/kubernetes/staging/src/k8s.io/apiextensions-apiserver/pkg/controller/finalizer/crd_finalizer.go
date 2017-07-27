@@ -109,7 +109,10 @@ func (c *CRDFinalizer) sync(key string) error {
 		return nil
 	}
 
-	crd := cachedCRD.DeepCopy()
+	crd := &apiextensions.CustomResourceDefinition{}
+	if err := apiextensions.DeepCopy_apiextensions_CustomResourceDefinition(cachedCRD, crd, cloner); err != nil {
+		return err
+	}
 
 	// update the status condition.  This cleanup could take a while.
 	apiextensions.SetCRDCondition(crd, apiextensions.CustomResourceDefinitionCondition{
@@ -317,8 +320,18 @@ func (c *CRDFinalizer) updateCustomResourceDefinition(oldObj, newObj interface{}
 	// is likely to be the originator, so requeuing would hot-loop us.  Failures are requeued by the workqueue directly.
 	// This is a low traffic and scale resource, so the copy is terrible.  It's not good, so better ideas
 	// are welcome.
-	oldCopy := oldCRD.DeepCopy()
-	newCopy := newCRD.DeepCopy()
+	oldCopy := &apiextensions.CustomResourceDefinition{}
+	if err := apiextensions.DeepCopy_apiextensions_CustomResourceDefinition(oldCRD, oldCopy, cloner); err != nil {
+		utilruntime.HandleError(err)
+		c.enqueue(newCRD)
+		return
+	}
+	newCopy := &apiextensions.CustomResourceDefinition{}
+	if err := apiextensions.DeepCopy_apiextensions_CustomResourceDefinition(newCRD, newCopy, cloner); err != nil {
+		utilruntime.HandleError(err)
+		c.enqueue(newCRD)
+		return
+	}
 	oldCopy.ResourceVersion = ""
 	newCopy.ResourceVersion = ""
 	apiextensions.RemoveCRDCondition(oldCopy, apiextensions.Terminating)

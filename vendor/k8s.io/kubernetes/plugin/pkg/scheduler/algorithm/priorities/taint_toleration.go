@@ -83,10 +83,13 @@ func ComputeTaintTolerationPriorityReduce(pod *v1.Pod, meta interface{}, nodeNam
 	}
 	maxCountFloat := float64(maxCount)
 
+	// The maximum priority value to give to a node
+	// Priority values range from 0 - maxPriority
+	const maxPriority = float64(10)
 	for i := range result {
-		fScore := float64(schedulerapi.MaxPriority)
+		fScore := maxPriority
 		if maxCountFloat > 0 {
-			fScore = (1.0 - float64(result[i].Score)/maxCountFloat) * float64(schedulerapi.MaxPriority)
+			fScore = (1.0 - float64(result[i].Score)/maxCountFloat) * 10
 		}
 		if glog.V(10) {
 			// We explicitly don't do glog.V(10).Infof() to avoid computing all the parameters if this is

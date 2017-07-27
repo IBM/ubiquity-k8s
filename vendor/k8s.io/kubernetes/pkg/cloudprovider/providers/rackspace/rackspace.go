@@ -398,25 +398,7 @@ func (i *Instances) NodeAddresses(nodeName types.NodeName) ([]v1.NodeAddress, er
 // This method will not be called from the node that is requesting this ID. i.e. metadata service
 // and other local methods cannot be used here
 func (i *Instances) NodeAddressesByProviderID(providerID string) ([]v1.NodeAddress, error) {
-	instanceID, err := instanceIDFromProviderID(providerID)
-
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	server, err := servers.Get(i.compute, instanceID).Extract()
-
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	addresses, err := i.NodeAddresses(mapServerToNodeName(server))
-
-	if err != nil {
-		return []v1.NodeAddress{}, err
-	}
-
-	return addresses, nil
+	return []v1.NodeAddress{}, errors.New("unimplemented")
 }
 
 // mapNodeNameToServerName maps from a k8s NodeName to a rackspace Server Name
@@ -449,59 +431,14 @@ func (i *Instances) InstanceID(nodeName types.NodeName) (string, error) {
 
 // InstanceType returns the type of the specified instance.
 func (i *Instances) InstanceType(name types.NodeName) (string, error) {
-	serverName := mapNodeNameToServerName(name)
-
-	srv, err := getServerByName(i.compute, serverName)
-	if err != nil {
-		return "", err
-	}
-
-	return srvInstanceType(srv)
-}
-
-func srvInstanceType(srv *osservers.Server) (string, error) {
-	val, ok := srv.Flavor["name"]
-
-	if !ok {
-		return "", fmt.Errorf("flavor name not present in server info")
-	}
-
-	flavor, ok := val.(string)
-
-	if !ok {
-		return "", fmt.Errorf("flavor name is not a string")
-	}
-
-	return flavor, nil
-}
-
-func instanceIDFromProviderID(providerID string) (instanceID string, err error) {
-	var providerIDRegexp = regexp.MustCompile(`^rackspace://([^/]+)$`)
-	matches := providerIDRegexp.FindStringSubmatch(providerID)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("ProviderID \"%s\" didn't match expected format \"rackspace://InstanceID\"", providerID)
-	}
-
-	return matches[1], nil
+	return "", nil
 }
 
 // InstanceTypeByProviderID returns the cloudprovider instance type of the node with the specified unique providerID
 // This method will not be called from the node that is requesting this ID. i.e. metadata service
 // and other local methods cannot be used here
 func (i *Instances) InstanceTypeByProviderID(providerID string) (string, error) {
-	instanceID, err := instanceIDFromProviderID(providerID)
-
-	if err != nil {
-		return "", err
-	}
-
-	server, err := servers.Get(i.compute, instanceID).Extract()
-
-	if err != nil {
-		return "", err
-	}
-
-	return srvInstanceType(server)
+	return "", errors.New("unimplemented")
 }
 
 func (i *Instances) AddSSHKeyToAllInstances(user string, keyData []byte) error {

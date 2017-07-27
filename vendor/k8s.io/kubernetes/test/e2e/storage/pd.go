@@ -35,20 +35,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/api"
+	v1core "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
 const (
 	gcePDDetachTimeout  = 10 * time.Minute
 	gcePDDetachPollTime = 10 * time.Second
-	nodeStatusTimeout   = 10 * time.Minute
+	nodeStatusTimeout   = 5 * time.Minute
 	nodeStatusPollTime  = 1 * time.Second
 	maxReadRetry        = 3
 )
 
-var _ = SIGDescribe("Pod Disks", func() {
+var _ = framework.KubeDescribe("Pod Disks", func() {
 	var (
 		podClient  v1core.PodInterface
 		nodeClient v1core.NodeInterface
@@ -73,7 +73,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		mathrand.Seed(time.Now().UTC().UnixNano())
 	})
 
-	It("should schedule a pod w/ a RW PD, ungracefully remove it, then schedule it on another host [Slow]", func() {
+	It("should schedule a pod w/ a RW PD, ungracefully remove it, then schedule it on another host [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke", "aws")
 
 		By("creating PD")
@@ -133,7 +133,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		return
 	})
 
-	It("Should schedule a pod w/ a RW PD, gracefully remove it, then schedule it on another host [Slow]", func() {
+	It("Should schedule a pod w/ a RW PD, gracefully remove it, then schedule it on another host [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke", "aws")
 
 		By("creating PD")
@@ -193,7 +193,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		return
 	})
 
-	It("should schedule a pod w/ a readonly PD on two hosts, then remove both ungracefully. [Slow]", func() {
+	It("should schedule a pod w/ a readonly PD on two hosts, then remove both ungracefully. [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke")
 
 		By("creating PD")
@@ -245,7 +245,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		waitForPDDetach(diskName, host1Name)
 	})
 
-	It("Should schedule a pod w/ a readonly PD on two hosts, then remove both gracefully. [Slow]", func() {
+	It("Should schedule a pod w/ a readonly PD on two hosts, then remove both gracefully. [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke")
 
 		By("creating PD")
@@ -297,7 +297,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		waitForPDDetach(diskName, host1Name)
 	})
 
-	It("should schedule a pod w/ a RW PD shared between multiple containers, write to PD, delete pod, verify contents, and repeat in rapid succession [Slow]", func() {
+	It("should schedule a pod w/ a RW PD shared between multiple containers, write to PD, delete pod, verify contents, and repeat in rapid succession [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke", "aws")
 
 		By("creating PD")
@@ -350,7 +350,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		waitForPDDetach(diskName, host0Name)
 	})
 
-	It("should schedule a pod w/two RW PDs both mounted to one container, write to PD, verify contents, delete pod, recreate pod, verify contents, and repeat in rapid succession [Slow]", func() {
+	It("should schedule a pod w/two RW PDs both mounted to one container, write to PD, verify contents, delete pod, recreate pod, verify contents, and repeat in rapid succession [Slow] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce", "gke", "aws")
 
 		By("creating PD1")
@@ -410,7 +410,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		waitForPDDetach(disk2Name, host0Name)
 	})
 
-	It("should be able to detach from a node which was deleted [Slow] [Disruptive]", func() {
+	It("should be able to detach from a node which was deleted [Slow] [Disruptive] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce")
 
 		initialGroupSize, err := framework.GroupSize(framework.TestContext.CloudConfig.NodeInstanceGroup)
@@ -429,9 +429,8 @@ var _ = SIGDescribe("Pod Disks", func() {
 			podClient.Delete(host0Pod.Name, metav1.NewDeleteOptions(0))
 			detachAndDeletePDs(diskName, []types.NodeName{host0Name})
 			framework.WaitForNodeToBeReady(f.ClientSet, string(host0Name), nodeStatusTimeout)
-			framework.WaitForAllNodesSchedulable(f.ClientSet, nodeStatusTimeout)
 			nodes = framework.GetReadySchedulableNodesOrDie(f.ClientSet)
-			Expect(len(nodes.Items)).To(Equal(initialGroupSize), "Requires node count to return to initial group size.")
+			Expect(len(nodes.Items)).To(Equal(initialGroupSize))
 		}()
 
 		By("submitting host0Pod to kubernetes")
@@ -449,17 +448,17 @@ var _ = SIGDescribe("Pod Disks", func() {
 		// Verify that disk shows up in node 0's volumeInUse list
 		framework.ExpectNoError(waitForPDInVolumesInUse(nodeClient, diskName, host0Name, nodeStatusTimeout, true /* should exist*/))
 
-		output, err := exec.Command("gcloud", "compute", "instances", "list", "--project="+framework.TestContext.CloudConfig.ProjectID).CombinedOutput()
-		framework.ExpectNoError(err, fmt.Sprintf("Unable to get list of node instances err=%v output=%s", err, output))
+		output, err := exec.Command("gcloud", "compute", "instances", "list").CombinedOutput()
+		framework.ExpectNoError(err, fmt.Sprintf("Unable to get list of node instances %v", err))
 		Expect(true, strings.Contains(string(output), string(host0Name)))
 
 		By("deleting host0")
 
 		output, err = exec.Command("gcloud", "compute", "instances", "delete", string(host0Name), "--project="+framework.TestContext.CloudConfig.ProjectID, "--zone="+framework.TestContext.CloudConfig.Zone).CombinedOutput()
-		framework.ExpectNoError(err, fmt.Sprintf("Failed to delete host0pod: err=%v output=%s", err, output))
+		framework.ExpectNoError(err, fmt.Sprintf("Failed to delete host0pod: %v", err))
 
-		output, err = exec.Command("gcloud", "compute", "instances", "list", "--project="+framework.TestContext.CloudConfig.ProjectID).CombinedOutput()
-		framework.ExpectNoError(err, fmt.Sprintf("Unable to get list of node instances err=%v output=%s", err, output))
+		output, err = exec.Command("gcloud", "compute", "instances", "list").CombinedOutput()
+		framework.ExpectNoError(err, fmt.Sprintf("Unable to get list of node instances %v", err))
 		Expect(false, strings.Contains(string(output), string(host0Name)))
 
 		// The disk should be detached from host0 on it's deletion
@@ -469,7 +468,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		return
 	})
 
-	It("should be able to detach from a node whose api object was deleted [Slow] [Disruptive]", func() {
+	It("should be able to detach from a node whose api object was deleted [Slow] [Disruptive] [Volume]", func() {
 		framework.SkipUnlessProviderIs("gce")
 		initialGroupSize, err := framework.GroupSize(framework.TestContext.CloudConfig.NodeInstanceGroup)
 		framework.ExpectNoError(err, "Error getting group size")
@@ -481,7 +480,7 @@ var _ = SIGDescribe("Pod Disks", func() {
 		originalCount := len(nodes.Items)
 		containerName := "mycontainer"
 		nodeToDelete := &nodes.Items[0]
-		defer func() {
+		defer func() error {
 			By("Cleaning up PD-RW test env")
 			detachAndDeletePDs(diskName, []types.NodeName{host0Name})
 			nodeToDelete.ObjectMeta.SetResourceVersion("0")
@@ -490,9 +489,11 @@ var _ = SIGDescribe("Pod Disks", func() {
 			framework.ExpectNoError(err, "Unable to re-create the deleted node")
 			framework.ExpectNoError(framework.WaitForGroupSize(framework.TestContext.CloudConfig.NodeInstanceGroup, int32(initialGroupSize)), "Unable to get the node group back to the original size")
 			framework.WaitForNodeToBeReady(f.ClientSet, nodeToDelete.Name, nodeStatusTimeout)
-			framework.WaitForAllNodesSchedulable(f.ClientSet, nodeStatusTimeout)
 			nodes = framework.GetReadySchedulableNodesOrDie(f.ClientSet)
-			Expect(len(nodes.Items)).To(Equal(originalCount), "Requires node count to return to original node count.")
+			if len(nodes.Items) != originalCount {
+				return fmt.Errorf("The node count is not back to original count")
+			}
+			return nil
 		}()
 
 		By("submitting host0Pod to kubernetes")
@@ -619,7 +620,7 @@ func testPDPod(diskNames []string, targetNode types.NodeName, readOnly bool, num
 	pod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
-			APIVersion: testapi.Groups[v1.GroupName].GroupVersion().String(),
+			APIVersion: api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pd-test-" + string(uuid.NewUUID()),

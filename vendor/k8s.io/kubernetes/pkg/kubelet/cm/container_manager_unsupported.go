@@ -64,10 +64,6 @@ func (cm *unsupportedContainerManager) GetNodeAllocatableReservation() v1.Resour
 	return nil
 }
 
-func (cm *unsupportedContainerManager) GetCapacity() v1.ResourceList {
-	return nil
-}
-
 func (cm *unsupportedContainerManager) NewPodContainerManager() PodContainerManager {
 	return &unsupportedPodContainerManager{}
 }

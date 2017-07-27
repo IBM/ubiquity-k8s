@@ -38,11 +38,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/controller/garbagecollector/metaonly"
 )
 
@@ -272,7 +272,7 @@ func TestProcessEvent(t *testing.T) {
 	var testScenarios = []struct {
 		name string
 		// a series of events that will be supplied to the
-		// GraphBuilder.graphChanges.
+		// GraphBuilder.eventQueue.
 		events []event
 	}{
 		{

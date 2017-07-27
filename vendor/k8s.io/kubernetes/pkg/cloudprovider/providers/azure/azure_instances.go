@@ -29,29 +29,10 @@ import (
 
 // NodeAddresses returns the addresses of the specified instance.
 func (az *Cloud) NodeAddresses(name types.NodeName) ([]v1.NodeAddress, error) {
-	if az.UseInstanceMetadata {
-		text, err := QueryMetadataText("instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress")
-		if err != nil {
-			return nil, err
-		}
-		return []v1.NodeAddress{
-			{Type: v1.NodeInternalIP, Address: text},
-			{Type: v1.NodeHostName, Address: string(name)},
-		}, nil
-	}
 	ip, err := az.getIPForMachine(name)
 	if err != nil {
-		if az.CloudProviderBackoff {
-			glog.V(2).Infof("NodeAddresses(%s) backing off", name)
-			ip, err = az.GetIPForMachineWithRetry(name)
-			if err != nil {
-				glog.V(2).Infof("NodeAddresses(%s) abort backoff", name)
-				return nil, err
-			}
-		} else {
-			glog.Errorf("error: az.NodeAddresses, az.getIPForMachine(%s), err=%v", name, err)
-			return nil, err
-		}
+		glog.Errorf("error: az.NodeAddresses, az.getIPForMachine(%s), err=%v", name, err)
+		return nil, err
 	}
 
 	return []v1.NodeAddress{
@@ -145,9 +126,7 @@ func (az *Cloud) listAllNodesInResourceGroup() ([]compute.VirtualMachine, error)
 	allNodes := []compute.VirtualMachine{}
 
 	az.operationPollRateLimiter.Accept()
-	glog.V(10).Infof("VirtualMachinesClient.List(%s): start", az.ResourceGroup)
 	result, err := az.VirtualMachinesClient.List(az.ResourceGroup)
-	glog.V(10).Infof("VirtualMachinesClient.List(%s): end", az.ResourceGroup)
 	if err != nil {
 		glog.Errorf("error: az.listAllNodesInResourceGroup(), az.VirtualMachinesClient.List(%s), err=%v", az.ResourceGroup, err)
 		return nil, err
@@ -159,9 +138,7 @@ func (az *Cloud) listAllNodesInResourceGroup() ([]compute.VirtualMachine, error)
 		allNodes = append(allNodes, *result.Value...)
 
 		az.operationPollRateLimiter.Accept()
-		glog.V(10).Infof("VirtualMachinesClient.ListAllNextResults(%v): start", az.ResourceGroup)
 		result, err = az.VirtualMachinesClient.ListAllNextResults(result)
-		glog.V(10).Infof("VirtualMachinesClient.ListAllNextResults(%v): end", az.ResourceGroup)
 		if err != nil {
 			glog.Errorf("error: az.listAllNodesInResourceGroup(), az.VirtualMachinesClient.ListAllNextResults(%v), err=%v", result, err)
 			return nil, err

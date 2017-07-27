@@ -13,7 +13,7 @@ go_test(
     srcs = ["scheme_test.go"],
     library = ":go_default_library",
     tags = ["automanaged"],
-    deps = ["//vendor/k8s.io/apimachinery/pkg/api/testing/roundtrip:go_default_library"],
+    deps = ["//vendor/k8s.io/apimachinery/pkg/api/testing:go_default_library"],
 )
 
 go_library(
@@ -33,8 +33,6 @@ go_library(
         "//vendor/k8s.io/sample-apiserver/pkg/apis/wardle:go_default_library",
         "//vendor/k8s.io/sample-apiserver/pkg/apis/wardle/install:go_default_library",
         "//vendor/k8s.io/sample-apiserver/pkg/apis/wardle/v1alpha1:go_default_library",
-        "//vendor/k8s.io/sample-apiserver/pkg/registry:go_default_library",
-        "//vendor/k8s.io/sample-apiserver/pkg/registry/wardle/fischer:go_default_library",
-        "//vendor/k8s.io/sample-apiserver/pkg/registry/wardle/flunder:go_default_library",
+        "//vendor/k8s.io/sample-apiserver/pkg/registry/wardle:go_default_library",
     ],
 )

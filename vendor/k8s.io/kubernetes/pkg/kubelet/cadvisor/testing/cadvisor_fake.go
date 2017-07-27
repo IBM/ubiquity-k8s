@@ -25,7 +25,6 @@ import (
 
 // Fake cAdvisor implementation.
 type Fake struct {
-	NodeName string
 }
 
 var _ cadvisor.Interface = new(Fake)
@@ -55,7 +54,6 @@ func (c *Fake) MachineInfo() (*cadvisorapi.MachineInfo, error) {
 	// We set it to non-zero values to make non-zero-capacity machines in Kubemark.
 	return &cadvisorapi.MachineInfo{
 		NumCores:       1,
-		InstanceID:     cadvisorapi.InstanceID(c.NodeName),
 		MemoryCapacity: 4026531840,
 	}, nil
 }
@@ -74,8 +72,4 @@ func (c *Fake) RootFsInfo() (cadvisorapiv2.FsInfo, error) {
 
 func (c *Fake) WatchEvents(request *events.Request) (*events.EventChannel, error) {
 	return new(events.EventChannel), nil
-}
-
-func (c *Fake) HasDedicatedImageFs() (bool, error) {
-	return false, nil
 }

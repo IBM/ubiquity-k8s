@@ -100,7 +100,7 @@ func PrintSuccess(mapper meta.RESTMapper, shortOutput bool, out io.Writer, resou
 func ValidateOutputArgs(cmd *cobra.Command) error {
 	outputMode := GetFlagString(cmd, "output")
 	if outputMode != "" && outputMode != "name" {
-		return UsageErrorf(cmd, "Unexpected -o output mode: %v. We only support '-o name'.", outputMode)
+		return UsageError(cmd, "Unexpected -o output mode: %v. We only support '-o name'.", outputMode)
 	}
 	return nil
 }
@@ -160,10 +160,8 @@ func extractOutputOptions(cmd *cobra.Command) *printers.OutputOptions {
 	// templates are logically optional for specifying a format.
 	// TODO once https://github.com/kubernetes/kubernetes/issues/12668 is fixed, this should fall back to GetFlagString
 	var templateFile string
-	if flag := flags.Lookup("template"); flag != nil {
-		if flag.Value.Type() == "string" {
-			templateFile = GetFlagString(cmd, "template")
-		}
+	if flags.Lookup("template") != nil {
+		templateFile = GetFlagString(cmd, "template")
 	}
 	if len(outputFormat) == 0 && len(templateFile) != 0 {
 		outputFormat = "template"

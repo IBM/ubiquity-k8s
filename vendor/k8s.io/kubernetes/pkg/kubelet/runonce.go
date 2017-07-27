@@ -35,7 +35,6 @@ const (
 	runOnceRetryDelayBackoff = 2
 )
 
-// RunPodResult defines the running results of a Pod.
 type RunPodResult struct {
 	Pod *v1.Pod
 	Err error

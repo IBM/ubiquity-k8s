@@ -120,12 +120,20 @@ mkcp "pkg/client/informers/informers_generated/externalversions" "pkg/client/inf
 mkcp "pkg/client/listers" "pkg/client"
 # remove internalversion listers
 find "${CLIENT_REPO_TEMP}/pkg/client/listers/" -maxdepth 2 -mindepth 2 -name internalversion -exec rm -r {} \;
+mkcp "pkg/api/v1/ref" "pkg/api/v1"
 
 echo "rewriting imports"
 grep -Rl "\"${MAIN_REPO_FROM_SRC}" "${CLIENT_REPO_TEMP}" | \
   grep "\.go" | \
   grep -v "vendor/" | \
   xargs ${SED} -i "s|\"${MAIN_REPO_FROM_SRC}|\"${CLIENT_REPO_FROM_SRC}|g"
+
+# strip all generator tags from client-go
+find "${CLIENT_REPO_TEMP}" -type f -name "*.go" -print0 | xargs -0 ${SED} -i '/^\/\/ +k8s:openapi-gen=true/d'
+find "${CLIENT_REPO_TEMP}" -type f -name "*.go" -print0 | xargs -0 ${SED} -i '/^\/\/ +k8s:defaulter-gen=/d'
+find "${CLIENT_REPO_TEMP}" -type f -name "*.go" -print0 | xargs -0 ${SED} -i '/^\/\/ +k8s:deepcopy-gen=/d'
+find "${CLIENT_REPO_TEMP}" -type f -name "*.go" -print0 | xargs -0 ${SED} -i '/^\/\/ +k8s:conversion-gen=/d'
+
 
 echo "rearranging directory layout"
 # $1 and $2 are relative to ${CLIENT_REPO_TEMP}

@@ -89,7 +89,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 				return
 			}
 			By("Deleting ingress")
-			jig.TryDeleteIngress()
+			jig.DeleteIngress()
 
 			By("Cleaning up cloud resources")
 			framework.CleanupGCEIngressController(gceController)
@@ -124,12 +124,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 
 			By("should have correct firewall rule for ingress")
 			fw := gceController.GetFirewallRule()
-			nodeTags := []string{cloudConfig.NodeTag}
-			if framework.TestContext.Provider != "gce" {
-				// nodeTags would be different in GKE.
-				nodeTags = framework.GetNodeTags(jig.Client, cloudConfig)
-			}
-			expFw := jig.ConstructFirewallForIngress(gceController, nodeTags)
+			expFw := jig.ConstructFirewallForIngress(gceController, cloudConfig.NodeTag)
 			// Passed the last argument as `true` to verify the backend ports is a subset
 			// of the allowed ports in firewall rule, given there may be other existing
 			// ingress resources and backends we are not aware of.
@@ -184,7 +179,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 				return
 			}
 			By("Deleting ingress")
-			jig.TryDeleteIngress()
+			jig.DeleteIngress()
 		})
 
 		It("should conform to Ingress spec", func() {

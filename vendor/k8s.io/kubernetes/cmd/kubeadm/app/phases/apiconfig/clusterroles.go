@@ -46,6 +46,8 @@ const (
 	nodeAutoApproveBootstrap = "kubeadm:node-autoapprove-bootstrap"
 )
 
+// TODO: Are there any unit tests that could be made for this file other than duplicating all values and logic in a separate file?
+
 // CreateServiceAccounts creates the necessary serviceaccounts that kubeadm uses/might use, if they don't already exist.
 func CreateServiceAccounts(clientset clientset.Interface) error {
 	serviceAccounts := []v1.ServiceAccount{
@@ -103,7 +105,7 @@ func createRoles(clientset *clientset.Clientset) error {
 				Namespace: metav1.NamespacePublic,
 			},
 			Rules: []rbac.PolicyRule{
-				rbachelper.NewRule("get").Groups("").Resources("configmaps").Names("cluster-info").RuleOrDie(),
+				rbachelper.NewRule("get").Groups("").Resources("configmaps").RuleOrDie(),
 			},
 		},
 	}

@@ -26,18 +26,15 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/informers"
-	clientset "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	utiltesting "k8s.io/client-go/util/testing"
 	"k8s.io/kubernetes/pkg/api"
-	_ "k8s.io/kubernetes/pkg/api/install"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	schedulerapi "k8s.io/kubernetes/plugin/pkg/scheduler/api"
 	latestschedulerapi "k8s.io/kubernetes/plugin/pkg/scheduler/api/latest"
 	"k8s.io/kubernetes/plugin/pkg/scheduler/factory"
 )
-
-const enableEquivalenceCache = true
 
 func TestCompatibility_v1_Scheduler(t *testing.T) {
 	// Add serialized versions of scheduler config that exercise available options to ensure compatibility between releases
@@ -434,7 +431,6 @@ func TestCompatibility_v1_Scheduler(t *testing.T) {
 			informerFactory.Apps().V1beta1().StatefulSets(),
 			informerFactory.Core().V1().Services(),
 			v1.DefaultHardPodAffinitySymmetricWeight,
-			enableEquivalenceCache,
 		).CreateFromConfig(policy); err != nil {
 			t.Errorf("%s: Error constructing: %v", v, err)
 			continue

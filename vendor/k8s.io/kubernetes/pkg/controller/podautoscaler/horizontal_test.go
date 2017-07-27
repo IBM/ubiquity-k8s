@@ -34,12 +34,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes/fake"
 	clientfake "k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/autoscaling"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/podautoscaler/metrics"
 	metricsfake "k8s.io/metrics/pkg/client/clientset_generated/clientset/fake"
@@ -983,25 +983,6 @@ func TestMinReplicas(t *testing.T) {
 		desiredReplicas:     2,
 		CPUTarget:           90,
 		reportedLevels:      []uint64{10, 95, 10},
-		reportedCPURequests: []resource.Quantity{resource.MustParse("0.9"), resource.MustParse("1.0"), resource.MustParse("1.1")},
-		useMetricsApi:       true,
-		expectedConditions: statusOkWithOverrides(autoscalingv2.HorizontalPodAutoscalerCondition{
-			Type:   autoscalingv2.ScalingLimited,
-			Status: v1.ConditionTrue,
-			Reason: "TooFewReplicas",
-		}),
-	}
-	tc.runTest(t)
-}
-
-func TestMinReplicasDesiredZero(t *testing.T) {
-	tc := testCase{
-		minReplicas:         2,
-		maxReplicas:         5,
-		initialReplicas:     3,
-		desiredReplicas:     2,
-		CPUTarget:           90,
-		reportedLevels:      []uint64{0, 0, 0},
 		reportedCPURequests: []resource.Quantity{resource.MustParse("0.9"), resource.MustParse("1.0"), resource.MustParse("1.1")},
 		useMetricsApi:       true,
 		expectedConditions: statusOkWithOverrides(autoscalingv2.HorizontalPodAutoscalerCondition{

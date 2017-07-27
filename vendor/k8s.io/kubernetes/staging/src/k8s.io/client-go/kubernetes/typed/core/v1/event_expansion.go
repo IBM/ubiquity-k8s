@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ref "k8s.io/client-go/tools/reference"
+	"k8s.io/client-go/pkg/api/v1/ref"
 )
 
 // The EventExpansion interface allows manually adding extra methods to the EventInterface.

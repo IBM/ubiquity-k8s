@@ -73,7 +73,3 @@ func (cu *cadvisorClient) RootFsInfo() (cadvisorapiv2.FsInfo, error) {
 func (cu *cadvisorClient) WatchEvents(request *events.Request) (*events.EventChannel, error) {
 	return &events.EventChannel{}, nil
 }
-
-func (cu *cadvisorClient) HasDedicatedImageFs() (bool, error) {
-	return false, nil
-}

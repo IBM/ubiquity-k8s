@@ -25,9 +25,8 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	dockertypes "github.com/docker/docker/api/types"
-	dockercontainer "github.com/docker/docker/api/types/container"
-	dockerfilters "github.com/docker/docker/api/types/filters"
+	dockertypes "github.com/docker/engine-api/types"
+	dockerfilters "github.com/docker/engine-api/types/filters"
 	dockernat "github.com/docker/go-connections/nat"
 	"github.com/golang/glog"
 
@@ -153,8 +152,8 @@ func generateMountBindings(mounts []*runtimeapi.Mount) []string {
 	return result
 }
 
-func makePortsAndBindings(pm []*runtimeapi.PortMapping) (dockernat.PortSet, map[dockernat.Port][]dockernat.PortBinding) {
-	exposedPorts := dockernat.PortSet{}
+func makePortsAndBindings(pm []*runtimeapi.PortMapping) (map[dockernat.Port]struct{}, map[dockernat.Port][]dockernat.PortBinding) {
+	exposedPorts := map[dockernat.Port]struct{}{}
 	portBindings := map[dockernat.Port][]dockernat.PortBinding{}
 	for _, port := range pm {
 		exteriorPort := port.HostPort
@@ -281,7 +280,7 @@ func getUserFromImageUser(imageUser string) (*int64, string) {
 // In that case we have to create the container with a randomized name.
 // TODO(random-liu): Remove this work around after docker 1.11 is deprecated.
 // TODO(#33189): Monitor the tests to see if the fix is sufficient.
-func recoverFromCreationConflictIfNeeded(client libdocker.Interface, createConfig dockertypes.ContainerCreateConfig, err error) (*dockercontainer.ContainerCreateCreatedBody, error) {
+func recoverFromCreationConflictIfNeeded(client libdocker.Interface, createConfig dockertypes.ContainerCreateConfig, err error) (*dockertypes.ContainerCreateResponse, error) {
 	matches := conflictRE.FindStringSubmatch(err.Error())
 	if len(matches) != 2 {
 		return nil, err

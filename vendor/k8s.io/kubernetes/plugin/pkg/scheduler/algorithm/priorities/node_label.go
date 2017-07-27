@@ -51,7 +51,7 @@ func (n *NodeLabelPrioritizer) CalculateNodeLabelPriorityMap(pod *v1.Pod, meta i
 	exists := labels.Set(node.Labels).Has(n.label)
 	score := 0
 	if (exists && n.presence) || (!exists && !n.presence) {
-		score = schedulerapi.MaxPriority
+		score = 10
 	}
 	return schedulerapi.HostPriority{
 		Host:  node.Name,

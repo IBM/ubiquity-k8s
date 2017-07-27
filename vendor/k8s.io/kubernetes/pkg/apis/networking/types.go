@@ -23,7 +23,6 @@ import (
 )
 
 // +genclient=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NetworkPolicy describes what network traffic is allowed for a set of Pods
 type NetworkPolicy struct {
@@ -105,8 +104,6 @@ type NetworkPolicyPeer struct {
 	// +optional
 	NamespaceSelector *metav1.LabelSelector
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // NetworkPolicyList is a list of NetworkPolicy objects.
 type NetworkPolicyList struct {

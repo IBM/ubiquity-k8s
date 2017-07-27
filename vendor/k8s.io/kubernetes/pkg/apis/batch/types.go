@@ -22,7 +22,6 @@ import (
 )
 
 // +genclient=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Job represents the configuration of a single job.
 type Job struct {
@@ -43,8 +42,6 @@ type Job struct {
 	Status JobStatus
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // JobList is a collection of jobs.
 type JobList struct {
 	metav1.TypeMeta
@@ -56,8 +53,6 @@ type JobList struct {
 	// items is the list of Jobs.
 	Items []Job
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // JobTemplate describes a template for creating copies of a predefined pod.
 type JobTemplate struct {
@@ -193,7 +188,6 @@ type JobCondition struct {
 }
 
 // +genclient=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CronJob represents the configuration of a single cron job.
 type CronJob struct {
@@ -213,8 +207,6 @@ type CronJob struct {
 	// +optional
 	Status CronJobStatus
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CronJobList is a collection of cron jobs.
 type CronJobList struct {

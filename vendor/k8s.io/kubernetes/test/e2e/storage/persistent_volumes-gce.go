@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
 
@@ -51,7 +51,7 @@ func initializeGCETestSpec(c clientset.Interface, ns string, pvConfig framework.
 }
 
 // Testing configurations of single a PV/PVC pair attached to a GCE PD
-var _ = SIGDescribe("PersistentVolumes:GCEPD", func() {
+var _ = framework.KubeDescribe("PersistentVolumes:GCEPD [Volume]", func() {
 	var (
 		c         clientset.Interface
 		diskName  string

@@ -234,7 +234,8 @@ func (ed *emptyDir) SetUpAt(dir string, fsGroup *int64) error {
 	return err
 }
 
-// setupTmpfs creates a tmpfs mount at the specified directory.
+// setupTmpfs creates a tmpfs mount at the specified directory with the
+// specified SELinux context.
 func (ed *emptyDir) setupTmpfs(dir string) error {
 	if ed.mounter == nil {
 		return fmt.Errorf("memory storage requested, but mounter is nil")
@@ -257,7 +258,8 @@ func (ed *emptyDir) setupTmpfs(dir string) error {
 	return ed.mounter.Mount("tmpfs", dir, "tmpfs", nil /* options */)
 }
 
-// setupDir creates the directory with the default permissions specified by the perm constant.
+// setupDir creates the directory with the specified SELinux context and
+// the default permissions specified by the perm constant.
 func (ed *emptyDir) setupDir(dir string) error {
 	// Create the directory if it doesn't already exist.
 	if err := os.MkdirAll(dir, perm); err != nil {

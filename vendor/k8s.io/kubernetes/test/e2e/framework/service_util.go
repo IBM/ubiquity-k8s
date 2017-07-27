@@ -35,8 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/retry"
 	testutils "k8s.io/kubernetes/test/utils"
@@ -174,31 +173,6 @@ func (j *ServiceTestJig) CreateUDPServiceOrFail(namespace string, tweak func(svc
 	result, err := j.Client.Core().Services(namespace).Create(svc)
 	if err != nil {
 		Failf("Failed to create UDP Service %q: %v", svc.Name, err)
-	}
-	return result
-}
-
-// CreateExternalNameServiceOrFail creates a new ExternalName type Service based on the jig's defaults.
-// Callers can provide a function to tweak the Service object before it is created.
-func (j *ServiceTestJig) CreateExternalNameServiceOrFail(namespace string, tweak func(svc *v1.Service)) *v1.Service {
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      j.Name,
-			Labels:    j.Labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector:     j.Labels,
-			ExternalName: "foo.example.com",
-			Type:         v1.ServiceTypeExternalName,
-		},
-	}
-	if tweak != nil {
-		tweak(svc)
-	}
-	result, err := j.Client.Core().Services(namespace).Create(svc)
-	if err != nil {
-		Failf("Failed to create ExternalName Service %q: %v", svc.Name, err)
 	}
 	return result
 }
@@ -399,22 +373,8 @@ func (j *ServiceTestJig) SanityCheckService(svc *v1.Service, svcType v1.ServiceT
 	if svc.Spec.Type != svcType {
 		Failf("unexpected Spec.Type (%s) for service, expected %s", svc.Spec.Type, svcType)
 	}
-
-	if svcType != v1.ServiceTypeExternalName {
-		if svc.Spec.ExternalName != "" {
-			Failf("unexpected Spec.ExternalName (%s) for service, expected empty", svc.Spec.ExternalName)
-		}
-		if svc.Spec.ClusterIP != api.ClusterIPNone && svc.Spec.ClusterIP == "" {
-			Failf("didn't get ClusterIP for non-ExternamName service")
-		}
-	} else {
-		if svc.Spec.ClusterIP != "" {
-			Failf("unexpected Spec.ClusterIP (%s) for ExternamName service, expected empty", svc.Spec.ClusterIP)
-		}
-	}
-
 	expectNodePorts := false
-	if svcType != v1.ServiceTypeClusterIP && svcType != v1.ServiceTypeExternalName {
+	if svcType != v1.ServiceTypeClusterIP {
 		expectNodePorts = true
 	}
 	for i, port := range svc.Spec.Ports {
@@ -1340,17 +1300,17 @@ func VerifyServeHostnameServiceDown(c clientset.Interface, host string, serviceI
 	return fmt.Errorf("waiting for service to be down timed out")
 }
 
-func CleanupServiceResources(c clientset.Interface, loadBalancerName, zone string) {
+func CleanupServiceResources(loadBalancerName, zone string) {
 	if TestContext.Provider == "gce" || TestContext.Provider == "gke" {
-		CleanupServiceGCEResources(c, loadBalancerName, zone)
+		CleanupServiceGCEResources(loadBalancerName, zone)
 	}
 
 	// TODO: we need to add this function with other cloud providers, if there is a need.
 }
 
-func CleanupServiceGCEResources(c clientset.Interface, loadBalancerName, zone string) {
+func CleanupServiceGCEResources(loadBalancerName, zone string) {
 	if pollErr := wait.Poll(5*time.Second, LoadBalancerCleanupTimeout, func() (bool, error) {
-		if err := CleanupGCEResources(c, loadBalancerName, zone); err != nil {
+		if err := CleanupGCEResources(loadBalancerName, zone); err != nil {
 			Logf("Still waiting for glbc to cleanup: %v", err)
 			return false, nil
 		}

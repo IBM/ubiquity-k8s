@@ -25,7 +25,7 @@ import (
 	storage "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stype "k8s.io/apimachinery/pkg/types"
-	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/vsphere"
 	"k8s.io/kubernetes/test/e2e/framework"
 )
@@ -45,7 +45,7 @@ import (
 	9. Delete PVC, PV and Storage Class.
 */
 
-var _ = SIGDescribe("vsphere Volume fstype", func() {
+var _ = framework.KubeDescribe("vsphere Volume fstype [Volume]", func() {
 	f := framework.NewDefaultFramework("volume-fstype")
 	var (
 		client       clientset.Interface

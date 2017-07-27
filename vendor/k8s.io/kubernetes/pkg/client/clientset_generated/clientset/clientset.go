@@ -38,7 +38,6 @@ import (
 	policyv1beta1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/policy/v1beta1"
 	rbacv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/rbac/v1alpha1"
 	rbacv1beta1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/rbac/v1beta1"
-	schedulingv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/scheduling/v1alpha1"
 	settingsv1alpha1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/settings/v1alpha1"
 	storagev1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/storage/v1"
 	storagev1beta1 "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/storage/v1beta1"
@@ -87,9 +86,6 @@ type Interface interface {
 	// Deprecated: please explicitly pick a version if possible.
 	Rbac() rbacv1beta1.RbacV1beta1Interface
 	RbacV1alpha1() rbacv1alpha1.RbacV1alpha1Interface
-	SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Scheduling() schedulingv1alpha1.SchedulingV1alpha1Interface
 	SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Settings() settingsv1alpha1.SettingsV1alpha1Interface
@@ -120,7 +116,6 @@ type Clientset struct {
 	*policyv1beta1.PolicyV1beta1Client
 	*rbacv1beta1.RbacV1beta1Client
 	*rbacv1alpha1.RbacV1alpha1Client
-	*schedulingv1alpha1.SchedulingV1alpha1Client
 	*settingsv1alpha1.SettingsV1alpha1Client
 	*storagev1beta1.StorageV1beta1Client
 	*storagev1.StorageV1Client
@@ -370,23 +365,6 @@ func (c *Clientset) RbacV1alpha1() rbacv1alpha1.RbacV1alpha1Interface {
 	return c.RbacV1alpha1Client
 }
 
-// SchedulingV1alpha1 retrieves the SchedulingV1alpha1Client
-func (c *Clientset) SchedulingV1alpha1() schedulingv1alpha1.SchedulingV1alpha1Interface {
-	if c == nil {
-		return nil
-	}
-	return c.SchedulingV1alpha1Client
-}
-
-// Deprecated: Scheduling retrieves the default version of SchedulingClient.
-// Please explicitly pick a version.
-func (c *Clientset) Scheduling() schedulingv1alpha1.SchedulingV1alpha1Interface {
-	if c == nil {
-		return nil
-	}
-	return c.SchedulingV1alpha1Client
-}
-
 // SettingsV1alpha1 retrieves the SettingsV1alpha1Client
 func (c *Clientset) SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface {
 	if c == nil {
@@ -513,10 +491,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
-	cs.SchedulingV1alpha1Client, err = schedulingv1alpha1.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 	cs.SettingsV1alpha1Client, err = settingsv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -559,7 +533,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.PolicyV1beta1Client = policyv1beta1.NewForConfigOrDie(c)
 	cs.RbacV1beta1Client = rbacv1beta1.NewForConfigOrDie(c)
 	cs.RbacV1alpha1Client = rbacv1alpha1.NewForConfigOrDie(c)
-	cs.SchedulingV1alpha1Client = schedulingv1alpha1.NewForConfigOrDie(c)
 	cs.SettingsV1alpha1Client = settingsv1alpha1.NewForConfigOrDie(c)
 	cs.StorageV1beta1Client = storagev1beta1.NewForConfigOrDie(c)
 	cs.StorageV1Client = storagev1.NewForConfigOrDie(c)
@@ -588,7 +561,6 @@ func New(c rest.Interface) *Clientset {
 	cs.PolicyV1beta1Client = policyv1beta1.New(c)
 	cs.RbacV1beta1Client = rbacv1beta1.New(c)
 	cs.RbacV1alpha1Client = rbacv1alpha1.New(c)
-	cs.SchedulingV1alpha1Client = schedulingv1alpha1.New(c)
 	cs.SettingsV1alpha1Client = settingsv1alpha1.New(c)
 	cs.StorageV1beta1Client = storagev1beta1.New(c)
 	cs.StorageV1Client = storagev1.New(c)

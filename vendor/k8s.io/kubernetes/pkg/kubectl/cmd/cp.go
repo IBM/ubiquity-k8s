@@ -18,7 +18,7 @@ package cmd
 
 import (
 	"archive/tar"
-	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -80,17 +80,13 @@ type fileSpec struct {
 	File         string
 }
 
-var errFileSpecDoesntMatchFormat = errors.New("Filespec must match the canonical format: [[namespace/]pod:]file/path")
-
 func extractFileSpec(arg string) (fileSpec, error) {
 	pieces := strings.Split(arg, ":")
 	if len(pieces) == 1 {
 		return fileSpec{File: arg}, nil
 	}
 	if len(pieces) != 2 {
-		// FIXME Kubernetes can't copy files that contain a ':'
-		// character.
-		return fileSpec{}, errFileSpecDoesntMatchFormat
+		return fileSpec{}, fmt.Errorf("Unexpected fileSpec: %s, expected [[namespace/]pod:]file/path", arg)
 	}
 	file := pieces[1]
 
@@ -109,12 +105,12 @@ func extractFileSpec(arg string) (fileSpec, error) {
 		}, nil
 	}
 
-	return fileSpec{}, errFileSpecDoesntMatchFormat
+	return fileSpec{}, fmt.Errorf("Unexpected file spec: %s, expected [[namespace/]pod:]file/path", arg)
 }
 
 func runCopy(f cmdutil.Factory, cmd *cobra.Command, out, cmderr io.Writer, args []string) error {
 	if len(args) != 2 {
-		return cmdutil.UsageErrorf(cmd, cpUsageStr)
+		return cmdutil.UsageError(cmd, cpUsageStr)
 	}
 	srcSpec, err := extractFileSpec(args[0])
 	if err != nil {
@@ -130,7 +126,7 @@ func runCopy(f cmdutil.Factory, cmd *cobra.Command, out, cmderr io.Writer, args 
 	if len(destSpec.PodName) != 0 {
 		return copyToPod(f, cmd, out, cmderr, srcSpec, destSpec)
 	}
-	return cmdutil.UsageErrorf(cmd, "One of src or dest must be a remote file specification")
+	return cmdutil.UsageError(cmd, "One of src or dest must be a remote file specification")
 }
 
 func copyToPod(f cmdutil.Factory, cmd *cobra.Command, stdout, stderr io.Writer, src, dest fileSpec) error {

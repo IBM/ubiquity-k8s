@@ -22,9 +22,11 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	dockercontainer "github.com/docker/docker/api/types/container"
+	dockercontainer "github.com/docker/engine-api/types/container"
 
+	"k8s.io/api/core/v1"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1/runtime"
+	"k8s.io/kubernetes/pkg/kubelet/dockershim/securitycontext"
 	knetwork "k8s.io/kubernetes/pkg/kubelet/network"
 )
 
@@ -99,9 +101,14 @@ func modifyHostConfig(sc *runtimeapi.LinuxContainerSecurityContext, hostConfig *
 		hostConfig.CapDrop = sc.GetCapabilities().DropCapabilities
 	}
 	if sc.SelinuxOptions != nil {
-		hostConfig.SecurityOpt = addSELinuxOptions(
+		hostConfig.SecurityOpt = securitycontext.ModifySecurityOptions(
 			hostConfig.SecurityOpt,
-			sc.SelinuxOptions,
+			&v1.SELinuxOptions{
+				User:  sc.SelinuxOptions.User,
+				Role:  sc.SelinuxOptions.Role,
+				Type:  sc.SelinuxOptions.Type,
+				Level: sc.SelinuxOptions.Level,
+			},
 			separator,
 		)
 	}

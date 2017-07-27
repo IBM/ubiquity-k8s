@@ -17,11 +17,7 @@ limitations under the License.
 package azure
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -560,7 +556,7 @@ func TestProtocolTranslationTCP(t *testing.T) {
 	if *transportProto != network.TransportProtocolTCP {
 		t.Errorf("Expected TCP LoadBalancer Rule Protocol. Got %v", transportProto)
 	}
-	if *securityGroupProto != network.SecurityRuleProtocolTCP {
+	if *securityGroupProto != network.TCP {
 		t.Errorf("Expected TCP SecurityGroup Protocol. Got %v", transportProto)
 	}
 	if *probeProto != network.ProbeProtocolTCP {
@@ -574,7 +570,7 @@ func TestProtocolTranslationUDP(t *testing.T) {
 	if *transportProto != network.TransportProtocolUDP {
 		t.Errorf("Expected UDP LoadBalancer Rule Protocol. Got %v", transportProto)
 	}
-	if *securityGroupProto != network.SecurityRuleProtocolUDP {
+	if *securityGroupProto != network.UDP {
 		t.Errorf("Expected UDP SecurityGroup Protocol. Got %v", transportProto)
 	}
 	if probeProto != nil {
@@ -589,8 +585,6 @@ func TestNewCloudFromJSON(t *testing.T) {
 		"subscriptionId": "--subscription-id--",
 		"aadClientId": "--aad-client-id--",
 		"aadClientSecret": "--aad-client-secret--",
-		"aadClientCertPath": "--aad-client-cert-path--",
-		"aadClientCertPassword": "--aad-client-cert-password--",
 		"resourceGroup": "--resource-group--",
 		"location": "--location--",
 		"subnetName": "--subnet-name--",
@@ -612,20 +606,15 @@ func TestNewCloudFromJSON(t *testing.T) {
 
 // Test Backoff and Rate Limit defaults (json)
 func TestCloudDefaultConfigFromJSON(t *testing.T) {
-	config := `{
-                "aadClientId": "--aad-client-id--",
-                "aadClientSecret": "--aad-client-secret--"
-        }`
+	config := `{}`
 
 	validateEmptyConfig(t, config)
 }
 
 // Test Backoff and Rate Limit defaults (yaml)
 func TestCloudDefaultConfigFromYAML(t *testing.T) {
-	config := `
-aadClientId: --aad-client-id--
-aadClientSecret: --aad-client-secret--
-`
+	config := ``
+
 	validateEmptyConfig(t, config)
 }
 
@@ -636,8 +625,6 @@ tenantId: --tenant-id--
 subscriptionId: --subscription-id--
 aadClientId: --aad-client-id--
 aadClientSecret: --aad-client-secret--
-aadClientCertPath: --aad-client-cert-path--
-aadClientCertPassword: --aad-client-cert-password--
 resourceGroup: --resource-group--
 location: --location--
 subnetName: --subnet-name--
@@ -671,12 +658,6 @@ func validateConfig(t *testing.T, config string) {
 	}
 	if azureCloud.AADClientSecret != "--aad-client-secret--" {
 		t.Errorf("got incorrect value for AADClientSecret")
-	}
-	if azureCloud.AADClientCertPath != "--aad-client-cert-path--" {
-		t.Errorf("got incorrect value for AADClientCertPath")
-	}
-	if azureCloud.AADClientCertPassword != "--aad-client-cert-password--" {
-		t.Errorf("got incorrect value for AADClientCertPassword")
 	}
 	if azureCloud.ResourceGroup != "--resource-group--" {
 		t.Errorf("got incorrect value for ResourceGroup")
@@ -818,62 +799,5 @@ func TestSplitProviderID(t *testing.T) {
 			t.Errorf("Expected %v, but got %v", test.name, name)
 		}
 
-	}
-}
-
-func TestMetadataParsing(t *testing.T) {
-	data := `
-{
-    "interface": [
-      {
-        "ipv4": {
-          "ipAddress": [
-            {
-              "privateIpAddress": "10.0.1.4",
-              "publicIpAddress": "X.X.X.X"
-            }
-          ],
-          "subnet": [
-            {
-              "address": "10.0.1.0",
-              "prefix": "24"
-            }
-          ]
-        },
-        "ipv6": {
-          "ipAddress": [
-
-          ]
-        },
-        "macAddress": "002248020E1E"
-      }
-    ]
-}	
-`
-
-	network := NetworkMetadata{}
-	if err := json.Unmarshal([]byte(data), &network); err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	ip := network.Interface[0].IPV4.IPAddress[0].PrivateIP
-	if ip != "10.0.1.4" {
-		t.Errorf("Unexpected value: %s, expected 10.0.1.4", ip)
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, data)
-	}))
-	defer server.Close()
-
-	SetMetadataURLForTesting(server.URL)
-
-	networkJSON := NetworkMetadata{}
-	if err := QueryMetadataJSON("/some/path", &networkJSON); err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	if !reflect.DeepEqual(network, networkJSON) {
-		t.Errorf("Unexpected inequality:\n%#v\nvs\n%#v", network, networkJSON)
 	}
 }

@@ -102,11 +102,6 @@ func (t *TokenAuthenticator) AuthenticateToken(token string) (user.Info, bool, e
 		return nil, false, err
 	}
 
-	if secret.DeletionTimestamp != nil {
-		tokenErrorf(secret, "is deleted and awaiting removal")
-		return nil, false, nil
-	}
-
 	if string(secret.Type) != string(bootstrapapi.SecretTypeBootstrapToken) || secret.Data == nil {
 		tokenErrorf(secret, "has invalid type, expected %s.", bootstrapapi.SecretTypeBootstrapToken)
 		return nil, false, nil

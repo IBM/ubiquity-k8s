@@ -29,15 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/informers"
-	clientset "k8s.io/client-go/kubernetes"
 	clientv1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/testapi"
+	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
+	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/externalversions"
+	corelisters "k8s.io/kubernetes/pkg/client/listers/core/v1"
 	"k8s.io/kubernetes/plugin/cmd/kube-scheduler/app"
 	"k8s.io/kubernetes/plugin/cmd/kube-scheduler/app/options"
 	"k8s.io/kubernetes/plugin/pkg/scheduler"
@@ -49,8 +48,6 @@ import (
 	e2e "k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/integration/framework"
 )
-
-const enableEquivalenceCache = true
 
 type nodeMutationFunc func(t *testing.T, n *v1.Node, nodeLister corelisters.NodeLister, c clientset.Interface)
 
@@ -85,7 +82,7 @@ func TestSchedulerCreationFromConfigMap(t *testing.T) {
 	ns := framework.CreateTestingNamespace("configmap", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	defer clientSet.Core().Nodes().DeleteCollection(nil, metav1.ListOptions{})
 	informerFactory := informers.NewSharedInformerFactory(clientSet, 0)
 
@@ -115,7 +112,7 @@ func TestSchedulerCreationFromConfigMap(t *testing.T) {
 		},
 	}
 
-	policyConfigMap.APIVersion = testapi.Groups[v1.GroupName].GroupVersion().String()
+	policyConfigMap.APIVersion = api.Registry.GroupOrDie(v1.GroupName).GroupVersion.String()
 	clientSet.Core().ConfigMaps(metav1.NamespaceSystem).Create(&policyConfigMap)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -165,7 +162,7 @@ func TestSchedulerCreationFromNonExistentConfigMap(t *testing.T) {
 	ns := framework.CreateTestingNamespace("configmap", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	defer clientSet.Core().Nodes().DeleteCollection(nil, metav1.ListOptions{})
 
 	informerFactory := informers.NewSharedInformerFactory(clientSet, 0)
@@ -202,7 +199,7 @@ func TestSchedulerCreationInLegacyMode(t *testing.T) {
 	ns := framework.CreateTestingNamespace("configmap", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	defer clientSet.Core().Nodes().DeleteCollection(nil, metav1.ListOptions{})
 	informerFactory := informers.NewSharedInformerFactory(clientSet, 0)
 
@@ -244,7 +241,7 @@ func TestUnschedulableNodes(t *testing.T) {
 	ns := framework.CreateTestingNamespace("unschedulable-nodes", s, t)
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	informerFactory := informers.NewSharedInformerFactory(clientSet, 0)
 
 	schedulerConfigFactory := factory.NewConfigFactory(
@@ -259,7 +256,6 @@ func TestUnschedulableNodes(t *testing.T) {
 		informerFactory.Apps().V1beta1().StatefulSets(),
 		informerFactory.Core().V1().Services(),
 		v1.DefaultHardPodAffinitySymmetricWeight,
-		enableEquivalenceCache,
 	)
 	schedulerConfig, err := schedulerConfigFactory.Create()
 	if err != nil {
@@ -524,7 +520,7 @@ func TestMultiScheduler(t *testing.T) {
 			- testPodNoAnnotation2 and testPodWithAnnotationFitsDefault2 should NOT be scheduled
 	*/
 	// 1. create and start default-scheduler
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 
 	// NOTE: This test cannot run in parallel, because it is creating and deleting
 	// non-namespaced objects (Nodes).
@@ -543,7 +539,6 @@ func TestMultiScheduler(t *testing.T) {
 		informerFactory.Apps().V1beta1().StatefulSets(),
 		informerFactory.Core().V1().Services(),
 		v1.DefaultHardPodAffinitySymmetricWeight,
-		enableEquivalenceCache,
 	)
 	schedulerConfig, err := schedulerConfigFactory.Create()
 	if err != nil {
@@ -615,7 +610,7 @@ func TestMultiScheduler(t *testing.T) {
 	}
 
 	// 5. create and start a scheduler with name "foo-scheduler"
-	clientSet2 := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet2 := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	informerFactory2 := informers.NewSharedInformerFactory(clientSet, 0)
 
 	schedulerConfigFactory2 := factory.NewConfigFactory(
@@ -630,7 +625,6 @@ func TestMultiScheduler(t *testing.T) {
 		informerFactory.Apps().V1beta1().StatefulSets(),
 		informerFactory.Core().V1().Services(),
 		v1.DefaultHardPodAffinitySymmetricWeight,
-		enableEquivalenceCache,
 	)
 	schedulerConfig2, err := schedulerConfigFactory2.Create()
 	if err != nil {
@@ -722,7 +716,7 @@ func TestAllocatable(t *testing.T) {
 	defer framework.DeleteTestingNamespace(ns, s, t)
 
 	// 1. create and start default-scheduler
-	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: testapi.Groups[v1.GroupName].GroupVersion()}})
+	clientSet := clientset.NewForConfigOrDie(&restclient.Config{Host: s.URL, ContentConfig: restclient.ContentConfig{GroupVersion: &api.Registry.GroupOrDie(v1.GroupName).GroupVersion}})
 	informerFactory := informers.NewSharedInformerFactory(clientSet, 0)
 
 	// NOTE: This test cannot run in parallel, because it is creating and deleting
@@ -741,7 +735,6 @@ func TestAllocatable(t *testing.T) {
 		informerFactory.Apps().V1beta1().StatefulSets(),
 		informerFactory.Core().V1().Services(),
 		v1.DefaultHardPodAffinitySymmetricWeight,
-		enableEquivalenceCache,
 	)
 	schedulerConfig, err := schedulerConfigFactory.Create()
 	if err != nil {

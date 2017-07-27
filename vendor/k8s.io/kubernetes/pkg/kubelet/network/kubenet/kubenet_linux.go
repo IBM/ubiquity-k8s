@@ -45,9 +45,9 @@ import (
 	"k8s.io/kubernetes/pkg/util/bandwidth"
 	utildbus "k8s.io/kubernetes/pkg/util/dbus"
 	utilebtables "k8s.io/kubernetes/pkg/util/ebtables"
+	utilexec "k8s.io/kubernetes/pkg/util/exec"
 	utiliptables "k8s.io/kubernetes/pkg/util/iptables"
 	utilsysctl "k8s.io/kubernetes/pkg/util/sysctl"
-	utilexec "k8s.io/utils/exec"
 )
 
 const (
@@ -118,8 +118,8 @@ func NewPlugin(networkPluginDir string) network.NetworkPlugin {
 		iptables:          iptInterface,
 		sysctl:            sysctl,
 		vendorDir:         networkPluginDir,
-		hostportSyncer:    hostport.NewHostportSyncer(iptInterface),
-		hostportManager:   hostport.NewHostportManager(iptInterface),
+		hostportSyncer:    hostport.NewHostportSyncer(),
+		hostportManager:   hostport.NewHostportManager(),
 		nonMasqueradeCIDR: "10.0.0.0/8",
 	}
 }
@@ -259,7 +259,7 @@ func (plugin *kubenetNetworkPlugin) Event(name string, details map[string]interf
 	if err == nil {
 		setHairpin := plugin.hairpinMode == componentconfig.HairpinVeth
 		// Set bridge address to first address in IPNet
-		cidr.IP[len(cidr.IP)-1] += 1
+		cidr.IP.To4()[3] += 1
 
 		json := fmt.Sprintf(NET_CONFIG_TEMPLATE, BridgeName, plugin.mtu, network.DefaultInterfaceName, setHairpin, podCIDR, cidr.IP.String())
 		glog.V(2).Infof("CNI network config set to %v", json)
@@ -304,7 +304,7 @@ func (plugin *kubenetNetworkPlugin) Name() string {
 }
 
 func (plugin *kubenetNetworkPlugin) Capabilities() utilsets.Int {
-	return utilsets.NewInt()
+	return utilsets.NewInt(network.NET_PLUGIN_CAPABILITY_SHAPING)
 }
 
 // setup sets up networking through CNI using the given ns/name and sandbox ID.
