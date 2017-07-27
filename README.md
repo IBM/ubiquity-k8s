@@ -34,7 +34,7 @@ Install and configure the Provisioner on one node in the Kubernetes cluster(mini
   TBD * The Provisioner  node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
    
 
-### 2. Downloading and installing the plugin
+### 2. Downloading and installing the Provisioner
 
 * Download and unpack the application package.
 ```bash
@@ -65,101 +65,93 @@ backend = "scbe" # Backend name such as scbe or spectrum-scale
 [UbiquityServer]
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
-
 ```
-
-Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section in order to configure additional parameters that related.
-
-TBD this section need to be move to dedicate SSc file
-==============================
-If you need to use spectrum-scale-nfs backend, you need also to add the spectrum-scale nfs configuration:
-
-```toml
-[SpectrumNfsRemoteConfig]
-ClientConfig = "192.168.1.0/24(Access_Type=RW,Protocols=3:4,Transports=TCP:UDP)"
-```
-Where the ClientConfig contains the CIDR that the node where the volume will be mounted belongs to.
-==============================
 
 ### 4. Running the plugin service
   * Run the service.
 ```bash
-systemctl start ubiquity-docker-plugin    
-```
-  * Restart the Docker engine daemon on the host to let it discover the new plugin. 
-```bash
-service docker restart
+systemctl start ubiquity-k8s-provisioner    
 ```
 
-TBD section below
-==================
-### Available Storage Classes
-These storage classes are described in the YAML files in `deploy` folder:
-* spectrum-scale-fileset - described in `deploy/storage_class_fileset.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets.
-* spectrum-scale-fileset-lightweight - described in `deploy/storage_class_lightweight.yml`, it allows the dynamic provisioner to create volumes out of sub-directories of filesets.
+### Provisioner usage examples
+For examples on how to create and remove Ubiquity volumes(PV and PVC) refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
-* spectrum-scale-fileset-nfs - described in `deploy/storage_class_fileset_nfs.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets based on NFS.
-
-### Usage example:
-In order to test the dynamic provisioner create a storage class:
-```bash
-kubectl create -f deploy/storage_class_fileset.yml
-```
-
-The class is referring to `ubiquity/flex` as its provisioner. So this provisioner should be up and running in order to be able to dynamically create volumes.
-`filesystem` parameter refers to the name of the filesystem to be used by the dynamic provisioner to create the volume. `backend` parameter is used to select the backend used by the system.
-The `type` parameter is used to specify the type of volumes to be provisioned by spectrum-scale backend.
-
-The following snippet shows a sample persistent volume claim for using dynamic provisioning:
-```bash
-kubectl create -f deploy/pvc_fileset.yml
-```
-The claim is referring to `spectrum-scale-fileset` as the storage class to be used.
-A persistent volume should be dynamically created and bound to the claim.
-===========================================================
 
 ## Ubiquity FlexVolume CLI 
 
 Ubiquity FlexVolume CLI supports attaching and detaching volumes on persistent storage using the [Ubiquity](https://github.com/IBM/ubiquity) service.
 
-### Download and build the code
 
-In order to create the Ubiquity flexvolume binary we need to start by getting the repository.
-Clone the repository (if you haven't done that yet) and build the binary using these commands.
+### 1. Prerequisites
+  * Ubiquity Docker volume plugin is supported on the following operating systems:
+    - RHEL 7+
+    - SUSE 12+
 
+  * Ubiquity Docker volume plugin requires Docker version 17+.
+
+  * The following sudoers configuration `/etc/sudoers` is required to run the plugin as root user: 
+  
+     ```
+        Defaults !requiretty
+     ```
+     For non-root users, such as USER, configure the sudoers as follows: 
+
+     ```
+         USER ALL= NOPASSWD: /usr/bin/, /bin/, /usr/sbin/ 
+         Defaults:%USER !requiretty
+         Defaults:%USER secure_path = /sbin:/bin:/usr/sbin:/usr/bin
+     ```
+
+  * The Docker node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
+   
+
+### 2. Downloading and installing the Ubiquity FlexVolume
+
+* Download and unpack the application package.
 ```bash
-mkdir -p $GOPATH/src/github.com/IBM
-cd $GOPATH/src/github.com/IBM
-git clone git@github.com:IBM/ubiquity-k8s.git
-cd ubiquity-k8s
-./scripts/build_flex_driver
-```
-Newly built binary (ubiquity) will be in bin directory.
-
-### Using the plugin
-Install the ubiquity binary on all nodes in the kubelet plugin path along with its configuration file.
-
-Path for installing the plugin is:
-```bash
-/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
-```
-
-You can use the following commands to create and install the binary in the right location.
-
-```bash
-./scripts/build_flex_driver
-./scripts/setup
-```
-
-### Testing
-
-In order to test the flex driver, please refer to `scripts/flex_smoke_test.sh` file.
-
-In order to test the flexvolume within kubernetes, you can create the following pod based on the file in deploy folder (this suppose that you already used the dynamic provisioner to create the storageclass and the claim):
-```bash
-kubectl create -f deploy/pod.yml
+mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
+cd $_
+curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
+chmod u+x ubiquity-k8s-flex
+#chown USER:GROUP ubiquity-k8s-flex   ### Run this command only a non-root user.
 ```
 
-## Suggestions and Questions
+### 3. Configuring the Ubiquity FlexVolume
+Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-client.conf` file, according to your storage system type.
+Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section.
 
-For any questions, suggestions, or issues, please use github.
+Here is example of a generic configuration file that need to be set:
+```toml
+logPath = "/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
+backend = "scbe" # Backend name such as scbe or spectrum-scale
+
+[UbiquityServer]
+address = "127.0.0.1"  # IP/host of the Ubiquity Service
+port = 9999            # TCP port on which the Ubiquity Service is listening
+```
+
+### FlexVolume usage examples
+For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
+
+## Troubleshooting
+### Communication failure
+TBD
+
+## Support
+For any questions, suggestions, or issues, use github.
+
+## Licensing
+
+Copyright 2016, 2017 IBM Corp.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
