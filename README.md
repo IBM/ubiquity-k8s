@@ -64,7 +64,10 @@ address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
 
-### 4. Running the Provisioner service
+### 4. Opening TCP ports to Ubiquity server
+Ubiquity server listens on TCP port (by default 9999) to receive Provisoner requests, such as creating a new volume. Verify that the Provisoner node can access this Ubiquity server port.
+
+### 5. Running the Provisioner service
   * Run the service.
 ```bash
 systemctl start ubiquity-k8s-provisioner    
@@ -128,6 +131,9 @@ backend = "scbe" # Backend name such as scbe or spectrum-scale
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
+### 4. Opening TCP ports to Ubiquity server
+Ubiquity server listens on TCP port (by default 9999) to receive FlexVolume requests, such as attach a volume. Verify that the FlexVolume node can access this Ubiquity server port.
+
 
 ### FlexVolume usage examples
 For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
