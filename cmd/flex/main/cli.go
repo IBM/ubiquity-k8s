@@ -300,7 +300,7 @@ type MountCommand struct {
 func (m *MountCommand) Execute(args []string) error {
 	targetMountDir := args[0]
 
-	var mountOpts map[string]interface{}
+	var mountOpts map[string]string
 
 	err := json.Unmarshal([]byte(args[1]), &mountOpts)
 	if err != nil {
@@ -321,7 +321,7 @@ func (m *MountCommand) Execute(args []string) error {
 	}
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
-		MountDevice: volumeName.(string),
+		MountDevice: volumeName,
 		Opts:        mountOpts,
 	}
 

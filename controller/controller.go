@@ -182,16 +182,21 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 func (c *Controller) MountDevice(mountDeviceRequest k8sresources.FlexVolumeMountDeviceRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-MountDevice-start")
 	defer c.logger.Println("controller-MountDevice-end")
-	return k8sresources.FlexVolumeResponse{
-		Status:  "Success",
-		Message: "Volume is mounted",
-	}
+	c.logger.Printf("mountDeviceRequest %#v", mountDeviceRequest)
+
+	mountRequest := k8sresources.FlexVolumeMountRequest{MountDevice: mountDeviceRequest.Name, MountPath: mountDeviceRequest.Path, Opts: mountDeviceRequest.Opts}
+	//return k8sresources.FlexVolumeResponse{
+	//	Status:  "Success",
+	//	Message: "Volume is mounted",
+	//}
+	return c.Mount(mountRequest)
 }
 
 //UnmountDevice checks if volume is unmounted
 func (c *Controller) UnmountDevice(unmountDeviceRequest k8sresources.FlexVolumeUnmountDeviceRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-UnmountDevice-start")
 	defer c.logger.Println("controller-UnmountDevice-end")
+	c.logger.Printf("mountDeviceRequest %#v", unmountDeviceRequest)
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume is unmounted",

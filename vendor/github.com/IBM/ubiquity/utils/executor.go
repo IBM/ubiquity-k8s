@@ -102,3 +102,5 @@ func (e *executor) EvalSymlinks(path string) (string, error) {
 	evalSlink, err := filepath.EvalSymlinks(path)
 	return evalSlink, err
 }
+
+
