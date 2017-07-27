@@ -115,6 +115,27 @@ func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVo
 
 }
 
+//GetVolumeName checks if volume is attached
+func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeGetVolumeNameRequest) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-isAttached-start")
+	defer c.logger.Println("controller-isAttached-end")
+	volumeName, ok := getVolumeNameRequest.Opts["volumeName"]
+	if !ok {
+		return k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed checking volumeName, ", getVolumeNameRequest.Opts),
+		}
+
+	}
+	return k8sresources.FlexVolumeResponse{
+		Status:     "Success",
+		Message:    "Volume is attached",
+		VolumeName: volumeName,
+		Device:     volumeName,
+		Attached:   true,
+	}
+}
+
 //WaitForAttach Waits for a volume to get attached to the node
 func (c *Controller) WaitForAttach(waitForAttachRequest k8sresources.FlexVolumeWaitForAttachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-waitForAttach-start")

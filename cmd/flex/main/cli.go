@@ -41,7 +41,7 @@ var configFile = flag.String(
 )
 
 //<driver executable> init
-//<driver executable> getvolumename <json options> (do not implement this)
+//<driver executable> getvolumename <json options>
 //<driver executable> attach <json options> <node name>
 //<driver executable> detach <mount device> <node name>
 //<driver executable> waitforattach <mount device> <json options>
@@ -83,6 +83,39 @@ func (i *InitCommand) Execute(args []string) error {
 	}
 	response := controller.Init(config)
 	return printResponse(response)
+}
+
+type GetVolumeNameCommand struct {
+	GetVolumeName func() `short:"gvn" long:"getvolumename" description:"Get Volume Name"`
+}
+
+func (a *GetVolumeNameCommand) Execute(args []string) error {
+	getVolumeNameRequestOpts := make(map[string]string)
+	err := json.Unmarshal([]byte(args[0]), &getVolumeNameRequestOpts)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read args in get volumeName %#v", err),
+		}
+		return printResponse(response)
+	}
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in get volumeName %#v", err),
+		}
+		return printResponse(response)
+	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
+	controller, err := createController(config)
+
+	if err != nil {
+		panic(fmt.Sprintf("backend %s not found", config))
+	}
+	getVolumeNameRequest := k8sresources.FlexVolumeGetVolumeNameRequest{Opts: getVolumeNameRequestOpts}
+	getVolumeNameResponse := controller.GetVolumeName(getVolumeNameRequest)
+	return printResponse(getVolumeNameResponse)
 }
 
 type AttachCommand struct {

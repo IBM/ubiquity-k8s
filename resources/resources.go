@@ -48,3 +48,7 @@ type FlexVolumeMountDeviceRequest struct {
 type FlexVolumeUnmountDeviceRequest struct {
 	Name string `json:"name"`
 }
+
+type FlexVolumeGetVolumeNameRequest struct {
+	Opts map[string]string `json:"opts"`
+}
