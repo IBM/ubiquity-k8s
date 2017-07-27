@@ -4,54 +4,63 @@ The repository contains two components that could be used separately or combined
 - Ubiquity Dynamic Provisioner
 - Ubiquity Flex Driver
 
-This code is provided "AS IS" and without warranty of any kind.  Any issues will be handled on a best effort basis.
-
-### General Prerequesites
-* Functional [kubernetes]() environment (v1.5.x is required for flexvolume support, v1.6.x is not yet supported for the flexvolume)
-* [Ubiquity](https://github.com/IBM/ubiquity) service must be running
-* Install [golang](https://golang.org/) and setup your go path
-* Install [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-* The correct storage software must be installed and configured on each of the kubernetes nodes (minions). For example:
-  * Spectrum-Scale - Ensure the Spectrum Scale client (NSD client) is installed and part of a Spectrum Scale cluster.
-  * NFS - Ensure hosts support mounting NFS file systems.
-* Configure go - GOPATH environment variable needs to be correctly set before starting the build process. Create a new directory and set it as GOPATH
+The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
 ## Ubiquity Dynamic Provisioner 
 
 Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent storage in Kubernetes through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
   
-### Download and build the code
+### Installing the Ubiquity Dynamic Provisioner
+Install and configure the Provisioner on one node in the Kubernetes cluster(minion or master)
 
+### 1. Prerequisites
+  * The Provisioner is supported on the following operating systems:
+    - RHEL 7+
+    - SUSE 12+
+
+  * The following sudoers configuration `/etc/sudoers` is required to run the Provisioner as root user: 
+  
+     ```
+        Defaults !requiretty
+     ```
+     For non-root users, such as USER, configure the sudoers as follows: 
+
+     ```
+         USER ALL= NOPASSWD: /usr/bin/, /bin/, /usr/sbin/ 
+         Defaults:%USER !requiretty
+         Defaults:%USER secure_path = /sbin:/bin:/usr/sbin:/usr/bin
+     ```
+
+  TBD * The Provisioner  node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
+   
+
+### 2. Downloading and installing the plugin
+
+* Download and unpack the application package.
 ```bash
-mkdir -p $HOME/workspace
-export GOPATH=$HOME/workspace
+mkdir -p /etc/ubiquity
+cd /etc/ubiquity
+curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xf -
+cp provisioner /usr/bin 
+chmod u+x /usr/bin/ubiquity-k8s-provisioner
+#chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
+cp ubiquity-k8s-provisioner.service /usr/lib/systemd/system/ 
 ```
-* Configure ssh-keys for github.com - go tools require password less ssh access to github. If you have not already setup ssh keys for your github profile, please follow steps in
-(https://help.github.com/enterprise/2.7/user/articles/generating-an-ssh-key/) before proceeding further.
-
-* Creating the executable
-In order to create the Ubiquity provisioner binary we need to start by getting the repository.
-Clone the repository and build the binary using these commands.
-
-```bash
-mkdir -p $GOPATH/src/github.com/IBM
-cd $GOPATH/src/github.com/IBM
-git clone git@github.com:IBM/ubiquity-k8s.git
-cd ubiquity-k8s
-./scripts/build_provisioner
+   * To run the plugin as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
+   
+   * Enable the plugin service.
+   
+```bash 
+systemctl enable ubiquity-k8s-provisioner.service      
 ```
-Newly built binary (provisioner) will be in bin directory.
 
-### Configuration
+### 3. Configuring the plugin
+Before running the plugin service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file, according to your storage system type.
 
-Unless otherwise specified by the `configFile` command line parameter, the Ubiquity service will
-look for a file named `ubiquity-client.conf` for its configuration.
-
-The following snippet shows a sample configuration file:
-
+Here is example of a configuration file that need to be set:
 ```toml
 logPath = "/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
-backend = "spectrum-scale" # Backend name
+backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
@@ -59,57 +68,31 @@ port = 9999            # TCP port on which the Ubiquity Service is listening
 
 ```
 
+Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section in order to configure additional parameters that related.
+
+TBD this section need to be move to dedicate SSc file
+==============================
 If you need to use spectrum-scale-nfs backend, you need also to add the spectrum-scale nfs configuration:
 
 ```toml
 [SpectrumNfsRemoteConfig]
 ClientConfig = "192.168.1.0/24(Access_Type=RW,Protocols=3:4,Transports=TCP:UDP)"
 ```
-
 Where the ClientConfig contains the CIDR that the node where the volume will be mounted belongs to.
+==============================
 
-### Two Options to Install and Run
-
-#### Option 1: systemd
-This option assumes that the system that you are using has support for systemd (e.g., ubuntu 14.04 does not have native support to systemd, ubuntu 16.04 does.)
-Please note that the script will try to start the service as user `ubiquity`. The dynamic provisioner can run under any user, so if you prefer to use a different user please change the script to use the right user. Or create the user ubiquity as described in [Ubiquity documentation](https://github.com/IBM/ubiquity).
-
-1) Change into the  ubiquity-k8s/scripts directory and run the following command:
+### 4. Running the plugin service
+  * Run the service.
 ```bash
-./setup_provisioner
+systemctl start ubiquity-docker-plugin    
+```
+  * Restart the Docker engine daemon on the host to let it discover the new plugin. 
+```bash
+service docker restart
 ```
 
-This will copy provisioner binary to /usr/bin, ubiquity-client-k8.conf and ubiquity-provisioner.env to  /etc/ubiquity location.  It will also enable ubiquity-provisioner service.
-
-2) Make appropriate changes to /etc/ubiquity/ubiquity-client-k8.conf  e.g. server ip/port 
-
-3) Edit /etc/ubiquity/ubiquity-provisioner.env to add/remove command line option to dynamic provisioner.
-
-4) Start and stop the Ubiquity Kubernetes Dynamic Provisioner service the following command
-```bash
-systemctl start/stop/restart ubiquity-provisioner
-```
-
-#### Option 2: Manual
-On any host in the cluster that can communicate with the Kubernetes admin node (although its probably simplest to run it on the same node as the Ubiquity server), run the following command
-
-```bash
-./bin/provisioner -config <configFile> -kubeconfig <kubeConfigDir> -provisioner <provisionerName> -retries=<number>
-```
-where:
-* provisioner: Name of the dynamic provisioner (this will be used by the storage classes)
-* configFile: Configuration file to use (defaults to `./ubiquity-client.conf`)
-* kubeconfig: Local kubernetes configuration
-* retries: Number of attempts for creating/deleting PVs for a given PVC
-
-Example:
-```bash
-./bin/provisioner -provisioner=ubiquity/flex -config=./ubiquity-client.conf -kubeconfig=$HOME/.kube/config -retries=1
-```
-
-### Testing
-In order to test the dynamic provisioner, please refer to `scripts/run_acceptance.sh` file.
-
+TBD section below
+==================
 ### Available Storage Classes
 These storage classes are described in the YAML files in `deploy` folder:
 * spectrum-scale-fileset - described in `deploy/storage_class_fileset.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets.
@@ -133,7 +116,7 @@ kubectl create -f deploy/pvc_fileset.yml
 ```
 The claim is referring to `spectrum-scale-fileset` as the storage class to be used.
 A persistent volume should be dynamically created and bound to the claim.
-
+===========================================================
 
 ## Ubiquity FlexVolume CLI 
 
