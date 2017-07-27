@@ -273,7 +273,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 //UnmountDevice	Unmounts the global mount for the device. This is called once all bind mounts have been unmounted
 //<driver executable> unmountdevice <mount device>
 type UnmountDeviceCommand struct {
-	UnmountDevice func() `short:"ud" long:"umountdevice" description:"Unmounts a device"`
+	UnmountDevice func() `short:"y" long:"umountdevice" description:"Unmounts a device"`
 }
 
 func (d *UnmountDeviceCommand) Execute(args []string) error {
