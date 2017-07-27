@@ -240,7 +240,7 @@ func (d *DetachCommand) Execute(args []string) error {
 }
 
 type MountDeviceCommand struct {
-	MountDevice func() `short:"md" long:"mountdevice" description:"Mounts a device"`
+	MountDevice func() `short:"x" long:"mountdevice" description:"Mounts a device"`
 }
 
 //MountDevice Mounts the device to a global path which individual pods can then bind mount
