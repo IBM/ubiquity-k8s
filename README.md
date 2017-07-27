@@ -1,17 +1,18 @@
 # Ubiquity-k8s
 This projects contains the needed components to manage persistent storage for kubernetes through [Ubiquity](https://github.com/IBM/ubiquity) service.
 The repository contains two components that could be used separately or combined according to the requirements:
-- Ubiquity Dynamic Provisioner
-- Ubiquity Flex Driver
+
+- [Ubiquity Dynamic Provisioner](ubiquity-dynamic-provisioner)
+- [Ubiquity Flex Driver CLI](ubiquity-flexvolume-cli)
 
 The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
 ## Ubiquity Dynamic Provisioner 
 
-Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent storage in Kubernetes through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
+Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent storage in Kubernetes (version 1.5.6) through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
   
 ### Installing the Ubiquity Dynamic Provisioner
-Install and configure the Provisioner on one node in the Kubernetes cluster(minion or master)
+Install and configure the Provisioner only on one node in the Kubernetes cluster(minion or master).
 
 ### 1. Prerequisites
   * The Provisioner is supported on the following operating systems:
@@ -29,10 +30,7 @@ Install and configure the Provisioner on one node in the Kubernetes cluster(mini
          USER ALL= NOPASSWD: /usr/bin/, /bin/, /usr/sbin/ 
          Defaults:%USER !requiretty
          Defaults:%USER secure_path = /sbin:/bin:/usr/sbin:/usr/bin
-     ```
-
-  TBD * The Provisioner  node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
-   
+     ```   
 
 ### 2. Downloading and installing the Provisioner
 
@@ -46,16 +44,16 @@ chmod u+x /usr/bin/ubiquity-k8s-provisioner
 #chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
 cp ubiquity-k8s-provisioner.service /usr/lib/systemd/system/ 
 ```
-   * To run the plugin as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
+   * To run the Provisioner as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
    
-   * Enable the plugin service.
+   * Enable the Provisioner service.
    
 ```bash 
 systemctl enable ubiquity-k8s-provisioner.service      
 ```
 
-### 3. Configuring the plugin
-Before running the plugin service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file, according to your storage system type.
+### 3. Configuring the Provisioner
+Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file, according to your storage system type.
 
 Here is example of a configuration file that need to be set:
 ```toml
@@ -67,7 +65,7 @@ address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
 
-### 4. Running the plugin service
+### 4. Running the Provisioner service
   * Run the service.
 ```bash
 systemctl start ubiquity-k8s-provisioner    
@@ -81,15 +79,17 @@ For examples on how to create and remove Ubiquity volumes(PV and PVC) refer to t
 
 Ubiquity FlexVolume CLI supports attaching and detaching volumes on persistent storage using the [Ubiquity](https://github.com/IBM/ubiquity) service.
 
+### Installing the Ubiquity FlexVolume
+Install and configure the plugin on each node(minion) in the Kubernetes cluster that requires access to Ubiquity volumes.
 
 ### 1. Prerequisites
-  * Ubiquity Docker volume plugin is supported on the following operating systems:
+  * Ubiquity FlexVolume is supported on the following operating systems:
     - RHEL 7+
     - SUSE 12+
 
-  * Ubiquity Docker volume plugin requires Docker version 17+.
+  * Ubiquity FlexVolume requires Kubernetes version 1.5.6.
 
-  * The following sudoers configuration `/etc/sudoers` is required to run the plugin as root user: 
+  * The following sudoers configuration `/etc/sudoers` is required to run the FlexVolume as root user: 
   
      ```
         Defaults !requiretty
@@ -102,7 +102,7 @@ Ubiquity FlexVolume CLI supports attaching and detaching volumes on persistent s
          Defaults:%USER secure_path = /sbin:/bin:/usr/sbin:/usr/bin
      ```
 
-  * The Docker node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
+  * The Kubernetes node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
    
 
 ### 2. Downloading and installing the Ubiquity FlexVolume
@@ -133,9 +133,6 @@ port = 9999            # TCP port on which the Ubiquity Service is listening
 ### FlexVolume usage examples
 For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
-## Troubleshooting
-### Communication failure
-TBD
 
 ## Support
 For any questions, suggestions, or issues, use github.
