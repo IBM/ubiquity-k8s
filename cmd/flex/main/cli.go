@@ -381,6 +381,12 @@ func main() {
 	var attachCommand AttachCommand
 	var detachCommand DetachCommand
 	var initCommand InitCommand
+	var getVolumeNameCommand GetVolumeNameCommand
+	var isAttachedCommand IsAttachedCommand
+	var waitForAttachCommand WaitForAttachCommand
+	var mountDeviceCommand MountDeviceCommand
+	var unmountDeviceCommand UnmountDeviceCommand
+
 	var options Options
 	var parser = flags.NewParser(&options, flags.Default)
 
@@ -404,6 +410,27 @@ func main() {
 		"Detach Volume",
 		"Detach a Volume",
 		&detachCommand)
+	parser.AddCommand("isattached",
+		"Is Volume Attached",
+		"Is Volume Attached",
+		&isAttachedCommand)
+	parser.AddCommand("waitforattach",
+		"Wait for volume to get attached",
+		"Wait for volume to get attached",
+		&waitForAttachCommand)
+	parser.AddCommand("getvolumename",
+		"Get Volume Name",
+		"Get Volume Name",
+		&getVolumeNameCommand)
+	parser.AddCommand("mountdevice",
+		"Mount Device",
+		"Mount Device",
+		&mountDeviceCommand)
+	parser.AddCommand("unmountdevice",
+		"Unmount Device",
+		"Unmount Device",
+		&unmountDeviceCommand)
+
 	_, err := parser.Parse()
 	if err != nil {
 		panic(err)
