@@ -266,22 +266,29 @@ type MountCommand struct {
 
 func (m *MountCommand) Execute(args []string) error {
 	targetMountDir := args[0]
-	mountDevice := args[1]
+
 	var mountOpts map[string]interface{}
 
-	err := json.Unmarshal([]byte(args[2]), &mountOpts)
+	err := json.Unmarshal([]byte(args[1]), &mountOpts)
 	if err != nil {
 		mountResponse := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to mount device %s to %s due to: %#v", mountDevice, targetMountDir, err),
-			Device:  mountDevice,
+			Message: fmt.Sprintf("Failed to mount device %s to %s due to: %#v", targetMountDir, err),
 		}
 		return printResponse(mountResponse)
 	}
+	volumeName, ok := mountOpts["volumeName"]
+	if !ok {
+		mountResponse := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to get volumeName in opts: %#v", mountOpts),
+		}
+		return printResponse(mountResponse)
 
+	}
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
-		MountDevice: mountDevice,
+		MountDevice: volumeName.(string),
 		Opts:        mountOpts,
 	}
 
