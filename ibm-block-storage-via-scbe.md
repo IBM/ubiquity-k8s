@@ -1,11 +1,16 @@
 # IBM Block Storage System via Spectrum Control Base Edition
 
-IBM block storage can be used as persistent storage for Docker via Ubiquity service.
+IBM block storage can be used as persistent storage for Kubernetes via Ubiquity service.
 Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity Docker volume plugin.
 Avilable IBM block storage systems for Docker volume plugin are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
-## Configuring Docker host for IBM block storage systems
-Perform the following installation and configuration procedures on each node in the Docker Swarm cluster that requires access to Ubiquity volumes.
+# Ubiquity Dynamic Provisioner 
+There is no tune for the Provisioner that related to IBM Block Storage.
+
+# Ubiquity FlexVolume CLI
+
+## Configuring Kubernetes node(minion) for IBM block storage systems
+Perform the following installation and configuration procedures on each node in the Kubernetes cluster that requires access to Ubiquity volumes.
 
 
 #### 1. Installing connectivity packages 
@@ -33,7 +38,7 @@ The plugin requires multipath devices. Configure the `multipath.conf` file accor
 ```
 
 #### 3. Configure storage system connectivity
-  *  Verify that the hostname of the Docker node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the Docker node. Otherwise, you will not be able to run stateful containers.
+  *  Verify that the hostname of the Kubernetes node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the Docker node. Otherwise, you will not be able to run stateful containers.
 
   *  For iSCSI, discover and log in to the iSCSI targets of the relevant storage systems:
 
@@ -42,38 +47,23 @@ The plugin requires multipath devices. Configure the `multipath.conf` file accor
    iscsiadm -m node  -p ${storage system iSCSI portal IP/hostname} --login              # To log in to targets
 ```
 
-#### 4. Opening TCP ports to Ubiquity server
-Ubiquity server listens on TCP port (by default 9999) to receive plugin requests, such as creating a new volume. Verify that the Docker node can access this Ubiquity server port.
+#### 5. Configuring Ubiquity FlexVolume for SCBE
 
-#### 5. Configuring Ubiquity Docker volume plugin for SCBE
+The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Configure the plugin by editing the file, as illustrated below.
 
-The ubiquity-client.conf must be created in the /etc/ubiquity directory. Configure the plugin by editing the file, as illustrated below.
-
+Just make sure backends set to "scbe".
  
  ```toml
  logPath = "/var/tmp"                 # The Ubiquity Docker Plugin will write logs to file "ubiquity-docker-plugin.log" in this path.
- backends = ["scbe"]                  # The Storage system backend to be used with Ubiquity to create and manage volumes. In this we configure Docker plugin to create volumes using IBM Block Storage system via SCBE.
- 
- [DockerPlugin]
- port = 9000                                # Port to serve docker plugin functions
- pluginsDirectory = "/etc/docker/plugins/"  # Point to the location of the configured Docker plugin directory (create if not already created by Docker)
- 
+ backend = "scbe" # Backend name such as scbe or spectrum-scale
  
  [UbiquityServer]
  address = "IP"  # IP/hostname of the Ubiquity Service
  port = 9999     # TCP port on which the Ubiquity Service is listening
  ```
   * Verify that the logPath, exists on the host before you start the plugin.
-  * Verify that the pluginsDirectory, exists on the host before you start the plugin. Default location is /etc/docker/plugins/.
-  ```bash
-        mkdir /etc/docker/plugins
- ```
+ 
   
- 
- 
- 
- 
- 
 
 ## Plugin usage example
 
@@ -85,92 +75,23 @@ The basic flow is as follows:
 4. Exit `container1` and then start a new `container2` with the same `demoVol` volume and validate that the file `/data/myDATA` still exists.
 5. Clean up by exiting `container2`, removing the containers and deleting the volume `demoVol`.
 
-```bash
-#> docker volume create --driver ubiquity --name demoVol --opt size=10 --opt fstype=xfs --opt profile=gold
-demoVol
-
-#> docker volume ls
-DRIVER              VOLUME NAME
-ubiquity            demoVol
-
-#> docker run -it --name container1 --volume-driver ubiquity -v demoVol:/data alpine sh
-
-#> df | egrep "/data|^Filesystem"
-Filesystem           1K-blocks      Used Available Use% Mounted on
-/dev/mapper/mpathaci   9755384     32928   9722456   0% /data
-
-#> dd if=/dev/zero of=/data/myDATA bs=10M count=1
-1+0 records in
-1+0 records out
-
-#> ls -lh /data/myDATA
--rw-r--r--    1 root     root       10.0M Jul  6 11:04 /data/myDATA
-
-#> exit
-
-#> docker run -it --name container2 --volume-driver ubiquity -v demoVol:/data alpine sh
-
-/ # ls -l /data/myDATA
--rw-r--r--    1 root     root       10.0M Jul  6 11:04 /data/myDATA
-/ # exit
-
-#> docker rm container1 container2
-container1
-container2
-
-#> docker volume rm demoVol
-demoVol
-```
+TBD
 
 ### Creating a Docker volume
 Docker volume creation template:
 ```bash
-docker volume create --driver ubiquity --name [VOL NAME] --opt size=[number in GB] --opt fstype=[xfs|ext4] --opt profile=[SCBE service name]
+TBD
 ```
 
 For example, to create a volume named volume1 with 10GB size from the gold SCBE storage service, such as a pool from IBM FlashSystem A9000R with QoS capability:
 
 ```bash
-#> docker volume create --driver ubiquity --name volume1 --opt size=10 --opt fstype=xfs --opt profile=gold
+TBD
 ```
 
 ### Displaying a Docker volume
 You can list and inspect the newly created volume, using the following command:
-```bash
-#> docker volume ls
-DRIVER              VOLUME NAME
-ubiquity            volume1
-
-
-#> docker volume inspect volume1
-[
-    {
-        "Driver": "ubiquity",
-        "Labels": {},
-        "Mountpoint": "/",
-        "Name": "volume1",
-        "Options": {
-            "fstype": "xfs",
-            "profile": "gold",
-            "size": "10"
-        },
-        "Scope": "local",
-        "Status": {
-            "LogicalCapacity": "10000000000",
-            "Name": "u_instance_volume1",
-            "PhysicalCapacity": "10234101760",
-            "PoolName": "gold_ubiquity",
-            "Profile": "gold",
-            "StorageName": "A9000R system1",
-            "StorageType": "2810XIV",
-            "UsedCapacity": "10485760",
-            "Wwn": "6001738CFC9035EB0000000000CFF306",
-            "fstype": "xfs"
-        }
-    }
-]
-
-```
+TBD
 
 ### Running a Docker container with a Ubiquity volume
 The Docker start command will cause the Ubiquity to: 
