@@ -105,7 +105,7 @@ var _ = Describe("Controller", func() {
 		Context(".Mount", func() {
 			It("does not error when volume exists and is not currently mounted", func() {
 				fakeClient.AttachReturns("/tmp/mnt1", nil)
-				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]string{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Success"))
 				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
@@ -119,7 +119,7 @@ var _ = Describe("Controller", func() {
 			It("errors when volume exists and client fails to mount it", func() {
 				err := fmt.Errorf("failed to mount volume")
 				fakeClient.AttachReturns("", err)
-				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]interface{}{}}
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]string{}}
 				mountResponse := controller.Mount(mountRequest)
 				Expect(mountResponse.Status).To(Equal("Failure"))
 				Expect(mountResponse.Message).To(MatchRegexp(err.Error()))
