@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package flex
+package ubiquity_k8s
 
 import (
 	"encoding/json"
