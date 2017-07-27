@@ -56,13 +56,15 @@ Before running the Provisioner service, you must create and configure the `/etc/
 
 Here is example of a configuration file that need to be set:
 ```toml
-logPath = "/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
+logPath = "/var/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
+  * Verify that the logPath, exists on the host before you start the plugin.
+
 
 ### 4. Opening TCP ports to Ubiquity server
 Ubiquity server listens on TCP port (by default 9999) to receive Provisoner requests, such as creating a new volume. Verify that the Provisoner node can access this Ubiquity server port.
@@ -131,6 +133,9 @@ backend = "scbe" # Backend name such as scbe or spectrum-scale
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
+
+  * Verify that the logPath, exists on the host before you start the plugin.
+
 ### 4. Opening TCP ports to Ubiquity server
 Ubiquity server listens on TCP port (by default 9999) to receive FlexVolume requests, such as attach a volume. Verify that the FlexVolume node can access this Ubiquity server port.
 
