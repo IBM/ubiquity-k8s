@@ -219,7 +219,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 
 	}
 
-	pvPath := path.Dir(mountRequest.MountPath)
+	pvPath, _ := path.Split(mountRequest.MountPath)
 	symLinkCommand := "/bin/ln"
 	args := []string{"-s", mountedPath, pvPath}
 	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, pvPath))
