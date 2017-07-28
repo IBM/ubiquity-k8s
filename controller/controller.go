@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
@@ -205,31 +204,24 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 			Device:  "",
 		}
 	}
-	dir := filepath.Dir(mountRequest.MountPath)
 
-	c.logger.Printf("volume mounted at %s", mountedPath)
-	k8sRequiredMountPoint := path.Join(mountRequest.MountPath)
-	if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
-		if os.IsNotExist(err) {
+	c.logger.Printf("removing folder %s", mountRequest.MountPath)
+	err = os.Remove(mountRequest.MountPath)
+	if err != nil && !os.IsExist(err) {
+		msg := fmt.Sprintf("Failed removing existing volume directory %#v", err)
+		c.logger.Println(msg)
 
-			c.logger.Printf("creating volume directory %s", dir)
-			err = os.MkdirAll(dir, 0777)
-			if err != nil && !os.IsExist(err) {
-				msg := fmt.Sprintf("Failed creating volume directory %#v", err)
-				c.logger.Println(msg)
-
-				return k8sresources.FlexVolumeResponse{
-					Status:  "Failure",
-					Message: msg,
-					Device:  "",
-				}
-
-			}
+		return k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: msg,
 		}
+
 	}
+
+	pvPath, _ := path.Split(mountRequest.MountPath)
 	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, mountRequest.MountPath}
-	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, k8sRequiredMountPoint))
+	args := []string{"-s", mountedPath, pvPath}
+	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, pvPath))
 
 	cmd := exec.Command(symLinkCommand, args...)
 	_, err = cmd.Output()
