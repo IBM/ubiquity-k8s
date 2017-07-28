@@ -81,38 +81,9 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
-	c.logger.Printf("attach-details %#v\n", attachRequest)
-	var attachResponse k8sresources.FlexVolumeResponse
-	volumeName, exists := attachRequest["volumeName"]
-	if !exists {
-
-		attachResponse = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach volume: VolumeName not found : #%v", attachRequest),
-			Device:  volumeName,
-		}
-		c.logger.Printf("Failed-to-attach-volume, VolumeName found %#v ", attachRequest)
-		return attachResponse
-
-	}
-
-	getVolumeRequest := resources.GetVolumeRequest{Name: volumeName}
-	_, err := c.Client.GetVolume(getVolumeRequest)
-
-	if err != nil {
-		return k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: "Failed checking volume, call create before attach",
-			Device:  volumeName}
-
-	}
-
 	return k8sresources.FlexVolumeResponse{
-		Status:  "Success",
-		Message: "Volume already attached",
-		Device:  volumeName,
+		Status: "Not supported",
 	}
-
 }
 
 //GetVolumeName checks if volume is attached
@@ -128,28 +99,16 @@ func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeG
 //WaitForAttach Waits for a volume to get attached to the node
 func (c *Controller) WaitForAttach(waitForAttachRequest k8sresources.FlexVolumeWaitForAttachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-waitForAttach-start")
-	defer c.logger.Println("controller-waitForAttach-end")
-	c.logger.Printf("waitForAttachRequest %#v", waitForAttachRequest)
 	return k8sresources.FlexVolumeResponse{
-		Status:     "Success",
-		Message:    "Volume attached",
-		VolumeName: waitForAttachRequest.Name,
-		Device:     waitForAttachRequest.Name,
-		Attached:   true,
+		Status: "Not supported",
 	}
 }
 
 //IsAttached checks if volume is attached
 func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttachedRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-isAttached-start")
-	defer c.logger.Println("controller-isAttached-end")
-	c.logger.Printf("isAttachedRequest %#v", isAttachedRequest)
 	return k8sresources.FlexVolumeResponse{
-		Status:     "Success",
-		Message:    "Volume is attached",
-		VolumeName: isAttachedRequest.Name,
-		Device:     isAttachedRequest.Name,
-		Attached:   true,
+		Status: "Not supported",
 	}
 }
 
@@ -157,15 +116,8 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-detach-start")
 	defer c.logger.Println("controller-detach-end")
-
-	c.logger.Printf("detach-details %#v. (no operation done in the detach action)\n", detachRequest)
-
-	// TODO : no-op for now, will change with latest k8sresources api update
-
 	return k8sresources.FlexVolumeResponse{
-		Status:  "Success",
-		Message: "Volume detached successfully",
-		Device:  detachRequest.Name,
+		Status: "Not supported",
 	}
 }
 
