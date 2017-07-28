@@ -119,21 +119,9 @@ func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVo
 func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeGetVolumeNameRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-isAttached-start")
 	defer c.logger.Println("controller-isAttached-end")
-	c.logger.Printf("getVolumeNameRequest %#v", getVolumeNameRequest)
-	volumeName, ok := getVolumeNameRequest.Opts["volumeName"]
-	if !ok {
-		return k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed checking volumeName, ", getVolumeNameRequest.Opts),
-		}
 
-	}
 	return k8sresources.FlexVolumeResponse{
-		Status:     "Success",
-		Message:    "Volume is attached",
-		VolumeName: volumeName,
-		Device:     volumeName,
-		Attached:   true,
+		Status: "Not supported",
 	}
 }
 
@@ -185,24 +173,17 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 func (c *Controller) MountDevice(mountDeviceRequest k8sresources.FlexVolumeMountDeviceRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-MountDevice-start")
 	defer c.logger.Println("controller-MountDevice-end")
-	c.logger.Printf("mountDeviceRequest %#v", mountDeviceRequest)
-
-	mountRequest := k8sresources.FlexVolumeMountRequest{MountDevice: mountDeviceRequest.Name, MountPath: mountDeviceRequest.Path, Opts: mountDeviceRequest.Opts}
-	//return k8sresources.FlexVolumeResponse{
-	//	Status:  "Success",
-	//	Message: "Volume is mounted",
-	//}
-	return c.Mount(mountRequest)
+	return k8sresources.FlexVolumeResponse{
+		Status: "Not supported",
+	}
 }
 
 //UnmountDevice checks if volume is unmounted
 func (c *Controller) UnmountDevice(unmountDeviceRequest k8sresources.FlexVolumeUnmountDeviceRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-UnmountDevice-start")
 	defer c.logger.Println("controller-UnmountDevice-end")
-	c.logger.Printf("unmountDeviceRequest %#v", unmountDeviceRequest)
 	return k8sresources.FlexVolumeResponse{
-		Status:  "Success",
-		Message: "Volume is unmounted",
+		Status: "Not supported",
 	}
 }
 
@@ -227,7 +208,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	dir := filepath.Dir(mountRequest.MountPath)
 
 	c.logger.Printf("volume mounted at %s", mountedPath)
-	k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
+	k8sRequiredMountPoint := path.Join(mountRequest.MountPath)
 	if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
 		if os.IsNotExist(err) {
 
@@ -244,54 +225,30 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 				}
 
 			}
-
-			symLinkCommand := "/bin/ln"
-			args := []string{"-s", mountedPath, mountRequest.MountPath}
-			c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, mountRequest.MountPath))
-
-			cmd := exec.Command(symLinkCommand, args...)
-			_, err = cmd.Output()
-			if err != nil {
-				msg := fmt.Sprintf("Controller: mount failed to symlink %#v", err)
-				c.logger.Println(msg)
-				return k8sresources.FlexVolumeResponse{
-					Status:  "Failure",
-					Message: msg,
-					Device:  "",
-				}
-
-			}
-			msg := fmt.Sprintf("Volume mounted successfully to %s", mountedPath)
-			c.logger.Println(msg)
-
-			return k8sresources.FlexVolumeResponse{
-				Status:  "Success",
-				Message: msg,
-				Device:  "",
-			}
 		}
-		msg := fmt.Sprintf("Fail to mount because cannot state [%s]. Error : %#v ",
-			k8sRequiredMountPoint,
-			err,
-		)
+	}
+	symLinkCommand := "/bin/ln"
+	args := []string{"-s", mountedPath, mountRequest.MountPath}
+	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, k8sRequiredMountPoint))
+
+	cmd := exec.Command(symLinkCommand, args...)
+	_, err = cmd.Output()
+	if err != nil {
+		msg := fmt.Sprintf("Controller: mount failed to symlink %#v", err)
 		c.logger.Println(msg)
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: msg,
-			Device:  "",
 		}
-	} else {
-		c.logger.Println(fmt.Sprintf("Mount was done, but no need to slink [%s] because its already there",
-			k8sRequiredMountPoint))
 
 	}
+	msg := fmt.Sprintf("Volume mounted successfully to %s", mountedPath)
+	c.logger.Println(msg)
 
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
-		Message: fmt.Sprintf("Volume mounted successfully to %s", mountedPath),
-		Device:  "",
+		Message: msg,
 	}
-
 }
 
 //Unmount methods unmounts the volume from the pod
