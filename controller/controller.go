@@ -119,6 +119,7 @@ func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVo
 func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeGetVolumeNameRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-isAttached-start")
 	defer c.logger.Println("controller-isAttached-end")
+	c.logger.Printf("getVolumeNameRequest %#v", getVolumeNameRequest)
 	volumeName, ok := getVolumeNameRequest.Opts["volumeName"]
 	if !ok {
 		return k8sresources.FlexVolumeResponse{
@@ -140,6 +141,7 @@ func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeG
 func (c *Controller) WaitForAttach(waitForAttachRequest k8sresources.FlexVolumeWaitForAttachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-waitForAttach-start")
 	defer c.logger.Println("controller-waitForAttach-end")
+	c.logger.Printf("waitForAttachRequest %#v", waitForAttachRequest)
 	return k8sresources.FlexVolumeResponse{
 		Status:     "Success",
 		Message:    "Volume attached",
@@ -150,14 +152,15 @@ func (c *Controller) WaitForAttach(waitForAttachRequest k8sresources.FlexVolumeW
 }
 
 //IsAttached checks if volume is attached
-func (c *Controller) IsAttached(isAttachRequest k8sresources.FlexVolumeIsAttachedRequest) k8sresources.FlexVolumeResponse {
+func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttachedRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-isAttached-start")
 	defer c.logger.Println("controller-isAttached-end")
+	c.logger.Printf("isAttachedRequest %#v", isAttachedRequest)
 	return k8sresources.FlexVolumeResponse{
 		Status:     "Success",
 		Message:    "Volume is attached",
-		VolumeName: isAttachRequest.Name,
-		Device:     isAttachRequest.Name,
+		VolumeName: isAttachedRequest.Name,
+		Device:     isAttachedRequest.Name,
 		Attached:   true,
 	}
 }
@@ -196,7 +199,7 @@ func (c *Controller) MountDevice(mountDeviceRequest k8sresources.FlexVolumeMount
 func (c *Controller) UnmountDevice(unmountDeviceRequest k8sresources.FlexVolumeUnmountDeviceRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-UnmountDevice-start")
 	defer c.logger.Println("controller-UnmountDevice-end")
-	c.logger.Printf("mountDeviceRequest %#v", unmountDeviceRequest)
+	c.logger.Printf("unmountDeviceRequest %#v", unmountDeviceRequest)
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume is unmounted",
@@ -295,6 +298,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("Controller: unmount start")
 	defer c.logger.Println("Controller: unmount end")
+	c.logger.Printf("unmountRequest %#v", unmountRequest)
 	var detachRequest resources.DetachRequest
 	var pvName string
 
