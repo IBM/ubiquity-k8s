@@ -24,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	"bytes"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
@@ -218,15 +219,18 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 
 	}
 
-	pvPath, _ := path.Split(mountRequest.MountPath)
+	pvPath := path.Dir(mountRequest.MountPath)
 	symLinkCommand := "/bin/ln"
 	args := []string{"-s", mountedPath, pvPath}
 	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, pvPath))
 
+	var stderr bytes.Buffer
 	cmd := exec.Command(symLinkCommand, args...)
-	_, err = cmd.Output()
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
 	if err != nil {
-		msg := fmt.Sprintf("Controller: mount failed to symlink %#v", err)
+		msg := fmt.Sprintf("Controller: mount failed to symlink %#v", stderr.String())
 		c.logger.Println(msg)
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",

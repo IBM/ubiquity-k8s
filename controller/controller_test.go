@@ -42,15 +42,9 @@ var _ = Describe("Controller", func() {
 		ubiquityConfig = resources.UbiquityPluginConfig{}
 		fakeClient = new(fakes.FakeStorageClient)
 		controller = ctl.NewControllerWithClient(testLogger, fakeClient, fakeExec)
-		os.MkdirAll("/tmp/mnt2", 0777)
-		os.MkdirAll("/tmp/mnt1", 0777)
+		os.MkdirAll("/tmp/test/mnt2", 0777)
 	})
-	AfterEach(func() {
-		err := os.RemoveAll("/tmp/mnt2")
-		Expect(err).ToNot(HaveOccurred())
-		err = os.RemoveAll("/tmp/mnt1")
 
-	})
 	Context(".Init", func() {
 
 		It("does not error when init is successful", func() {
@@ -113,12 +107,18 @@ var _ = Describe("Controller", func() {
 		//	})
 	})
 	Context(".Mount", func() {
-		It("does not error when volume exists and is not currently mounted", func() {
-			fakeClient.AttachReturns("/tmp/mnt1", nil)
+		AfterEach(func() {
 
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/mnt2", MountDevice: "vol1", Opts: map[string]string{}}
+			err := os.RemoveAll("/tmp/test/mnt1")
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+		It("does not error when volume exists and is not currently mounted", func() {
+			fakeClient.AttachReturns("/tmp/test/mnt1", nil)
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/test/mnt2", MountDevice: "vol1", Opts: map[string]string{}}
 			mountResponse := controller.Mount(mountRequest)
-			Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/mnt1"))
+			Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/test/mnt1"))
 			Expect(mountResponse.Status).To(Equal("Success"))
 
 			Expect(mountResponse.Device).To(Equal(""))
