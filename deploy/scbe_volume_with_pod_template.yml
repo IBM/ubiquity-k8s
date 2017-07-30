@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: PODNAME
+spec:
+  containers:
+  - name: CONNAME
+    image: midoblgsm/kubenode
+    volumeMounts:
+      - name: VOLNAME
+        mountPath: "MOUNTPATH"
+  restartPolicy: "Never"
+  volumes:
+    - name: VOLNAME
+      persistentVolumeClaim:
+        claimName: PVCNAME
