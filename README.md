@@ -1,18 +1,16 @@
 # Ubiquity-k8s
-This projects contains the needed components to manage persistent storage for kubernetes through [Ubiquity](https://github.com/IBM/ubiquity) service.
-The repository contains two components that could be used separately or combined according to the requirements:
-
-- [Ubiquity Dynamic Provisioner](ubiquity-dynamic-provisioner)
-- [Ubiquity Flex Driver CLI](ubiquity-flexvolume-cli)
+This project includes components for managing [Kubernetes persistent storage](https://kubernetes.io/docs/concepts/storage/persistent-volumes), using [Ubiquity](https://github.com/IBM/ubiquity) service.
+- [Ubiquity Dynamic Provisioner](ubiquity-dynamic-provisioner) for creating and deleting persistent volumes
+- [Ubiquity FlexVolume Driver CLI](ubiquity-flexvolume-cli) for attaching and detaching persistent volumes
 
 The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
 ## Ubiquity Dynamic Provisioner 
 
-Ubiquity Dynamic Provisioner facilitates creation and deletion of persistent volumes in Kubernetes (version 1.5.6) through use of the [Ubiquity](https://github.com/IBM/ubiquity) service.
+Ubiquity Dynamic Provisioner (Provisioner) is intended for creation and deletion of persistent volumes in Kubernetes (version 1.5.6), using the  [Ubiquity](https://github.com/IBM/ubiquity) service.
   
 ### Installing the Ubiquity Dynamic Provisioner
-Install and configure the Provisioner only on one node in the Kubernetes cluster(minion or master).
+Install and configure the Provisioner on a single node in the Kubernetes cluster (minion or master).
 
 ### 1. Prerequisites
   * The Provisioner is supported on the following operating systems:
