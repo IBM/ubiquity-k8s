@@ -1,5 +1,8 @@
 package resources
 
+const KubernetesVersion_1_5 = "1.5"
+const KubernetesVersion_1_6OrLater = "atLeast1.6"
+
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`
 	Message    string `json:"message"`
@@ -19,9 +22,10 @@ type FlexVolumeUnmountRequest struct {
 }
 
 type FlexVolumeAttachRequest struct {
-	Name string            `json:"name"`
-	Host string            `json:"host"`
-	Opts map[string]string `json:"opts"`
+	Name    string            `json:"name"`
+	Host    string            `json:"host"`
+	Opts    map[string]string `json:"opts"`
+	Version string            `json:"version"`
 }
 type FlexVolumeWaitForAttachRequest struct {
 	Name string            `json:"name"`
@@ -29,8 +33,9 @@ type FlexVolumeWaitForAttachRequest struct {
 }
 
 type FlexVolumeDetachRequest struct {
-	Name string `json:"name"`
-	Host string `json:"host"`
+	Name    string `json:"name"`
+	Host    string `json:"host"`
+	Version string `json:"version"`
 }
 
 type FlexVolumeIsAttachedRequest struct {

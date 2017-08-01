@@ -78,9 +78,14 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 }
 
 //Attach method attaches a volume to a host
-func (c *Controller) Attach(attachRequest map[string]string) k8sresources.FlexVolumeResponse {
+func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
+	if attachRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return k8sresources.FlexVolumeResponse{
+			Status: "Success",
+		}
+	}
 	return k8sresources.FlexVolumeResponse{
 		Status: "Not supported",
 	}
@@ -116,6 +121,11 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-detach-start")
 	defer c.logger.Println("controller-detach-end")
+	if detachRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return k8sresources.FlexVolumeResponse{
+			Status: "Success",
+		}
+	}
 	return k8sresources.FlexVolumeResponse{
 		Status: "Not supported",
 	}

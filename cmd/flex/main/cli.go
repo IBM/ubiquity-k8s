@@ -40,18 +40,7 @@ var configFile = flag.String(
 	"config file with ubiquity client configuration params",
 )
 
-//<driver executable> init
-//<driver executable> getvolumename <json options>
-//<driver executable> attach <json options> <node name>
-//<driver executable> detach <mount device> <node name>
-//<driver executable> waitforattach <mount device> <json options>
-//<driver executable> isattached <json options> <node name>
-//<driver executable> mountdevice <mount dir> <mount device> <json options>
-//<driver executable> unmountdevice <mount device>
-//<driver executable> mount <mount dir> <json options>
-//<driver executable> unmount <mount dir>
-//
-//
+// All the method should printout as response:
 //{
 //"status": "<Success/Failure/Not supported>",
 //"message": "<Reason for success/failure>",
@@ -59,6 +48,8 @@ var configFile = flag.String(
 //"volumeName": "Cluster wide unique name of the volume”
 //"attached": True/False}
 
+//InitCommand initializes the plugin
+//<driver executable> init (v>=1.5)
 type InitCommand struct {
 	Init func() `short:"i" long:"init" description:"Initialize the plugin"`
 }
@@ -85,11 +76,21 @@ func (i *InitCommand) Execute(args []string) error {
 	return printResponse(response)
 }
 
+//GetVolumeNameCommand gets a unique volume name
+//<driver executable> getvolumename <json options> (v>=1.6)
 type GetVolumeNameCommand struct {
 	GetVolumeName func() `short:"g" long:"getvolumename" description:"Get Volume Name"`
 }
 
 func (g *GetVolumeNameCommand) Execute(args []string) error {
+	if len(args) < 1 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to getVolumeName call out"),
+		}
+		return printResponse(response)
+	}
 	getVolumeNameRequestOpts := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &getVolumeNameRequestOpts)
 	if err != nil {
@@ -118,17 +119,28 @@ func (g *GetVolumeNameCommand) Execute(args []string) error {
 	return printResponse(getVolumeNameResponse)
 }
 
+//AttachCommand attaches a volume to a node
+//<driver executable> attach <json options> <node name> (v=1.5 with json options, v >= 1.6 json options and node name)
+
 type AttachCommand struct {
 	Attach func() `short:"a" long:"attach" description:"Attach a volume"`
 }
 
 func (a *AttachCommand) Execute(args []string) error {
-	attachRequest := make(map[string]string)
-	err := json.Unmarshal([]byte(args[0]), &attachRequest)
+	if len(args) < 1 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to attach call out"),
+		}
+		return printResponse(response)
+	}
+	attachRequestOpts := make(map[string]string)
+	err := json.Unmarshal([]byte(args[0]), &attachRequestOpts)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to attach volume %#v", err),
+			Message: fmt.Sprintf("Failed to unmarshall request in attach volume %#v", err),
 		}
 		return printResponse(response)
 	}
@@ -146,16 +158,46 @@ func (a *AttachCommand) Execute(args []string) error {
 	if err != nil {
 		panic(fmt.Sprintf("backend %s not found", config))
 	}
+
+	volumeName, ok := attachRequestOpts["volumeName"]
+	if !ok {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("volumeName is mandatory for attach %#v", attachRequestOpts),
+		}
+		return printResponse(response)
+	}
+
+	var version string
+	var hostname string
+	if args[1] == "" {
+		version = k8sresources.KubernetesVersion_1_5
+	} else {
+		hostname = args[1]
+		version = k8sresources.KubernetesVersion_1_6OrLater
+	}
+
+	attachRequest := k8sresources.FlexVolumeAttachRequest{Name: volumeName, Host: hostname, Opts: attachRequestOpts, Version: version}
+
 	attachResponse := controller.Attach(attachRequest)
 	return printResponse(attachResponse)
 }
 
 //WaitForAttach the volume to be attached on the node
+//<driver executable> waitforattach <mount device> <json options> (v >= 1.6)
 type WaitForAttachCommand struct {
 	WaitForAttach func() `short:"w" long:"waitfa" description:"Wait For Attach"`
 }
 
 func (wfa *WaitForAttachCommand) Execute(args []string) error {
+	if len(args) < 2 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to waitForAttach call out"),
+		}
+		return printResponse(response)
+	}
 	config, err := readConfig(*configFile)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -180,14 +222,21 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 	return printResponse(response)
 }
 
-//	//Checks if the volume is attached to the node
-//	IsAttached(request map[string]string, nodeName string) FlexVolumeResponse
-//
+//IsAttachedCommand Checks if the volume is attached to the node
+//<driver executable> isattached <json options> <node name> (v >= 1.6)
 type IsAttachedCommand struct {
 	IsAttacheded func() `short:"z" long:"detach" description:"Detach a volume"`
 }
 
 func (d *IsAttachedCommand) Execute(args []string) error {
+	if len(args) < 2 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to isAttached call out"),
+		}
+		return printResponse(response)
+	}
 	config, err := readConfig(*configFile)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -212,11 +261,22 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 	return printResponse(response)
 }
 
+//DetachCommand detaches a volume from a given node
+//<driver executable> detach <mount device> <node name> (v=1.5 with mount device, v >= 1.6 mount device and node name)
+
 type DetachCommand struct {
 	Detach func() `short:"d" long:"detach" description:"Detach a volume"`
 }
 
 func (d *DetachCommand) Execute(args []string) error {
+	if len(args) < 1 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to getVolumeName call out"),
+		}
+		return printResponse(response)
+	}
 	mountDevice := args[0]
 
 	config, err := readConfig(*configFile)
@@ -234,18 +294,35 @@ func (d *DetachCommand) Execute(args []string) error {
 		panic("backend not found")
 	}
 
-	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice}
+	var hostname string
+	var version string
+	if args[1] == "" {
+		version = k8sresources.KubernetesVersion_1_5
+	} else {
+		hostname = args[1]
+		version = k8sresources.KubernetesVersion_1_6OrLater
+	}
+
+	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice, Host: hostname, Version: version}
 	detachResponse := controller.Detach(detachRequest)
 	return printResponse(detachResponse)
 }
 
+//MountDevice Mounts the device to a global path which individual pods can then bind mount
+//<driver executable> mountdevice <mount dir> <mount device> <json options> (v >= 1.6)
 type MountDeviceCommand struct {
 	MountDevice func() `short:"x" long:"mountdevice" description:"Mounts a device"`
 }
 
-//MountDevice Mounts the device to a global path which individual pods can then bind mount
-////<driver executable> mountdevice <mount dir> <mount device> <json options>
 func (d *MountDeviceCommand) Execute(args []string) error {
+	if len(args) < 3 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to mountDevice call out"),
+		}
+		return printResponse(response)
+	}
 	config, err := readConfig(*configFile)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -271,12 +348,20 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 }
 
 //UnmountDevice	Unmounts the global mount for the device. This is called once all bind mounts have been unmounted
-//<driver executable> unmountdevice <mount device>
+//<driver executable> unmountdevice <mount device> (v >= 1.6)
 type UnmountDeviceCommand struct {
 	UnmountDevice func() `short:"y" long:"umountdevice" description:"Unmounts a device"`
 }
 
 func (d *UnmountDeviceCommand) Execute(args []string) error {
+	if len(args) < 1 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to unmountDevice call out"),
+		}
+		return printResponse(response)
+	}
 	config, err := readConfig(*configFile)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -293,11 +378,21 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 	return printResponse(response)
 }
 
+//MountCommand mounts a given volume to a given mountpoint
+//<driver executable> mount <mount dir> <json options> (v>=1.5)
 type MountCommand struct {
 	Mount func() `short:"m" long:"mount" description:"Mount a volume Id to a path"`
 }
 
 func (m *MountCommand) Execute(args []string) error {
+	if len(args) < 2 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to mount call out"),
+		}
+		return printResponse(response)
+	}
 	targetMountDir := args[0]
 
 	var mountOpts map[string]string
@@ -344,11 +439,21 @@ func (m *MountCommand) Execute(args []string) error {
 	return printResponse(mountResponse)
 }
 
+//UnmountCommand unmounts a given mountedDirectory
+//<driver executable> unmount <mount dir> (v>=1.5)
 type UnmountCommand struct {
 	UnMount func() `short:"u" long:"unmount" description:"UnMount a volume Id to a path"`
 }
 
 func (u *UnmountCommand) Execute(args []string) error {
+	if len(args) < 1 {
+
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Not enough arguments to unmount call out"),
+		}
+		return printResponse(response)
+	}
 	mountDir := args[0]
 	config, err := readConfig(*configFile)
 	if err != nil {
