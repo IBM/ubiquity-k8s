@@ -65,7 +65,6 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Plugin init failed %#v ", err),
-			Device:  "",
 		}
 
 	}
@@ -73,7 +72,6 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Plugin init successfully",
-		Device:  "",
 	}
 }
 
@@ -164,7 +162,6 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: msg,
-			Device:  "",
 		}
 	}
 
@@ -259,7 +256,6 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
-				Device:  "",
 			}
 		}
 
@@ -274,7 +270,6 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
-				Device:  "",
 			}
 		}
 
@@ -291,7 +286,6 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			return k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
-				Device:  "",
 			}
 		}
 
@@ -308,7 +302,6 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
 		Message: "Volume unmounted successfully",
-		Device:  "",
 	}
 }
 

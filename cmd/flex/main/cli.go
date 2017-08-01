@@ -127,6 +127,8 @@ type AttachCommand struct {
 }
 
 func (a *AttachCommand) Execute(args []string) error {
+	var version string
+	var hostname string
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -134,6 +136,12 @@ func (a *AttachCommand) Execute(args []string) error {
 			Message: fmt.Sprintf("Not enough arguments to attach call out"),
 		}
 		return printResponse(response)
+	}
+	if len(args) == 1 {
+		version = k8sresources.KubernetesVersion_1_5
+	} else {
+		hostname = args[1]
+		version = k8sresources.KubernetesVersion_1_6OrLater
 	}
 	attachRequestOpts := make(map[string]string)
 	err := json.Unmarshal([]byte(args[0]), &attachRequestOpts)
@@ -166,15 +174,6 @@ func (a *AttachCommand) Execute(args []string) error {
 			Message: fmt.Sprintf("volumeName is mandatory for attach %#v", attachRequestOpts),
 		}
 		return printResponse(response)
-	}
-
-	var version string
-	var hostname string
-	if args[1] == "" {
-		version = k8sresources.KubernetesVersion_1_5
-	} else {
-		hostname = args[1]
-		version = k8sresources.KubernetesVersion_1_6OrLater
 	}
 
 	attachRequest := k8sresources.FlexVolumeAttachRequest{Name: volumeName, Host: hostname, Opts: attachRequestOpts, Version: version}
@@ -269,6 +268,8 @@ type DetachCommand struct {
 }
 
 func (d *DetachCommand) Execute(args []string) error {
+	var hostname string
+	var version string
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -278,6 +279,12 @@ func (d *DetachCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	mountDevice := args[0]
+	if len(args) == 1 {
+		version = k8sresources.KubernetesVersion_1_5
+	} else {
+		hostname = args[1]
+		version = k8sresources.KubernetesVersion_1_6OrLater
+	}
 
 	config, err := readConfig(*configFile)
 	if err != nil {
@@ -292,15 +299,6 @@ func (d *DetachCommand) Execute(args []string) error {
 
 	if err != nil {
 		panic("backend not found")
-	}
-
-	var hostname string
-	var version string
-	if args[1] == "" {
-		version = k8sresources.KubernetesVersion_1_5
-	} else {
-		hostname = args[1]
-		version = k8sresources.KubernetesVersion_1_6OrLater
 	}
 
 	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice, Host: hostname, Version: version}
