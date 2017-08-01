@@ -69,9 +69,23 @@ function wait_for_item_to_delete()
   done
 }
 
+# TODO : need to add another wait function for container status (which is inside managed object - POD)
+
+function add_yaml_delimiter()
+{
+    printf "\n\n%s\n" "$YAML_DELIMITER" >> $1
+}
 
 function basic_tests_on_one_node()
 {
+    # Description of the test :
+    # -------------------------
+    # The test creates and validate the following objects: SC, PVC, PV, POD with PVC.
+    # The test validate that the relevant mount, multipathing was created after POD is up.
+    # Then generate some IO on the volume inside the container, delete the POD and start it again
+    # and validate that the data still persist.
+    # -------------------------
+
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
 	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
 	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
@@ -85,7 +99,7 @@ function basic_tests_on_one_node()
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
-    sed -i -e "s/PROFILE/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
+    sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
     cat $yml_sc_profile
     kubectl create -f ${yml_sc_profile}
     kubectl get storageclass $profile
@@ -93,15 +107,15 @@ function basic_tests_on_one_node()
 	echo "####### ---> ${S}. Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
     yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
     cp -f ${yml_pvc_template} ${yml_pvc}
-    sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/PROFILE/$profile/g" ${yml_pvc}
+    sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
     cat ${yml_pvc}
     kubectl create -f ${yml_pvc}
 
 	echo "####### ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
 
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
@@ -150,6 +164,7 @@ function basic_tests_on_one_node()
     wait_for_item_to_delete pod $PODName 15 3
 
 	echo "## ---> ${S}.1. Verify the volume was detached from the kubelet node"
+	sleep 2 # some times mount is not refreshed immediate
 	ssh root@$node1 "df | egrep ubiquity | grep $wwn" && exit 1 || :
 	ssh root@$node1 "multipath -ll | grep -i $wwn" && exit 1 || :
 	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
@@ -181,8 +196,8 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
-    wait_for_item_to_delete pvc $PVCName 20 1
-    wait_for_item_to_delete pv $pvname 20 1
+    wait_for_item_to_delete pvc $PVCName 10 2
+    wait_for_item_to_delete pv $pvname 10 2
 
 	echo "## ---> ${S}.1. Verity the storage side : check volume is no longer exist"
     echo "Skip step"
@@ -191,71 +206,203 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
     kubectl delete -f ${yml_sc_profile}
-    wait_for_item_to_delete storageclass $profile 10 1
+    wait_for_item_to_delete storageclass $profile 5 2
+}
 
-    # TODO migrate to k8s style
-    return # TODO continue here
-	stepinc
-	echo "####### ---> ${S}. Run container without creating vol in advance"
-	docker run -t -i -d --name ${CName}3 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine
-
-	echo "## ---> ${S}.1. Verify volume was created for this container and you can touch a file inside the container"
-	docker volume ls | grep $vol
-	docker exec ${CName}3 touch /data/file_on_A9000_volume
-	docker exec ${CName}3 ls -l /data/file_on_A9000_volume
-
-	echo "## ---> ${S}.2. Verify that you stop the container and start the same container so the file still exist"
-	docker stop ${CName}3
-	docker start ${CName}3
-	docker exec ${CName}3 ls -l /data/file_on_A9000_volume
-
-	echo "## ---> ${S}.3 Stop the container and remove the volume"
-	docker stop ${CName}3
-	docker rm ${CName}3
-	docker volume rm $vol
-	docker volume ls | grep -v $vol
-
+function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
+{
+    # Description of the test :
+    # -------------------------
+    # This test generates yml file with definition of many object type, such as SC, PVC and POD
+    # Then create these object in one kubectl command and validate all is up and running.
+    # -------------------------
 
 	stepinc
-	echo "####### ---> ${S}. Run container with 2 volumes"
-	docker run -t -i -d --name ${CName}4 --volume-driver ubiquity --volume ${vol}1:/data1 --volume ${vol}2:/data2 --entrypoint /bin/sh alpine
+	echo "########################### [All in one suite] ###############"
+	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
+    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
+    fstype=ext4
+    sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
 
-	echo "## ---> ${S}.1. Verify volume was created for this container and you can touch a file inside the container"
-	docker volume ls | grep ${vol}1
-	docker volume ls | grep ${vol}2
-	docker exec ${CName}4 df | egrep "/data1|^Filesystem"
-	docker exec ${CName}4 df | egrep "/data2|^Filesystem"
-	docker exec ${CName}4 touch /data1/file1
-	docker exec ${CName}4 touch /data2/file2
+    yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
+    cp -f ${yml_pvc_template} ${yml_pvc}
+    sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
 
-	echo "## ---> ${S}.2. Stop container Verify unmount and remove volumes"
-	docker stop ${CName}4
-	mount |grep ubiquity  && exit ${S} || :
-	docker rm ${CName}4
-	docker volume rm ${vol}1
-	docker volume rm ${vol}2
-	docker volume ls | grep -v $vol || :
+    yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
+    cp -f ${yml_pod_template} ${yml_pod1}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" ${yml_pod1}
+
+	ymk_sc_and_pvc_and_pod1=$scripts/../deploy/scbe_volume_with_sc_pvc_and_pod1.yml
+	cat ${yml_sc_profile} > ${ymk_sc_and_pvc_and_pod1}
+    add_yaml_delimiter ${ymk_sc_and_pvc_and_pod1}
+	cat ${yml_pvc} >> ${ymk_sc_and_pvc_and_pod1}
+    add_yaml_delimiter ${ymk_sc_and_pvc_and_pod1}
+    cat ${yml_pod1} >> ${ymk_sc_and_pvc_and_pod1}
+    cat ${ymk_sc_and_pvc_and_pod1}
+
+	echo "####### ---> ${S}. Run all in one yaml(SC, PVC and POD)"
+    kubectl create -f ${ymk_sc_and_pvc_and_pod1}
+
+	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
+    pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
+
+ 	echo "## ---> ${S}.2. Verify POD info status "
+    wait_for_item pod $PODName Running 15 3
+
+	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
+
+	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
+    kubectl delete -f ${ymk_sc_and_pvc_and_pod1}
+    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pvc $PVCName 10 2
+    wait_for_item_to_delete pv $pvname 10 2
+    wait_for_item_to_delete storageclass $profile 5 2
+}
+
+function basic_test_POD_with_2_volumes()
+{
+    # Description of the test :
+    # -------------------------
+    # This test start a POD with a container that consume 2 PVCs one on /data1 and other on /data2
+    # The test validate that the container can see and use these 2 mountpoint.
+    # -------------------------
+
+	stepinc
+	echo "########################### [Run 2 vols in the same POD-container] ###############"
+	echo "####### ---> ${S}. Prepare yml with all the definition"
+    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
+    fstype=ext4
+    sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
+
+    yml_pvc1=$scripts/../deploy/scbe_volume_pvc_${PVCName}1.yml
+    cp -f ${yml_pvc_template} ${yml_pvc1}
+    sed -i -e "s/PVCNAME/${PVCName}1/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc1}
+    yml_pvc2=$scripts/../deploy/scbe_volume_pvc_${PVCName}2.yml
+    cp -f ${yml_pvc_template} ${yml_pvc2}
+    sed -i -e "s/PVCNAME/${PVCName}2/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc2}
+
+    yml_pod2=$scripts/../deploy/scbe_volume_with_pod2.yml
+    cp -f ${yml_two_vols_pod_template} ${yml_pod2}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME1/${volPODname}1/g" -e "s|MOUNTPATH1|/data1|g" -e "s/PVCNAME1/${PVCName}1/g"  -e "s/VOLNAME2/${volPODname}2/g" -e "s|MOUNTPATH2|/data2|g" -e "s/PVCNAME2/${PVCName}2/g" ${yml_pod2}
+
+	my_yml=$scripts/../deploy/scbe_volume_with_sc_2pvc_and_pod.yml
+	cat ${yml_sc_profile} > ${my_yml}
+    add_yaml_delimiter ${my_yml}
+	cat ${yml_pvc1} >> ${my_yml}
+    add_yaml_delimiter ${my_yml}
+	cat ${yml_pvc2} >> ${my_yml}
+    add_yaml_delimiter ${my_yml}
+    cat ${yml_pod2} >> ${my_yml}
+    cat ${my_yml}
+
+	echo "####### ---> ${S}. Run all in one yaml(SC, 2 PVCs and POD with 2PVCs)"
+    kubectl create -f ${my_yml}
+
+	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
+    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 5 2
+    pvname1=`kubectl get pvc ${PVCName}1 --no-headers -o custom-columns=name:spec.volumeName`
+    pvname2=`kubectl get pvc ${PVCName}2 --no-headers -o custom-columns=name:spec.volumeName`
+    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 5 2
+
+ 	echo "## ---> ${S}.2. Verify POD info status "
+    wait_for_item pod $PODName Running 15 3
+
+	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
+    kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data1"
+    kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data2"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data1/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data2/file_on_A9000_volume"
+
+
+ 	echo "## ---> ${S}.4. Verify 2 vols attached and mounted in the kubelet node"
+    wwn1=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname1}`
+    wwn2=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname2}`
+	ssh root@$node1 "df | egrep ubiquity | grep $wwn1"
+	ssh root@$node1 "df | egrep ubiquity | grep $wwn2"
+
+	echo "## ---> ${S}.5 Delete all in one (SC, 2 PVCs, PV and POD)"
+    kubectl delete -f ${my_yml}
+    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pvc ${PVCName}1 10 2
+    wait_for_item_to_delete pvc ${PVCName}2 10 2
+    wait_for_item_to_delete pv ${pvname1} 10 2
+    wait_for_item_to_delete pv ${pvname2} 10 2
+    wait_for_item_to_delete storageclass $profile 5 2
 }
 
 function fstype_basic_check()
 {
-    # TODO migrate to k8s style
-    for fstype in ext4 xfs; do
-        stepinc
-        echo "####### ---> ${S}. Create volume with xfs run container and make sure the volume is $fstype"
-        docker volume create --driver ubiquity --name $vol --opt size=5 --opt profile=${profile} --opt fstype=$fstype
 
-        echo "## ---> ${S}.1. Verify volume info"
-        docker volume ls | grep $vol
-        docker volume inspect $vol | grep fstype | grep $fstype
+    # Description of the test :
+    # -------------------------
+    # This test start create 2 SCs(goldext4 goldxfs) and then start POD with one container
+    # that uses 2 PVCs, one from each SCs. The test validate fstype of each PV mount.
+    # -------------------------
 
-        echo "## ---> ${S}.2 Run container with the volume and Verify it was mounted right"
-        docker run -t -i -d --name ${CName}4 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine
-        df | egrep "ubiquity|^Filesystem"
-        mount |grep ubiquity | grep $fstype
-        docker stop ${CName}4
-        docker rm ${CName}4
-        docker volume rm $vol
+	stepinc
+	echo "########################### [Run 2 vols in the same POD-container] ###############"
+	echo "####### ---> ${S}. Prepare yml with all the definition"
+
+  	my_yml=$scripts/../deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
+    cat /dev/null > ${my_yml}
+    for fstype in ${FS_SUPPORTED}; do
+        echo "Generate yml for SC and PVC and POD according to the $fstype"
+        yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_${profile}_${fstype}.yml
+        cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
+        sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/${profile}-${fstype}/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
+        add_yaml_delimiter ${yml_sc_profile}
+	    cat ${yml_sc_profile} >> ${my_yml}
+
+        yml_pvc1=$scripts/../deploy/scbe_volume_pvc_${PVCName}_${fstype}.yml
+        cp -f ${yml_pvc_template} ${yml_pvc1}
+        sed -i -e "s/PVCNAME/${PVCName}-${fstype}/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/${profile}-${fstype}/g" ${yml_pvc1}
+        add_yaml_delimiter ${yml_pvc1}
+	    cat ${yml_pvc1} >> ${my_yml}
+
+        yml_pod1=$scripts/../deploy/scbe_volume_with_pod_with_pvc_for_each_fstype.yml
+        cp -f ${yml_pod_template} ${yml_pod1}
+        sed -i -e "s/PODNAME/${PODName}-${fstype}/g" -e "s/CONNAME/${CName}-${fstype}/g"  -e "s/VOLNAME/${volPODname}-${fstype}/g" -e "s|MOUNTPATH|/data-${fstype}|g" -e "s/PVCNAME/$PVCName-${fstype}/g" ${yml_pod1}
+        add_yaml_delimiter ${yml_pod1}
+	    cat ${yml_pod1} >> ${my_yml}
+    done
+    echo "Here is the final yml file with all SC, PVC, POD for ${FS_SUPPORTED}:"
+    cat ${my_yml}
+
+  	stepinc
+    echo "####### ---> ${S}. Run all in one yaml(SC, PVCs and POD for each fstype)"
+    kubectl create -f ${my_yml}
+
+
+    for fstype in ${FS_SUPPORTED}; do
+        echo "## ---> ${S}.1. Verify PVC, PV and POD of $fstype"
+        wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 5 2
+        pvname1=`kubectl get pvc ${PVCName}-${fstype} --no-headers -o custom-columns=name:spec.volumeName`
+        wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
+        wait_for_item pod ${PODName}-${fstype} Running 15 3
+
+
+        echo "## ---> ${S}.2. Verify POD $fstype really mounted $fstype filesystem"
+        # Should fail if its not the right fstype
+        kubectl exec -it ${PODName}-${fstype} -c ${CName}-${fstype} -- bash -c "mount | grep data-${fstype}" | awk '{print $5}' | grep ${fstype}
+    done
+
+  	stepinc
+	echo "## ---> ${S} Delete all in one (SC, PVCs, PV and POD for each fstype : ${FS_SUPPORTED})"
+    kubectl delete -f ${my_yml}
+    for fstype in ${FS_SUPPORTED}; do
+        wait_for_item_to_delete pod ${PODName}-${fstype} 15 3
+        wait_for_item_to_delete pvc ${PVCName}-${fstype} 10 2
+        wait_for_item_to_delete storageclass ${profile}-${fstype} 5 2
     done
 }
 
@@ -385,7 +532,10 @@ S=0 # steps counter
 yml_sc_tmplemt=$scripts/../deploy/scbe_volume_storage_class_template.yml
 yml_pvc_template=$scripts/../deploy/scbe_volume_pvc_template.yml
 yml_pod_template=$scripts/../deploy/scbe_volume_with_pod_template.yml
+yml_two_vols_pod_template=$scripts/../deploy/scbe_volume_with_pod_with_2vols_template.yml
 
+FS_SUPPORTED="ext4 xfs"
+YAML_DELIMITER='---'
 PVCName=accept-pvc
 PODName=accept-pod
 CName=accept-con # name of the containers in the script
@@ -396,65 +546,12 @@ echo "Start Acceptance Test for IBM Block Storage"
 setup # Verifications and clean up before the test
 
 basic_tests_on_one_node
-#fstype_basic_check
+basic_tests_on_one_node_sc_pvc_pod_all_in_one
+basic_test_POD_with_2_volumes
+fstype_basic_check
 #[ -n "$withnegative" ] && one_node_negative_tests
 #[ -n "$node2" ] && tests_with_second_node
 
 echo ""
 echo "======================================================"
 echo "Successfully Finish The Acceptance test ([$S] steps). Running stateful container on IBM Block Storage."
-
-exit 0 # TODO remove
-
-echo "Creating Storage class...."
-kubectl create -f $scripts/../deploy/scbe_volume_storage_class.yml
-
-echo "Listing Storage classes"
-kubectl get storageclass
-
-
-echo "Creating Persistent Volume Claim..."
-kubectl create -f $scripts/../deploy/scbe_volume_pvc.yml
-
-
-echo "Listing Persistent Volume Claim..."
-kubectl get pvc
-
-
-echo "Listing Persistent Volume..."
-kubectl get pv
-
-
-echo "Creating Test Pod"
-kubectl create -f $scripts/../deploy/scbe_volume_with_pod.yml
-sleep 10
-
-echo "Listing pods"
-kubectl get pods
-
-echo "Writing success.txt to mounted volume"
-kubectl exec acceptance-pod-test -c acceptance-pod-test-con touch /mnt/success.txt
-
-echo "Reading from mounted volume"
-kubectl exec acceptance-pod-test -c acceptance-pod-test-con ls /mnt
-
-
-echo "Cleaning test environment"
-
-echo "Deleting Pod"
-kubectl delete -f $scripts/../deploy/scbe_volume_with_pod.yml
-
-echo "Deleting Persistent Volume Claim"
-kubectl delete -f $scripts/../deploy/scbe_volume_pvc.yml
-
-echo "Listing PVC"
-kubectl get pvc
-
-echo "Listing PV"
-kubectl get pv
-
-echo "Deleting Storage Class"
-kubectl delete -f $scripts/../deploy/scbe_volume_storage_class.yml
-
-echo "Listing Storage Classes"
-kubectl get storageclass

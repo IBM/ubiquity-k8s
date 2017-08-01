@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: "PVCNAME"
   annotations:
-    volume.beta.kubernetes.io/storage-class: "PROFILE"
+    volume.beta.kubernetes.io/storage-class: "SCNAME"
 spec:
   accessModes:
     - ReadWriteOnce
