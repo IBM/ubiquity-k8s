@@ -76,6 +76,14 @@ function add_yaml_delimiter()
 
 function basic_tests_on_one_node()
 {
+    # Description of the test :
+    # -------------------------
+    # The test creates and validate the following objects: SC, PVC, PV, POD with PVC.
+    # The test validate that the relevant mount, multipathing was created after POD is up.
+    # Then generate some IO on the volume inside the container, delete the POD and start it again
+    # and validate that the data still persist.
+    # -------------------------
+
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
 	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
 	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
@@ -102,10 +110,10 @@ function basic_tests_on_one_node()
     kubectl create -f ${yml_pvc}
 
 	echo "####### ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
 
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
@@ -186,8 +194,8 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
-    wait_for_item_to_delete pvc $PVCName 20 1
-    wait_for_item_to_delete pv $pvname 20 1
+    wait_for_item_to_delete pvc $PVCName 10 2
+    wait_for_item_to_delete pv $pvname 10 2
 
 	echo "## ---> ${S}.1. Verity the storage side : check volume is no longer exist"
     echo "Skip step"
@@ -196,11 +204,17 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
     kubectl delete -f ${yml_sc_profile}
-    wait_for_item_to_delete storageclass $profile 10 1
+    wait_for_item_to_delete storageclass $profile 5 2
 }
 
 function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 {
+    # Description of the test :
+    # -------------------------
+    # This test generates yml file with definition of many object type, such as SC, PVC and POD
+    # Then create these object in one kubectl command and validate all is up and running.
+    # -------------------------
+
 	stepinc
 	echo "########################### [All in one suite] ###############"
 	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
@@ -229,9 +243,9 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     kubectl create -f ${ymk_sc_and_pvc_and_pod1}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 15 3
@@ -243,13 +257,19 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
     kubectl delete -f ${ymk_sc_and_pvc_and_pod1}
     wait_for_item_to_delete pod $PODName 15 3
-    wait_for_item_to_delete pvc $PVCName 20 1
-    wait_for_item_to_delete pv $pvname 20 1
-    wait_for_item_to_delete storageclass $profile 10 1
+    wait_for_item_to_delete pvc $PVCName 10 2
+    wait_for_item_to_delete pv $pvname 10 2
+    wait_for_item_to_delete storageclass $profile 5 2
 }
 
 function basic_test_POD_with_2_volumes()
 {
+    # Description of the test :
+    # -------------------------
+    # This test start a POD with a container that consume 2 PVCs one on /data1 and other on /data2
+    # The test validate that the container can see and use these 2 mountpoint.
+    # -------------------------
+
 	stepinc
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
 	echo "####### ---> ${S}. Prepare yml with all the definition"
@@ -283,12 +303,12 @@ function basic_test_POD_with_2_volumes()
     kubectl create -f ${my_yml}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 10 1
-    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 5 2
     pvname1=`kubectl get pvc ${PVCName}1 --no-headers -o custom-columns=name:spec.volumeName`
     pvname2=`kubectl get pvc ${PVCName}2 --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 10 1
-    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 10 1
+    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 5 2
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 15 3
@@ -311,11 +331,11 @@ function basic_test_POD_with_2_volumes()
 	echo "## ---> ${S}.5 Delete all in one (SC, 2 PVCs, PV and POD)"
     kubectl delete -f ${my_yml}
     wait_for_item_to_delete pod $PODName 15 3
-    wait_for_item_to_delete pvc ${PVCName}1 20 1
-    wait_for_item_to_delete pvc ${PVCName}2 20 1
-    wait_for_item_to_delete pv ${pvname1} 20 1
-    wait_for_item_to_delete pv ${pvname2} 20 1
-    wait_for_item_to_delete storageclass $profile 10 1
+    wait_for_item_to_delete pvc ${PVCName}1 10 2
+    wait_for_item_to_delete pvc ${PVCName}2 10 2
+    wait_for_item_to_delete pv ${pvname1} 10 2
+    wait_for_item_to_delete pv ${pvname2} 10 2
+    wait_for_item_to_delete storageclass $profile 5 2
 }
 
 function fstype_basic_check()
@@ -478,8 +498,8 @@ echo "Start Acceptance Test for IBM Block Storage"
 
 setup # Verifications and clean up before the test
 
-#basic_tests_on_one_node
-#basic_tests_on_one_node_sc_pvc_pod_all_in_one
+basic_tests_on_one_node
+basic_tests_on_one_node_sc_pvc_pod_all_in_one
 basic_test_POD_with_2_volumes
 
 #fstype_basic_check
