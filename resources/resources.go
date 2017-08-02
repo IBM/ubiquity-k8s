@@ -2,6 +2,7 @@ package resources
 
 const KubernetesVersion_1_5 = "1.5"
 const KubernetesVersion_1_6OrLater = "atLeast1.6"
+const UbiquityPluginDirName = "ibm~ubiquity"
 
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`

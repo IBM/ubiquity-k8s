@@ -29,6 +29,7 @@ import (
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
+	"path/filepath"
 )
 
 //Controller this is a structure that controls volume management
@@ -162,6 +163,28 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: msg,
+		}
+	}
+	dir := filepath.Dir(mountRequest.MountPath)
+
+	if strings.HasSuffix(dir, k8sresources.UbiquityPluginDirName) {
+		k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
+		if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
+			if os.IsNotExist(err) {
+
+				c.logger.Printf("creating volume directory %s", dir)
+				err = os.MkdirAll(dir, 0777)
+				if err != nil && !os.IsExist(err) {
+					msg := fmt.Sprintf("Failed creating volume directory %#v", err)
+					c.logger.Println(msg)
+
+					return k8sresources.FlexVolumeResponse{
+						Status:  "Failure",
+						Message: msg,
+					}
+
+				}
+			}
 		}
 	}
 
