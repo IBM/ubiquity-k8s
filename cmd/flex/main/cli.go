@@ -377,12 +377,19 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 }
 
 //MountCommand mounts a given volume to a given mountpoint
-//<driver executable> mount <mount dir> <json options> (v>=1.5)
+//<driver executable> mount <mount dir> <mountDevice> <json options> (v>=1.5)
+//<driver executable> mount <mount dir> <json options> (v>=1.6)
 type MountCommand struct {
 	Mount func() `short:"m" long:"mount" description:"Mount a volume Id to a path"`
 }
 
 func (m *MountCommand) Execute(args []string) error {
+	var volumeName string
+	var mountOpts map[string]string
+	var mountOptsIndex int
+	var ok bool
+
+	//should error out when not enough args
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -392,10 +399,17 @@ func (m *MountCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	targetMountDir := args[0]
+	// kubernetes version 1.5
+	if len(args) == 3 {
+		volumeName = args[1]
+		mountOptsIndex = 2
 
-	var mountOpts map[string]string
+	} else /*kubernetes version 1.6*/ {
+		mountOptsIndex = 1
+	}
 
-	err := json.Unmarshal([]byte(args[1]), &mountOpts)
+	err := json.Unmarshal([]byte(args[mountOptsIndex]), &mountOpts)
+
 	if err != nil {
 		mountResponse := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -403,15 +417,19 @@ func (m *MountCommand) Execute(args []string) error {
 		}
 		return printResponse(mountResponse)
 	}
-	volumeName, ok := mountOpts["volumeName"]
-	if !ok {
-		mountResponse := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to get volumeName in opts: %#v", mountOpts),
-		}
-		return printResponse(mountResponse)
 
+	if volumeName == "" {
+		volumeName, ok = mountOpts["volumeName"]
+		if !ok {
+			mountResponse := k8sresources.FlexVolumeResponse{
+				Status:  "Failure",
+				Message: fmt.Sprintf("Failed to get volumeName in opts: %#v", mountOpts),
+			}
+			return printResponse(mountResponse)
+
+		}
 	}
+
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
 		MountDevice: volumeName,
@@ -423,10 +441,10 @@ func (m *MountCommand) Execute(args []string) error {
 		response := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
 			Message: fmt.Sprintf("Failed to read config in mount %#v", err),
-			Device:  "",
 		}
 		return printResponse(response)
 	}
+
 	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
 	controller, err := createController(config)
 

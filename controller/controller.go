@@ -80,11 +80,14 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) k8sresources.FlexVolumeResponse {
 	c.logger.Println("controller-attach-start")
 	defer c.logger.Println("controller-attach-end")
+
 	if attachRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		c.logger.Printf("k8s version 1.5")
 		return k8sresources.FlexVolumeResponse{
 			Status: "Success",
 		}
 	}
+	c.logger.Printf("k8s version 1.6 or later")
 	return k8sresources.FlexVolumeResponse{
 		Status: "Not supported",
 	}
@@ -166,8 +169,9 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 		}
 	}
 	dir := filepath.Dir(mountRequest.MountPath)
-
+	c.logger.Printf("mountrequest.MountPath %s", mountRequest.MountPath)
 	if strings.HasSuffix(dir, k8sresources.UbiquityPluginDirName) {
+		c.logger.Printf("k8s version 1.6 or later")
 		k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
 		if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
 			if os.IsNotExist(err) {
