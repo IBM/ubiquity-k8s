@@ -16,6 +16,7 @@ type FlexVolumeMountRequest struct {
 	MountPath   string            `json:"mountPath"`
 	MountDevice string            `json:"name"`
 	Opts        map[string]string `json:"opts"`
+	Version     string            `json:"version"`
 }
 
 type FlexVolumeUnmountRequest struct {

@@ -156,7 +156,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	c.logger.Println("controller-mount-start")
 	defer c.logger.Println("controller-mount-end")
 	c.logger.Println(fmt.Sprintf("mountRequest [%#v]", mountRequest))
-
+	var lnPath string
 	attachRequest := resources.AttachRequest{Name: mountRequest.MountDevice, Host: getHost()}
 	mountedPath, err := c.Client.Attach(attachRequest)
 
@@ -168,10 +168,10 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 			Message: msg,
 		}
 	}
-	dir := filepath.Dir(mountRequest.MountPath)
-	c.logger.Printf("mountrequest.MountPath %s", mountRequest.MountPath)
-	if strings.HasSuffix(dir, k8sresources.UbiquityPluginDirName) {
-		c.logger.Printf("k8s version 1.6 or later")
+	if mountRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		dir := filepath.Dir(mountRequest.MountPath)
+		c.logger.Printf("mountrequest.MountPath %s", mountRequest.MountPath)
+		lnPath = mountRequest.MountPath
 		k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
 		if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
 			if os.IsNotExist(err) {
@@ -190,25 +190,27 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 				}
 			}
 		}
-	}
 
-	c.logger.Printf("removing folder %s", mountRequest.MountPath)
-	err = os.Remove(mountRequest.MountPath)
-	if err != nil && !os.IsExist(err) {
-		msg := fmt.Sprintf("Failed removing existing volume directory %#v", err)
-		c.logger.Println(msg)
+	} else {
+		lnPath, _ = path.Split(mountRequest.MountPath)
+		c.logger.Printf("removing folder %s", mountRequest.MountPath)
 
-		return k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: msg,
+		err = os.Remove(mountRequest.MountPath)
+		if err != nil && !os.IsExist(err) {
+			msg := fmt.Sprintf("Failed removing existing volume directory %#v", err)
+			c.logger.Println(msg)
+
+			return k8sresources.FlexVolumeResponse{
+				Status:  "Failure",
+				Message: msg,
+			}
+
 		}
 
 	}
-
-	pvPath, _ := path.Split(mountRequest.MountPath)
 	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, pvPath}
-	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, pvPath))
+	args := []string{"-s", mountedPath, lnPath}
+	c.logger.Printf(fmt.Sprintf("creating slink from %s -> %s", mountedPath, lnPath))
 
 	var stderr bytes.Buffer
 	cmd := exec.Command(symLinkCommand, args...)

@@ -388,6 +388,7 @@ func (m *MountCommand) Execute(args []string) error {
 	var mountOpts map[string]string
 	var mountOptsIndex int
 	var ok bool
+	var version string
 
 	//should error out when not enough args
 	if len(args) < 2 {
@@ -403,9 +404,11 @@ func (m *MountCommand) Execute(args []string) error {
 	if len(args) == 3 {
 		volumeName = args[1]
 		mountOptsIndex = 2
+		version = k8sresources.KubernetesVersion_1_5
 
 	} else /*kubernetes version 1.6*/ {
 		mountOptsIndex = 1
+		version = k8sresources.KubernetesVersion_1_6OrLater
 	}
 
 	err := json.Unmarshal([]byte(args[mountOptsIndex]), &mountOpts)
@@ -434,6 +437,7 @@ func (m *MountCommand) Execute(args []string) error {
 		MountPath:   targetMountDir,
 		MountDevice: volumeName,
 		Opts:        mountOpts,
+		Version:     version,
 	}
 
 	config, err := readConfig(*configFile)
