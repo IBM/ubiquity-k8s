@@ -19,3 +19,5 @@ spec:
     - name: VOLNAME2
       persistentVolumeClaim:
         claimName: PVCNAME2
+  nodeSelector:
+    kubernetes.io/hostname: NODESELECTOR
