@@ -77,7 +77,6 @@ function wait_for_item_to_delete()
 }
 
 # TODO : need to add another wait function for container status (which is inside managed object - POD)
-
 function add_yaml_delimiter()
 {
     printf "\n\n%s\n" "$YAML_DELIMITER" >> $1
