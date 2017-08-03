@@ -5,12 +5,19 @@
 # Script prerequisites:
 #    1. SCBE server up and running with 1 service delegated to ubiquity interface
 #    2. ubiqutiy server up and running with SCBE backend configured
-#    3. ubiquity-docker-plugin up and running
-#    4. setup connectivity between the docker node to the related storage system of the service.
+#    3. ubiquity-provisioner up and running and also ubiquity-flexvolume-cli locate on the k8s nodes
+#    4. setup connectivity between the minions to the related storage system of the service.
+#    5. root SSH passwordless between master and minion
 #
-#   Two nodes tests :
-#      In case second node provided a migration tests will take place
-#      prerequisites for that is : the second node should apply to #3, #4 and has ssh keys from current node to the second node.
+# Test cases:
+#    One minion tests:
+#    1. Create SC and PVC then create POD with volume, write data, stop POD and start again. Validate every step in the way.
+#    2. Create SC, PVC, POD all in one yml file and delete all together. Validate every step in the way.
+#    3. Create POD with 2 volumes. Validate every step in the way.
+#    4. Create POD for each FSTYPE supported and delete them all. Validate fstype are correct.
+#
+#    Two minion tests:
+#    5. Create POD with PVC1 on node1 then delete it and start it on node2. Validate PVC1 is no attached to node2.
 ############################################
 
 NO_RESOURCES_STR="No resources found."
@@ -86,15 +93,9 @@ function basic_tests_on_one_node()
     # and validate that the data still persist.
     # -------------------------
 
-	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
-	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
-	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
-	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
-	kubectl get pvc 2>&1 | grep "$NO_RESOURCES_STR"
-	kubectl get pv 2>&1 | grep "$NO_RESOURCES_STR"
-
-
 	stepinc
+	printf "\n\n\n\n"
+	echo "########################### [basic POD test with PVC] ###############"
 	echo "####### ---> ${S}. Creating Storage class for ${profile} service"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -130,7 +131,7 @@ function basic_tests_on_one_node()
 	echo "####### ---> ${S}. Run POD [$PODName] with container ${CName} with the new volume"
     yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod1}
-    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" ${yml_pod1}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
     kubectl create -f ${yml_pod1}
     wait_for_item pod $PODName Running 15 3
@@ -218,6 +219,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     # -------------------------
 
 	stepinc
+	printf "\n\n\n\n"
 	echo "########################### [All in one suite] ###############"
 	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
@@ -231,7 +233,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 
     yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod1}
-    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" ${yml_pod1}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
 
 	ymk_sc_and_pvc_and_pod1=$scripts/../deploy/scbe_volume_with_sc_pvc_and_pod1.yml
 	cat ${yml_sc_profile} > ${ymk_sc_and_pvc_and_pod1}
@@ -273,6 +275,7 @@ function basic_test_POD_with_2_volumes()
     # -------------------------
 
 	stepinc
+	printf "\n\n\n\n"
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
 	echo "####### ---> ${S}. Prepare yml with all the definition"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
@@ -289,7 +292,7 @@ function basic_test_POD_with_2_volumes()
 
     yml_pod2=$scripts/../deploy/scbe_volume_with_pod2.yml
     cp -f ${yml_two_vols_pod_template} ${yml_pod2}
-    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME1/${volPODname}1/g" -e "s|MOUNTPATH1|/data1|g" -e "s/PVCNAME1/${PVCName}1/g"  -e "s/VOLNAME2/${volPODname}2/g" -e "s|MOUNTPATH2|/data2|g" -e "s/PVCNAME2/${PVCName}2/g" ${yml_pod2}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME1/${volPODname}1/g" -e "s|MOUNTPATH1|/data1|g" -e "s/PVCNAME1/${PVCName}1/g"  -e "s/VOLNAME2/${volPODname}2/g" -e "s|MOUNTPATH2|/data2|g" -e "s/PVCNAME2/${PVCName}2/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod2}
 
 	my_yml=$scripts/../deploy/scbe_volume_with_sc_2pvc_and_pod.yml
 	cat ${yml_sc_profile} > ${my_yml}
@@ -350,6 +353,7 @@ function fstype_basic_check()
     # -------------------------
 
 	stepinc
+    printf "\n\n\n\n"
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
 	echo "####### ---> ${S}. Prepare yml with all the definition"
 
@@ -371,7 +375,7 @@ function fstype_basic_check()
 
         yml_pod1=$scripts/../deploy/scbe_volume_with_pod_with_pvc_for_each_fstype.yml
         cp -f ${yml_pod_template} ${yml_pod1}
-        sed -i -e "s/PODNAME/${PODName}-${fstype}/g" -e "s/CONNAME/${CName}-${fstype}/g"  -e "s/VOLNAME/${volPODname}-${fstype}/g" -e "s|MOUNTPATH|/data-${fstype}|g" -e "s/PVCNAME/$PVCName-${fstype}/g" ${yml_pod1}
+        sed -i -e "s/PODNAME/${PODName}-${fstype}/g" -e "s/CONNAME/${CName}-${fstype}/g"  -e "s/VOLNAME/${volPODname}-${fstype}/g" -e "s|MOUNTPATH|/data-${fstype}|g" -e "s/PVCNAME/$PVCName-${fstype}/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
         add_yaml_delimiter ${yml_pod1}
 	    cat ${yml_pod1} >> ${my_yml}
     done
@@ -425,77 +429,122 @@ function one_node_negative_tests()
 
 function tests_with_second_node()
 {
-    # TODO migrate to k8s style
-	# Assuming plugin runs on second node and with storage connectivity
-	echo ""
-	echo "######### [2 nodes testing  node1=`hostname`, node2=`$node2`] ###########"
+    # Description of the test :
+    # -------------------------
+    # The test creates and validate the following objects: SC, PVC, PV, POD with PVC(on node1)
+    # the delete the POD and run the same one with the same PVC on node2. Then validate the migration.
+    # -------------------------
+
+	printf "\n\n\n\n"
+	echo "########################### [Migrate POD from node1 to node2 ] ###############"
+    [ -z "$node2" ] && { echo "Skip running migration test - because env ACCEPTANCE_WITH_SECOND_NODE was not set."; return; }
 
 	stepinc
-	echo "####### ---> ${S}. Run stateful container (should create and run the container)"
-	docker run -t -i -d --name ${CName}4 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine
+	echo "####### ---> ${S} Steps on NODE1 $node1"
 
-	echo "## ---> ${S}.1. Verify volume was created for this container and you can touch a file inside the container"
-	docker volume ls | grep $vol
-	docker exec ${CName}4 touch /data/file_on_A9000_volume
-	docker exec ${CName}4 ls -l /data/file_on_A9000_volume
+	echo "## ---> ${S}.1 Creating Storage class for ${profile} service"
+    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
+    fstype=ext4
+    sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
+    cat $yml_sc_profile
+    kubectl create -f ${yml_sc_profile}
+    kubectl get storageclass $profile
 
-	echo "## ---> ${S}.2. [$node2] : Verify volume is visible from second node"
-	ssh root@$node2 "docker volume ls | grep $vol"
+	echo "## --> ${S}.2 Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
+    yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
+    cp -f ${yml_pvc_template} ${yml_pvc}
+    sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
+    cat ${yml_pvc}
+    kubectl create -f ${yml_pvc}
 
-	echo "## ---> ${S}.3. [$node2] : Verify that you can NOT run container with $vol on second node"
-	ssh root@$node2 "docker run -t -i -d --name ${CName}5 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine" && exit 1 || :
-	ssh root@$node2 "docker stop ${CName}5"
-	ssh root@$node2 "docker rm ${CName}5"
+	echo "## ---> ${S}.3. Verify PVC and PV info status and inpect"
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
+    pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
+    kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
+    wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
 
-	echo "## ---> ${S}.4. [$node2] : Verify that you can NOT delete the volume $vol from the second node because its already attached to first node"
-	ssh root@$node2 "docker volume rm $vol" && exit 1 || :
-	ssh root@$node2 "docker volume ls | grep -v $vol" # volume should still be visible on the remote
-	docker volume ls| grep -v $vol # and also visible on the local node, so we sure the volume was deleted
+	echo "## ---> ${S}.4. Run POD [$PODName] with container ${CName} with the new volume"
+    yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
+    cp -f ${yml_pod_template} ${yml_pod1}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
+    cat $yml_pod1
+    kubectl create -f ${yml_pod1}
+    wait_for_item pod $PODName Running 15 3
 
-	stepinc
-	echo "####### ---> ${S} Stop the container (so next step can run it on second node)"
-	docker stop ${CName}4
-	docker rm ${CName}4
-	sleep 2 && echo "finished sleep 2 seconds"  # just waiting for detach to complite
 
-	stepinc
-	echo "####### ---> ${S} [$node2] : Start the container with the same vol on the second node"
-	ssh root@$node2 "docker run -t -i -d --name ${CName}5 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine"
+	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
+	ssh root@$node1 "df | egrep ubiquity | grep $wwn"
+	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
+	ssh root@$node1 "mount |grep $wwn| grep $fstype"
 
-	echo "## ---> ${S}.1 [$node2] : Verify data presiste after migration to second node."
-	ssh root@$node2 "docker exec ${CName}5 ls -l /data/file_on_A9000_volume"
-
-	echo "## ---> ${S}.2 [$node2] : And add new file inside the volume."
-	ssh root@$node2 "docker exec ${CName}5 touch /data/file_on_A9000_volume_from_node2"
-
-	stepinc
-	echo "####### ---> ${S}  [$node2] Stop the container on second node"
-	ssh root@$node2 "docker stop ${CName}5"
-	ssh root@$node2 "docker rm ${CName}5"
-
-	stepinc
-	echo "####### ---> ${S} [$node2] : Start the container with the same vol on the first node"
-	docker run -t -i -d --name ${CName}6 --volume-driver ubiquity --volume $vol:/data --entrypoint /bin/sh alpine
-
-	echo "## ---> ${S}.1 Verify data presiste after migration back to first node(check 2 files)."
-	docker exec ${CName}6 ls -l /data/file_on_A9000_volume
-	docker exec ${CName}6 ls -l /data/file_on_A9000_volume_from_node2
+	echo "## ---> ${S}.6 Write DATA on the volume by create a file in /data inside the container"
+        file_create_node1="/data/file_created_on_${node1}"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
 
 	stepinc
-	echo "####### ---> ${S} Stop container and delete vol $vol"
-	docker stop ${CName}6
-	docker rm ${CName}6
-	docker volume rm $vol
+	echo "####### ---> ${S}. Stop the container on $node1"
+    kubectl delete -f ${yml_pod1}
+    wait_for_item_to_delete pod $PODName 15 3
 
-	echo "## ---> ${S}.1. [$node2] : Verify volume is no longer visible on the second node"
-	ssh root@$node2 "docker volume ls | grep -v $vol "
+	echo "## ---> ${S}.1. Verify the volume was detached from the kubelet node"
+	sleep 2 # some times mount is not refreshed immediate
+	ssh root@$node1 "df | egrep ubiquity | grep $wwn" && exit 1 || :
+
+	echo "## ---> ${S}.2. Verify PVC and PV still exist"
+       kubectl get pvc $PVCName
+       kubectl get pv $pvname
+
+
+	stepinc
+	echo "####### ---> ${S} Steps on NODE2 $node2"
+
+	echo "## ---> ${S}.1 Run the POD again BUT now on second node : $node2"
+    yml_pod2=$scripts/../deploy/scbe_volume_with_pod1.yml
+    cp -f ${yml_pod_template} ${yml_pod2}
+    sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node2}/g" ${yml_pod2}
+    cat $yml_pod2
+    kubectl create -f ${yml_pod2}
+    wait_for_item pod $PODName Running 15 3
+
+	echo "## ---> ${S}.2. Verify that the data remains (file exist on the /data inside the container)"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
+
+
+	stepinc
+	echo "####### ---> ${S}. Stop the POD"
+    kubectl delete -f ${yml_pod1}
+    wait_for_item_to_delete pod $PODName 15 3
+
+	stepinc
+	echo "####### ---> ${S}. Remove the PVC and PV"
+	kubectl delete -f ${yml_pvc}
+    wait_for_item_to_delete pvc $PVCName 10 2
+    wait_for_item_to_delete pv $pvname 10 2
+
+	stepinc
+	echo "####### ---> ${S}. Remove the Storage Class $profile"
+    kubectl delete -f ${yml_sc_profile}
+    wait_for_item_to_delete storageclass $profile 5 2
 }
 
 function stepinc() { S=`expr $S + 1`; }
 
 function setup()
 {
-    # TODO migrate to k8s style
+	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
+	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
+	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
+	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
+	kubectl get pvc 2>&1 | grep "$NO_RESOURCES_STR"
+	kubectl get pv 2>&1 | grep "$NO_RESOURCES_STR"
+
+    echo "Skip clean up the environment for acceptance test (TODO)"
+    return
+
     # clean acceptance containers and volumes before start the test and also validate ssh connection to second node if needed.
      conlist=`docker ps -a | grep $CName || :`
     if [ -n "$conlist" ]; then
@@ -550,7 +599,7 @@ basic_tests_on_one_node_sc_pvc_pod_all_in_one
 basic_test_POD_with_2_volumes
 fstype_basic_check
 #[ -n "$withnegative" ] && one_node_negative_tests
-#[ -n "$node2" ] && tests_with_second_node
+tests_with_second_node
 
 echo ""
 echo "======================================================"
