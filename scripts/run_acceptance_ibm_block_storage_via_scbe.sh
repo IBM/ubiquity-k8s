@@ -2,22 +2,45 @@
 
 ############################################
 # Acceptance Test for IBM Block Storage via SCBE
-# Script prerequisites:
-#    1. SCBE server up and running with 1 service delegated to ubiquity interface
-#    2. ubiqutiy server up and running with SCBE backend configured
-#    3. ubiquity-provisioner up and running and also ubiquity-flexvolume-cli locate on the k8s nodes
-#    4. setup connectivity between the minions to the related storage system of the service.
-#    5. root SSH passwordless between master and minion
 #
 # Test cases:
+#  ==========
 #    One minion tests:
 #    1. Create SC and PVC then create POD with volume, write data, stop POD and start again. Validate every step in the way.
 #    2. Create SC, PVC, POD all in one yml file and delete all together. Validate every step in the way.
 #    3. Create POD with 2 volumes. Validate every step in the way.
 #    4. Create POD for each FSTYPE supported and delete them all. Validate fstype are correct.
-#
 #    Two minion tests:
 #    5. Create POD with PVC1 on node1 then delete it and start it on node2. Validate PVC1 is no attached to node2.
+#
+# Script prerequisites:
+#  ====================
+#    1. SCBE server up and running with 1 service delegated to ubiquity interface (service name given by $ACCEPTANCE_PROFILE)
+#    2. ubiqutiy server up and running with SCBE backend configured
+#    3. ubiquity-provisioner up and running and also ubiquity-flexvolume-cli locate on the k8s nodes
+#    4. setup connectivity between the minions to the related storage system of the service.
+#    5. root SSH passwordless between master and minions (so test will validate on the minions the mount devices via ssh)
+#    6. You must spseicy the menion that the PODs will run on by using env: export ACCEPTANCE_WITH_FIRST_NODE=nodename1
+#    7. To enable migration tests between 2 nodes, you must specify the second minion by using env: export ACCEPTANCE_WITH_SECOND_NODE=nodename2
+#    8. This script uses template yml files from ../deploy directory. So make sure you have this directory.
+#
+#
+#  How to run the tests:
+#  =====================
+#     $> git clone https://github.com/IBM/ubiquity-k8s.git
+#     $> cd ubiquity-k8s.git/scripts
+#     [root@k8s-master ~]# kubectl get nodes
+#     NAME         STATUS         AGE
+#     k8s-master   Ready,master   15d
+#     k8s-node1    Ready          15d
+#     k8s-node2    Ready          1d
+#
+#     $> export ACCEPTANCE_WITH_FIRST_NODE=k8s-node1
+#     $> export ACCEPTANCE_WITH_SECOND_NODE=k8s-node2
+#
+#     $> ./scripts/run_acceptance_ibm_block_storage_via_scbe.sh
+#
+#     Note : You should see "Successfully Finish The Acceptance test" if all tests passed OK
 ############################################
 
 NO_RESOURCES_STR="No resources found."
