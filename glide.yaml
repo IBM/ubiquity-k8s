@@ -8,6 +8,7 @@ import:
   - lib/controller
   - lib/leaderelection
 - package: github.com/IBM/ubiquity
+  version: dev
   subpackages:
   - remote
   - resources
