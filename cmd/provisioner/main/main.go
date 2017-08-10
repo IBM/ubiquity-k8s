@@ -41,10 +41,10 @@ import (
 )
 
 var (
-	provisioner          = flag.String("provisioner", "ubiquity/spectrum-scale", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
+	provisioner          = flag.String("provisioner", "ubiquity/flex", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
 	master               = flag.String("master", "", "Master URL to build a client config from. Either this or kubeconfig needs to be set if the provisioner is being run out of cluster.")
-	kubeconfig           = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
-	configFile           = flag.String("config", "ubiquity-client.conf", "config file with ubiquity client configuration params")
+	kubeconfig           = flag.String("kubeconfig", "~/.kube/config", "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
+	configFile           = flag.String("config", "/etc/ubiquity/ubiquity-k8s-provisioner.conf", "config file with ubiquity client configuration params")
 	failedRetryThreshold = flag.Int("retries", 3, "number of retries on failure of provisioner")
 )
 
