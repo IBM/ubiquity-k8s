@@ -90,6 +90,11 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
     - SUSE 12+
 
   * Ubiquity FlexVolume requires Kubernetes version 1.5.6 or later.
+  * For kubernetes 1.6 and later introduced remote attach/detach from the controller. This functionality is not yet supported in ubiquity. In order to avoid any issues, we should set --enable-controller-attach-detach to false. This could be done in: `/etc/systemd/system/kubelet.service.d/10-kubeadm.conf` where the kubelet configuration should look like:
+    
+    ```bash
+     Environment="KUBELET_KUBECONFIG_ARGS=--kubeconfig=/etc/kubernetes/kubelet.conf --require-kubeconfig=true --enable-controller-attach-detach=false"
+    ```
 
   * The following sudoers configuration `/etc/sudoers` is required to run the FlexVolume as root user: 
   
