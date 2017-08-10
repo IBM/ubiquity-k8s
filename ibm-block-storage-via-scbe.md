@@ -5,7 +5,7 @@ Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control
 Avilable IBM block storage systems for Docker volume plugin are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
 # Ubiquity Dynamic Provisioner 
-There is no tune for the Provisioner that related to IBM Block Storage.
+There is no tuning needed for the Provisioner related to IBM Block Storage.
 
 # Ubiquity FlexVolume CLI
 
@@ -54,7 +54,7 @@ The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Confi
 Just make sure backends set to "scbe".
  
  ```toml
- logPath = "/var/tmp"                 # The Ubiquity Docker Plugin will write logs to file "ubiquity-docker-plugin.log" in this path.
+ logPath = "/var/tmp/ubiquity"                 # The Ubiquity Docker Plugin will write logs to file "ubiquity-docker-plugin.log" in this path.
  backend = "scbe" # Backend name such as scbe or spectrum-scale
  
  [UbiquityServer]
@@ -69,59 +69,95 @@ Just make sure backends set to "scbe".
 
 ### Basic flow for running a stateful container with Ubiquity volume
 The basic flow is as follows:
-1. Create volume `demoVol` on `gold` SCBE storage service.
-2. Run container `container1` with volume `demoVol` with `/data` mountpoint.
-3. Start I/Os into `/data/myDATA` inside the `container1`.
-4. Exit `container1` and then start a new `container2` with the same `demoVol` volume and validate that the file `/data/myDATA` still exists.
-5. Clean up by exiting `container2`, removing the containers and deleting the volume `demoVol`.
+1. Create a StorageClass that will refer to SCBE service.
+2. Create a PVC that uses the StorageClass.
+3. Create a Pod/Deployment to use the PVC.
+3. Start I/Os into `/data/myDATA` inside the Pod.
+4. Exit the Pod and then start a new Pod with the same PVC and validate that the file `/data/myDATA` still exists.
+5. Clean up by exiting the Pod, removing the containers and deleting the PVC.
 
-TBD
 
-### Creating a Docker volume
-Docker volume creation template:
+### Creating a StorageClass
+Kubernetes Storage Class creation template:
 ```bash
-TBD
+#> kubectl create -f <path/to/storageClass.yml>
+```
+The storage class should refer to `ubiquity/flex` as its provisioner.
+For example, to create a StorageClass named "gold" that refers to the SCBE storage service, such as a pool from IBM FlashSystem A9000R with QoS capability:
+
+```bash
+#> kubectl create -f deploy/scbe_volume_storage_class.yml
+
+storageclass "gold" created
 ```
 
-For example, to create a volume named volume1 with 10GB size from the gold SCBE storage service, such as a pool from IBM FlashSystem A9000R with QoS capability:
-
+### Displaying the StorageClass
+You can list the newly created StorageClass, using the following command:
 ```bash
-TBD
+#> kubectl get storageclass
+
+NAME                               TYPE
+gold (default)                     ubiquity/flex
 ```
 
-### Displaying a Docker volume
-You can list and inspect the newly created volume, using the following command:
-TBD
+### Creating a PersistentVolumeClaim
+Kubernetes PVC creation template:
+```bash
+#> kubectl create -f <path/to/pvc.yml>
+```
 
-### Running a Docker container with a Ubiquity volume
-The Docker start command will cause the Ubiquity to: 
+For example, to create a PVC that refers to the Gold StorageClass that we created:
+```bash
+#> kubectl create -f deploy/scbe_volume_pvc.yml
+
+persistentvolumeclaim "scbe-accept-vol1" created
+```
+
+The PVC will be created and the dynamic provisioner will create a PersistentVolume (PV) and bind it to the PVC.
+To list the PVC and PV that got created:
+
+```bash
+#> kubectl get pvc,pv
+NAME                             STATUS    VOLUME                                      CAPACITY   ACCESSMODES   STORAGECLASS             AGE
+pvc/scbe-accept-vol1              Bound    pvc-e6ea27f1-7d51-11e7-af04-0894ef20e599      20Gi         RWO          gold                  1m
+
+NAME                                          CAPACITY   ACCESSMODES   RECLAIMPOLICY   STATUS     CLAIM                                STORAGECLASS             REASON    AGE
+pv/pvc-e6ea27f1-7d51-11e7-af04-0894ef20e599   1Gi         RWO           Delete          Bound     default/scbe-accept-vol1                    gold                        1m
+```
+### Running a Pod with a Ubiquity volume
+The creation of a Pod/Deployment will cause the Ubiquity to: 
 * Attach the volume to the host
 * Rescan and discover the multipath device of the new volume
 * Create xfs or ext4 filesystem on the device
 * Mount the new multipath device on /ubiquity/[WWN of the volume]
 
-Docker run template:
+Kubernetes create Pod template:
 ```bash
-#> docker run -it -d --name [CONTAINER NAME] --volume-driver ubiquity -v [VOL NAME]:[PATH TO MOUNT] [DOCKER IMAGE] [CMD]
+#> kubectl create -f <path/to/pod.yml>
 ```
 
-For example, to run a container `container1` with the created volume `volume1` based on `alpine` Docker image and running `sh` command.
+For example, to start a Pod `acceptance-pod-test` with the created PVC `scbe-accept-vol1`:
 
 ```bash
-#> docker run -it -d --name container1 --volume-driver ubiquity -v volume1:/data alpine sh
+#> kubectl create -f deploy/scbe_volume_with_pod.yml
 ```
 
-You can display the new mountpoint and multipath device inside the container. In addition you can write data into this  presistant volume on IBM FlashSystem A9000R.
+You can display the new created pod. In addition you can write data into the  persistent volume on IBM FlashSystem A9000R.
 ```bash
-#> docker exec container1 df | egrep "/data|^Filesystem"
+#> kubectl get pod
+NAME                 READY      STATUS    RESTARTS   AGE
+acceptance-pod-test   1/1       Running   0          1m
+
+#> kubectl exec acceptance-pod-test df | egrep "/mnt|^Filesystem"
 Filesystem           1K-blocks      Used Available Use% Mounted on
-/dev/mapper/mpathacg   9755384     32928   9722456   0% /data
+/dev/mapper/mpathacg   9755384     32928   9722456   0% /mnt
 
-#> docker exec container1 mount | egrep "/data"
+#> kubectl exec acceptance-pod-test mount | egrep "/mnt"
 /dev/mapper/mpathacg on /data type xfs (rw,seclabel,relatime,attr2,inode64,noquota)
 
-#> docker exec container1 touch /data/FILE
-#> docker exec container1 ls /data/FILE
+#> kubectl exec acceptance-pod-test touch /mnt/FILE
+#> kubectl exec acceptance-pod-test ls /mnt/FILE
+File
 ```
 
 Now you can also display the newly attached volume on the host.
@@ -140,77 +176,24 @@ size=9.3G features='1 queue_if_no_path' hwhandler='0' wp=rw
 Filesystem                       1K-blocks    Used Available Use% Mounted on
 /dev/mapper/mpathacg               9755384   32928   9722456   1% /ubiquity/6001738CFC9035EB0000000000CFF306
 
-#> docker inspect --format '{{ index .Mounts }}' container1
-[{volume volume1 /ubiquity/6001738CFC9035EB0000000000CBB306 /data ubiquity  true }]
-
 ```
 
-### Stopping a Docker container with a volume
-The Docker stop command will cause the Ubiquity to detach the volume from the host.
+### Deleting a Pod  with a volume
+The kuberenetes delete command will cause the Ubiquity to detach the volume from the host.
 ```bash
-#> docker stop container1
+#> kubectl delete acceptance-pod-test
 ```
 
-### Removing a Docker volume
-Note: Before removing a volume, remove its container.
+### Removing a volume
+In order to remove the volume, we need to remove its PVC:
 ```bash
-#> docker rm container1
-container1
+#> kubectl delete pvc scbe-accept-vol1
+persistentvolumeclaim "scbe-accept-vol1" deleted
 
-#> docker volume rm volume1
-volume1
+#> kubectl get pvc,pv
+NAME                             STATUS    VOLUME                                      CAPACITY   ACCESSMODES   STORAGECLASS             AGE
+No resources found.
+
+NAME                                          CAPACITY   ACCESSMODES   RECLAIMPOLICY   STATUS     CLAIM                                STORAGECLASS             REASON    AGE
+No resources found.
 ```
-
-### Using Docker Compose 
-The `docker-compose.yml` example below illustrates a web app container that uses postgress container with Ubiquity volume.
-
-```bash
-version: "3"
-
-volumes:
-   postgres:
-      driver: "ubiquity"
-      driver_opts:
-        size: "2"
-        profile: "gold"
-
-services:
-   web:
-     image: shaybery/docker_and_ibm_storage
-     ports:
-        -  "80:80"
-     environment:
-        - "USE_POSTGRES_HOST=postgres"
-        - "POSTGRES_USER=ubiquity"
-        - "POSTGRES_PASSWORD=ubiquitydemo"
-     network_mode: "bridge"
-     links:
-        - "postgres:postgres"
-   postgres:
-     image: postgres:9.5
-     ports:
-        -  "5432:5432"
-     environment:
-        - "POSTGRES_USER=ubiquity"
-        - "POSTGRES_PASSWORD=ubiquitydemo"
-        - "POSTGRES_DB=postgres"
-        - "PGDATA=/var/lib/postgresql/data/data"
-     network_mode: "bridge"
-     volumes:
-        - 'postgres:/var/lib/postgresql/data'
-```
-
-## Troubleshooting
-### Server error
-If the `bad status code 500 INTERNAL SERVER ERROR` error is displayed, check the `/var/log/sc/hsgsvr.log` log file on the SCBE node for explanation.
-
-### Updating the volume on the storage side
-Do not change a volume on a storage system itself, use Docker native command instead.
-Any volume operation on the storage it self, requires manual action on the Docker host. For example, if you unmap a volume directly from the storage, you must clean up the multipath device of this volume and rescan the operating system on the Docker node.
-
-### An attached volume cannot be attached to different host
-A volume can be used only by one node at a time. In order to use a volume on different node, you must stop the container that uses the volume and then start a new container with the volume on different host.
-
-### Cannot delete volume attached to a host
-You cannot delete volume that is currently attached to a host. Any atempt will result in the `Volume [vol] already attached to [host]` error message.
-If volume is not attached to any host, but this error is still displayed, run a new container, using this volume, then stop the container and remove the volume to delete it. 

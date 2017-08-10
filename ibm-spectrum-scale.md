@@ -16,6 +16,8 @@
 
  
 ## Volume Creation usage
+Volumes are dynamically provisioned by the dynamic provisioner. In order to have this functionality we need to create a storageClass that refers to the provisioner. Afterwards, we need to create PersistentVolumeClaims (PVC) that will be handled by the provisioner.
+The provisioner will create volumes and bind them to the PVC.
 ### Available Storage Classes
 These storage classes are described in the YAML files in `deploy` folder:
 * spectrum-scale-fileset - described in `deploy/storage_class_fileset.yml`, it allows the dynamic provisioner to create volumes out of Spectrum Scale filesets.
