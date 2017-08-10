@@ -37,7 +37,7 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
          mkdir -p /etc/ubiquity
          cd /etc/ubiquity
          curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xf -
-         cp provisioner /usr/bin 
+         cp ubiquity-k8s-provisioner /usr/bin
          chmod u+x /usr/bin/ubiquity-k8s-provisioner
          #chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
          cp ubiquity-k8s-provisioner.service /usr/lib/systemd/system/ 
@@ -65,7 +65,7 @@ port = 9999            # TCP port on which the Ubiquity Service is listening
 
 
 ### 4. Opening TCP ports to Ubiquity server
-Ubiquity server listens on TCP port (by default 9999) to receive Provisoner requests, such as creating a new volume. Verify that the Provisoner node can access this Ubiquity server port.
+Ubiquity server listens on TCP port (by default 9999) to receive Provisioner requests, such as creating a new volume. Verify that the Provisioner node can access this Ubiquity server port.
 
 ### 5. Running the Provisioner service
   * Run the service.
@@ -89,7 +89,7 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
     - RHEL 7+
     - SUSE 12+
 
-  * Ubiquity FlexVolume requires Kubernetes version 1.5.6.
+  * Ubiquity FlexVolume requires Kubernetes version 1.5.6 or later.
 
   * The following sudoers configuration `/etc/sudoers` is required to run the FlexVolume as root user: 
   
@@ -111,20 +111,20 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
 
 * Download and unpack the application package.
      ```bash
-         mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity
+         mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity
          cd $_
          curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
          chmod u+x ubiquity-k8s-flex
-         #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only a non-root user.
+         #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only for non-root user.
      ```
 
 ### 3. Configuring the Ubiquity FlexVolume
-Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-client.conf` file, according to your storage system type.
+Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-k8s-flex.conf` file, according to your storage system type.
 Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section.
 
 Here is example of a generic configuration file that need to be set:
 ```toml
-logPath = "/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
+logPath = "/var/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
