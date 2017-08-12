@@ -43,67 +43,6 @@
 #     Note : You should see "Successfully Finish The Acceptance test" if all tests passed OK
 ############################################
 
-NO_RESOURCES_STR="No resources found."
-PVC_GOOD_STATUS=Bound
-
-# example : wait_for_item pvc pvc1 Bound 10 1 # wait 10 seconds till timeout
-function wait_for_item()
-{
-  item_type=$1
-  item_name=$2
-  item_wanted_status=$3
-  retries=$4
-  max_retries=$4
-  delay=$5
-  while true; do
-      status=`kubectl get ${item_type} ${item_name} --no-headers -o custom-columns=Status:.status.phase`
-      if [ "$status" = "$item_wanted_status" ]; then
-         echo "${item_type} named [${item_name}] status [$status] as expected (after `expr $max_retries - $retries`/${max_retries} tries)"
-         return
-      else
-         if [ "$retries" -eq 0 ]; then
-             echo "Status of item $item_name was not reached to status ${item_wanted_status}. exit."
-             exit 2
-         else
-            echo "${item_type} named [${item_name}] status [$status] \!= [${item_wanted_status}] wish state. sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}]"
-            retries=`expr $retries - 1`
-            sleep $delay;
-         fi
-      fi
-  done
-}
-
-# wait_for_item_to_delete pvc scbe-accept-voly 10 1
-function wait_for_item_to_delete()
-{
-  item_type=$1
-  item_name=$2
-  retries=$3
-  max_retries=$3
-  delay=$4
-  while true; do
-      kubectl get ${item_type} ${item_name} && rc=$? || rc=$?
-      if [ $rc -ne 0 ]; then
-         echo "${item_type} named [${item_name}] was deleted (after `expr $max_retries - $retries`/${max_retries} tries)"
-         return
-      else
-         if [ "$retries" -eq 0 ]; then
-             echo "${item_type} named [${item_name}] still exist after all ${max_retries} retries. exit."
-             exit 2
-         else
-            echo "${item_type} named [${item_name}] still exist. sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}]"
-            retries=`expr $retries - 1`
-            sleep $delay;
-         fi
-      fi
-  done
-}
-
-# TODO : need to add another wait function for container status (which is inside managed object - POD)
-function add_yaml_delimiter()
-{
-    printf "\n\n%s\n" "$YAML_DELIMITER" >> $1
-}
 
 function basic_tests_on_one_node()
 {
@@ -493,7 +432,7 @@ function tests_with_second_node()
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
     kubectl create -f ${yml_pod1}
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 20 3
 
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
@@ -530,7 +469,7 @@ function tests_with_second_node()
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node2}/g" ${yml_pod2}
     cat $yml_pod2
     kubectl create -f ${yml_pod2}
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 20 3
 
 	echo "## ---> ${S}.2. Verify that the data remains (file exist on the /data inside the container)"
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
@@ -552,8 +491,6 @@ function tests_with_second_node()
     kubectl delete -f ${yml_sc_profile}
     wait_for_item_to_delete storageclass $profile 5 2
 }
-
-function stepinc() { S=`expr $S + 1`; }
 
 function setup()
 {
@@ -593,6 +530,8 @@ function setup()
 scripts=$(dirname $0)
 
 S=0 # steps counter
+
+. $scripts/acceptance_utils.sh
 
 [ -n "$ACCEPTANCE_PROFILE" ] && profile=$ACCEPTANCE_PROFILE || profile=gold
 [ -n "$ACCEPTANCE_WITH_NEGATIVE" ] && withnegative=$ACCEPTANCE_WITH_NEGATIVE || withnegative=""
