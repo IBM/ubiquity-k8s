@@ -169,7 +169,7 @@ function basic_tests_on_one_node()
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data"
 
 	echo "## ---> ${S}.3. Verify container with the mount point"
-    kubectl describe pod $PODName | grep -A1 "Volume Mounts"
+    kubectl describe pod $PODName | grep -A1 "Mounts"
 
 	echo "## ---> ${S}.3. Verify the storage side : check volume has mapping to the host"
     echo "Skip step"
