@@ -7,7 +7,7 @@ The code is provided as is, without warranty. Any issue will be handled on a bes
 
 ## Ubiquity Dynamic Provisioner 
 
-Ubiquity Dynamic Provisioner (Provisioner) is intended for creation and deletion of persistent volumes in Kubernetes (version 1.5.6), using the  [Ubiquity](https://github.com/IBM/ubiquity) service.
+Ubiquity Dynamic Provisioner (Provisioner) is intended for creation and deletion of persistent volumes in Kubernetes, using the  [Ubiquity](https://github.com/IBM/ubiquity) service.
   
 ### Installing the Ubiquity Dynamic Provisioner
 Install and configure the Provisioner on a single node in the Kubernetes cluster (minion or master).
@@ -16,6 +16,8 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
   * The Provisioner is supported on the following operating systems:
     - RHEL 7+
     - SUSE 12+
+
+  * The Provisioner requires Kubernetes version 1.5.6 or later.
 
   * The following sudoers configuration `/etc/sudoers` is required to run the Provisioner as root user: 
   
@@ -28,7 +30,13 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
          USER ALL= NOPASSWD: /usr/bin/, /bin/, /usr/sbin/ 
          Defaults:%USER !requiretty
          Defaults:%USER secure_path = /sbin:/bin:/usr/sbin:/usr/bin
-     ```   
+     ```
+  * The Provisioner expect Kubernetes config file available at ~/.kube/config. Here is example how to generate it:
+     ```bash
+         mkdir ~/.kube
+         cp /etc/kubernetes/admin.conf ~/.kube/config
+     ```
+
 
 ### 2. Downloading and installing the Provisioner
 
@@ -54,7 +62,7 @@ Before running the Provisioner service, you must create and configure the `/etc/
 
 Here is example of a configuration file that need to be set:
 ```toml
-logPath = "/var/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
+logPath = "/var/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity-k8s-provisioner.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
@@ -90,6 +98,7 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
     - SUSE 12+
 
   * Ubiquity FlexVolume requires Kubernetes version 1.5.6 or later.
+
   * For kubernetes 1.6 and later introduced remote attach/detach from the controller. This functionality is not yet supported in ubiquity. In order to avoid any issues, we should set --enable-controller-attach-detach to false. This could be done in: `/etc/systemd/system/kubelet.service.d/10-kubeadm.conf` where the kubelet configuration should look like:
     
     ```bash
@@ -129,7 +138,7 @@ Follow the configuration procedures detailed in the [Available Storage Systems](
 
 Here is example of a generic configuration file that need to be set:
 ```toml
-logPath = "/var/tmp/ubiquity"  # The Ubiquity provisioner will write logs to file "ubiquity-provisioner.log" in this path.
+logPath = "/var/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity-k8s-flex.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
