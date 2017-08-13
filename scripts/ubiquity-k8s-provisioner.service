@@ -2,18 +2,13 @@
 Description=ubiquity k8s dynamic provisioner
 Documentation=https://github.com/IBM/ubiquity-k8s
 After=network.target
-After=docker.service
-Requires=docker.service
 
 [Service]
 Type=simple
-User=ubiquity
-EnvironmentFile=/etc/ubiquity/ubiquity-provisioner.env
-ExecStart=/usr/bin/provisioner \
-          $UBIQUITY_CLIENT_CONFIG \
-          $KUBE_CONFIG \
-          $PROVISIONER_NAME \
-          $PROVISIONER_ARGS
+ExecStart=/usr/bin/ubiquity-k8s-provisioner \
+          --config /etc/ubiquity/ubiquity-k8s-provisioner.conf \
+          --provisioner ubiquity/flex \
+          --retries 3
 
 Restart=on-abort
 

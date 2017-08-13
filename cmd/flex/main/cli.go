@@ -63,7 +63,7 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-flexvolume.log"))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, "ubiquity-k8s-flex.log"))()
 	controller, err := createController(config)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
