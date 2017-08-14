@@ -36,6 +36,8 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
          mkdir ~/.kube
          cp /etc/kubernetes/admin.conf ~/.kube/config
      ```
+  * Opening TCP ports to Ubiquity server
+    Ubiquity server listens on TCP port (by default 9999) to receive the Provisioner requests, such as creating a new volume. Verify that the node can access this Ubiquity server port.
 
 
 ### 2. Downloading and installing the Provisioner
@@ -53,9 +55,9 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
 * To run the Provisioner as non-root user, add the `User=USER` line under the [Service] item in the  `/usr/lib/systemd/system/ubiquity-k8s-provisioner.service` file.
    
 * Enable the Provisioner service.
-```bash 
-systemctl enable ubiquity-k8s-provisioner.service      
-```
+    ```bash
+        systemctl enable ubiquity-k8s-provisioner.service
+    ```
 
 ### 3. Configuring the Provisioner
 Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file, according to your storage system type.
@@ -77,9 +79,9 @@ Ubiquity server listens on TCP port (by default 9999) to receive Provisioner req
 
 ### 5. Running the Provisioner service
   * Run the service.
-```bash
-systemctl start ubiquity-k8s-provisioner    
-```
+    ```bash
+        systemctl start ubiquity-k8s-provisioner
+    ```
 
 ### Provisioner usage examples
 For examples on how to create and remove Ubiquity volumes(PV and PVC) refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
@@ -119,7 +121,10 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
      ```
 
   * The Kubernetes node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
-   
+
+  * Opening TCP ports to Ubiquity server
+    Ubiquity server listens on TCP port (by default 9999) to receive the FlexVolume requests, such as attach a volume. Verify that the node can access this Ubiquity server port.
+
 
 ### 2. Downloading and installing the Ubiquity FlexVolume
 
@@ -138,7 +143,7 @@ Follow the configuration procedures detailed in the [Available Storage Systems](
 
 Here is example of a generic configuration file that need to be set:
 ```toml
-logPath = "/var/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity-k8s-flex.log" in this path.
+logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
 
 [UbiquityServer]
@@ -148,13 +153,30 @@ port = 9999            # TCP port on which the Ubiquity Service is listening
 
   * Verify that the logPath, exists on the host before you start the plugin.
 
-### 4. Opening TCP ports to Ubiquity server
-Ubiquity server listens on TCP port (by default 9999) to receive FlexVolume requests, such as attach a volume. Verify that the FlexVolume node can access this Ubiquity server port.
+### 4. Restart the kubelet to reload the new FlexVolume
+     ```bash
+         systemctl restart kubelet
+     ```
+
+### 5. Validate the FlexVolume is ok
+     ```bash
+         #> /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity init
+         {"status":"Success","message":"Plugin init successfully","device":"","volumeName":"","attached":false}
+     ```
+
 
 
 ### FlexVolume usage examples
 For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
+## Troubleshooting
+### log files
+- Ubiquity FlexVolume log name `ubiquity-k8s-flex.log`
+- Ubiquity Provisioner log name `ubiquity-k8s-provisioner.log`
+- Kubernetes kubelet logs can be found `journalctl -u kubelet"
+
+### Communication failure
+If the  `Error looking up volume plugin ubiquity: Plugin does not implement the requested driver` error is displayed and the `Error in activate remote call &url.Error` message is stored in the `ubiquity-docker-plugin.log` file, verify comminication link between the plugin and Ubiqutiy server nodes. The loss of communication may occur if the relevant TCP  ports are not open. The port numbers are detailed in the plugin and Ubiquity server configuration files.
 
 ## Support
 For any questions, suggestions, or issues, use github.

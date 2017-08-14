@@ -1,0 +1,13 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: "gold"      # Storage Class name
+  annotations:
+   storageclass.beta.kubernetes.io/is-default-class: "true"  # Optional parameter. Set this the storage class as the default
+provisioner: "ubiquity/flex"  # Ubiquity provisioner name
+parameters:
+  profile: "gold"   # SCBE storage service name
+  fstype: "xfs"     # Optional parameter. Possible values are ext4 or xfs. Default is configured in Ubiquity server
+  backend: "scbe"   # scbe backend name to provision IBM block storage
+
+
