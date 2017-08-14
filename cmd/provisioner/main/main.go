@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"fmt"
+	"os/user"
 	"path"
 
 	"github.com/BurntSushi/toml"
@@ -41,10 +42,9 @@ import (
 )
 
 var (
-	provisioner          = flag.String("provisioner", "ubiquity/spectrum-scale", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
+	provisioner          = flag.String("provisioner", "ubiquity/flex", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
 	master               = flag.String("master", "", "Master URL to build a client config from. Either this or kubeconfig needs to be set if the provisioner is being run out of cluster.")
-	kubeconfig           = flag.String("kubeconfig", "", "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
-	configFile           = flag.String("config", "ubiquity-client.conf", "config file with ubiquity client configuration params")
+	configFile           = flag.String("config", "/etc/ubiquity/ubiquity-k8s-provisioner.conf", "config file with ubiquity client configuration params")
 	failedRetryThreshold = flag.Int("retries", 3, "number of retries on failure of provisioner")
 )
 
@@ -56,7 +56,13 @@ const (
 )
 
 func main() {
+	usr, err := user.Current()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get the active user: %v", err))
+	}
+	homedir := usr.HomeDir
 
+	kubeconfig := flag.String("kubeconfig", fmt.Sprintf("%s/.kube/config", homedir), "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
 	flag.Parse()
 	var ubiquityConfig resources.UbiquityPluginConfig
 	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
@@ -64,7 +70,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, "ubiquity-provisioner.log"))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, "ubiquity-k8s-provisioner.log"))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
 	defer utils.CloseLogs(logFile)
 
@@ -72,8 +78,8 @@ func main() {
 
 	// Create the client according to whether we are running in or out-of-cluster
 	var config *rest.Config
-	var err error
 	if *master != "" || *kubeconfig != "" {
+		logger.Printf("Uses k8s configuration file name %s", *kubeconfig)
 		config, err = clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
 	} else {
 		config, err = rest.InClusterConfig()
