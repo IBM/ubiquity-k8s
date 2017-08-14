@@ -18,6 +18,11 @@ address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
 
+<br>
+<br>
+<br>
+<br>
+
 # Ubiquity FlexVolume CLI
 
 ## Configuring Kubernetes node(minion) for IBM block storage systems
@@ -74,9 +79,13 @@ Just make sure backends set to "scbe".
  ```
   * Verify that the logPath, exists on the host so the FlexVolume CLI will be able to run properly.
 
+<br>
+<br>
+<br>
+<br>
 
 
-## Ubiquity FlexVolume usage example
+## Ubiquity FlexVolume and Dynamic Provisioner usage example
 
 ### Basic flow for running a stateful container with Ubiquity volume
 The basic flow is as follows:
