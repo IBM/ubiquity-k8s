@@ -60,9 +60,9 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
     ```
 
 ### 3. Configuring the Provisioner
-Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file, according to your storage system type.
+Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file.
 
-Here is example of a configuration file that need to be set:
+Here is example of a configuration file.  Make sure to set the backend with `scbe` for IBM block storage usage or `spectrum-scale` for IBM Spectrum Scale usage.
 ```toml
 logPath = "/var/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity-k8s-provisioner.log" in this path.
 backend = "scbe" # Backend name such as scbe or spectrum-scale
@@ -71,28 +71,32 @@ backend = "scbe" # Backend name such as scbe or spectrum-scale
 address = "127.0.0.1"  # IP/host of the Ubiquity Service
 port = 9999            # TCP port on which the Ubiquity Service is listening
 ```
-  * Verify that the logPath, exists on the host before you start the plugin.
+  * Verify that the logPath, exists on the host before you start the Provisioner.
 
-
-### 4. Opening TCP ports to Ubiquity server
-Ubiquity server listens on TCP port (by default 9999) to receive Provisioner requests, such as creating a new volume. Verify that the Provisioner node can access this Ubiquity server port.
 
 ### 5. Running the Provisioner service
   * Run the service.
     ```bash
         systemctl start ubiquity-k8s-provisioner
+
+        # Validate that the service is `active (running)`
+        systemctl status ubiquity-k8s-provisioner
     ```
 
 ### Provisioner usage examples
 For examples on how to create and remove Ubiquity volumes(PV and PVC) refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
+<br>
+<br>
+<br>
+<br>
 
 ## Ubiquity FlexVolume CLI 
 
 Ubiquity FlexVolume CLI supports attaching and detaching volumes on persistent storage using the [Ubiquity](https://github.com/IBM/ubiquity) service.
 
 ### Installing the Ubiquity FlexVolume
-Install and configure the plugin on each node(minion) in the Kubernetes cluster that requires access to Ubiquity volumes.
+Install and configure the Ubiquity FlexVolume on each node(minion) in the Kubernetes cluster that requires access to Ubiquity volumes.
 
 ### 1. Prerequisites
   * Ubiquity FlexVolume is supported on the following operating systems:
@@ -138,45 +142,47 @@ Install and configure the plugin on each node(minion) in the Kubernetes cluster 
      ```
 
 ### 3. Configuring the Ubiquity FlexVolume
-Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-k8s-flex.conf` file, according to your storage system type.
+* Before running the FlexVolume CLI, you must create and configure the `/etc/ubiquity/ubiquity-k8s-flex.conf` file, according to your storage system type.
 Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section.
 
-Here is example of a generic configuration file that need to be set:
-```toml
-logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
-backend = "scbe" # Backend name such as scbe or spectrum-scale
+* Here is example of a generic configuration file that need to be set:
+    ```toml
+        logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
+        backend = "scbe" # Backend name such as scbe or spectrum-scale
 
-[UbiquityServer]
-address = "127.0.0.1"  # IP/host of the Ubiquity Service
-port = 9999            # TCP port on which the Ubiquity Service is listening
-```
+        [UbiquityServer]
+        address = "127.0.0.1"  # IP/host of the Ubiquity Service
+        port = 9999            # TCP port on which the Ubiquity Service is listening
+    ```
 
-  * Verify that the logPath, exists on the host before you start the plugin.
+    * Verify that the logPath, exists on the host so the FlexVolume CLI will be able to run properly.
 
-### 4. Restart the kubelet to reload the new FlexVolume
+### 4. Restart the kubelet to reload the new FlexVolume and validate FlexVolume CLI
+* In order to reload the new flexvolume that was locate in kubelet-plugins directory, restart the kubelete service:
      ```bash
          systemctl restart kubelet
      ```
 
-### 5. Validate the FlexVolume is ok
+* Validate the FlexVolume is ok
      ```bash
          #> /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity init
          {"status":"Success","message":"Plugin init successfully","device":"","volumeName":"","attached":false}
      ```
 
 
-
 ### FlexVolume usage examples
 For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
+<br>
+<br>
+<br>
+<br>
+
 ## Troubleshooting
-### log files
+### Log files
 - Ubiquity FlexVolume log name `ubiquity-k8s-flex.log`
 - Ubiquity Provisioner log name `ubiquity-k8s-provisioner.log`
 - Kubernetes kubelet logs can be found `journalctl -u kubelet"
-
-### Communication failure
-If the  `Error looking up volume plugin ubiquity: Plugin does not implement the requested driver` error is displayed and the `Error in activate remote call &url.Error` message is stored in the `ubiquity-docker-plugin.log` file, verify comminication link between the plugin and Ubiqutiy server nodes. The loss of communication may occur if the relevant TCP  ports are not open. The port numbers are detailed in the plugin and Ubiquity server configuration files.
 
 ## Support
 For any questions, suggestions, or issues, use github.

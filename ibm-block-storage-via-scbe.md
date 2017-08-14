@@ -1,8 +1,8 @@
 # IBM Block Storage System via Spectrum Control Base Edition
 
 IBM block storage can be used as persistent storage for Kubernetes via Ubiquity service.
-Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity Docker volume plugin.
-Available IBM block storage systems for Docker volume plugin are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
+Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
+Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
 # Ubiquity Dynamic Provisioner
 Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file.
@@ -25,7 +25,7 @@ Perform the following installation and configuration procedures on each node in 
 
 
 #### 1. Installing connectivity packages
-The plugin supports FC or iSCSI connectivity to the storage systems.
+The Ubiquity FlexVolume supports FC or iSCSI connectivity to the storage systems.
 
   * RHEL, SLES
 
@@ -35,7 +35,7 @@ The plugin supports FC or iSCSI connectivity to the storage systems.
 ```
 
 #### 2. Configuring multipathing
-The plugin requires multipath devices. Configure the `multipath.conf` file according to the storage system requirments.
+The Ubiquity FlexVolume requires multipath devices. Configure the `multipath.conf` file according to the storage system requirements.
   * RHEL, SLES
 
 ```bash
@@ -49,7 +49,7 @@ The plugin requires multipath devices. Configure the `multipath.conf` file accor
 ```
 
 #### 3. Configure storage system connectivity
-  *  Verify that the hostname of the Kubernetes node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the Docker node. Otherwise, you will not be able to run stateful containers.
+  *  Verify that the hostname of the Kubernetes node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the minion(kubelet node). Otherwise, you will not be able to run stateful containers.
 
   *  For iSCSI, discover and log in to the iSCSI targets of the relevant storage systems:
 
@@ -60,7 +60,7 @@ The plugin requires multipath devices. Configure the `multipath.conf` file accor
 
 #### 5. Configuring Ubiquity FlexVolume for SCBE
 
-The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Configure the plugin by editing the file, as illustrated below.
+The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Configure the Ubiquity FlexVolume by editing the file, as illustrated below.
 
 Just make sure backends set to "scbe".
 
@@ -72,11 +72,11 @@ Just make sure backends set to "scbe".
  address = "IP"  # IP/hostname of the Ubiquity Service
  port = 9999     # TCP port on which the Ubiquity Service is listening
  ```
-  * Verify that the logPath, exists on the host before you start the plugin.
+  * Verify that the logPath, exists on the host so the FlexVolume CLI will be able to run properly.
 
 
 
-## Plugin usage example
+## Ubiquity FlexVolume usage example
 
 ### Basic flow for running a stateful container with Ubiquity volume
 The basic flow is as follows:
@@ -385,8 +385,8 @@ storageclass "gold" deleted
 If the `bad status code 500 INTERNAL SERVER ERROR` error is displayed, check the `/var/log/sc/hsgsvr.log` log file on the SCBE node for explanation.
 
 ### Updating the volume on the storage side
-Do not change a volume on a storage system itself, use Docker native command instead.
-Any volume operation on the storage it self, requires manual action on the Docker host. For example, if you unmap a volume directly from the storage, you must clean up the multipath device of this volume and rescan the operating system on the Docker node.
+Do not change a volume on a storage system itself, use kubeletctl command instead.
+Any volume operation on the storage it self, requires manual action on the minion (kublet node). For example, if you unmap a volume directly from the storage, you must clean up the multipath device of this volume and rescan the operating system on the minion(kubelet node).
 
 ### An attached volume cannot be attached to different host
 A volume can be used only by one node at a time. In order to use a volume on different node, you must stop the container that uses the volume and then start a new container with the volume on different host.
