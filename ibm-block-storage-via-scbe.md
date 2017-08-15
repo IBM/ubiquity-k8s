@@ -294,7 +294,7 @@ The creation of a Pod/Deployment will cause the Ubiquity FlexVolume to:
 * Rescan and discover the multipath device of the new volume
 * Create xfs or ext4 filesystem on the device (if filesystem not exist yet on the volume)
 * Mount the new multipath device on /ubiquity/[WWN of the volume]
-* Symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity/[PVC-ID] -> /ubiquity/[WWN of the volume]
+* Symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> /ubiquity/[WWN of the volume]
 
 For example, to create a Pod `pod1` that uses the PVC pvc1 that was created before:
 ```bash
@@ -358,13 +358,13 @@ Filesystem                       1K-blocks    Used Available Use% Mounted on
 #> mount |grep ubiquity
 /dev/mapper/mpathi on /ubiquity/6001738CFC9035EB0000000000CC2BC5 type xfs (rw,relatime,seclabel,attr2,inode64,noquota)
 
-#> ls -l /var/lib/kubelet/pods/*/volumes/ibm~ubiquity/*
+#> ls -l /var/lib/kubelet/pods/*/volumes/ibm~ubiquity-k8s-flex/*
 lrwxrwxrwx. 1 root root 42 Aug 13 22:41 pvc-254e4b5e-805d-11e7-a42b-005056a46c49 -> /ubiquity/6001738CFC9035EB0000000000CC2BC5
 ```
 
 ### Deleting a Pod
 The kuberenetes delete Pod command will do:
-* remove symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity/[PVC-ID] -> /ubiquity/[WWN of the volume]
+* remove symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> /ubiquity/[WWN of the volume]
 * Unmount the new multipath device on /ubiquity/[WWN of the volume]
 * Remove the multipath device of the volume
 * Detach(unmap) the volume from the host

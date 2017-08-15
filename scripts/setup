@@ -3,7 +3,7 @@
 set -e
 
 scripts=$(dirname $0)
-mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/
+mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/
 
-cp $scripts/../bin/ubiquity-k8s-flex /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity-k8s-flex
+cp $scripts/../bin/ubiquity-k8s-flex /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex
 cp $scripts/../ubiquity-k8s-flex.conf /etc/ubiquity/ubiquity-k8s-flex.conf
