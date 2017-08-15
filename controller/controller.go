@@ -193,7 +193,12 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 		}
 		// For k8s 1.6 and later kubelet creates a folder as the MountPath, including the volume name, whenwe try to create the symlink this will fail because the same name exists. This is why we need to remove it before continuing.
 	} else {
-		lnPath, _ = path.Split(mountRequest.MountPath)
+		ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
+		if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
+			lnPath = mountRequest.MountPath
+		} else {
+			lnPath, _ = path.Split(mountRequest.MountPath)
+		}
 		c.logger.Printf("removing folder %s", mountRequest.MountPath)
 
 		err = os.Remove(mountRequest.MountPath)
