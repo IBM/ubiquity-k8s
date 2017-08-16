@@ -2,7 +2,13 @@ package resources
 
 const KubernetesVersion_1_5 = "1.5"
 const KubernetesVersion_1_6OrLater = "atLeast1.6"
-const UbiquityPluginDirName = "ibm~ubiquity"
+
+// This ubiquity flexvolume name must be part of the flexvol CLI directory and CLI name in the minions.
+// Here is template of the path:
+// /usr/libexec/kubernetes/kubelet-plugins/volume/exec/${UbiquityK8sFlexVolumeDriverVendor}~${UbiquityK8sFlexVolumeDriverName}/${UbiquityK8sFlexVolumeDriverName}
+const UbiquityK8sFlexVolumeDriverName = "ubiquity-k8s-flex"
+const UbiquityK8sFlexVolumeDriverVendor = "ibm"
+const UbiquityK8sFlexVolumeDriverFullName = UbiquityK8sFlexVolumeDriverVendor + "/" + UbiquityK8sFlexVolumeDriverName
 
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`

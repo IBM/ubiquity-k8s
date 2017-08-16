@@ -134,7 +134,7 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
 
 * Download and unpack the application package.
      ```bash
-         mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity
+         mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
          cd $_
          curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
          chmod u+x ubiquity-k8s-flex
@@ -165,7 +165,7 @@ Follow the configuration procedures detailed in the [Available Storage Systems](
 
 * Verify that the FlexVolume is functional.
      ```bash
-         #> /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity/ubiquity init
+         #> /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex init
          {"status":"Success","message":"Plugin init successfully","device":"","volumeName":"","attached":false}
      ```
 

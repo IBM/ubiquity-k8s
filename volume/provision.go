@@ -24,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"k8s.io/apimachinery/pkg/types"
@@ -145,7 +146,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexVolumeSource{
-					Driver:    "ibm/ubiquity",
+					Driver:    k8sresources.UbiquityK8sFlexVolumeDriverFullName,
 					FSType:    "",
 					SecretRef: nil,
 					ReadOnly:  false,
