@@ -36,10 +36,10 @@ const (
 
 	// are we allowed to set this? else make up our own
 	annCreatedBy = "kubernetes.io/createdby"
-	createdBy    = "ubiquity-provisioner"
+	createdBy    = k8sresources.UbiquityProvisionerName
 
 	// Name of the file where an nfsProvisioner will store its identity
-	identityFile = "ubiquity-provisioner.identity"
+	identityFile = "k8sresources.UbiquityProvisionerName" + ".identity"
 
 	// VolumeGidAnnotationKey is the key of the annotation on the PersistentVolume
 	// object that specifies a supplemental GID.
@@ -130,7 +130,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
-	annotations[annProvisionerId] = "ubiquity-provisioner"
+	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: v1.ObjectMeta{
