@@ -1,7 +1,7 @@
-# Ubiquity-k8s
+# Ubiquity Kubernetes Persistent Storage
 This project includes components for managing [Kubernetes persistent storage](https://kubernetes.io/docs/concepts/storage/persistent-volumes), using [Ubiquity](https://github.com/IBM/ubiquity) service.
-- [Ubiquity Dynamic Provisioner](ubiquity-dynamic-provisioner) for creating and deleting persistent volumes
-- [Ubiquity FlexVolume Driver CLI](ubiquity-flexvolume-cli) for attaching and detaching persistent volumes
+- [Ubiquity Dynamic Provisioner](#ubiquity-dynamic-provisioner) for creating and deleting persistent volumes
+- [Ubiquity FlexVolume Driver CLI](#ubiquity-flexvolume-driver-cli) for attaching and detaching persistent volumes
 
 The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
@@ -36,7 +36,8 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
          mkdir ~/.kube
          cp /etc/kubernetes/admin.conf ~/.kube/config
      ```
-  * Opening TCP ports to Ubiquity server
+  * Opening TCP ports to Ubiquity server:
+
     Ubiquity server listens on TCP port (by default 9999) to receive the Provisioner requests, such as creating a new volume. Verify that the node can access this Ubiquity server port.
 
 
@@ -65,7 +66,9 @@ Before running the Provisioner service, create and configure the `/etc/ubiquity/
 Configuration file example. (Make sure to set the `backend` with `scbe` for IBM block storage usage or `spectrum-scale` for IBM Spectrum Scale usage.)
 ```toml
 logPath = "/var/tmp"  # The Ubiquity Provisioner writes logs to the "ubiquity-k8s-provisioner.log" file.
-backend = "scbe" # Backend name, such as scbe or spectrum-scale.
+backends = ["scbe"] # Backend name, such as scbe or spectrum-scale.
+logLevel = "info" # Optional parameter. Possible values are debug, info or error. Default is "info".
+
 
 [UbiquityServer]
 address = "127.0.0.1"  # IP/host of the Ubiquity service.
@@ -82,9 +85,6 @@ port = 9999            # TCP port on which the Ubiquity service is listening.
         # Verify that the service is `active (running)`
         systemctl status ubiquity-k8s-provisioner
     ```
-
-### Provisioner usage examples
-Examples for creation and removal of Ubiquity volumes (PV and PVC) are detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
 <br>
 <br>
@@ -126,7 +126,8 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
 
   * The Kubernetes node must have access to the storage backends. Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
-  * Opening TCP ports to Ubiquity server
+  * Opening TCP ports to Ubiquity server:
+
     Ubiquity server listens on TCP port (by default 9999) to receive the FlexVolume requests, such as volume attachment. Verify that the node can access this Ubiquity server port.
 
 
@@ -135,25 +136,27 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
 * Download and unpack the application package.
      ```bash
          mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
-         cd $_
+         cd /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
          curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
          chmod u+x ubiquity-k8s-flex
          #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only for non-root user.
      ```
 
 ### 3. Configuring the FlexVolume
-* Before using the FlexVolume, create and configure the `/etc/ubiquity/ubiquity-k8s-flex.conf` file, according to your storage system type.
+* Before using the FlexVolume, create and configure the `/etc/ubiquity/ubiquity-k8s-flex.conf` file (create the `/etc/ubiquity` directory if it does not exist), according to your storage system type.
 Follow the configuration procedures detailed in the [Available Storage Systems](supportedStorage.md) section.
 
 * Generic configuration file example:
-    ```toml
-        logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
-        backend = "scbe" # Backend name such as scbe or spectrum-scale
+```toml
+logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
+backends = ["scbe"] # Backend name, such as scbe or spectrum-scale.
+logLevel = "info" # Optional parameter. Possible values are debug, info or error. Default is "info".
 
-        [UbiquityServer]
-        address = "127.0.0.1"  # IP/host of the Ubiquity service
-        port = 9999            # TCP port on which the Ubiquity service is listening
-    ```
+[UbiquityServer]
+address = "127.0.0.1"  # IP/host of the Ubiquity service
+port = 9999            # TCP port on which the Ubiquity service is listening
+```
+
 
     * Verify that the logPath, exists on the host so the FlexVolume will be able to run properly.
 
@@ -165,18 +168,18 @@ Follow the configuration procedures detailed in the [Available Storage Systems](
 
 * Verify that the FlexVolume is functional.
      ```bash
-         #> /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex init
+         /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex init
          {"status":"Success","message":"Plugin init successfully","device":"","volumeName":"","attached":false}
      ```
 
 
-### FlexVolume usage examples
-For examples on how to start and stop stateful containers\PODs with Ubiquity volumes , refer to the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
+<br>
+<br>
+<br>
+<br>
 
-<br>
-<br>
-<br>
-<br>
+## Usage examples for Ubiquity Dynamic Provisioner and FlexVolume
+Examples for creation and removal of Ubiquity volumes (PV and PVC), as well as starting and stopping stateful containers\PODs are detailed in the [Available Storage Systems](supportedStorage.md) section, according to your storage system type.
 
 ## Troubleshooting
 ### Log files
