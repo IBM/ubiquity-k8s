@@ -1,7 +1,7 @@
 # Ubiquity Kubernetes Persistent Storage
 This project includes components for managing [Kubernetes persistent storage](https://kubernetes.io/docs/concepts/storage/persistent-volumes), using [Ubiquity](https://github.com/IBM/ubiquity) service.
 - [Ubiquity Dynamic Provisioner](#ubiquity-dynamic-provisioner) for creating and deleting persistent volumes
-- [Ubiquity FlexVolume Driver CLI](#ubiquity-flexvolume-cli) for attaching and detaching persistent volumes
+- [Ubiquity FlexVolume Driver CLI](#ubiquity-flexvolume-driver-cli) for attaching and detaching persistent volumes
 
 The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
