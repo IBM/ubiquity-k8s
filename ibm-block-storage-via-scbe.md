@@ -4,7 +4,7 @@ IBM block storage can be used as persistent storage for Kubernetes via Ubiquity 
 Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
 Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
-This procedure explains how to configure [Ubiquity FlexVolume](ubiquity-flexvolume-driver-cli) using SCBE. In addition, it provides [usage examples](usage-example-for-ubiquity-dynamic-provisioner-and-flexvolume) for FlexVolume and Dynamic Provisioner.
+This procedure explains how to configure [Ubiquity FlexVolume](#ubiquity-flexvolume-driver-cli) using SCBE. In addition, it provides [usage examples](#usage-example-for-ubiquity-dynamic-provisioner-and-flexvolume) for FlexVolume and Dynamic Provisioner.
 Note : The Ubiquity Dynamic Provisioner configuration is described in the [README](README.md) file.
 
 
