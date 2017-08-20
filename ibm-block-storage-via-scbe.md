@@ -4,32 +4,16 @@ IBM block storage can be used as persistent storage for Kubernetes via Ubiquity 
 Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
 Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
-# Ubiquity Dynamic Provisioner
-Before running the Provisioner service, you must create and configure the `/etc/ubiquity/ubiquity-k8s-provisioner.conf` file.
-Make sure `backend = scbe` is set in the configuration file to use the provisioner for IBM block storage.
+This procedure explains how to configure [Ubiquity FlexVolume](ubiquity-flexvolume-driver-cli) using SCBE. In addition, it provides [usage examples](usage-example-for-ubiquity-dynamic-provisioner-and-flexvolume) for FlexVolume and Dynamic Provisioner.
+Note : The Ubiquity Dynamic Provisioner configuration is described in the [README](README.md) file.
 
-Configuration example:
-```toml
-logPath = "/var/tmp"  # The Ubiquity provisioner will write logs to file "ubiquity-k8s-provisioner.log" in this path.
-backend = "scbe" # Backend name such as scbe or spectrum-scale
-
-[UbiquityServer]
-address = "127.0.0.1"  # IP/host of the Ubiquity service
-port = 9999            # TCP port on which the Ubiquity service is listening
-```
-
-<br>
-<br>
-<br>
-<br>
 
 # Ubiquity FlexVolume Driver CLI
 
-## Configuring Kubernetes minion node for IBM block storage systems
 Perform the following installation and configuration procedures on each node in the Kubernetes cluster that requires access to Ubiquity volumes.
 
 
-#### 1. Installing connectivity packages
+### 1. Installing connectivity packages
 The FlexVolume supports FC or iSCSI connectivity to the storage systems.
 
   * RHEL, SLES
@@ -39,7 +23,7 @@ The FlexVolume supports FC or iSCSI connectivity to the storage systems.
    sudo yum -y install iscsi-initiator-utils  # only if you need iSCSI
 ```
 
-#### 2. Configuring multipathing
+### 2. Configuring multipathing
 The FlexVolume requires multipath devices. Configure the `multipath.conf` file according to the storage system requirements.
   * RHEL, SLES
 
@@ -53,7 +37,7 @@ The FlexVolume requires multipath devices. Configure the `multipath.conf` file a
    multipath -ll  # Make sure no error appear.
 ```
 
-#### 3. Configure storage system connectivity
+### 3. Configure storage system connectivity
   *  Verify that the hostname of the Kubernetes node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the Kubernetes node. Otherwise, you will not be able to run stateful containers.
 
   *  For iSCSI, discover and log in to the iSCSI targets of the relevant storage systems:
@@ -63,7 +47,7 @@ The FlexVolume requires multipath devices. Configure the `multipath.conf` file a
    iscsiadm -m node  -p ${storage system iSCSI portal IP/hostname} --login              # To log in to targets
 ```
 
-#### 5. Configuring Ubiquity FlexVolume for SCBE
+### 4. Configuring Ubiquity FlexVolume for SCBE
 
 The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Configure the Ubiquity FlexVolume by editing the file, as illustrated below.
 
@@ -71,7 +55,9 @@ Just make sure backends set to "scbe".
 
  ```toml
  logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
- backend = "scbe" # Backend name such as scbe or spectrum-scale
+ backends = ["scbe"] # Backend name, such as scbe or spectrum-scale.
+ logLevel = "info" # Optional parameter. Possible values are debug, info or error. Default is "info".
+
 
  [UbiquityServer]
  address = "IP"  # IP/hostname of the Ubiquity service
@@ -85,9 +71,9 @@ Just make sure backends set to "scbe".
 <br>
 
 
-## Ubiquity FlexVolume and Dynamic Provisioner usage example
+# Usage example for Ubiquity Dynamic Provisioner and FlexVolume
 
-### Basic flow for running a stateful container with Ubiquity volume
+## Basic flow for running a stateful container with Ubiquity volume
 Flow overview:
 1. Create a StorageClass `gold` that refers to SCBE storage service `gold` with `xfs` as a file system type.
 2. Create a PVC `pvc1` that uses the StorageClass `gold`.
@@ -204,6 +190,13 @@ pod "pod1" deleted
 persistentvolumeclaim "pvc1" deleted
 storageclass "gold" deleted
 ```
+
+<br>
+<br>
+
+
+## Basic flow breakdown
+This section describes separate steps of the generic flow in greater detail.
 
 
 ### Creating a Storage Class
@@ -398,11 +391,11 @@ storageclass "gold" deleted
 If the `bad status code 500 INTERNAL SERVER ERROR` error is displayed, check the `/var/log/sc/hsgsvr.log` log file on the SCBE node for explanation.
 
 ### Updating the volume on the storage side
-Do not change a volume on a storage system itself, use `kubeletctl` command instead.
+Do not change a volume on a storage system itself, use `kubectl` command instead.
 Any volume operation on the storage itself, requires a manual action on the minion (kublet node). For example, if you unmap a volume directly from the storage, you must clean up the multipath device of this volume and rescan the operating system on the minion (kubelet node).
 
 ### An attached volume cannot be attached to different host
-A volume can be used only by one node at a time. In order to use a volume on different node, you must stop the container that uses the volume and then start a new container with the volume on different host.
+A volume can be used only by one node at a time. In order to use a volume on different node, you must stop the Pod that uses the volume and then start a new Pod with the volume on different host.
 
 ### Cannot delete volume attached to a host
 You cannot delete volume that is currently attached to a host. Any attempt will result in the `Volume [vol] already attached to [host]` error message.
