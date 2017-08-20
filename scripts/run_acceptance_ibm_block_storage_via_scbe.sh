@@ -82,6 +82,7 @@ function basic_tests_on_one_node()
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
     kubectl get pv -o json $pvname | grep -A15 flexVolume
+    kubectl get pv --no-headers -o custom-columns=column:metadata.annotations.Provisioner_Id $pvname | grep ubiquity-k8s-provisioner
 
 	echo "## ---> ${S}.2. Verify storage side : verify the volume was created on the relevant pool\service"
 	echo "Skip step"
