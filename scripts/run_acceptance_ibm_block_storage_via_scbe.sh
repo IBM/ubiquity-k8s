@@ -82,6 +82,7 @@ function basic_tests_on_one_node()
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
     kubectl get pv -o json $pvname | grep -A15 flexVolume
+    kubectl get pv --no-headers -o custom-columns=column:metadata.annotations.Provisioner_Id $pvname | grep ubiquity-k8s-provisioner
 
 	echo "## ---> ${S}.2. Verify storage side : verify the volume was created on the relevant pool\service"
 	echo "Skip step"
@@ -95,7 +96,7 @@ function basic_tests_on_one_node()
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
     kubectl create -f ${yml_pod1}
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 1120 3
 
 
 	echo "## ---> ${S}.1. Verify the volume was attached to the kubelet node $node1"
@@ -123,7 +124,7 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Stop the container"
     kubectl delete -f ${yml_pod1}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
 
 	echo "## ---> ${S}.1. Verify the volume was detached from the kubelet node"
 	sleep 2 # some times mount is not refreshed immediate
@@ -144,7 +145,7 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Run the POD again with the same volume and check the if the data remains"
     kubectl create -f ${yml_pod1}
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.1. Verify that the data remains (file exist on the /data inside the container)"
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
@@ -153,7 +154,7 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Stop the POD"
     kubectl delete -f ${yml_pod1}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
 
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"
@@ -213,7 +214,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
 
  	echo "## ---> ${S}.2. Verify POD info status "
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
@@ -221,7 +222,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 
 	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
     kubectl delete -f ${ymk_sc_and_pvc_and_pod1}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
     wait_for_item_to_delete pvc $PVCName 10 2
     wait_for_item_to_delete pv $pvname 10 2
     wait_for_item_to_delete storageclass $profile 5 2
@@ -277,7 +278,7 @@ function basic_test_POD_with_2_volumes()
     wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 5 2
 
  	echo "## ---> ${S}.2. Verify POD info status "
-    wait_for_item pod $PODName Running 15 3
+    wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data1"
@@ -296,7 +297,7 @@ function basic_test_POD_with_2_volumes()
 
 	echo "## ---> ${S}.5 Delete all in one (SC, 2 PVCs, PV and POD)"
     kubectl delete -f ${my_yml}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
     wait_for_item_to_delete pvc ${PVCName}1 10 2
     wait_for_item_to_delete pvc ${PVCName}2 10 2
     wait_for_item_to_delete pv ${pvname1} 10 2
@@ -315,7 +316,7 @@ function fstype_basic_check()
 
 	stepinc
     printf "\n\n\n\n"
-	echo "########################### [Run 2 vols in the same POD-container] ###############"
+	echo "########################### [ Run Pod with volume per fstype [${FS_SUPPORTED}] ] ###############"
 	echo "####### ---> ${S}. Prepare yml with all the definition"
 
   	my_yml=$scripts/../deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
@@ -353,7 +354,7 @@ function fstype_basic_check()
         wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 5 2
         pvname1=`kubectl get pvc ${PVCName}-${fstype} --no-headers -o custom-columns=name:spec.volumeName`
         wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
-        wait_for_item pod ${PODName}-${fstype} Running 15 3
+        wait_for_item pod ${PODName}-${fstype} Running 1120 3
 
 
         echo "## ---> ${S}.2. Verify POD $fstype really mounted $fstype filesystem"
@@ -365,9 +366,16 @@ function fstype_basic_check()
 	echo "## ---> ${S} Delete all in one (SC, PVCs, PV and POD for each fstype : ${FS_SUPPORTED})"
     kubectl delete -f ${my_yml}
     for fstype in ${FS_SUPPORTED}; do
-        wait_for_item_to_delete pod ${PODName}-${fstype} 15 3
+        wait_for_item_to_delete pod ${PODName}-${fstype} 1120 3
         wait_for_item_to_delete pvc ${PVCName}-${fstype} 10 2
         wait_for_item_to_delete storageclass ${profile}-${fstype} 5 2
+    done
+    
+    # Now also wait for PVs is still exist
+    pvs=`kubectl get pv --no-headers -o custom-columns=wwn:metadata.name`
+    [ -z "$pvs" ] && return
+    for pv in $pvs; do
+        wait_for_item_to_delete pv $pv 10 2
     done
 }
 
@@ -432,7 +440,7 @@ function tests_with_second_node()
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
     kubectl create -f ${yml_pod1}
-    wait_for_item pod $PODName Running 20 3
+    wait_for_item pod $PODName Running 120 3
 
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
@@ -449,7 +457,7 @@ function tests_with_second_node()
 	stepinc
 	echo "####### ---> ${S}. Stop the container on $node1"
     kubectl delete -f ${yml_pod1}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
 
 	echo "## ---> ${S}.1. Verify the volume was detached from the kubelet node"
 	sleep 2 # some times mount is not refreshed immediate
@@ -469,7 +477,7 @@ function tests_with_second_node()
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node2}/g" ${yml_pod2}
     cat $yml_pod2
     kubectl create -f ${yml_pod2}
-    wait_for_item pod $PODName Running 20 3
+    wait_for_item pod $PODName Running 120 3
 
 	echo "## ---> ${S}.2. Verify that the data remains (file exist on the /data inside the container)"
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
@@ -478,7 +486,7 @@ function tests_with_second_node()
 	stepinc
 	echo "####### ---> ${S}. Stop the POD"
     kubectl delete -f ${yml_pod1}
-    wait_for_item_to_delete pod $PODName 15 3
+    wait_for_item_to_delete pod $PODName 1120 3
 
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"

@@ -27,6 +27,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
@@ -70,8 +71,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, "ubiquity-k8s-provisioner.log"))()
-	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, "ubiquity-provisioner")
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerLogFileName))()
+	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerName)
 	defer utils.CloseLogs(logFile)
 
 	logger.Printf("Provisioner %s specified", *provisioner)

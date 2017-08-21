@@ -9,6 +9,10 @@ const KubernetesVersion_1_6OrLater = "atLeast1.6"
 const UbiquityK8sFlexVolumeDriverName = "ubiquity-k8s-flex"
 const UbiquityK8sFlexVolumeDriverVendor = "ibm"
 const UbiquityK8sFlexVolumeDriverFullName = UbiquityK8sFlexVolumeDriverVendor + "/" + UbiquityK8sFlexVolumeDriverName
+const UbiquityFlexLogFileName = UbiquityK8sFlexVolumeDriverName + ".log"
+
+const UbiquityProvisionerName = "ubiquity-k8s-provisioner"
+const UbiquityProvisionerLogFileName = UbiquityProvisionerName + ".log"
 
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`

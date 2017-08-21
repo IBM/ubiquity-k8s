@@ -40,8 +40,6 @@ var configFile = flag.String(
 	"config file with ubiquity client configuration params",
 )
 
-const UbiquityFlexLogFileName = "ubiquity-k8s-flex.log"
-
 // All the method should printout as response:
 //{
 //"status": "<Success/Failure/Not supported>",
@@ -65,7 +63,7 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -110,7 +108,7 @@ func (g *GetVolumeNameCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -162,7 +160,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -207,7 +205,7 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[1]), &opts)
@@ -246,7 +244,7 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[0]), &opts)
@@ -296,7 +294,7 @@ func (d *DetachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -331,7 +329,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[2]), &opts)
@@ -370,7 +368,7 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0]}
@@ -451,7 +449,7 @@ func (m *MountCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -486,7 +484,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -586,7 +584,7 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
+	logFile, err := os.OpenFile(path.Join(logPath, k8sresources.UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
 	if err != nil {
 		fmt.Printf("Failed to setup logger: %s\n", err.Error())
 		return nil, nil
