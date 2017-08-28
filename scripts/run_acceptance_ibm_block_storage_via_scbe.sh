@@ -74,10 +74,10 @@ function basic_tests_on_one_node()
     kubectl create -f ${yml_pvc}
 
 	echo "####### ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
 
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
@@ -169,7 +169,7 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
     kubectl delete -f ${yml_sc_profile}
-    wait_for_item_to_delete storageclass $profile 5 2
+    wait_for_item_to_delete storageclass $profile 10 3
 }
 
 function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
@@ -209,9 +209,9 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     kubectl create -f ${ymk_sc_and_pvc_and_pod1}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 1120 3
@@ -225,7 +225,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     wait_for_item_to_delete pod $PODName 1120 3
     wait_for_item_to_delete pvc $PVCName 10 2
     wait_for_item_to_delete pv $pvname 10 2
-    wait_for_item_to_delete storageclass $profile 5 2
+    wait_for_item_to_delete storageclass $profile 10 3
 }
 
 function basic_test_POD_with_2_volumes()
@@ -270,12 +270,12 @@ function basic_test_POD_with_2_volumes()
     kubectl create -f ${my_yml}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 5 2
-    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 10 3
     pvname1=`kubectl get pvc ${PVCName}1 --no-headers -o custom-columns=name:spec.volumeName`
     pvname2=`kubectl get pvc ${PVCName}2 --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
-    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 10 3
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 1120 3
@@ -302,7 +302,7 @@ function basic_test_POD_with_2_volumes()
     wait_for_item_to_delete pvc ${PVCName}2 10 2
     wait_for_item_to_delete pv ${pvname1} 10 2
     wait_for_item_to_delete pv ${pvname2} 10 2
-    wait_for_item_to_delete storageclass $profile 5 2
+    wait_for_item_to_delete storageclass $profile 10 3
 }
 
 function fstype_basic_check()
@@ -351,9 +351,9 @@ function fstype_basic_check()
 
     for fstype in ${FS_SUPPORTED}; do
         echo "## ---> ${S}.1. Verify PVC, PV and POD of $fstype"
-        wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 5 2
+        wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 10 3
         pvname1=`kubectl get pvc ${PVCName}-${fstype} --no-headers -o custom-columns=name:spec.volumeName`
-        wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 5 2
+        wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 10 3
         wait_for_item pod ${PODName}-${fstype} Running 1120 3
 
 
@@ -368,7 +368,7 @@ function fstype_basic_check()
     for fstype in ${FS_SUPPORTED}; do
         wait_for_item_to_delete pod ${PODName}-${fstype} 1120 3
         wait_for_item_to_delete pvc ${PVCName}-${fstype} 10 2
-        wait_for_item_to_delete storageclass ${profile}-${fstype} 5 2
+        wait_for_item_to_delete storageclass ${profile}-${fstype} 10 3
     done
     
     # Now also wait for PVs is still exist
@@ -428,9 +428,9 @@ function tests_with_second_node()
     kubectl create -f ${yml_pvc}
 
 	echo "## ---> ${S}.3. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
 
@@ -497,7 +497,7 @@ function tests_with_second_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
     kubectl delete -f ${yml_sc_profile}
-    wait_for_item_to_delete storageclass $profile 5 2
+    wait_for_item_to_delete storageclass $profile 10 3
 }
 
 function setup()
