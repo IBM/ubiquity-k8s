@@ -1,0 +1,12 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "PVCNAME"
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "SCNAME"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: SIZE

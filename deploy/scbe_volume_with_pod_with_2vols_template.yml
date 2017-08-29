@@ -1,0 +1,23 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: PODNAME
+spec:
+  containers:
+  - name: CONNAME
+    image: midoblgsm/kubenode
+    volumeMounts:
+      - name: VOLNAME1
+        mountPath: "MOUNTPATH1"
+      - name: VOLNAME2
+        mountPath: "MOUNTPATH2"
+  restartPolicy: "Never"
+  volumes:
+    - name: VOLNAME1
+      persistentVolumeClaim:
+        claimName: PVCNAME1
+    - name: VOLNAME2
+      persistentVolumeClaim:
+        claimName: PVCNAME2
+  nodeSelector:
+    kubernetes.io/hostname: NODESELECTOR
