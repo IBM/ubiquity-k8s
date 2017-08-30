@@ -1,0 +1,16 @@
+[Unit]
+Description=ubiquity k8s dynamic provisioner
+Documentation=https://github.com/IBM/ubiquity-k8s
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ubiquity-k8s-provisioner \
+          --config /etc/ubiquity/ubiquity-k8s-provisioner.conf \
+          --provisioner ubiquity/flex \
+          --retries 3
+
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

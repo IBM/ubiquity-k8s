@@ -1,3 +1,19 @@
+/**
+ * Copyright 2017 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package volume
 
 import (
@@ -8,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,10 +36,10 @@ const (
 
 	// are we allowed to set this? else make up our own
 	annCreatedBy = "kubernetes.io/createdby"
-	createdBy    = "ubiquity-provisioner"
+	createdBy    = k8sresources.UbiquityProvisionerName
 
 	// Name of the file where an nfsProvisioner will store its identity
-	identityFile = "ubiquity-provisioner.identity"
+	identityFile = "k8sresources.UbiquityProvisionerName" + ".identity"
 
 	// VolumeGidAnnotationKey is the key of the annotation on the PersistentVolume
 	// object that specifies a supplemental GID.
@@ -113,7 +130,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
-	annotations[annProvisionerId] = "ubiquity-provisioner"
+	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: v1.ObjectMeta{
@@ -129,7 +146,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexVolumeSource{
-					Driver:    "ibm/ubiquity",
+					Driver:    k8sresources.UbiquityK8sFlexVolumeDriverFullName,
 					FSType:    "",
 					SecretRef: nil,
 					ReadOnly:  false,
@@ -171,7 +188,8 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64) (map[string]string, error) {
 	ubiquityParams := make(map[string]interface{})
 	if capacity != 0 {
-		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)
+		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)    // SSc backend expect quota option
+		ubiquityParams["size"] = fmt.Sprintf("%d", capacity/1024) // SCBE backend expect size option
 	}
 	for key, value := range options.Parameters {
 		ubiquityParams[key] = value

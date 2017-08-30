@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: acceptance-pod-test
+spec:
+  containers:
+  - name: acceptance-pod-test-con
+    image: midoblgsm/kubenode
+    volumeMounts:
+      - name: ubiquity-pvc
+        mountPath: "/mnt"
+  restartPolicy: "Never"
+  volumes:
+    - name: ubiquity-pvc
+      persistentVolumeClaim:
+        claimName: scbe-accept-vol1
