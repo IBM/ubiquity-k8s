@@ -47,7 +47,7 @@ Install and configure the Provisioner on a single node in the Kubernetes cluster
      ```bash
          mkdir -p /etc/ubiquity
          cd /etc/ubiquity
-         curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xf -
+         curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-provisioner-0.4.0.tar.gz | tar xzf -
          cp ubiquity-k8s-provisioner /usr/bin
          chmod u+x /usr/bin/ubiquity-k8s-provisioner
          #chown USER:GROUP /usr/bin/ubiquity-k8s-provisioner   ### Run this command only a non-root user.
@@ -137,7 +137,7 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
      ```bash
          mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
          cd /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
-         curl -L https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
+         curl -O https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
          chmod u+x ubiquity-k8s-flex
          #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only for non-root user.
      ```
