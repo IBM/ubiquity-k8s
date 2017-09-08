@@ -17,17 +17,13 @@
 package main
 
 import (
-	"flag"
-
 	"time"
 
 	"fmt"
-	"os/user"
 	"path"
 
-	"github.com/BurntSushi/toml"
-
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
+	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
@@ -40,13 +36,15 @@ import (
 
 	"k8s.io/client-go/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"strconv"
+	"strings"
 )
 
 var (
-	provisioner          = flag.String("provisioner", "ubiquity/flex", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
-	master               = flag.String("master", "", "Master URL to build a client config from. Either this or kubeconfig needs to be set if the provisioner is being run out of cluster.")
-	configFile           = flag.String("config", "/etc/ubiquity/ubiquity-k8s-provisioner.conf", "config file with ubiquity client configuration params")
-	failedRetryThreshold = flag.Int("retries", 3, "number of retries on failure of provisioner")
+	provisioner          = os.Getenv("PROVISIONER_NAME")
+	configFile           = os.Getenv("KUBECONFIG")
+	failedRetryThreshold = os.Getenv("RETRIES")
 )
 
 const (
@@ -57,31 +55,25 @@ const (
 )
 
 func main() {
-	usr, err := user.Current()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get the active user: %v", err))
-	}
-	homedir := usr.HomeDir
 
-	kubeconfig := flag.String("kubeconfig", fmt.Sprintf("%s/.kube/config", homedir), "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
-	flag.Parse()
-	var ubiquityConfig resources.UbiquityPluginConfig
-	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
-	if _, err := toml.DecodeFile(*configFile, &ubiquityConfig); err != nil {
-		fmt.Println(err)
-		return
+	ubiquityConfig, err := k8sutils.LoadConfig()
+	if err != nil {
+		panic(fmt.Errorf("Failed to load config %#v", err))
 	}
+	fmt.Printf("Starting ubiquity plugin with %s config file\n", configFile)
+
 	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerLogFileName))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerName)
 	defer utils.CloseLogs(logFile)
 
-	logger.Printf("Provisioner %s specified", *provisioner)
+	logger.Printf("Provisioner %s specified", provisioner)
 
 	// Create the client according to whether we are running in or out-of-cluster
 	var config *rest.Config
-	if *master != "" || *kubeconfig != "" {
-		logger.Printf("Uses k8s configuration file name %s", *kubeconfig)
-		config, err = clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
+
+	if configFile != "" {
+		logger.Printf("Uses k8s configuration file name %s", configFile)
+		config, err = clientcmd.BuildConfigFromFlags("", configFile)
 	} else {
 		config, err = rest.InClusterConfig()
 	}
@@ -109,12 +101,35 @@ func main() {
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
 	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
+	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfig)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		panic("Error starting ubiquity client")
 	}
+	intVal, err := strconv.ParseInt(failedRetryThreshold, 0, 32)
+	if err != nil {
+		panic("Error getting retries value")
+	}
+	failedRetryThresholdInt := int(intVal)
 	// Start the provision controller which will dynamically provision NFS PVs
 
-	pc := controller.NewProvisionController(clientset, 15*time.Second, *provisioner, flexProvisioner, serverVersion.GitVersion, true, *failedRetryThreshold, leasePeriod, renewDeadline, retryPeriod, termLimit)
+	pc := controller.NewProvisionController(clientset, 15*time.Second, provisioner, flexProvisioner, serverVersion.GitVersion, true, failedRetryThresholdInt, leasePeriod, renewDeadline, retryPeriod, termLimit)
 	pc.Run(wait.NeverStop)
+}
+
+func LoadConfig() (resources.UbiquityPluginConfig, error) {
+
+	config := resources.UbiquityPluginConfig{}
+	config.LogLevel = os.Getenv("LOG_LEVEL")
+	config.LogPath = os.Getenv("LOG_PATH")
+	config.Backends = strings.Split(os.Getenv("BACKENDS"), ",")
+	ubiquity := resources.UbiquityServerConnectionInfo{}
+	port, err := strconv.ParseInt(os.Getenv("UBIQUITY_PORT"), 0, 32)
+	if err != nil {
+		return config, err
+	}
+	ubiquity.Port = int(port)
+	ubiquity.Address = os.Getenv("UBIQUITY_ADDRESS")
+	config.UbiquityServer = ubiquity
+	return config, nil
 }
