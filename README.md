@@ -105,11 +105,12 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
 
   * The FlexVolume requires Kubernetes version 1.5.6 or above.
 
-  * Kubernetes version 1.6 introduced remote volume attachment and detachment from the Kubernetes controller. This functionality is not yet supported by Ubiquity. To avoid any issues, set `--enable-controller-attach-detach` to `false`. Perform this procedure in the `/etc/systemd/system/kubelet.service.d/10-kubeadm.conf` file as follows:
+  * Kubernetes version 1.6 introduced remote volume attachment and detachment from the Kubernetes controller. This functionality is not yet supported by Ubiquity. To avoid any issues, set the kubelet service to run with `--enable-controller-attach-detach=false`. Perform this procedure in the `/etc/systemd/system/kubelet.service.d/10-kubeadm.conf` file as follows:
     
     ```bash
      Environment="KUBELET_KUBECONFIG_ARGS=--kubeconfig=/etc/kubernetes/kubelet.conf --require-kubeconfig=true --enable-controller-attach-detach=false"
     ```
+    If the `/etc/systemd/system/kubelet.service.d/10-kubeadm.conf` file does not exist, then set the `--enable-controller-attach-detach=false` inside the `/etc/systemd/system/kubelet.service` file as part of the `ExecStart` line.
 
   * The following sudoers configuration `/etc/sudoers` is required to run the FlexVolume as root user: 
   
@@ -137,7 +138,7 @@ Install and configure the FlexVolume on each minion node in the Kubernetes clust
      ```bash
          mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
          cd /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
-         curl -O https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
+         curl -LO https://github.com/IBM/ubiquity-k8s/releases/download/v0.4.0/ubiquity-k8s-flex
          chmod u+x ubiquity-k8s-flex
          #chown USER:GROUP ubiquity-k8s-flex   ### Run this command only for non-root user.
      ```
