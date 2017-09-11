@@ -12,8 +12,7 @@ spec:
     spec:
       containers:
       - name: ubiquity-flex
-        image: artifactory.haifa.ibm.com:5030/ubiquity/ubiquity-k8s-flex
-#        image: midoblgsm/ubiquity-k8s-flex
+        image: IBM-ubiquity-flex-IMAGE # place holder
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: k8splugindir

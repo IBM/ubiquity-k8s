@@ -12,8 +12,7 @@ spec:
     spec:
       containers:
       - name: ubiquity-provisioner
-        image: artifactory.haifa.ibm.com:5030/ubiquity/ubiquity-k8s-provisioner
-#        image: midoblgsm/ubiquity-k8s-provisioner
+        image: IBM-ubiquity-provisioner-IMAGE # place holder
         imagePullPolicy: Always
         env:
           - name: PROVISIONER_NAME
