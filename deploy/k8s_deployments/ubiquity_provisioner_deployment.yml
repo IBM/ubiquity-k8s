@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: ubiquity-provisioner
-        image: repo/image:tag
+        image: IBM-ubiquity-provisioner-IMAGE # place holder
         imagePullPolicy: Always
         env:
           - name: KUBECONFIG
