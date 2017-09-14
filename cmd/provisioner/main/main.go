@@ -42,7 +42,7 @@ import (
 )
 
 var (
-	provisioner          = os.Getenv("PROVISIONER_NAME")
+	provisioner          = k8sresources.ProvisionerName
 	configFile           = os.Getenv("KUBECONFIG")
 	failedRetryThreshold = os.Getenv("RETRIES")
 )
@@ -95,7 +95,8 @@ func main() {
 	logger.Printf("ubiquity endpoint")
 	remoteClient, err := remote.NewRemoteClient(logger, ubiquityEndpoint, ubiquityConfig)
 	if err != nil {
-		logger.Printf("Error getting server version: %v", err)
+		logger.Printf("Error getting remote Client: %v", err)
+		panic("Error getting remote client")
 	}
 
 	// Create the provisioner: it implements the Provisioner interface expected by
@@ -104,10 +105,12 @@ func main() {
 	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfig)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
+		logger.Printf("Error starting provisioner: %v", err)
 		panic("Error starting ubiquity client")
 	}
 	intVal, err := strconv.ParseInt(failedRetryThreshold, 0, 32)
 	if err != nil {
+		logger.Printf("Error parsing retries: %v", err)
 		panic("Error getting retries value")
 	}
 	failedRetryThresholdInt := int(intVal)
