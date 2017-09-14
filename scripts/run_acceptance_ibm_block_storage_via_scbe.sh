@@ -502,6 +502,12 @@ function tests_with_second_node()
 
 function setup()
 {
+	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
+	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
+	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
+	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
+	kubectl get pvc 2>&1 | grep "$NO_RESOURCES_STR"
+	kubectl get pv 2>&1 | grep "$NO_RESOURCES_STR"
 
     echo "Skip clean up the environment for acceptance test (TODO)"
     return
