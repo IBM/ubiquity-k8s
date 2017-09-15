@@ -568,8 +568,7 @@ func createController(config resources.UbiquityPluginConfig) (*controller.Contro
 	logger, _ := setupLogger(config.LogPath)
 	//defer closeLogs(logFile)
 
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := controller.NewController(logger, storageApiURL, config)
+	controller, err := controller.NewController(logger, config)
 	return controller, err
 }
 

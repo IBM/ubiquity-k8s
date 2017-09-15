@@ -40,9 +40,9 @@ type Controller struct {
 }
 
 //NewController allows to instantiate a controller
-func NewController(logger *log.Logger, storageApiURL string, config resources.UbiquityPluginConfig) (*Controller, error) {
+func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
 
-	remoteClient, err := remote.NewRemoteClient(logger, storageApiURL, config)
+	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
 	if err != nil {
 		return nil, err
 	}
