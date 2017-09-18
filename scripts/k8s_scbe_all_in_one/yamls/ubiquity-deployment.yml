@@ -1,0 +1,47 @@
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: ubiquity
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ubiquity
+    spec:
+      containers:
+      - name: ubiquity
+        image: UBIQUITY_IMAGE
+        ports:
+        - containerPort: 9999
+          name: ubiquity-port
+        env:
+          - name: SCBE_DEFAULT_SERVICE
+            value: "SCBE_DEFAULT_SERVICE_VALUE"
+          - name: SCBE_MANAGEMENT_IP
+            value: "SCBE_MANAGEMENT_IP_VALUE"
+          - name: SCBE_MANAGEMENT_PORT
+            value: "8440"
+          - name: SKIP_VERIFY_SSL
+            value: "SKIP_VERIFY_SSL_VALUE"    # boolean
+          - name: SCBE_USERNAME
+            value: "SCBE_USERNAME_VALUE"
+          - name: SCBE_PASSWORD
+            value: "SCBE_PASSWORD_VALUE"
+          - name: PORT              # Ubiquity port
+            value: "9999"
+          - name: LOG_PATH          # Ubiquity log file directory
+            value: "/tmp"
+          - name: CONFIG_PATH       # Ubiquity config directory
+            value: "/tmp"
+          - name: DEFAULT_BACKEND   # or other backends, such as :scbe, spectrum-scale-nfs
+            value: "scbe"
+          - name: LOG_LEVEL         # debug / info / error
+            value: "debug"
+          - name: DEFAULT_VOLUME_SIZE
+            value: "2"
+          - name: UBIQUITY_INSTANCE_NAME
+            value: "instance1"
+          - name: DEFAULT_FSTYPE    # ext4 or xfs
+            value: "ext4"
+

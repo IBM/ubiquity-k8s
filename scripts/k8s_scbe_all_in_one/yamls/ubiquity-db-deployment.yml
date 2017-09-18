@@ -1,0 +1,17 @@
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: ubiquity-db
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ubiquity-db
+    spec:
+      containers:
+      - name: ubiquity-db
+        image: UBIQUITY_IMAGE
+        ports:
+        - containerPort: 5432
+          name: ubiquity-db-port
