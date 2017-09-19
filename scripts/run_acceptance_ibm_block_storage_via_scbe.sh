@@ -100,10 +100,10 @@ function basic_tests_on_one_node()
 
 
 	echo "## ---> ${S}.1. Verify the volume was attached to the kubelet node $node1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
 	ssh root@$node1 "multipath -ll | grep -i $wwn"
-	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
-	ssh root@$node1 "mount |grep $wwn| grep $fstype"
+	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1 | grep "$wwn"'
+	ssh root@$node1 'mount |grep "$wwn"| grep "$fstype"'
 
 	echo "## ---> ${S}.2. Verify volume exist inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data"
@@ -130,8 +130,8 @@ function basic_tests_on_one_node()
 	sleep 2 # some times mount is not refreshed immediate
 	ssh root@$node1 "df | egrep ubiquity | grep $wwn" && exit 1 || :
 	ssh root@$node1 "multipath -ll | grep -i $wwn" && exit 1 || :
-	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
-	ssh root@$node1 "mount |grep $wwn| grep $fstype" && exit 1 || :
+	ssh root@$node1 "lsblk | egrep ubiquity -B 1 | grep $wwn" && exit 1 || :
+	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'" && exit 1 || :
 
 	echo "## ---> ${S}.2. Verify PVC and PV still exist"
     kubectl get pvc $PVCName
@@ -292,8 +292,8 @@ function basic_test_POD_with_2_volumes()
  	echo "## ---> ${S}.4. Verify 2 vols attached and mounted in the kubelet node"
     wwn1=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname1}`
     wwn2=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname2}`
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn2"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn1'"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn2'"
 
 	echo "## ---> ${S}.5 Delete all in one (SC, 2 PVCs, PV and POD)"
     kubectl delete -f ${my_yml}
@@ -372,11 +372,11 @@ function fstype_basic_check()
     done
     
     # Now also wait for PVs is still exist
-    pvs=`kubectl get pv --no-headers -o custom-columns=wwn:metadata.name`
-    [ -z "$pvs" ] && return
-    for pv in $pvs; do
-        wait_for_item_to_delete pv $pv 10 2
-    done
+    # pvs=`kubectl get pv --no-headers -o custom-columns=wwn:metadata.name`
+    # [ -z "$pvs" ] && return
+    # for pv in $pvs; do
+    #     wait_for_item_to_delete pv $pv 10 2
+    # done
 }
 
 function one_node_negative_tests()
@@ -444,10 +444,10 @@ function tests_with_second_node()
 
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
 	ssh root@$node1 "multipath -ll | grep -i $wwn"
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
-	ssh root@$node1 "mount |grep $wwn| grep $fstype"
+	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'"
 
 	echo "## ---> ${S}.6 Write DATA on the volume by create a file in /data inside the container"
         file_create_node1="/data/file_created_on_${node1}"
@@ -503,11 +503,12 @@ function tests_with_second_node()
 function setup()
 {
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
-	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
-	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
-	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
-	kubectl get pvc 2>&1 | grep "$NO_RESOURCES_STR"
-	kubectl get pv 2>&1 | grep "$NO_RESOURCES_STR"
+    wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
+	ssh root@$node1 'df | egrep "ubiquity" | grep -v $wwn' && exit 1 || :
+	ssh root@$node1 'multipath -ll | grep IBM | grep -v $wwn' && exit 1 || :
+	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1 | grep -v $wwn' && exit 1 || :
+	kubectl get pvc 2>&1 | grep "$POSTGRES_PV"
+	kubectl get pv 2>&1 | grep "$POSTGRES_PV"
 
     echo "Skip clean up the environment for acceptance test (TODO)"
     return
@@ -552,6 +553,7 @@ yml_pvc_template=$scripts/../deploy/scbe_volume_pvc_template.yml
 yml_pod_template=$scripts/../deploy/scbe_volume_with_pod_template.yml
 yml_two_vols_pod_template=$scripts/../deploy/scbe_volume_with_pod_with_2vols_template.yml
 
+POSTGRES_PV="ibm-ubiquity-db"
 FS_SUPPORTED="ext4 xfs"
 YAML_DELIMITER='---'
 PVCName=accept-pvc

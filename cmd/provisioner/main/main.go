@@ -91,9 +91,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Error getting server version: %v", err))
 	}
-	ubiquityEndpoint := fmt.Sprintf("http://%s:%d/ubiquity_storage", ubiquityConfig.UbiquityServer.Address, ubiquityConfig.UbiquityServer.Port)
-	logger.Printf("ubiquity endpoint")
-	remoteClient, err := remote.NewRemoteClient(logger, ubiquityEndpoint, ubiquityConfig)
+	remoteClient, err := remote.NewRemoteClientSecure(logger, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error getting remote Client: %v", err)
 		panic("Error getting remote client")
