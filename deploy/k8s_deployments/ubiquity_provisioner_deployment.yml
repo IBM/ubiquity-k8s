@@ -17,8 +17,6 @@ spec:
         env:
           - name: KUBECONFIG
             value: "/tmp/k8sconfig/config"
-          - name: RETRIES # number of retries on failure
-            value: "1"
           - name: LOG_PATH         # provisioner log file directory
             value: "/tmp"
           - name: BACKENDS         # used backends "spectrum-scale,spectrum-scale-nfs,scbe"
