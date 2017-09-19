@@ -42,11 +42,21 @@ function update_ymls_with_playholders()
    fi
 }
 
-YML_DIR="./yamls"
+scripts=$(dirname $0)
+YML_DIR="$scripts/yamls"
+UTILS=../$scripts/acceptance_utils.sh
+UBIQUITY_DB_PVC_NAME=ibm-ubiquity-database
+FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 
+# Validations
 [ -z "$KUBECONF" ] && KUBECONF=~/.kube/config || :
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 which kubectl || { echo "Error: kubectl not found in PATH"; exit 2; }
+[ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
+
+
+. $UTILS # include utils for wait function and status
+
 
 update_ymls_with_playholders "$1"
 
@@ -63,21 +73,22 @@ sleep 2 # TODO wait for deployment
 
 kubectl create -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
 
-# TODO : Create Storage class that will match for the Ubiquity-db PVC
-# TODO : Create the PVC for the Ubiquity-db
+kubectl create -f ${YML_DIR}/storage-class.yml
+
+kubectl create -f ${YML_DIR}/ubiquity-db-pvc.yml
+
+echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
+wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 20 3
+pvname=`kubectl get pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
+echo "Waiting for ${pvname} PV to be created"
+wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3
 
 ubiquity_service_ip=`kubectl get svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
-
-# update the flex with the new IP of the ubiquity service  # TODO will be done in daemon set later
-flex_conf=/etc/ubiquity/ubiquity-k8s-flex.conf
-for minion in `kubectl get  nodes  | sed '1d' | awk '{print $1}'`; do
-   echo "update $minion flex with IP=${ubiquity_service_ip}"
-   ssh root@$minion "sed -i 's/^address =.*/address = \"${ubiquity_service_ip}\"/' $flex_conf"
-   ssh root@$minion "grep address $flex_conf"
-done
-
-
-# TODO create postgres deployment
+#install_flex ${ubiquity_service_ip}
 
 echo ""
-echo "Ubiquity is ready to use."
+echo "Finished to install Ubiquity, Provisioner and PVC for ubiquity-database."
+echo ""
+echo "Attention : Now you must install flex on all minions and configure it to ubiquity service IP = ${ubiquity_service_ip}"
+echo "            Then create the ubiquity-database deployment, by running this command:"
+echo "            kubectl create -f ubiquity-db-deployment.yml"
