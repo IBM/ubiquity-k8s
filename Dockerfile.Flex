@@ -1,4 +1,4 @@
-FROM golang:1.7.3
+FROM golang:1.9.0
 WORKDIR /go/src/github.com/IBM/ubiquity-k8s/
 COPY . .
 RUN go get -v github.com/Masterminds/glide
@@ -9,7 +9,6 @@ RUN CGO_ENABLED=1 GOOS=linux go build -tags netgo -v -a --ldflags '-w -linkmode 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-RUN mkdir -p /tmp/ubiquity
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex.conf .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/deploy/k8s_deployments/setup_flex.sh .
