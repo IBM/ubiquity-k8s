@@ -45,7 +45,7 @@ function update_ymls_with_playholders()
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
 UTILS=../$scripts/acceptance_utils.sh
-UBIQUITY_DB_PVC_NAME=ibm-ubiquity-database
+UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 
 # Validations
@@ -78,7 +78,7 @@ kubectl create -f ${YML_DIR}/storage-class.yml
 kubectl create -f ${YML_DIR}/ubiquity-db-pvc.yml
 
 echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
-wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 20 3
+wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5   # TODO long timeout because an issue that cause the first PVC to be slow. should reduce it after the issue will be resolved
 pvname=`kubectl get pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 echo "Waiting for ${pvname} PV to be created"
 wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3
@@ -89,6 +89,6 @@ ubiquity_service_ip=`kubectl get svc/ubiquity -o=custom-columns=:.spec.clusterIP
 echo ""
 echo "Finished to install Ubiquity, Provisioner and PVC for ubiquity-database."
 echo ""
-echo "Attention : Now you must install flex on all minions and configure it to ubiquity service IP = ${ubiquity_service_ip}"
-echo "            Then create the ubiquity-database deployment, by running this command:"
-echo "            kubectl create -f ubiquity-db-deployment.yml"
+echo "Attention : Now you must install flex on all minions(with ubiquity IP = ${ubiquity_service_ip} and then create ubiquity-db deployment:"
+echo "            #> ./automatic_flex_install.sh  (to restart kubelet add flag kubelet_restart)"
+echo "            #> kubectl create -f ubiquity-db-deployment.yml"

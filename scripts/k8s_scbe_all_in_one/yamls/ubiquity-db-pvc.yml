@@ -1,7 +1,7 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: "ibm-ubiquity-database"
+  name: "ibm-ubiquity-db"
   annotations:
     volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME"
 spec:
