@@ -63,14 +63,13 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	_, err = os.Stat(config.LogPath)
-	if err != os.ErrNotExist {
-		err = os.MkdirAll(config.LogPath, 0640)
-		if err != nil {
-			panic(fmt.Errorf("Failed to setup log dir"))
-		}
+
+	err = os.MkdirAll(config.LogPath, 0640)
+	if err != nil {
+		panic(fmt.Errorf("Failed to setup log dir"))
 	}
-	defer logs.InitLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{

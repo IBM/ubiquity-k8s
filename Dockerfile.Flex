@@ -10,5 +10,4 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex .
-COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex.conf .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/deploy/k8s_deployments/setup_flex.sh .
