@@ -61,6 +61,13 @@ func main() {
 		panic(fmt.Errorf("Failed to load config %#v", err))
 	}
 	fmt.Printf("Starting ubiquity plugin with %s config file\n", configFile)
+	_, err = os.Stat(ubiquityConfig.LogPath)
+	if err != os.ErrNotExist {
+		err = os.MkdirAll(ubiquityConfig.LogPath, 0640)
+		if err != nil {
+			panic(fmt.Errorf("Failed to setup log dir"))
+		}
+	}
 
 	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerLogFileName))()
 	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerName)
