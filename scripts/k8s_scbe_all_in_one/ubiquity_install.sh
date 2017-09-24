@@ -5,12 +5,12 @@
 #
 # Create the following components:
 #   - Ubiquity service
-#   - UbiquityDB service
+#   - Ubiquity-db service
 #   - Ubiquity deployment
 #   - configmap k8s-config for Ubiquity-k8s-provisioner
 #   - Ubiquity-k8s-provisioner deployment
-#   - TODO : Create Storage class that will match for the UbiquityDB PVC
-#   - TODO : Create the PVC for the UbiquityDB
+#   - Storage class that match for the UbiquityDB PVC
+#   - PVC for the UbiquityDB
 #   - Update all minions with the Ubiquity service IP # TODO will be change to daemon set later on
 #   - TODO : create postgres deployment
 #
@@ -78,7 +78,7 @@ kubectl create -f ${YML_DIR}/storage-class.yml
 kubectl create -f ${YML_DIR}/ubiquity-db-pvc.yml
 
 echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
-wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5   # TODO long timeout because an issue that cause the first PVC to be slow. should reduce it after the issue will be resolved
+wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 30 3
 pvname=`kubectl get pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 echo "Waiting for ${pvname} PV to be created"
 wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3
