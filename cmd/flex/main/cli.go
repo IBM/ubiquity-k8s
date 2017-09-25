@@ -63,6 +63,12 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
+
+	err = os.MkdirAll(config.LogPath, 0640)
+	if err != nil {
+		panic(fmt.Errorf("Failed to setup log dir"))
+	}
+
 	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	if err != nil {
@@ -498,6 +504,32 @@ func (u *UnmountCommand) Execute(args []string) error {
 	return printResponse(unmountResponse)
 }
 
+type TestUbiquityCommand struct {
+	Test func() `short:"i" long:"init" description:"Initialize the plugin"`
+}
+
+func (i *TestUbiquityCommand) Execute(args []string) error {
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in Test Ubiquity %#v", err),
+		}
+		return printResponse(response)
+	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	controller, err := createController(config)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to create controller %#v", err),
+		}
+		return printResponse(response)
+	}
+	response := controller.TestUbiquity(config)
+	return printResponse(response)
+}
+
 type Options struct{}
 
 func main() {
@@ -511,6 +543,7 @@ func main() {
 	var waitForAttachCommand WaitForAttachCommand
 	var mountDeviceCommand MountDeviceCommand
 	var unmountDeviceCommand UnmountDeviceCommand
+	var testUbiquityCommand TestUbiquityCommand
 
 	var options Options
 	var parser = flags.NewParser(&options, flags.Default)
@@ -555,6 +588,10 @@ func main() {
 		"Unmount Device",
 		"Unmount Device",
 		&unmountDeviceCommand)
+	parser.AddCommand("testubiquity",
+		"Tests connectivity to ubiquity",
+		"Tests connectivity to ubiquity",
+		&testUbiquityCommand)
 
 	_, err := parser.Parse()
 	if err != nil {
