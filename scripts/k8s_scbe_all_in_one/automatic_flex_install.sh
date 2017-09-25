@@ -11,7 +11,7 @@
 
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
-UTILS=../$scripts/acceptance_utils.sh
+UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-database
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 flexfile_name=ubiquity-k8s-flex
@@ -23,7 +23,7 @@ ARG_VALUE_TO_RESTART_KUBELET="restart-kubelet"
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 which kubectl || { echo "Error: kubectl not found in PATH"; exit 2; }
 [ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
-[ ! -f ${flexfile_path} ] && { echo "Error: ./${flexfile_path} not found."; exit 4; }
+#### [ ! -f ${flexfile_path} ] && { echo "Error: ./${flexfile_path} not found."; exit 4; }
 [ -z "$1" ] && kubelet_restart="no" || kubelet_restart="$1"
 
 

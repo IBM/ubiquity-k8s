@@ -1,8 +1,9 @@
 #!/bin/bash -x
 
+scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
-UTILS=../$scripts/acceptance_utils.sh
+UTILS=$scripts/ubiquity_utils.sh
 
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 [ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }

@@ -44,7 +44,7 @@ function update_ymls_with_playholders()
 
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
-UTILS=../$scripts/acceptance_utils.sh
+UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 
@@ -78,7 +78,7 @@ kubectl create -f ${YML_DIR}/storage-class.yml
 kubectl create -f ${YML_DIR}/ubiquity-db-pvc.yml
 
 echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
-wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 30 3
+wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5
 pvname=`kubectl get pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 echo "Waiting for ${pvname} PV to be created"
 wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3
