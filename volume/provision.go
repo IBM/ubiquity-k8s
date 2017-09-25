@@ -117,8 +117,11 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 		return nil, fmt.Errorf("options missing PVC %#v", options)
 	}
 
-	// change volume name to match the PVC name
-	options.PVName = options.PVC.Name
+	// override volume name according to label
+	pvName, ok := options.PVC.Labels["pv-name"]
+	if ok {
+		options.PVName = pvName
+	}
 
 	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	if !exists {
