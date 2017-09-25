@@ -4,6 +4,8 @@ metadata:
   name: "ibm-ubiquity-db"
   annotations:
     volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME"
+  labels:
+    pv-name: "ibm-ubiquity-db"
 spec:
   accessModes:
     - ReadWriteOnce
