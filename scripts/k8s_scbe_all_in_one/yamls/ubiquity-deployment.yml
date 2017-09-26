@@ -16,18 +16,21 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
+            ### SCBE :
           - name: SCBE_DEFAULT_SERVICE
             value: "SCBE_DEFAULT_SERVICE_VALUE"
           - name: SCBE_MANAGEMENT_IP
             value: "SCBE_MANAGEMENT_IP_VALUE"
           - name: SCBE_MANAGEMENT_PORT
             value: "8440"
-          - name: SKIP_VERIFY_SSL
-            value: "SKIP_VERIFY_SSL_VALUE"    # boolean
           - name: SCBE_USERNAME
             value: "SCBE_USERNAME_VALUE"
           - name: SCBE_PASSWORD
             value: "SCBE_PASSWORD_VALUE"
+          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT # SCBE certificate path file inside the container
+            value: ""
+
+
           - name: PORT              # Ubiquity port
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
@@ -44,16 +47,35 @@ spec:
             value: "instance1"
           - name: DEFAULT_FSTYPE    # ext4 or xfs
             value: "ext4"
+
+            # Ubiquity certificates:
+          - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)
+            value: ""
+          - name: UBIQUITY_SERVER_CERT_PUBLIC  # path-to-public-key-file
+            value: ""
+          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
+            value: ""
+
+
+
+            ### Ubiquity DB :
           - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname
             value: "ubiquity-db"          # the ubiquity-db service name
           - name: UBIQUITY_DB_PSQL_PORT
             value: ""                     # TODO we should specify the default port
+          - name: UBIQUITY_DB_USER        # Ubiquity DB user
+            value: ""
+          - name: UBIQUITY_DB_PASSWORD    # Ubiquity DB password
+            value: ""
+          - name: UBIQUITY_DB_NAME
+            value: ""
+
           - name: UBIQUITY_DB_CONNECT_TIMEOUT
             value: "3"
-#          - name: UBIQUITY_DB_USER   # Ubiquity DB hostname
-#            value: "UBIQUITY_DB_USER_VALUE"
-#          - name: UBIQUITY_DB_PASSWORD   # Ubiquity DB hostname
-#            value: "UBIQUITY_DB_PASSWORD_VALUE"
+          - name: UBIQUITY_DB_SSL_MODE         # Values : disable/require/verify-ca/verify-full. The default is disable
+            value: ""
+          - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate
+            value: ""
 
 #        volumeMounts:
 #        - mountPath: /container/path/to/certificate    #
