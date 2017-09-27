@@ -31,7 +31,9 @@ import (
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
+	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/utils/logs"
+	"strconv"
 )
 
 var configFile = flag.String(
@@ -616,6 +618,8 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 		return resources.UbiquityPluginConfig{}, err
 
 	}
+	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }
 
