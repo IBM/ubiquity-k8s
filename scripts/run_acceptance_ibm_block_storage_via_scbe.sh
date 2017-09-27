@@ -63,7 +63,12 @@ function basic_tests_on_one_node()
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
     cat $yml_sc_profile
-    kubectl create -f ${yml_sc_profile} || true
+    # kubectl create -f ${yml_sc_profile} || true
+    if ! kubectl get storageclass $profile >/dev/null 2>&1; then
+        kubectl create -f ${yml_sc_profile}
+    else
+        echo "Storage class $profile already exist, so no need to create it."
+    fi
     kubectl get storageclass $profile
 
 	echo "####### ---> ${S}. Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
