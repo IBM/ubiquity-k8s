@@ -21,5 +21,11 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	ubiquity.Port = int(port)
 	ubiquity.Address = os.Getenv("UBIQUITY_ADDRESS")
 	config.UbiquityServer = ubiquity
+	bool, err := strconv.ParseBool(os.Getenv("SCBE_SKIP_RESCAN_ISCSI"))
+	if err != nil {
+		config.ScbeRemoteConfig.SkipRescanISCSI = false
+	} else {
+		config.ScbeRemoteConfig.SkipRescanISCSI = bool
+	}
 	return config, nil
 }
