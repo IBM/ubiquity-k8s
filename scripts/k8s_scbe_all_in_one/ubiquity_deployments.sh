@@ -66,7 +66,7 @@ function status()
     echo ""
     kubectl get storageclass | egrep "ubiquity|^NAME"
     echo ""
-    kubectl get pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner
+    kubectl get pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner
     echo ""
     kubectl get pod | egrep "^ubiquity|^NAME"
 }
