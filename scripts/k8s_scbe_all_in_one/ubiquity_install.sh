@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 # -------------------------------------------------------------------------
 # The script install all Ubiquity components inside kubernetes(k8s) cluster.

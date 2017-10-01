@@ -12,25 +12,24 @@ spec:
     spec:
       containers:
       - name: ubiquity-flex
-        image: IBM-ubiquity-flex-IMAGE # place holder
+        image: UBIQUITY_K8S_FLEX_IMAGE # place holder
         imagePullPolicy: Always
         command: ["./setup_flex.sh"]
         volumeMounts:
-        - name: k8splugindir
-          mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
-        - name: ubiquity
+        - name: host-k8splugindir
+          mountPath: /mnt/flex
+        - name: host-etc-ubiquity
           mountPath: /etc/ubiquity
-        - name: ubiquity-config
-          mountPath: /var/tmp/ubiquity-config
+        - name: ubiquity-k8s-flex-conf
+          mountPath: /mnt/ubiquity-k8s-flex-conf
       volumes:
-      - name: k8splugindir
+      - name: host-k8splugindir
         hostPath:
-          path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
-      - name: ubiquity
+          path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+      - name: host-etc-ubiquity
         hostPath:
           path: /etc/ubiquity
-      - name: ubiquity-config
-        configMap: #configmap containing ubiquity client config file
-          name: ubiquity-client-config
-      nodeSelector:
-        kubernetes.io/hostname: NODESELECTOR
+      - name: ubiquity-k8s-flex-conf
+        configMap:
+          name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file
+#      nodeSelector:    # use this tag only if you want to run the flex only on specific nodes
