@@ -156,9 +156,9 @@ function wait_for_deployment(){
           echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, even after all ${max_retries} retries. exit."
           exit 2
       else
+          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
           available=$(get_available_replicas $item_name)
           [ -z "$available" ] && available=0
-          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
           retries=`expr $retries - 1`
           sleep $delay;
       fi

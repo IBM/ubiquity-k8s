@@ -10,6 +10,7 @@ MNT_FLEX=/mnt/flex  # Assume the host-path to the kubelet-plugins directory is m
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 FLEX_CONF_PATH=/mnt/ubiquity-k8s-flex-conf/${FLEX_CONF}  # The conf file to copy to the host
+ETC_UBIQUITY=/etc/ubiquity  # mount point in the container for /etc/ubiquity in the host
 
 if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
   echo "Creating the flex driver directory [$DRIVER] for the first time."
@@ -21,9 +22,9 @@ echo "Copying the flex driver ~/$DRIVER into ${MNT_FLEX_DRIVER_DIR} directory"
 cp ~/$DRIVER "${MNT_FLEX_DRIVER_DIR}/.$DRIVER"
 mv -f "${MNT_FLEX_DRIVER_DIR}/.$DRIVER" "${MNT_FLEX_DRIVER_DIR}/$DRIVER"
 
-echo "Copying the flex config file ${FLEX_CONF_PATH} to /etc/ubiquity/${FLEX_CONF}"
-cp ${FLEX_CONF_PATH} /etc/ubiquity/.${FLEX_CONF}
-mv -f /etc/ubiquity/.${FLEX_CONF} /etc/ubiquity/${FLEX_CONF}
+echo "Copying the flex config file ${FLEX_CONF_PATH} to ${ETC_UBIQUITY}/${FLEX_CONF}"
+cp ${FLEX_CONF_PATH} ${ETC_UBIQUITY}/.${FLEX_CONF}
+mv -f ${ETC_UBIQUITY}/.${FLEX_CONF} ${ETC_UBIQUITY}/${FLEX_CONF}
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"
 while : ; do

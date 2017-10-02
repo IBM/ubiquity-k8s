@@ -41,12 +41,12 @@
 function usage()
 {
   cmd=`basename $0`
-  echo "USAGE   $cmd [-d] [-c filepath] [-k filepath] [-h]"
+  echo "USAGE   $cmd [-c file] [-k file] [-d] [-h]"
   echo "  Options:"
-  echo "    -d            : Assume flex plugin in already loaded so create ubiquity-db deployment after daemon-set"
-  echo "    -c [filepath] : if given, then first sed all key-value in filepath on all yaml directory"
-  echo "    -k [filepath] : Kubernetes config file for ubiquity-k8s-provisioner (default is ~/.kube/config)"
-  echo "    -h            : Display this usage"
+  echo "    -c [file] : The script will update all the yamls with the place holders in the file"
+  echo "    -k [file] : Kubernetes config file for ubiquity-k8s-provisioner (default is ~/.kube/config)"
+  echo "    -d        : Use it only if you already have flex on the nodes in the past, so the install also deploy the ubiquity-db as the last step."
+  echo "    -h        : Display this usage"
   exit 1
 }
 
@@ -164,6 +164,7 @@ else
     echo ""
     echo "Ubiquity installation finished, but Ubiquity is NOT ready yet."
     echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
-    echo "                (2) $> kubectl create -f ${YML_DIR}/ubiquity-db-deployment.yml"
+    echo "                (2) Deploy ubiquity-db by     $> kubectl create -f ${YML_DIR}/ubiquity-db-deployment.yml"
+    echo "                (3) Verify ubiquity status by $> ./ubiquity_deployments.sh status"
 fi
 echo ""

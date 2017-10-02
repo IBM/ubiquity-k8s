@@ -48,13 +48,14 @@
 
 function usage()
 {
-   echo "Usage, $0 [start|stop|status|getall|getallwide|help]"
+   echo "Usage, $0 [`echo $actions | sed 's/ /|/g'`]"
    echo "    Options"
    echo "       start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
    echo "       stop   : Delete ubiquity-db(wait for deletion), provisioner deployment, flex daemonset, ubiquity deployment"
    echo "       status : kubectl get to all the ubiquity components"
    echo "       getall : kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
    echo "       getallwide : getall but with -o wide"
+   echo "       collect_logs : Create a directory with all Ubiquity logs"
    echo "       help      : Show this usage"
    exit 1
 }
@@ -78,7 +79,7 @@ function start()
 
 function stop()
 {
-    # TODO delete the deployments only if its actually exist
+    # TODO delete the deployments only if its actually exist, In addition it can works on the k8s object instead on yaml files
     kubectl delete -f $YML_DIR/ubiquity-db-deployment.yml
     echo "Wait for ubiquity-db deployment deletion..."
     wait_for_item_to_delete deployment ubiquity-db 10 4
@@ -88,6 +89,41 @@ function stop()
     kubectl delete -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
     kubectl delete -f $YML_DIR/ubiquity-deployment.yml
     echo "Finished to stop ubiquity deployments. Run $0 status to get more details."
+}
+
+function collect_logs()
+{
+    # Get logs from all ubiquity deployments and pods into a directory
+
+    time=`date +"%m-%d-%Y-%T"`
+    logdir=./ubiquity_collect_logs_$time
+    klog="kubectl logs"
+    mkdir $logdir
+    ubiquity_log_name=${logdir}/ubiquity.log
+    ubiquity_db_log_name=${logdir}/ubiquity-db.log
+    ubiquity_provisioner_log_name=${logdir}/ubiquity-k8s-provisioner.log
+    ubiquity_status_log_name=ubiquity_deployments_status.log
+
+    # kubectl logs on all deployments
+    echo "$klog deploy/ubiquity"
+    $klog deploy/ubiquity > ${ubiquity_log_name} 2>&1 || :
+    echo "$klog deploy/ubiquity-db"
+    $klog deploy/ubiquity-db > ${ubiquity_db_log_name} 2>&1 || :
+    echo "$klog deploy/ubiquity-k8s-provisioner"
+    $klog deploy/ubiquity-k8s-provisioner > ${ubiquity_provisioner_log_name} 2>&1 || :
+    files_to_collect="$ubiquity_log_name ${ubiquity_db_log_name} ${ubiquity_provisioner_log_name}"
+
+    # kubectl logs on flex PODs
+    for flex_pod in `kubectl get pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
+       echo "$klog pod ${flex_pod}"
+       $klog pod ${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
+       files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
+    done
+    echo "$0 status"
+    status > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
+
+    echo ""
+    echo "Finish collecting Ubiquity logs inside directory -> $logdir"
 }
 
 
@@ -151,6 +187,7 @@ YML_DIR="$scripts/yamls"
 UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
+actions="start stop status getall getallwide collect_logs help"
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
@@ -159,9 +196,15 @@ which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exi
 . $UTILS # include utils for wait function and status
 [ $# -ne 1 ] && usage
 action=$1
-[ $action != "start" -a $action != "stop" -a $action != "status" -a $action != "getall" -a $action != "getallwide" -a $action != "help" ] && usage
+found=false
+for action_index in $actions; do
+    [ "$action" == "$action_index" ] && found=true
+done
+[ "$found" == "false" ] && usage
 
 
+# Main
+# Execute the action function
 $1
 
 
