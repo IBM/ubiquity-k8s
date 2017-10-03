@@ -1,0 +1,14 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "pvc1"      # PVC name
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME"  # The storage class name that the PVC will uses
+spec:
+  accessModes:
+    - ReadWriteOnce # Currently Ubiquity scbe backend supports only ReadWriteOnce mode
+  resources:
+    requests:
+      storage: 1Gi  # Size in Gi. Default size is configured in Ubiquity server
+
+

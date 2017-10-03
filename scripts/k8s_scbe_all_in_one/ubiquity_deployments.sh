@@ -56,6 +56,7 @@ function usage()
    echo "       getall : kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
    echo "       getallwide : getall but with -o wide"
    echo "       collect_logs : Create a directory with all Ubiquity logs"
+   echo "       sanity    : create pvc and pod and then delete them"
    echo "       help      : Show this usage"
    exit 1
 }
@@ -180,14 +181,44 @@ function getallwide()
     getall "-o wide"
 }
 
+function sanity()
+{
+    pvc=pvc1
+    pod=pod1
+
+    echo "--------------------------------------------------------------"
+    echo "Sanity description:"
+    echo "    1. Create $pvc, $pod and wait for creation."
+    echo "    2. Delete the $pod, $pvc and wait for deletion."
+    echo "    Note : Uses yamls from directory ${SANITY_YML_DIR}, and uses the ubiquity storage class."
+    echo "--------------------------------------------------------------"
+    echo ""
+
+    kubectl create -f ${SANITY_YML_DIR}/${pvc}.yml
+    wait_for_item pvc ${pvc} ${PVC_GOOD_STATUS} 10 3
+    pvname=`kubectl get pvc ${pvc} --no-headers -o custom-columns=name:spec.volumeName`
+
+    kubectl create -f ${SANITY_YML_DIR}/${pod}.yml
+    wait_for_item pod ${pod} Running 100 3
+
+    kubectl delete -f ${SANITY_YML_DIR}/${pod}.yml
+    wait_for_item_to_delete pod ${pod} 100 3
+    kubectl delete -f ${SANITY_YML_DIR}/${pvc}.yml
+    wait_for_item_to_delete pvc ${pvc} 10 2
+    wait_for_item_to_delete pv $pvname 10 2
+
+    echo ""
+    echo "Ubiquity sanity finished successfully ($pvc and $pod were successfully created and deleted)."
+}
 
 
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
+SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
-actions="start stop status getall getallwide collect_logs help"
+actions="start stop status getall getallwide collect_logs sanity help"
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
