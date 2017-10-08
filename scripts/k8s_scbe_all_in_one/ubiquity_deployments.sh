@@ -48,16 +48,18 @@
 
 function usage()
 {
-   echo "Usage, $0 [`echo $actions | sed 's/ /|/g'`]"
-   echo "    Options"
-   echo "       start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
-   echo "       stop   : Delete ubiquity-db(wait for deletion), provisioner deployment, flex daemonset, ubiquity deployment"
-   echo "       status : kubectl get to all the ubiquity components"
-   echo "       getall : kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
-   echo "       getallwide : getall but with -o wide"
-   echo "       collect_logs : Create a directory with all Ubiquity logs"
-   echo "       sanity    : create pvc and pod and then delete them"
-   echo "       help      : Show this usage"
+   echo "Usage, $0 -a [`echo $actions | sed 's/ /|/g'`] [-n <namespace>] [-h]"
+   echo " -a <action>"
+   echo "   start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
+   echo "   stop   : Delete ubiquity-db(wait for deletion), provisioner deployment, flex daemonset, ubiquity deployment"
+   echo "   status : kubectl get to all the ubiquity components"
+   echo "   getall : kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
+   echo "   getallwide : getall but with -o wide"
+   echo "   collect_logs : Create a directory with all Ubiquity logs"
+   echo "   sanity    : create and delete pvc and pod"
+   echo " -n <namespace>  : Optional, by default its \"ubiquity\""
+   echo " -h : Display this usage"
+
    exit 1
 }
 
@@ -69,27 +71,30 @@ function help()
 function start()
 {
     echo "Make sure ${UBIQUITY_DB_PVC_NAME} exist and bounded to PV (if not exit), before starting."
-    wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2
+    wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2 $NS
 
-    kubectl create -f ${YML_DIR}/ubiquity-deployment.yml
-    kubectl create -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
-    kubectl create -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
-    kubectl create -f ${YML_DIR}/ubiquity-db-deployment.yml
-    echo "Finished to start ubiquity components. Run $0 status to get more details."
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-db-deployment.yml
+    # TODO add some wait for deployment before run the ubiquity-db
+    echo "Finished to start ubiquity components. Note : View ubiquity status by : $> $0 -a status -n $NS"
 }
 
 function stop()
 {
-    # TODO delete the deployments only if its actually exist, In addition it can works on the k8s object instead on yaml files
-    kubectl delete -f $YML_DIR/ubiquity-db-deployment.yml
-    echo "Wait for ubiquity-db deployment deletion..."
-    wait_for_item_to_delete deployment ubiquity-db 10 4
-    wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex  # to match the prefix of the pod
+    kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
 
-    kubectl delete -f $YML_DIR/ubiquity-k8s-provisioner-deployment.yml
-    kubectl delete -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
-    kubectl delete -f $YML_DIR/ubiquity-deployment.yml
-    echo "Finished to stop ubiquity deployments. Run $0 status to get more details."
+    # TODO In addition it can works on the k8s object instead on yaml files
+    $kubectl_delete -f $YML_DIR/ubiquity-db-deployment.yml
+    echo "Wait for ubiquity-db deployment deletion..."
+    wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
+    wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS  # to match the prefix of the pod
+
+    $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-deployment.yml
+    $kubectl_delete -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+    $kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
+    echo "Finished to stop ubiquity deployments.   Note : View ubiquity status by : $> $0 -a status -n $NS"
 }
 
 function collect_logs()
@@ -98,7 +103,7 @@ function collect_logs()
 
     time=`date +"%m-%d-%Y-%T"`
     logdir=./ubiquity_collect_logs_$time
-    klog="kubectl logs"
+    klog="kubectl logs $nsf"
     mkdir $logdir
     ubiquity_log_name=${logdir}/ubiquity.log
     ubiquity_db_log_name=${logdir}/ubiquity-db.log
@@ -115,7 +120,7 @@ function collect_logs()
     files_to_collect="$ubiquity_log_name ${ubiquity_db_log_name} ${ubiquity_provisioner_log_name}"
 
     # kubectl logs on flex PODs
-    for flex_pod in `kubectl get pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
+    for flex_pod in `kubectl get $nsf pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
        echo "$klog pod ${flex_pod}"
        $klog pod ${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
@@ -132,13 +137,23 @@ function status()
 {
     # kubectl get on all the ubiquity components, if one of the components are not found
     rc=0
-    kubectl get configmap k8s-config || rc=$?
+
+    cmd="kubectl get storageclass | egrep \"ubiquity|^NAME\""
+    echo $cmd
+    echo '---------------------------------------------------------------------'
+    kubectl get storageclass | egrep "ubiquity|^NAME" || rc=$?
     echo ""
-    kubectl get storageclass | egrep "ubiquity|^NAME"  || rc=$?
+
+    cmd="kubectl get $nsf cm/k8s-config pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
+    echo $cmd
+    echo '---------------------------------------------------------------------'
+    $cmd  || rc=$?
+
     echo ""
-    kubectl get pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner  || rc=$?
-    echo ""
-    kubectl get pod | egrep "^ubiquity|^NAME" || rc=$?
+    cmd="kubectl get $nsf pod | egrep \"^ubiquity|^NAME\""
+    echo $cmd
+    echo '---------------------------------------------------------------------'
+    kubectl get $nsf pod | egrep "^ubiquity|^NAME" || rc=$?
 
     if [ $rc != 0 ]; then
        echo ""
@@ -146,12 +161,13 @@ function status()
        exit 5
     #else
     #   # TODO verify deployment status
-    #   verify_deployments_status ubiquity ubiquity-db ubiquity-k8s-provisioner
+    #   verify_deployments_status ubiquity ubiquity-db ubiquity-k8s-provisioner $NS
     fi
 }
 
 function verify_deployments_status()
 {
+       # TODO add notion of namespace
        deployments="$@"
        bad_deployment=""
        for deployment_name in $deployments; do
@@ -170,10 +186,29 @@ function verify_deployments_status()
        echo "Ubiquity status [OK]"
        exit 0
 }
+
 function getall()
 {
-    flag="$1"
-    kubectl get $flag configmap,storageclass,pv,pvc,service,daemonset,deployment,pod || :
+    # Args : $1 additional flags to kubectl like -o wide
+    cmd="kubectl get $1 namespace,pv,storageclass"
+    echo $cmd
+    $cmd || :
+
+
+    echo ""
+    echo "Default namespace:"
+    echo "=================="
+    cmd="kubectl get --namespace default $1 configmap,pvc,service,daemonset,deployment,pod"
+    echo $cmd
+    $cmd || :
+
+    [ "$NS" == "default" ] && return
+    echo ""
+    echo "$NS namespace:"
+    echo "=================="
+    cmd="kubectl get --namespace $NS $1 configmap,pvc,service,daemonset,deployment,pod"
+    echo $cmd
+    $cmd || :
 }
 
 function getallwide()
@@ -183,8 +218,8 @@ function getallwide()
 
 function sanity()
 {
-    pvc=pvc1
-    pod=pod1
+    pvc="sanity-pvc"
+    pod="sanity-pod"
 
     echo "--------------------------------------------------------------"
     echo "Sanity description:"
@@ -194,21 +229,21 @@ function sanity()
     echo "--------------------------------------------------------------"
     echo ""
 
-    kubectl create -f ${SANITY_YML_DIR}/${pvc}.yml
-    wait_for_item pvc ${pvc} ${PVC_GOOD_STATUS} 10 3
-    pvname=`kubectl get pvc ${pvc} --no-headers -o custom-columns=name:spec.volumeName`
+    kubectl create $nsf -f ${SANITY_YML_DIR}/${pvc}.yml
+    wait_for_item pvc ${pvc} ${PVC_GOOD_STATUS} 10 3 $NS
+    pvname=`kubectl get $nsf pvc ${pvc} --no-headers -o custom-columns=name:spec.volumeName`
 
-    kubectl create -f ${SANITY_YML_DIR}/${pod}.yml
-    wait_for_item pod ${pod} Running 100 3
+    kubectl create $nsf -f ${SANITY_YML_DIR}/${pod}.yml
+    wait_for_item pod ${pod} Running 100 3 $NS
 
-    kubectl delete -f ${SANITY_YML_DIR}/${pod}.yml
-    wait_for_item_to_delete pod ${pod} 100 3
-    kubectl delete -f ${SANITY_YML_DIR}/${pvc}.yml
-    wait_for_item_to_delete pvc ${pvc} 10 2
-    wait_for_item_to_delete pv $pvname 10 2
+    kubectl delete $nsf -f ${SANITY_YML_DIR}/${pod}.yml
+    wait_for_item_to_delete pod ${pod} 100 3 "" $NS
+    kubectl delete $nsf -f ${SANITY_YML_DIR}/${pvc}.yml
+    wait_for_item_to_delete pvc ${pvc} 10 2 "" $NS
+    wait_for_item_to_delete pv $pvname 10 2 "" $NS
 
     echo ""
-    echo "Ubiquity sanity finished successfully ($pvc and $pod were successfully created and deleted)."
+    echo "Ubiquity sanity finished successfully."
 }
 
 
@@ -218,24 +253,51 @@ SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
-actions="start stop status getall getallwide collect_logs sanity help"
+actions="start stop status getall getallwide collect_logs sanity"
+
+# Handle flags
+NS="ubiquity" # default namespace
+while getopts "n:a:h" opt; do
+  case $opt in
+    n)
+      NS=$OPTARG
+      ;;
+    a)
+      action=$OPTARG
+      found=false
+      for action_index in $actions; do
+          [ "$action" == "$action_index" ] && found=true
+      done
+      [ "$found" == "false" ] && usage
+      ;;
+    h)
+      usage
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
+  esac
+done
+echo "Working in namespace [$NS]."
+nsf="--namespace ${NS}" # namespace flag for kubectl command
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exit 2; }
 [ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
 . $UTILS # include utils for wait function and status
-[ $# -ne 1 ] && usage
-action=$1
-found=false
-for action_index in $actions; do
-    [ "$action" == "$action_index" ] && found=true
-done
-[ "$found" == "false" ] && usage
+[ -z "$action" ] && usage
+
+nsf="--namespace ${NS}" # namespace flag for kubectl command
 
 
 # Main
 # Execute the action function
-$1
+$action
 
 

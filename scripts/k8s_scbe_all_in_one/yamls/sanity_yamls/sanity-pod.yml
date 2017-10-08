@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: pod1          # Pod name
+  name: sanity-pod          # Pod name
 spec:
   containers:
   - name: container1  # Container name
@@ -13,5 +13,5 @@ spec:
   volumes:
     - name: vol1
       persistentVolumeClaim:
-        claimName: pvc1
+        claimName: sanity-pvc
 

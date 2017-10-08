@@ -23,7 +23,7 @@
 NO_RESOURCES_STR="No resources found."
 PVC_GOOD_STATUS=Bound
 
-# example : wait_for_item pvc pvc1 Bound 10 1 # wait 10 seconds till timeout
+# example : wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
 function wait_for_item()
 {
   item_type=$1
@@ -32,8 +32,9 @@ function wait_for_item()
   retries=$4
   max_retries=$4
   delay=$5
+  ns=$6
   while true; do
-      status=`kubectl get ${item_type} ${item_name} --no-headers -o custom-columns=Status:.status.phase`
+      status=`kubectl get --namespace $ns ${item_type} ${item_name} --no-headers -o custom-columns=Status:.status.phase`
       if [ "$status" = "$item_wanted_status" ]; then
          echo "${item_type} [${item_name}] status [$status] as expected (after `expr $max_retries - $retries`/${max_retries} tries)"
          return
@@ -59,11 +60,12 @@ function wait_for_item_to_delete()
   max_retries=$3
   delay=$4
   regex=$5
+  ns=$6
   while true; do
       if [ -n "$regex" ]; then
-        kubectl get ${item_type} | grep "${item_name}" && rc=$? || rc=$?
+        kubectl get --namespace $ns ${item_type} | grep "${item_name}" && rc=$? || rc=$?
       else
-        kubectl get ${item_type} ${item_name} && rc=$? || rc=$?
+        kubectl get --namespace $ns  ${item_type} ${item_name} && rc=$? || rc=$?
       fi
       if [ $rc -ne 0 ]; then
          echo "${item_type} [${item_name}] was deleted (after `expr $max_retries - $retries`/${max_retries} tries)"
@@ -93,37 +95,47 @@ function add_yaml_delimiter()
 function stepinc() { S=`expr $S + 1`; }
 
 function get_generation() {
-  get_deployment_jsonpath '{.metadata.generation}' $1
+  # Args : $1 object name, $2 namespace
+  get_deployment_jsonpath '{.metadata.generation}' $1 $2
 }
 
 function get_observed_generation() {
-  get_deployment_jsonpath '{.status.observedGeneration}' $1
+  # Args : $1 object name, $2 namespace
+  get_deployment_jsonpath '{.status.observedGeneration}' $1 $2
 }
 
 function get_replicas() {
-  get_deployment_jsonpath '{.spec.replicas}' $1
+  # Args : $1 object name, $2 namespace
+  get_deployment_jsonpath '{.spec.replicas}' $1 $2
 }
 
 function get_available_replicas() {
-  get_deployment_jsonpath '{.status.availableReplicas}' $1
+  # Args : $1 object name, $2 namespace
+  get_deployment_jsonpath '{.status.availableReplicas}' $1 $2
 }
 
 function get_deployment_jsonpath() {
+  # Args : $1 jsonpath, $2 object name, $3 namespace
   local _jsonpath="$1"
+  item="$2"
+  ns="$3"
 
-  kubectl get deployment "$2" -o "jsonpath=${_jsonpath}"
+  kubectl get --namespace $ns deployment "$item" -o "jsonpath=${_jsonpath}"
 }
 
-# e.g : wait_for_deployment ubiquity-db 3 10
+# e.g : wait_for_deployment ubiquity-db 3 10 ubiquity
 function wait_for_deployment(){
+  # Args : $1 object type, $2 object name, $3 retries,
+  #        $4 max retries, $5 delay between retries, $6 namespace
   item_type=deployment
   item_name=$1
   retries=$2
   max_retries=$2
   delay=$3
+  ns=$4
   echo "Waiting for deployment [${item_name}] to be created..."
 
-    while ! kubectl get deployment $item_name > /dev/null 2>&1; do
+    while ! kubectl get --namespace $ns deployment $item_name > /dev/null 2>&1; do
        if [ "$retries" -eq 0 ]; then
           echo "${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
           exit 2
@@ -134,22 +146,22 @@ function wait_for_deployment(){
       fi
     done
 
-    generation=$(get_generation $item_name)
-    while [[ $(get_observed_generation $item_name) -lt ${generation} ]]; do
+    generation=$(get_generation $item_name $ns)
+    while [[ $(get_observed_generation $item_name $ns) -lt ${generation} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
+          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
           retries=`expr $retries - 1`
           sleep $delay;
       fi
     done
     echo "${item_type} [${item_name}] reached to expected generation ${generation}"
 
-    replicas="$(get_replicas $item_name)"
+    replicas="$(get_replicas $item_name $ns)"
 
-    available=$(get_available_replicas $item_name)
+    available=$(get_available_replicas $item_name $ns)
     [ -z "$available" ] && available=0
     while [[ ${available} -ne ${replicas} ]]; do
       if [ "$retries" -eq 0 ]; then
@@ -157,7 +169,7 @@ function wait_for_deployment(){
           exit 2
       else
           echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
-          available=$(get_available_replicas $item_name)
+          available=$(get_available_replicas $item_name $ns)
           [ -z "$available" ] && available=0
           retries=`expr $retries - 1`
           sleep $delay;
@@ -167,7 +179,7 @@ function wait_for_deployment(){
     echo "${item_type} [${item_name}] reached to expected replicas ${replicas}"
 }
 
-# e.g : is_deployment_ok ubiquity-db
+# e.g : is_deployment_ok ubiquity-db ubiquity
 function is_deployment_ok(){
   # --------------------------------------------------------
   # Description : Verify if deployment is OK.
@@ -175,13 +187,14 @@ function is_deployment_ok(){
   # --------------------------------------------------------
   item_type=deployment
   item_name=$1
+  ns=$2
 
-  kubectl get deployment $item_name >/dev/null 2>&1 || return 1 # not exist
+  kubectl get --namespace $ns deployment $item_name >/dev/null 2>&1 || return 1 # not exist
 
-  [[ $(get_observed_generation $item_name) -lt $(get_generation $item_name) ]] && return 2 # observed_generation not meet
+  [[ $(get_observed_generation $item_name $ns) -lt $(get_generation $item_name $ns) ]] && return 2 # observed_generation not meet
 
-  replicas="$(get_replicas $item_name)"
-  available=$(get_available_replicas $item_name)
+  replicas="$(get_replicas $item_name $ns)"
+  available=$(get_available_replicas $item_name $ns)
   [ -z "$available" ] && available=0
   [[ ${available} -ne ${replicas} ]] && return 3 # replicas not meet
 
