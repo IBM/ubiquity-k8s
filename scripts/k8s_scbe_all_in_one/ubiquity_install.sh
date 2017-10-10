@@ -41,13 +41,14 @@
 function usage()
 {
   cmd=`basename $0`
-  echo "USAGE   $cmd [-c file] [-k file] [-s create-ubiquity-db] [-d] [-h]"
+  echo "USAGE   $cmd [-c <file>] [-k <file>] [-s create-ubiquity-db] [-n <namespace>] [-d] [-h]"
   echo "  Options:"
-  echo "    -c [file] : The script will update all the yamls with the place holders in the file"
-  echo "    -k [file] : Kubernetes config file for ubiquity-k8s-provisioner (default is ~/.kube/config)"
+  echo "    -c [<file>] : The script will update all the yamls with the place holders in the file"
+  echo "    -k [<file>] : Kubernetes config file for ubiquity-k8s-provisioner (default is ~/.kube/config)"
   echo "    -s create-ubiquity-db :"
-  echo "         Create only the ubiquity-db deployment and wait for its creation."
-  echo "         Uses this option after the kubelet on the nodes were restarted."
+  echo "         Creates only the ubiquity-db deployment and waits for its creation."
+  echo "         Use this option after the kubelets on the nodes have restarted."
+  echo "    -n [<namespace>] : Namespace to install ubiquity. By default its \"ubiquity\" namespace"
   echo "    -d : Use it only if you already have deployed flex on the nodes, so ubiquity-db will be created as well."
   echo "    -h : Display this usage"
   exit 1
@@ -76,12 +77,13 @@ function update_ymls_with_playholders()
 
 function create_only_ubiquity_db_deployment()
 {
+    _ns=$1
     echo "Creating ubiquity-db deployment... (Assume flex plugin was already loaded on all the nodes)"
-    kubectl create -f ${YML_DIR}/ubiquity-db-deployment.yml
+    kubectl create --namespace $_ns -f ${YML_DIR}/ubiquity-db-deployment.yml
     echo "Waiting for deployment [ubiquity-db] to be created..."
-    wait_for_deployment ubiquity-db 40 5
+    wait_for_deployment ubiquity-db 40 5 $_ns
     echo ""
-    echo "Ubiquity installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh status)"
+    echo "Ubiquity installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh -a status -n $NS)"
 }
 
 # Variables
@@ -91,13 +93,14 @@ SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
+NS="ubiquity" # default namespace
 
 # Handle flags
 to_deploy_ubiquity_db="false"
 KUBECONF=~/.kube/config
 CONFIG_SED_FILE=""
 CREATE_ONLY_UBIQUITY_DB=""
-while getopts ":dc:k:s:h" opt; do
+while getopts ":dc:k:s:n:h" opt; do
   case $opt in
     d)
       to_deploy_ubiquity_db="true"
@@ -112,6 +115,9 @@ while getopts ":dc:k:s:h" opt; do
       CREATE_ONLY_UBIQUITY_DB=$OPTARG
       [ "$CREATE_ONLY_UBIQUITY_DB" != "create-ubiquity-db" ] && usage
       ;;
+    n)
+      NS=$OPTARG
+      ;;
     h)
       usage
       ;;
@@ -125,6 +131,7 @@ while getopts ":dc:k:s:h" opt; do
       ;;
   esac
 done
+nsf="--namespace ${NS}" # namespace flag for kubectl command
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
@@ -134,8 +141,10 @@ which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exi
 [ -n "$CONFIG_SED_FILE" -a ! -f "$CONFIG_SED_FILE" ] && { echo "$CONFIG_SED_FILE not found"; exit 2; }
 . $UTILS # include utils for wait function and status
 
+echo "Install Ubiquity in namespace [$NS]..."
+
 if [ -n "$CREATE_ONLY_UBIQUITY_DB" ]; then
-    create_only_ubiquity_db_deployment
+    create_only_ubiquity_db_deployment $NS
     exit 0
 fi
 
@@ -144,46 +153,45 @@ fi
 
 # Start to create ubiquity components in order
 # --------------------------------------------
-# TODO need to create namespace
+kubectl create $nsf -f ${YML_DIR}/ubiquity-namespace.yml
+kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
+kubectl create $nsf -f ${YML_DIR}/ubiquity-db-service.yml
+kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+wait_for_deployment ubiquity 5 5 $NS
 
-kubectl create -f ${YML_DIR}/ubiquity-service.yml
-kubectl create -f ${YML_DIR}/ubiquity-db-service.yml
-kubectl create -f ${YML_DIR}/ubiquity-deployment.yml
-wait_for_deployment ubiquity 5 5
-
-if ! kubectl get cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
-    kubectl create configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
+if ! kubectl get $nsf cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
+    kubectl create $nsf configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
 else
     echo "Skip the creation of ${K8S_CONFIGMAP_FOR_PROVISIONER} configmap, because its already exist"
 fi
-kubectl create -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
-wait_for_deployment ubiquity-k8s-provisioner 5 5
+kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+wait_for_deployment ubiquity-k8s-provisioner 5 5 $NS
 
 # Create Storage class and PVC, then wait for PVC and PV creation
-kubectl create -f ${YML_DIR}/storage-class.yml
-kubectl create -f ${YML_DIR}/ubiquity-db-pvc.yml
+kubectl create $nsf -f ${YML_DIR}/storage-class.yml
+kubectl create $nsf -f ${YML_DIR}/ubiquity-db-pvc.yml
 echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
-wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5
-pvname=`kubectl get pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
+wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5 $NS
+pvname=`kubectl get $nsf pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 echo "Waiting for ${pvname} PV to be created"
-wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3
+wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3 $NS
 
 # Create ${flex_conf} configmap with the ubiquity-service clusterIP
-ubiquity_service_ip=`kubectl get svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
+ubiquity_service_ip=`kubectl get $nsf svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
 echo "Deploy flex driver as infinit daemonset, Its also copy the flex config file with the ubiquity service IP [$ubiquity_service_ip]"
 flex_conf="ubiquity-k8s-flex.conf"
 sed -i "s/address = .*/address = \"${ubiquity_service_ip}\"/"  ${YML_DIR}/${flex_conf}
-kubectl create configmap ${flex_conf} --from-file ${YML_DIR}/${flex_conf}
+kubectl create $nsf configmap ${flex_conf} --from-file ${YML_DIR}/${flex_conf}
 
-kubectl create -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
 
 if [ "${to_deploy_ubiquity_db}" == "true" ]; then
-    create_only_ubiquity_db_deployment
+    create_only_ubiquity_db_deployment $NS
 else
     echo ""
     echo "Ubiquity installation finished, but Ubiquity is NOT ready yet."
     echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
-    echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db"
-    echo "                Note : View ubiquity status by $> ./ubiquity_deployments.sh status"
+    echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
+    echo "                Note : View ubiquity status by $> ./ubiquity_deployments.sh -a status -n $NS"
     echo ""
 fi
