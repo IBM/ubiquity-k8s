@@ -51,10 +51,11 @@ function usage()
    echo "Usage, $0 -a [`echo $actions | sed 's/ /|/g'`] [-n <namespace>] [-h]"
    echo " -a <action>"
    echo "   start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
-   echo "   stop   : Delete ubiquity-db(wait for deletion), provisioner deployment, flex daemonset, ubiquity deployment"
-   echo "   status : kubectl get to all the ubiquity components"
-   echo "   getall : kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
-   echo "   getallwide : getall but with -o wide"
+   echo "   stop   : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
+   echo "   status : Display all ubiquity components"
+   echo "   getall : Display related components on <namespace> and the default namespaces."
+   echo "            by #> kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
+   echo "   getallwide : getall with more details (-o wide)"
    echo "   collect_logs : Create a directory with all Ubiquity logs"
    echo "   sanity    : create and delete pvc and pod"
    echo " -n <namespace>  : Optional, by default its \"ubiquity\""
@@ -70,7 +71,7 @@ function help()
 
 function start()
 {
-    echo "Make sure ${UBIQUITY_DB_PVC_NAME} exist and bounded to PV (if not exit), before starting."
+    echo "Make sure ${UBIQUITY_DB_PVC_NAME} exists and bound to PV (exit otherwise)..."
     wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2 $NS
 
     kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
