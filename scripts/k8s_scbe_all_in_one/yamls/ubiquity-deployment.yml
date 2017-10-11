@@ -44,7 +44,7 @@ spec:
           - name: DEFAULT_VOLUME_SIZE
             value: "2"
           - name: UBIQUITY_INSTANCE_NAME
-            value: "instance1"
+            value: "UBIQUITY_INSTANCE_NAME_VALUE"
           - name: DEFAULT_FSTYPE    # ext4 or xfs
             value: "ext4"
 

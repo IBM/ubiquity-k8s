@@ -29,6 +29,8 @@ spec:
             value: "10.99.234.242"
           - name: UBIQUITY_PORT # Port of ubiquity service
             value: "9999"
+          - name: SCBE_SKIP_RESCAN_ISCSI # Wheter or not to skip rescan iscsi
+            value: "true"
         volumeMounts:
           - name: k8s-config
             mountPath: /tmp/k8sconfig

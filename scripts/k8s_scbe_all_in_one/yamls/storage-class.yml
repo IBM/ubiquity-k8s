@@ -7,5 +7,5 @@ metadata:
 provisioner: "ubiquity/flex"
 parameters:
   profile: "SCBE_SERVICE_NAME"
-  fstype: "FSTYPE_VALUE"        # xfs or ext4
+  fstype: "ext4"
   backend: "scbe"
