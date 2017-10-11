@@ -16,75 +16,87 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
-            ### SCBE :
-          - name: SCBE_DEFAULT_SERVICE
-            value: "SCBE_DEFAULT_SERVICE_VALUE"
+          ### SCBE:
           - name: SCBE_MANAGEMENT_IP
             value: "SCBE_MANAGEMENT_IP_VALUE"
           - name: SCBE_MANAGEMENT_PORT
             value: "8440"
-          - name: SCBE_USERNAME
+          - name: SCBE_USERNAME           # TODO as secret
             value: "SCBE_USERNAME_VALUE"
-          - name: SCBE_PASSWORD
+          - name: SCBE_PASSWORD           # TODO as secret
             value: "SCBE_PASSWORD_VALUE"
-          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT # SCBE certificate path file inside the container
+          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT # SCBE certificate path file inside the container # TODO should be hardcoded in the ubiquity server
             value: ""
+          - name: SCBE_DEFAULT_SERVICE
+            value: "SCBE_DEFAULT_SERVICE_VALUE"
 
+          ### Ubiquity configuration:
+          - name: LOG_LEVEL         # debug / info / error
+            value: "debug"          # TODO will come from generic configMap
+          - name: DEFAULT_VOLUME_SIZE
+            value: "2"              # TODO will come from ubiquity configMap
+          - name: UBIQUITY_INSTANCE_NAME
+            value: "UBIQUITY_INSTANCE_NAME_VALUE"   # TODO will come from ubiquity configMap
+          - name: DEFAULT_FSTYPE    # ext4 or xfs
+            value: "ext4"           # TODO will come from ubiquity configMap
 
           - name: PORT              # Ubiquity port
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-          - name: CONFIG_PATH       # Ubiquity config directory
-            value: "/tmp"
           - name: DEFAULT_BACKEND   # or other backends, such as :scbe, spectrum-scale-nfs
             value: "scbe"
-          - name: LOG_LEVEL         # debug / info / error
-            value: "debug"
-          - name: DEFAULT_VOLUME_SIZE
-            value: "2"
-          - name: UBIQUITY_INSTANCE_NAME
-            value: "UBIQUITY_INSTANCE_NAME_VALUE"
-          - name: DEFAULT_FSTYPE    # ext4 or xfs
-            value: "ext4"
 
-            # Ubiquity certificates:
+            ### Ubiquity certificates:
           - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)
             value: ""
-          - name: UBIQUITY_SERVER_CERT_PUBLIC  # path-to-public-key-file
+          - name: UBIQUITY_SERVER_CERT_PUBLIC  # path-to-public-key-file # TODO should be hardcoded in the ubiquity server
             value: ""
-          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
-            value: ""
-
-
-
-            ### Ubiquity DB :
-          - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname
-            value: "ubiquity-db"          # the ubiquity-db service name
-          - name: UBIQUITY_DB_PSQL_PORT
-            value: ""                     # TODO we should specify the default port
-          - name: UBIQUITY_DB_USER        # Ubiquity DB user
-            value: ""
-          - name: UBIQUITY_DB_PASSWORD    # Ubiquity DB password
-            value: ""
-          - name: UBIQUITY_DB_NAME
+          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file # TODO should be hardcoded in the ubiquity server
             value: ""
 
+            ### Ubiquity DB:
+          - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname, should point to the ubiquity-db service name
+            value: "ubiquity-db"
+          - name: UBIQUITY_DB_PSQL_PORT   # Ubiquity DB port, should point to the ubiquity-db port
+            value: "5432"
+          - name: UBIQUITY_DB_USER        # Ubiquity DB user      # TODO must set to work with the new postgres image
+            value: ""
+          - name: UBIQUITY_DB_PASSWORD    # Ubiquity DB password  # TODO must set to work with the new postgres image
+            value: ""
+          - name: UBIQUITY_DB_NAME                                # TODO must set to work with the new postgres image
+            value: ""
           - name: UBIQUITY_DB_CONNECT_TIMEOUT
             value: "3"
+
           - name: UBIQUITY_DB_SSL_MODE         # Values : disable/require/verify-ca/verify-full. The default is disable
             value: ""
-          - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate
+          - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate   # TODO should be hardcoded in the ubiquity server
             value: ""
 
 #        volumeMounts:
-#        - mountPath: /container/path/to/certificate    #
+#        - mountPath: /var/lib/postgresql/ssl # TODO make sure the dir exist
+#          name: certificates-ubiquity-db
 #          readOnly: true
-#          name: certificates
 #
-#      volumes:
-#      - name: certificates
+#        - mountPath: /var/lib/ubiquity/ssl   # TODO make sure the dir exist
+#          name: certificates-ubiquity
+#          readOnly: true
+#
+#        - mountPath: /var/lib/ubiquity/ssl/scbe # TODO make sure the dir exist
+#          name: certificates-scbe
+#          readOnly: true
+#
+#      volumes: # TODO deliver it as secret instead of filepath
+#      - name: certificates-ubiquity-db
 #        hostPath:
-#          path: /host/path/to/certificate  # pub scbe, ubiquity key\dev
-#        secret:
-#          secretName: mysecret
+#          path: /etc/ubiquity/ssl/postgresql
+#          type: Directory
+#      - name: certificates-ubiquity
+#        hostPath:
+#          path: /etc/ubiquity/ssl/ubiquity
+#          type: Directory
+#      - name: certificates-scbe
+#        hostPath:
+#          path: /etc/ubiquity/ssl/scbe
+#          type: Directory

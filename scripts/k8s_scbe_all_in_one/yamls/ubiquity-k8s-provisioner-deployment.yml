@@ -13,9 +13,9 @@ spec:
       - name: ubiquity-k8s-provisioner
         image: UBIQUITY_K8S_PROVISIONER_IMAGE
         env:
-          - name: UBIQUITY_ADDRESS  # Address of ubiquity service
-            value: "ubiquity"    # if ubiquity runs in the same cluster of the provisioner then no change, but if outside of the cluster then set the IP
-          - name: UBIQUITY_PORT # Port of ubiquity service
+          - name: UBIQUITY_ADDRESS  # Ubiquity hostname, should point to the ubiquity service name
+            value: "ubiquity"
+          - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
           - name: KUBECONFIG
             value: "/tmp/k8sconfig/config"
@@ -24,19 +24,34 @@ spec:
           - name: LOG_PATH         # provisioner log file directory
             value: "/tmp"
           - name: BACKENDS         # used backends "spectrum-scale,spectrum-scale-nfs,scbe"
-            value: "scbe" 
+            value: "scbe"
+
           - name: LOG_LEVEL       # debug / info / error
-            value: "debug"
+            value: "debug"        # TODO will come from generic configMap
           - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)
             value: ""
-          - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert
+          - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert # TODO should be hardcoded in the provisioner
             value: ""
+
+          - name: UBIQUITY_USERNAME           # TODO as secret
+            value: "UBIQUITY_USERNAME_VALUE"
+          - name: UBIQUITY_PASSWORD           # TODO as secret
+            value: "UBIQUITY_USERNAME_VALUE"
 
 
         volumeMounts:
           - name: k8s-config
             mountPath: /tmp/k8sconfig
+#          - mountPath: /var/lib/ubiquity/ssl/scbe # TODO make sure the dir exist
+#            name: certificates-scbe
+#            readOnly: true
+
       volumes:
         - name: k8s-config
           configMap:
             name: k8s-config
+#        - name: certificates-scbe
+#          hostPath:
+#            path: /etc/ubiquity/ssl/scbe
+#            type: Directory
+
