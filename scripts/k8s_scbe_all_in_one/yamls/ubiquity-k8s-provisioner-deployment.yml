@@ -27,6 +27,12 @@ spec:
             value: "scbe" 
           - name: LOG_LEVEL       # debug / info / error
             value: "debug"
+          - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)
+            value: ""
+          - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert
+            value: ""
+
+
         volumeMounts:
           - name: k8s-config
             mountPath: /tmp/k8sconfig
