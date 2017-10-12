@@ -27,9 +27,11 @@ import (
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/pkg/api/v1"
+
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -141,7 +143,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
 
 	pv := &v1.PersistentVolume{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        options.PVName,
 			Labels:      map[string]string{},
 			Annotations: annotations,
