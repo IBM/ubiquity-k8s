@@ -1,4 +1,4 @@
-FROM golang:1.9.0
+FROM golang:1.9.1
 WORKDIR /go/src/github.com/IBM/ubiquity-k8s/
 COPY . .
 RUN go get -v github.com/Masterminds/glide
