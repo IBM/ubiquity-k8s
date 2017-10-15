@@ -1,0 +1,42 @@
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: ubiquity-k8s-provisioner
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ubiquity-k8s-provisioner
+    spec:
+      containers:
+      - name: ubiquity-k8s-provisioner
+        image: UBIQUITY_K8S_PROVISIONER_IMAGE
+        env:
+          - name: UBIQUITY_ADDRESS  # Address of ubiquity service
+            value: "ubiquity"    # if ubiquity runs in the same cluster of the provisioner then no change, but if outside of the cluster then set the IP
+          - name: UBIQUITY_PORT # Port of ubiquity service
+            value: "9999"
+          - name: KUBECONFIG
+            value: "/tmp/k8sconfig/config"
+          - name: RETRIES          # number of retries on failure
+            value: "1"
+          - name: LOG_PATH         # provisioner log file directory
+            value: "/tmp"
+          - name: BACKENDS         # used backends "spectrum-scale,spectrum-scale-nfs,scbe"
+            value: "scbe" 
+          - name: LOG_LEVEL       # debug / info / error
+            value: "debug"
+          - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)
+            value: ""
+          - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert
+            value: ""
+
+
+        volumeMounts:
+          - name: k8s-config
+            mountPath: /tmp/k8sconfig
+      volumes:
+        - name: k8s-config
+          configMap:
+            name: k8s-config

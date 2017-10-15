@@ -1,0 +1,25 @@
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: ubiquity-db
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ubiquity-db
+    spec:
+      containers:
+      - name: ubiquity-db
+        image: UBIQUITY_DB_IMAGE
+        ports:
+        - containerPort: 5432
+          name: ubiq-db-port  # no more then 15 chars
+        volumeMounts:
+          - name: ibm-ubiquity-db
+            mountPath: "/var/lib/postgresql/data"
+            subPath: "ibm-ubiquity"
+      volumes:
+        - name: ibm-ubiquity-db
+          persistentVolumeClaim:
+            claimName: ibm-ubiquity-db

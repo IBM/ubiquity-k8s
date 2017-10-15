@@ -1,0 +1,11 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: "STORAGE_CLASS_NAME"
+#  annotations:
+#   storageclass.beta.kubernetes.io/is-default-class: "true"
+provisioner: "ubiquity/flex"
+parameters:
+  profile: "SCBE_SERVICE_NAME"
+  fstype: "ext4"
+  backend: "scbe"

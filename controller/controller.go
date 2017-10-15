@@ -40,9 +40,9 @@ type Controller struct {
 }
 
 //NewController allows to instantiate a controller
-func NewController(logger *log.Logger, storageApiURL string, config resources.UbiquityPluginConfig) (*Controller, error) {
+func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
 
-	remoteClient, err := remote.NewRemoteClient(logger, storageApiURL, config)
+	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
 	if err != nil {
 		return nil, err
 	}
@@ -60,19 +60,30 @@ func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.Fl
 	c.logger.Println("controller-activate-start")
 	defer c.logger.Println("controller-activate-end")
 
+	return k8sresources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Plugin init successfully",
+	}
+}
+
+//TestUbiquity method is to test connectivity to ubiquity
+func (c *Controller) TestUbiquity(config resources.UbiquityPluginConfig) k8sresources.FlexVolumeResponse {
+	c.logger.Println("controller-testubiquity-start")
+	defer c.logger.Println("controller-testubiquity-end")
+
 	activateRequest := resources.ActivateRequest{Backends: config.Backends}
 	err := c.Client.Activate(activateRequest)
 	if err != nil {
 		return k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: fmt.Sprintf("Plugin init failed %#v ", err),
+			Message: fmt.Sprintf("Test ubiquity failed %#v ", err),
 		}
 
 	}
 
 	return k8sresources.FlexVolumeResponse{
 		Status:  "Success",
-		Message: "Plugin init successfully",
+		Message: "Test ubiquity successfully",
 	}
 }
 
