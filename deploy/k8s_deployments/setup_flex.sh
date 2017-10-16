@@ -23,8 +23,33 @@ cp ~/$DRIVER "${MNT_FLEX_DRIVER_DIR}/.$DRIVER"
 mv -f "${MNT_FLEX_DRIVER_DIR}/.$DRIVER" "${MNT_FLEX_DRIVER_DIR}/$DRIVER"
 
 echo "Copying the flex config file ${FLEX_CONF_PATH} to ${ETC_UBIQUITY}/${FLEX_CONF}"
-cp ${FLEX_CONF_PATH} ${ETC_UBIQUITY}/.${FLEX_CONF}
-mv -f ${ETC_UBIQUITY}/.${FLEX_CONF} ${ETC_UBIQUITY}/${FLEX_CONF}
+FLEX_TMP="${ETC_UBIQUITY}/.${FLEX_CONF}"
+cp ${FLEX_CONF_PATH} ${FLEX_TMP}
+if [ -n "$UBIQUITY_USERNAME" ]; then
+    echo "Update \"username\" in config file based on environment UBIQUITY_USERNAME"
+    sed -i "s/^username =.*/username = $UBIQUITY_USERNAME/" ${FLEX_TMP}
+fi
+if [ -n "$UBIQUITY_PASSWORD" ]; then
+    echo "Update \"password\" in config file based on environment UBIQUITY_PASSWORD"
+    sed -i "s/^password =.*/password = $UBIQUITY_PASSWORD/" ${FLEX_TMP}
+fi
+if [ -n "$UBIQUITY_PLUGIN_USE_SSL" ]; then
+    echo "Update \"UseSsl\" in config file based on environment UBIQUITY_PLUGIN_USE_SSL"
+    sed -i "s/^UseSsl =.*/UseSsl = $UBIQUITY_PLUGIN_USE_SSL/" ${FLEX_TMP}
+fi
+if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
+    echo "Update \"VerifyCa\" in config file based on environment UBIQUITY_PLUGIN_VERIFY_CA"
+    sed -i "s/^VerifyCa =.*/VerifyCa = $UBIQUITY_PLUGIN_VERIFY_CA/" ${FLEX_TMP}
+fi
+
+# Now ubiquity config file is ready with all the updates.
+mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
+
+if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
+    echo "Copy the ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
+    cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
+fi
+
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"
 while : ; do

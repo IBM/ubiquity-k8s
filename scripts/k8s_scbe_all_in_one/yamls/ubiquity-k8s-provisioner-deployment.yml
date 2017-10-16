@@ -28,30 +28,47 @@ spec:
 
           - name: LOG_LEVEL       # debug / info / error
             value: "debug"        # TODO will come from generic configMap
-          - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)
+          - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)   # TODO need to remove and add new SSL_MODE
+# Cert #            value: "true"  # Certificate Set : use only if predefine certificate given ? not sure
             value: ""
           - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert # TODO should be hardcoded in the provisioner
+# Cert #            value: "/var/lib/ubiquity/ssl/public/server.crt"   # Certificate Set : use only if predefine certificate given
             value: ""
 
-          - name: UBIQUITY_USERNAME           # TODO as secret
+          - name: UBIQUITY_USERNAME
             value: "UBIQUITY_USERNAME_VALUE"
-          - name: UBIQUITY_PASSWORD           # TODO as secret
+## Secret Set: for SCBE_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: scbe-credentials
+#                key: username
+
+          - name: UBIQUITY_PASSWORD
             value: "UBIQUITY_USERNAME_VALUE"
+## Secret Set: for SCBE_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: scbe-credentials
+#                key: password
 
 
         volumeMounts:
           - name: k8s-config
             mountPath: /tmp/k8sconfig
-#          - mountPath: /var/lib/ubiquity/ssl/scbe # TODO make sure the dir exist
-#            name: certificates-scbe
-#            readOnly: true
+# Certificate Set : use the below volumeMounts only if predefine certificate given
+# Cert #          - name: ubiquity-public-certificates
+# Cert #            mountPath: /var/lib/ubiquity/ssl/public
+# Cert #            readOnly: true
 
       volumes:
         - name: k8s-config
           configMap:
             name: k8s-config
-#        - name: certificates-scbe
-#          hostPath:
-#            path: /etc/ubiquity/ssl/scbe
-#            type: Directory
+# Certificate Set : use the below volumes only if predefine certificate given
+# Cert #        - name: ubiquity-public-certificates
+# Cert #            configMap:
+# Cert #              name: ubiquity-public-certificates
+# Cert #              items:
+# Cert #                - key: ubiquity-trusted-ca.crt
+# Cert #                  path: server.crt
 
