@@ -51,12 +51,6 @@ spec:
             # Ubiquity certificates:
           - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)
             value: ""
-          - name: UBIQUITY_SERVER_CERT_PUBLIC  # path-to-public-key-file
-            value: ""
-          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
-            value: ""
-
-
 
             ### Ubiquity DB :
           - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname
