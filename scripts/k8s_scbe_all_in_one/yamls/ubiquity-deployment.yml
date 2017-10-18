@@ -38,7 +38,7 @@ spec:
 #                key: password
 
           - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT
-# Cert #            value: "/var/lib/ubiquity/ssl/public/scbe.crt"  # Certificate Set : use only if predefine certificate given
+# Cert #            value: "/var/lib/ubiquity/ssl/public/scbe-trusted-ca.crt"  # Certificate Set : use only if predefine certificate given
             value: ""   # for none Cert only
 
           - name: SCBE_DEFAULT_SERVICE
@@ -63,13 +63,13 @@ spec:
 
             ### Ubiquity certificates:
           - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)   # TODO this param will be removed because its the default always to work with ssl
-# Cert #            value: "true"                     # Certificate Set : use only if predefine certificate given
-            value: ""   # for none Cert only
+# SSL #            value: "true"
+            value: ""   # for none SSL
           - name: UBIQUITY_SERVER_CERT_PUBLIC  # path-to-public-key-file
-# Cert #            value: "/var/lib/ubiquity/ssl/private/server.crt"   # Certificate Set : use only if predefine certificate given
+# Cert #            value: "/var/lib/ubiquity/ssl/private/ubiquity.crt"   # Certificate Set : use only if predefine certificate given
             value: ""   # for none Cert only
           - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
-# Cert #            value: "/var/lib/ubiquity/ssl/private/server.key"   # Certificate Set : use only if predefine certificate given
+# Cert #            value: "/var/lib/ubiquity/ssl/private/ubiquity.key"   # Certificate Set : use only if predefine certificate given
             value: ""   # for none Cert only
 
             ### Ubiquity DB:
@@ -77,20 +77,37 @@ spec:
             value: "ubiquity-db"
           - name: UBIQUITY_DB_PSQL_PORT   # Ubiquity DB port, should point to the ubiquity-db port
             value: "5432"
-          - name: UBIQUITY_DB_USER        # Ubiquity DB user      # TODO must set to work with the new postgres image
-            value: ""
-          - name: UBIQUITY_DB_PASSWORD    # Ubiquity DB password  # TODO must set to work with the new postgres image
-            value: ""
+
+          - name: UBIQUITY_DB_USERNAME
+            value: "" # for none SSL
+# SSL #            value: "ubiquity"
+## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: username
+
+          - name: UBIQUITY_DB_PASSWORD
+            value: "" # for none SSL
+# SSL #            value: "ubiquity"
+## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: password
+
           - name: UBIQUITY_DB_NAME                                # TODO must set to work with the new postgres image
-            value: ""
+            value: "" # for none Cert only
+# SSL #            value: ""
+
           - name: UBIQUITY_DB_CONNECT_TIMEOUT
             value: "3"
 
           - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
-# Cert #            value: "verify-full"     # Certificate Set : use only if predefine certificate given
-            value: ""   # for none Cert only
+# SSL #            value: "verify-full"     # Certificate Set : use only if predefine certificate given
+            value: ""   # for none SSL
           - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate   # TODO should be hardcoded in the ubiquity server
-# Cert #            value: "/var/lib/ubiquity/ssl/public/ubiquity-db.crt"
+# Cert #            value: "/var/lib/ubiquity/ssl/public/ubiquity-db-trusted-ca.crt"
             value: ""   # for none Cert only
 
 # Certificate Set : use the below volumeMounts and volumes only if predefine certificate given
@@ -105,18 +122,18 @@ spec:
 # Cert #      volumes:
 # Cert #      - name: ubiquity-private-certificate
 # Cert #          secret:
-# Cert #            secretName: ubiquity-private-certificate   # expected keys: server.crt
+# Cert #            secretName: ubiquity-private-certificate
 # Cert #            items:
-# Cert #            - key: server.crt
-# Cert #              path: server.crt
-# Cert #            - key: server.key
-# Cert #              path: server.key
+# Cert #            - key: ubiquity.crt
+# Cert #              path: ubiquity.crt
+# Cert #            - key: ubiquity.key
+# Cert #              path: ubiquity.key
 # Cert #      - name: ubiquity-public-certificates
 # Cert #          configMap:
 # Cert #            name: ubiquity-public-certificates
 # Cert #            items:
 # Cert #            - key: ubiquity-db-trusted-ca.crt
-# Cert #              path: ubiquity-db.crt
+# Cert #              path: ubiquity-db-trusted-ca.crt
 # Cert #            - key: scbe-trusted-ca.crt
-# Cert #              path: scbe.crt
+# Cert #              path: scbe-trusted-ca.crt
 

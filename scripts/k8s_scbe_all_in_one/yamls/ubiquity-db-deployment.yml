@@ -16,6 +16,24 @@ spec:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
         env:
+          - name: UBIQUITY_DB_USERNAME
+            value: "ubiquity"
+## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: username
+
+          - name: UBIQUITY_DB_PASSWORD
+            value: "ubiquity"
+## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: password
+
+          - name: UBIQUITY_DB_NAME
+            value: "ubiquity"
           - name: UBIQUITY_DB_CERT_PUBLIC  # path-to-public-key-file
 # Cert #            value: "/var/lib/postgresql/ssl/private/ubiquity-db.crt"   # Certificate Set : use only if predefine certificate given
             value: ""   # for none Cert only

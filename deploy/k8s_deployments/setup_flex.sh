@@ -45,7 +45,7 @@ fi
 # Now ubiquity config file is ready with all the updates.
 mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
 
-if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
+if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" -a -f "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
     echo "Copy the ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
     cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
 fi
