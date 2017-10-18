@@ -23,7 +23,7 @@ spec:
 #                key: username
 
           - name: UBIQUITY_PASSWORD
-            value: "UBIQUITY_USERNAME_VALUE"
+            value: "UBIQUITY_PASSWORD_VALUE"
 ## Secret Set: for SCBE_PASSWORD instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
@@ -31,7 +31,7 @@ spec:
 #                key: password
 
           - name: UBIQUITY_PLUGIN_USE_SSL  # boolean (true or false)   # TODO need to remove and add new SSL_MODE
-            value: ""   # for none SSL
+            value: "UBIQUITY_PLUGIN_USE_SSL_VALUE"   # for none SSL
 # SSL #            value: "true"  # Certificate Set : use only if predefine certificate given ? not sure
           - name: UBIQUITY_PLUGIN_VERIFY_CA # path-to-CA-cert # TODO should be hardcoded in the provisioner
             value: ""   # for none Cert only

@@ -17,7 +17,7 @@ spec:
           name: ubiq-db-port  # no more then 15 chars
         env:
           - name: UBIQUITY_DB_USERNAME
-            value: "ubiquity"
+            value: "UBIQUITY_DB_USERNAME_VALUE"
 ## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
@@ -25,7 +25,7 @@ spec:
 #                key: username
 
           - name: UBIQUITY_DB_PASSWORD
-            value: "ubiquity"
+            value: "UBIQUITY_DB_PASSWORD_VALUE"
 ## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
@@ -34,13 +34,6 @@ spec:
 
           - name: UBIQUITY_DB_NAME
             value: "ubiquity"
-          - name: UBIQUITY_DB_CERT_PUBLIC  # path-to-public-key-file
-# Cert #            value: "/var/lib/postgresql/ssl/private/ubiquity-db.crt"   # Certificate Set : use only if predefine certificate given
-            value: ""   # for none Cert only
-          - name: UBIQUITY_DB_CERT_PRIVATE # path-to-private-key-file
-# Cert #            value: "/var/lib/postgresql/ssl/private/ubiquity-db.key"   # Certificate Set : use only if predefine certificate given
-            value: ""   # for none Cert only
-
 
         volumeMounts:
           - name: ibm-ubiquity-db
