@@ -123,7 +123,8 @@ function basic_tests_on_one_node()
 
 	stepinc
 	echo "####### ---> ${S}. Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+        # Add : at the end of touch, because kubectl has a known exit code issue.
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	stepinc
@@ -222,7 +223,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
@@ -288,9 +289,9 @@ function basic_test_POD_with_2_volumes()
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data1"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data2"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data1/file_on_A9000_volume"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data2/file_on_A9000_volume"
 
 
@@ -456,7 +457,7 @@ function tests_with_second_node()
 
 	echo "## ---> ${S}.6 Write DATA on the volume by create a file in /data inside the container"
         file_create_node1="/data/file_created_on_${node1}"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
 
 	stepinc
