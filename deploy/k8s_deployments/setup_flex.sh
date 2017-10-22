@@ -37,19 +37,26 @@ if [ -n "$UBIQUITY_PLUGIN_USE_SSL" ]; then
     echo "Update \"UseSsl\" in config file based on environment UBIQUITY_PLUGIN_USE_SSL"
     sed -i "s/^UseSsl =.*/UseSsl = $UBIQUITY_PLUGIN_USE_SSL/" ${FLEX_TMP}
 fi
-if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
-    echo "Update \"VerifyCa\" in config file based on environment UBIQUITY_PLUGIN_VERIFY_CA"
-    sed -i "s/^VerifyCa =.*/VerifyCa = \"$UBIQUITY_PLUGIN_VERIFY_CA\"/" ${FLEX_TMP}
+if [ -n "$UBIQUITY_PLUGIN_SSL_MODE" ]; then
+    echo "Update \"SslMode\" in config file based on environment UBIQUITY_PLUGIN_SSL_MODE"
+    sed -i "s/^SslMode =.*/SslMode = $UBIQUITY_PLUGIN_SSL_MODE/" ${FLEX_TMP}
+
+   # Note: SslMode in the config file is by default verify-full
 fi
 
 # Now ubiquity config file is ready with all the updates.
 mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
 
-if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" -a -f "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
-    echo "Copy the ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
-    cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
+if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
+   if [ -f "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
+       echo "Copy the ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
+       cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
+   else
+       echo "The ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA file does not exist, so cannot copy it to ${ETC_UBIQUITY}"
+   fi
+else
+       echo "The ubiqutiy public certificate ENV UBIQUITY_PLUGIN_VERIFY_CA is empty, so cannot copy the certificate to ${ETC_UBIQUITY}"
 fi
-
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"
 while : ; do

@@ -618,7 +618,9 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 		return resources.UbiquityPluginConfig{}, err
 
 	}
+	// Create environment variables for some of the config params
 	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode,  strconv.FormatBool(config.SslConfig.SslMode))
 	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }

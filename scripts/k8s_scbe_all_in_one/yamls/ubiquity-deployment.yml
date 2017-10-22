@@ -37,9 +37,11 @@ spec:
 #                name: scbe-credentials
 #                key: password
 
-          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT
-# Cert #            value: "/var/lib/ubiquity/ssl/public/scbe-trusted-ca.crt"  # Certificate Set : use only if predefine certificate given
-            value: ""   # for none Cert only
+          - name: SCBE_SSL_MODE            # Values : require/verify-full
+            value: "SCBE_SSL_MODE_VALUE"
+
+#          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT
+#            value: "/var/lib/ubiquity/ssl/public/scbe-trusted-ca.crt"  # This is the default path
 
           - name: SCBE_DEFAULT_SERVICE
             value: "SCBE_DEFAULT_SERVICE_VALUE"
@@ -61,9 +63,10 @@ spec:
           - name: DEFAULT_BACKEND   # or other backends, such as :scbe, spectrum-scale-nfs
             value: "scbe"
 
-            ### Ubiquity certificates:
-          - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)   # TODO this param will be removed because its the default always to work with ssl
-            value: "UBIQUITY_SERVER_USE_SSL_VALUE"   # for none SSL
+#          - name: UBIQUITY_SERVER_CERT_PUBLIC
+#            value: "/var/lib/ubiquity/ssl/private/ubiquity.crt"   # This is the default path
+#          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
+#            value: "/var/lib/ubiquity/ssl/private/ubiquity.key"   # This is the default path
 
             ### Ubiquity DB:
           - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname, should point to the ubiquity-db service name
@@ -73,7 +76,6 @@ spec:
 
           - name: UBIQUITY_DB_USERNAME
             value: "UBIQUITY_DB_USERNAME_VALUE" # for none SSL
-# SSL #            value: "ubiquity"
 ## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
@@ -82,7 +84,6 @@ spec:
 
           - name: UBIQUITY_DB_PASSWORD
             value: "UBIQUITY_DB_PASSWORD_VALUE" # for none SSL
-# SSL #            value: "ubiquity"
 ## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
@@ -91,17 +92,15 @@ spec:
 
           - name: UBIQUITY_DB_NAME                                # TODO must set to work with the new postgres image
             value: "UBIQUITY_DB_NAME_VALUE" # for none Cert only
-# SSL #            value: ""
 
           - name: UBIQUITY_DB_CONNECT_TIMEOUT
             value: "3"
 
           - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
-# SSL #            value: "verify-full"     # Certificate Set : use only if predefine certificate given
             value: "UBIQUITY_DB_SSL_MODE_VALUE"   # for none SSL
-          - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate   # TODO should be hardcoded in the ubiquity server
-# Cert #            value: "/var/lib/ubiquity/ssl/public/ubiquity-db-trusted-ca.crt"
-            value: ""   # for none Cert only
+
+#          - name: UBIQUITY_DB_SSL_ROOT_CERT
+#            value: "/var/lib/ubiquity/ssl/public/ubiquity-db-trusted-ca.crt"   # This is the default path
 
 # Certificate Set : use the below volumeMounts and volumes only if predefine certificate given
 # Cert #        volumeMounts:

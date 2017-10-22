@@ -8,7 +8,7 @@ import:
   - lib/controller
   - lib/leaderelection
 - package: github.com/IBM/ubiquity
-  version: dev
+  version: feature/use_ssl_default_setting_changes
   subpackages:
   - remote
   - resources
