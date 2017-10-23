@@ -81,7 +81,7 @@ func main() {
 	// provisioners aren't officially supported until 1.5
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
-		panic(fmt.Sprintf("Error getting server version: %v", err))
+		logger.Printf(fmt.Sprintf("Error getting server version: %v", err))
 	}
 	remoteClient, err := remote.NewRemoteClientSecure(logger, ubiquityConfig)
 	if err != nil {
