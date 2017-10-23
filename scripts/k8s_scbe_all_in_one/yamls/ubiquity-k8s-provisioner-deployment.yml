@@ -45,7 +45,7 @@ spec:
 #                key: username
 
           - name: UBIQUITY_PASSWORD
-            value: "UBIQUITY_USERNAME_VALUE"
+            value: "UBIQUITY_PASSWORD_VALUE"
 ## Secret Set: for SCBE_PASSWORD instead of the value above # TODO
 #            valueFrom:
 #              secretKeyRef:
