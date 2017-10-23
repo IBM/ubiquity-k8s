@@ -157,7 +157,7 @@ kubectl create $nsf -f ${YML_DIR}/ubiquity-namespace.yml
 kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
 kubectl create $nsf -f ${YML_DIR}/ubiquity-db-service.yml
 kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
-wait_for_deployment ubiquity 5 5 $NS
+wait_for_deployment ubiquity 20 5 $NS
 
 if ! kubectl get $nsf cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
     kubectl create $nsf configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
@@ -165,7 +165,7 @@ else
     echo "Skip the creation of ${K8S_CONFIGMAP_FOR_PROVISIONER} configmap, because its already exist"
 fi
 kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
-wait_for_deployment ubiquity-k8s-provisioner 5 5 $NS
+wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
 # Create Storage class and PVC, then wait for PVC and PV creation
 kubectl create $nsf -f ${YML_DIR}/storage-class.yml
