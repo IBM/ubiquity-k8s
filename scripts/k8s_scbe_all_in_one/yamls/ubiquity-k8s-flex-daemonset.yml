@@ -46,7 +46,7 @@ spec:
         - name: ubiquity-k8s-flex-conf
           mountPath: /mnt/ubiquity-k8s-flex-conf
 # Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #       - name: ubiquity-public-certificates
+# Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
 # Cert #          readOnly: true
 
@@ -61,7 +61,7 @@ spec:
         configMap:
           name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file
 # Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      name: ubiquity-public-certificates
+# Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:
 # Cert #          name: ubiquity-public-certificates
 # Cert #          items:

@@ -67,9 +67,9 @@ spec:
             name: k8s-config
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
-# Cert #            configMap:
-# Cert #              name: ubiquity-public-certificates
-# Cert #              items:
-# Cert #                - key: ubiquity-trusted-ca.crt
-# Cert #                  path: ubiquity-trusted-ca.crt
+# Cert #          configMap:
+# Cert #            name: ubiquity-public-certificates
+# Cert #            items:
+# Cert #              - key: ubiquity-trusted-ca.crt
+# Cert #                path: ubiquity-trusted-ca.crt
 

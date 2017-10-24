@@ -16,7 +16,7 @@
 # Script prerequisites:
 #  ====================
 #    1. SCBE server up and running with 1 service delegated to ubiquity interface (service name given by $ACCEPTANCE_PROFILE)
-#    2. ubiqutiy server up and running with SCBE backend configured
+#    2. ubiquity server up and running with SCBE backend configured
 #    3. ubiquity-provisioner up and running and also ubiquity-flexvolume-cli locate on the k8s nodes
 #    4. setup connectivity between the minions to the related storage system of the service.
 #    5. root SSH passwordless between master and minions (so test will validate on the minions the mount devices via ssh)

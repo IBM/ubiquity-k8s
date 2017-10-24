@@ -49,13 +49,13 @@ mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
 
 if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
    if [ -f "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
-       echo "Copy the ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
+       echo "Copy the ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
        cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
    else
-       echo "The ubiqutiy public certificate $UBIQUITY_PLUGIN_VERIFY_CA file does not exist, so cannot copy it to ${ETC_UBIQUITY}"
+       echo "The ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA file does not exist, so cannot copy it to ${ETC_UBIQUITY}"
    fi
 else
-       echo "The ubiqutiy public certificate ENV UBIQUITY_PLUGIN_VERIFY_CA is empty, so cannot copy the certificate to ${ETC_UBIQUITY}"
+       echo "The ubiquity public certificate ENV UBIQUITY_PLUGIN_VERIFY_CA is empty, so cannot copy the certificate to ${ETC_UBIQUITY}"
 fi
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"

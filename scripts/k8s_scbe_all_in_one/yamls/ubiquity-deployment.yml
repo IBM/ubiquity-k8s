@@ -113,19 +113,21 @@ spec:
 # Cert #
 # Cert #      volumes:
 # Cert #      - name: ubiquity-private-certificate
-# Cert #          secret:
-# Cert #            secretName: ubiquity-private-certificate
-# Cert #            items:
-# Cert #            - key: ubiquity.crt
-# Cert #              path: ubiquity.crt
-# Cert #            - key: ubiquity.key
-# Cert #              path: ubiquity.key
+# Cert #        secret:
+# Cert #          secretName: ubiquity-private-certificate
+# Cert #          items:
+# Cert #          - key: ubiquity.crt
+# Cert #            path: ubiquity.crt
+# Cert #            mode: 0600
+# Cert #          - key: ubiquity.key
+# Cert #            path: ubiquity.key
+# Cert #            mode: 0600
 # Cert #      - name: ubiquity-public-certificates
-# Cert #          configMap:
-# Cert #            name: ubiquity-public-certificates
-# Cert #            items:
-# Cert #            - key: ubiquity-db-trusted-ca.crt
-# Cert #              path: ubiquity-db-trusted-ca.crt
-# Cert #            - key: scbe-trusted-ca.crt
-# Cert #              path: scbe-trusted-ca.crt
+# Cert #        configMap:
+# Cert #          name: ubiquity-public-certificates
+# Cert #          items:
+# Cert #          - key: ubiquity-db-trusted-ca.crt
+# Cert #            path: ubiquity-db-trusted-ca.crt
+# Cert #          - key: scbe-trusted-ca.crt
+# Cert #            path: scbe-trusted-ca.crt
 
