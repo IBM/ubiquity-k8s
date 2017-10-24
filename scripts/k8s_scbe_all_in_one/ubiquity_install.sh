@@ -184,6 +184,17 @@ fi
 
 if [ "$STEP" = "create-services" ]; then
     create_only_namespace_and_services $NS
+
+    read -p "Going to update Ubiquity yamls to support certificates via volumes(secets and configmap). Are you sure (y/n): " yn
+    if [ "$yn" = "y" ]; then
+       # this sed just removes the comments from all the certificates lines on the ymls
+       ymls_to_updates="${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml ${YML_DIR}/ubiquity-deployment.yml ${YML_DIR}/ubiquity-db-deployment.yml"
+       sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
+       echo "yamls were updated to support certificates ($ymls_to_updates)"
+    else
+       echo "yamls were NOT updated to support certificates."
+    fi
+
     kubectl get $nsf svc/ubiquity svc/ubiquity-db
     echo ""
     echo "Finish to create namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
