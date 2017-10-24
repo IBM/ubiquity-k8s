@@ -35,7 +35,7 @@ if [ -n "$UBIQUITY_PASSWORD" ]; then
 fi
 if [ -n "$UBIQUITY_PLUGIN_USE_SSL" ]; then
     echo "Update \"UseSsl\" in config file based on environment UBIQUITY_PLUGIN_USE_SSL"
-    sed -i "s/^UseSsl =.*/UseSsl = \"$UBIQUITY_PLUGIN_USE_SSL\"/" ${FLEX_TMP}
+    sed -i "s/^UseSsl =.*/UseSsl = $UBIQUITY_PLUGIN_USE_SSL/" ${FLEX_TMP}
 fi
 if [ -n "$UBIQUITY_PLUGIN_SSL_MODE" ]; then
     echo "Update \"SslMode\" in config file based on environment UBIQUITY_PLUGIN_SSL_MODE"
