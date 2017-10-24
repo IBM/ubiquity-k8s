@@ -22,6 +22,9 @@
 
 NO_RESOURCES_STR="No resources found."
 PVC_GOOD_STATUS=Bound
+UBIQUITY_DEFAULT_NAMESPACE="ubiquity"
+UBIQUITY_SERVICE_NAME="ubiquity"
+UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
 
 # example : wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
 function wait_for_item()
