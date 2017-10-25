@@ -5,4 +5,4 @@ set -e
 scripts=$(dirname $0)
 
 echo "Building flex driver"
-go build -ldflags '-w -linkmode external -extldflags "-static"' -o  $scripts/../bin/ubiquity-k8s-flex $scripts/../cmd/flex/main/cli.go
+go build -ldflags -s -o  $scripts/../bin/ubiquity-k8s-flex $scripts/../cmd/flex/main/cli.go
