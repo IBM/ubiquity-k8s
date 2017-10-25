@@ -54,6 +54,9 @@ function usage()
   echo "         Use this option only if you want to get the IPs of ubiquity and ubiqutiy-db in advance before installation."
   echo "    -n [<namespace>] : Namespace to install ubiquity. By default its \"ubiquity\" namespace"
   echo "    -d : Use it only if you already have deployed flex on the nodes, so ubiquity-db will be created as well."
+  echo "    -t [<certificates-directory>] : Create only the Ubiquity secrets\configmap for dedicated certificates."
+  echo "         Create secrets ubiquity-private-certificate and ubiquity-db-private-certificate"
+  echo "         Create configmap ubiquity-public-certificates"
   echo "    -h : Display this usage"
   exit 1
 }
@@ -118,6 +121,35 @@ function create_only_namespace_and_services()
     fi
 }
 
+function create_private_certificates_secrets_and_public_as_configmap()
+{
+    echo "Creating secrets [ubiquity-private-certificate and ubiquity-db-private-certificate] and configmap [ubiquity-public-certificates] based from directory $certDir"
+    certDir="$1"  # directory of the certificates
+    [ ! -d "$certDir" ] && { echo "Error: $certDir directory not found."; exit 2; }
+
+    # Validation all cert files in the certDir directory
+    expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt scbe-trusted-ca.crt "
+    for certfile in $expected_cert_files; do
+        [ ! -f $certDir/$certfile ] && { echo "Missing cert file $certDir/$certfile"; echo "Mandatory certificate files are : $expected_cert_files"; exit 2; }
+    done
+
+    # Validation secrets and configmap not exist before creation
+    kubectl get secret $nsf ubiquity-db-private-certificate >/dev/null 2>&1 && already_exist "secret [ubiquity-db-private-certificate]" || :
+    kubectl get secret $nsf ubiquity-private-certificate >/dev/null 2>&1 && already_exist "secret [ubiquity-private-certificate]" || :
+    kubectl get configmap $nsf ubiquity-public-certificates >/dev/null 2>&1 && already_exist "configmap [ubiquity-public-certificates]" || :
+
+    cd $certDir
+    kubectl create secret $nsf generic ubiquity-db-private-certificate --from-file=ubiquity-db.key --from-file=ubiquity-db.crt
+    kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
+    kubectl create configmap $nsf ubiquity-public-certificates --from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt
+    cd -
+
+    kubectl get $nsf secrets/ubiquity-db-private-certificate secrets/ubiquity-private-certificate cm/ubiquity-public-certificates
+    echo ""
+    echo "Finished to create secrets and configmap for Ubiquity certificates."
+}
+function already_exist() { echo "Error: Secret $1 is already exist. Please delete it first."; exit 2; }
+
 # Variables
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
@@ -136,7 +168,8 @@ to_deploy_ubiquity_db="false"
 KUBECONF=~/.kube/config
 CONFIG_SED_FILE=""
 STEP=""
-while getopts ":dc:k:s:n:h" opt; do
+CERT_DIR=""
+while getopts ":dc:k:s:n:t:h" opt; do
   case $opt in
     d)
       to_deploy_ubiquity_db="true"
@@ -153,6 +186,9 @@ while getopts ":dc:k:s:n:h" opt; do
       ;;
     n)
       NS=$OPTARG
+      ;;
+    t)
+      CERT_DIR=$OPTARG
       ;;
     h)
       usage
@@ -174,6 +210,11 @@ nsf="--namespace ${NS}" # namespace flag for kubectl command
 which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exit 2; }
 [ ! -f "$KUBECONF" ] && { echo "$KUBECONF not found"; exit 2; }
 [ -n "$CONFIG_SED_FILE" -a ! -f "$CONFIG_SED_FILE" ] && { echo "$CONFIG_SED_FILE not found"; exit 2; }
+
+if [ -n "$CERT_DIR" ]; then
+   create_private_certificates_secrets_and_public_as_configmap "$CERT_DIR"
+   exit 0
+fi
 
 echo "Install Ubiquity in namespace [$NS]..."
 
