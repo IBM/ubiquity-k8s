@@ -38,7 +38,7 @@ import (
 
 var configFile = flag.String(
 	"configFile",
-	"/etc/ubiquity/ubiquity-k8s-flex.conf",
+	"/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex.conf",
 	"config file with ubiquity client configuration params",
 )
 
