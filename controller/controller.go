@@ -433,13 +433,34 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 		return c.logger.ErrorRet(err, "exec.Remove failed")
 	}
 
-	afterDetachRequest := resources.AfterDetachRequest{VolumeConfig: volumeConfig}
-	if err := mounter.ActionAfterDetach(afterDetachRequest); err != nil {
-		err = fmt.Errorf("Error execute action after detaching the volume : %#v", err)
-		return c.logger.ErrorRet(err, "mounter.ActionAfterDetach failed")
-	}
-
 	return nil
+}
+
+func (c *Controller) doAfterDetach(detachRequest k8sresources.FlexVolumeDetachRequest) error {
+    defer c.logger.Trace(logs.DEBUG)()
+
+    getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
+    volume, err := c.Client.GetVolume(getVolumeRequest)
+    mounter, err := c.getMounterForBackend(volume.Backend)
+    if err != nil {
+        err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
+        return c.logger.ErrorRet(err, "failed")
+    }
+
+    getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name}
+    volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+    if err != nil {
+        err = fmt.Errorf("Error for volume: %s", err.Error())
+        return c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+    }
+
+    afterDetachRequest := resources.AfterDetachRequest{VolumeConfig: volumeConfig}
+    if err := mounter.ActionAfterDetach(afterDetachRequest); err != nil {
+        err = fmt.Errorf("Error execute action after detaching the volume : %#v", err)
+        return c.logger.ErrorRet(err, "mounter.ActionAfterDetach failed")
+    }
+
+    return nil
 }
 
 func (c *Controller) doUnmountSsc(unmountRequest k8sresources.FlexVolumeUnmountRequest, realMountPoint string) error {
@@ -507,6 +528,11 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 	if err != nil {
 		return c.logger.ErrorRet(err, "failed")
 	}
+
+    err = c.doAfterDetach(detachRequest)
+    if err != nil {
+        return c.logger.ErrorRet(err, "failed")
+    }
 
 	return nil
 }
