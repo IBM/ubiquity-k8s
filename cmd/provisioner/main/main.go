@@ -118,5 +118,6 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	ubiquity.Port = int(port)
 	ubiquity.Address = os.Getenv("UBIQUITY_ADDRESS")
 	config.UbiquityServer = ubiquity
+	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
 	return config, nil
 }
