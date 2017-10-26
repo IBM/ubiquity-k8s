@@ -32,5 +32,8 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	} else {
 		config.ScbeRemoteConfig.SkipRescanISCSI = bool
 	}
+
+	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
+
 	return config, nil
 }

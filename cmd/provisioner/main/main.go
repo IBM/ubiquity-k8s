@@ -24,7 +24,6 @@ import (
 	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
-	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
@@ -33,8 +32,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -104,20 +101,3 @@ func main() {
 	pc.Run(wait.NeverStop)
 }
 
-func LoadConfig() (resources.UbiquityPluginConfig, error) {
-
-	config := resources.UbiquityPluginConfig{}
-	config.LogLevel = os.Getenv("LOG_LEVEL")
-	config.LogPath = os.Getenv("LOG_PATH")
-	config.Backends = strings.Split(os.Getenv("BACKENDS"), ",")
-	ubiquity := resources.UbiquityServerConnectionInfo{}
-	port, err := strconv.ParseInt(os.Getenv("UBIQUITY_PORT"), 0, 32)
-	if err != nil {
-		return config, err
-	}
-	ubiquity.Port = int(port)
-	ubiquity.Address = os.Getenv("UBIQUITY_ADDRESS")
-	config.UbiquityServer = ubiquity
-	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
-	return config, nil
-}
