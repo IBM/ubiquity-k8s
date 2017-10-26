@@ -17,8 +17,6 @@
 package main
 
 import (
-	"time"
-
 	"fmt"
 	"path"
 
@@ -30,11 +28,9 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	"k8s.io/client-go/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"strconv"
@@ -42,16 +38,8 @@ import (
 )
 
 var (
-	provisioner          = k8sresources.ProvisionerName
-	configFile           = os.Getenv("KUBECONFIG")
-	failedRetryThreshold = os.Getenv("RETRIES")
-)
-
-const (
-	leasePeriod   = leaderelection.DefaultLeaseDuration
-	retryPeriod   = leaderelection.DefaultRetryPeriod
-	renewDeadline = leaderelection.DefaultRenewDeadline
-	termLimit     = leaderelection.DefaultTermLimit
+	provisioner = k8sresources.ProvisionerName
+	configFile  = os.Getenv("KUBECONFIG")
 )
 
 func main() {
@@ -73,7 +61,6 @@ func main() {
 
 	logger.Printf("Provisioner %s specified", provisioner)
 
-	// Create the client according to whether we are running in or out-of-cluster
 	var config *rest.Config
 
 	if configFile != "" {
@@ -104,22 +91,16 @@ func main() {
 
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
-	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
 	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfig)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error starting provisioner: %v", err)
 		panic("Error starting ubiquity client")
 	}
-	intVal, err := strconv.ParseInt(failedRetryThreshold, 0, 32)
-	if err != nil {
-		logger.Printf("Error parsing retries: %v", err)
-		panic("Error getting retries value")
-	}
-	failedRetryThresholdInt := int(intVal)
-	// Start the provision controller which will dynamically provision NFS PVs
 
-	pc := controller.NewProvisionController(clientset, 15*time.Second, provisioner, flexProvisioner, serverVersion.GitVersion, true, failedRetryThresholdInt, leasePeriod, renewDeadline, retryPeriod, termLimit)
+	// Start the provision controller which will dynamically provision Ubiquity PVs
+
+	pc := controller.NewProvisionController(clientset, provisioner, flexProvisioner, serverVersion.GitVersion)
 	pc.Run(wait.NeverStop)
 }
 

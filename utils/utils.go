@@ -21,6 +21,11 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	ubiquity.Port = int(port)
 	ubiquity.Address = os.Getenv("UBIQUITY_ADDRESS")
 	config.UbiquityServer = ubiquity
+
+	spectrumNFSConfig := resources.SpectrumNfsRemoteConfig{}
+	spectrumNFSConfig.ClientConfig = os.Getenv("SPECTRUM_NFS_REMOTE_CONFIG")
+	config.SpectrumNfsRemoteConfig = spectrumNFSConfig
+
 	bool, err := strconv.ParseBool(os.Getenv("SCBE_SKIP_RESCAN_ISCSI"))
 	if err != nil {
 		config.ScbeRemoteConfig.SkipRescanISCSI = false

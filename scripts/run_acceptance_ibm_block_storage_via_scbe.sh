@@ -123,7 +123,8 @@ function basic_tests_on_one_node()
 
 	stepinc
 	echo "####### ---> ${S}. Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+        # Add : at the end of touch, because kubectl has a known exit code issue.
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	stepinc
@@ -222,7 +223,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
@@ -288,9 +289,9 @@ function basic_test_POD_with_2_volumes()
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data1"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data2"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data1/file_on_A9000_volume"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data2/file_on_A9000_volume"
 
 
@@ -456,7 +457,7 @@ function tests_with_second_node()
 
 	echo "## ---> ${S}.6 Write DATA on the volume by create a file in /data inside the container"
         file_create_node1="/data/file_created_on_${node1}"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
 
 	stepinc
@@ -508,12 +509,12 @@ function tests_with_second_node()
 function setup()
 {
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
-    wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
+    wwn=`kubectl get $nsf pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
 	ssh root@$node1 'df | egrep "ubiquity" | grep -v $wwn' && exit 1 || :
 	ssh root@$node1 'multipath -ll | grep IBM | grep -v $wwn' && exit 1 || :
 	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1 | grep -v $wwn' && exit 1 || :
-	kubectl get pvc 2>&1 | grep "$POSTGRES_PV"
-	kubectl get pv 2>&1 | grep "$POSTGRES_PV"
+	kubectl get $nsf pvc 2>&1 | grep "$POSTGRES_PV"
+	kubectl get $nsf pv 2>&1 | grep "$POSTGRES_PV"
 
     echo "Skip clean up the environment for acceptance test (TODO)"
     return
@@ -540,7 +541,24 @@ function setup()
         ssh root@$node2 "docker volume ls | grep $CName" && { echo "need to clean $CName volumes on remote node $node2"; exit 3; } || :
     fi
 }
-[ "$1" = "-h" ] && { echo "$0 can get the following envs :"; echo "        ACCEPTANCE_PROFILE, ACCEPTANCE_WITH_NEGATIVE, ACCEPTANCE_WITH_SECOND_NODE"; exit 0; }
+function usage()
+{
+    echo "Usage $> $0 [ubiquity-namespace] [-h]"
+    echo "    [ubiquity-namespace] : The namespace where Ubiqutiy is running."
+    echo "    -h : Print this usage."
+    echo "    Environment variables:";
+    echo "        export ACCEPTANCE_PROFILE=<The SCBE profile name to work with>"
+    echo "        export ACCEPTANCE_WITH_NEGATIVE=<bool>. true in order to run additional negative tests"
+    echo "        export ACCEPTANCE_WITH_FIRST_NODE=<IP of first minion>"
+    echo "        export ACCEPTANCE_WITH_SECOND_NODE=<IP of second minion for volume migration scenario>"
+    # TODO : should refactor usage with flags -n <namespace> -p <scbe profile> -f <first node IP> -s <second node IP> -g (for negative)
+    exit 1
+}
+
+[ "$1" = "-h" ] && { usage; }
+[ -n "$1" ] && NS=$1 || NS=ubiquity
+nsf="--namespace $NS"
+echo "Assume Ubiquity namespace is [$NS]"
 scripts=$(dirname $0)
 
 S=0 # steps counter
