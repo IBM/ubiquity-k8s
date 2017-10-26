@@ -66,6 +66,6 @@ spec:
 # Cert #          name: ubiquity-public-certificates
 # Cert #          items:
 # Cert #            - key: ubiquity-trusted-ca.crt
-# Cert #              path: server.crt
+# Cert #              path: ubiquity-trusted-ca.crt
 
 #      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
