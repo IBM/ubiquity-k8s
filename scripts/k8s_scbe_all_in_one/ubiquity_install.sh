@@ -224,6 +224,7 @@ if [ "$STEP" = "create-ubiquity-db" ]; then
 fi
 
 if [ "$STEP" = "create-services" ]; then
+    echo "Partially install Ubiquity - creates only the ubiquity and ubiquity-db services up."
     create_only_namespace_and_services $NS
 
     read -p "Going to update Ubiquity yamls to support certificates via volumes(secets and configmap). Are you sure (y/n): " yn
@@ -240,18 +241,19 @@ if [ "$STEP" = "create-services" ]; then
     echo ""
     echo "Finish to create namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
     echo "Attention: To complete Ubiqutiy installation do :"
-    echo "   Prerequisite for dedicated certificates:"
-    echo "     (1) Create secrets for ubiquity and ubiquity-db private keys:"
+    echo "   Prerequisite"
+    echo "     (1) Generate dedicated certificates for ubiquity, ubiquity-db and scbe. (with specific name files)"
+    echo "     (2) Create secrets and configmap to store the certificates and trusted CA files, by just running :"
+    echo "          $> $0 -t <certificates-directory> -n $NS"
+    echo "           It will create the following:"
     echo "           secret1 named [ubiquity-private-certificate]"
     echo "           secret2 named [ubiquity-db-private-certificate]"
-    echo "     (2) Create configmap for trusted ca for ubiquity, ubiquity-db and scbe"
     echo "           configmap named [ubiquity-public-certificates]"
-    echo ""
     echo "   Complete the installation:"
     echo "     (1)  $> $0 -c <file> -n $NS"
     echo "     (2)  Manually restart kubelet service on all minions to reload the new flex driver"
     echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
-
+    echo ""
     exit 0
 fi
 
