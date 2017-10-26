@@ -69,3 +69,75 @@ function add_yaml_delimiter()
 
 function stepinc() { S=`expr $S + 1`; }
 
+function get_generation() {
+  get_deployment_jsonpath '{.metadata.generation}' $1
+}
+
+function get_observed_generation() {
+  get_deployment_jsonpath '{.status.observedGeneration}' $1
+}
+
+function get_replicas() {
+  get_deployment_jsonpath '{.spec.replicas}' $1
+}
+
+function get_available_replicas() {
+  get_deployment_jsonpath '{.status.availableReplicas}' $1
+}
+
+function get_deployment_jsonpath() {
+  local _jsonpath="$1"
+
+  kubectl get deployment "$2" -o "jsonpath=${_jsonpath}"
+}
+
+# wait_for_deployment ubiquity-db 3 10
+function wait_for_deployment(){
+  item_type=deployment
+  item_name=$1
+  retries=$2
+  max_retries=$2
+  delay=$3
+
+    while ! kubectl get deployment $item_name > /dev/null 2>&1; do
+       if [ "$retries" -eq 0 ]; then
+          echo "${item_type} named [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          exit 2
+      else
+          echo "${item_type} named [${item_name}] still not exist, sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}] "
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+
+    generation=$(get_generation $item_name)
+    while [[ $(get_observed_generation $item_name) -lt ${generation} ]]; do
+      if [ "$retries" -eq 0 ]; then
+          echo "${item_type} named [${item_name}] generation $(get_observed_generation $item_name) < ${generation}, even after all ${max_retries} retries. exit."
+          exit 2
+      else
+          echo "${item_type} named [${item_name}] generation $(get_observed_generation $item_name) < ${generation}, sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}] "
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+    echo "${item_type} named [${item_name}] reached to expected generation ${generation}"
+
+    replicas="$(get_replicas $item_name)"
+
+    available=$(get_available_replicas $item_name)
+    [ -z "$available" ] && available=0
+    while [[ ${available} -ne ${replicas} ]]; do
+      if [ "$retries" -eq 0 ]; then
+          echo "${item_type} named [${item_name}] available replica ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          exit 2
+      else
+          available=$(get_available_replicas $item_name)
+          echo "${item_type} named [${item_name}] available replica ${available} != ${replicas}, sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}]"
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+
+    echo "${item_type} named [${item_name}] reached to expected replicas ${replicas}"
+}

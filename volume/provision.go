@@ -27,9 +27,11 @@ import (
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/pkg/api/v1"
+
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -86,6 +88,7 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 	}
 
 	activateRequest := resources.ActivateRequest{Backends: config.Backends}
+	logger.Printf("activating backend %s \n", config.Backends)
 	err := provisioner.ubiquityClient.Activate(activateRequest)
 
 	return provisioner, err
@@ -116,6 +119,13 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 	if options.PVC == nil {
 		return nil, fmt.Errorf("options missing PVC %#v", options)
 	}
+
+	// override volume name according to label
+	pvName, ok := options.PVC.Labels["pv-name"]
+	if ok {
+		options.PVName = pvName
+	}
+
 	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	if !exists {
 		return nil, fmt.Errorf("options.PVC.Spec.Resources.Requests does not contain capacity")
@@ -133,7 +143,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
 
 	pv := &v1.PersistentVolume{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        options.PVName,
 			Labels:      map[string]string{},
 			Annotations: annotations,

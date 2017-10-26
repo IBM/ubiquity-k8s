@@ -3,41 +3,45 @@ import:
 - package: github.com/BurntSushi/toml
 - package: github.com/jessevdk/go-flags
 - package: github.com/kubernetes-incubator/external-storage
-  version: 7ed750505f701c978a79ebf001cc37fc529d73d0
+  version: master
   subpackages:
-  - lib/controller
-  - lib/leaderelection
+  - lib
 - package: github.com/IBM/ubiquity
   subpackages:
   - remote
   - resources
   - utils
-- package: k8s.io/client-go
-  version: v2.0.0
+- package: k8s.io/apimachinery
+  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
   subpackages:
-  - kubernetes
-  - kubernetes/typed/core/v1
-  - pkg/api
   - pkg/api/errors
-  - pkg/api/unversioned
-  - pkg/api/v1
-  - pkg/apis/storage/v1beta1
-  - pkg/fields
+  - pkg/api/resource
+  - pkg/apis/meta/v1
   - pkg/runtime
   - pkg/types
   - pkg/util/runtime
   - pkg/util/uuid
+  - pkg/util/validation
+  - pkg/util/validation/field
   - pkg/util/wait
-  - pkg/version
   - pkg/watch
-  - tools/cache
-  - tools/record
-- package: k8s.io/apimachinery
+- package: k8s.io/client-go
+  version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
   subpackages:
-  - pkg/types
+  - kubernetes
+  - kubernetes/typed/core/v1
+  - rest
+  - tools/cache
+  - tools/clientcmd
+  - tools/record
+  - tools/remotecommand
+- package: k8s.io/api
+  version: e24ed681f56165befbea50a24f7e9f1c079ac366
 - package: k8s.io/kubernetes
+  version: df7f4b3526a580ef122aaeef61ab52842a60a88b
   subpackages:
   - pkg/util/goroutinemap
+  - pkg/util/version
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega

@@ -1,0 +1,17 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: sanity-pod          # Pod name
+spec:
+  containers:
+  - name: container1  # Container name
+    image: midoblgsm/kubenode
+    volumeMounts:
+      - name: vol1
+        mountPath: "/data"  # Where to mount the vol1(pvc1)
+  restartPolicy: "Never"
+  volumes:
+    - name: vol1
+      persistentVolumeClaim:
+        claimName: sanity-pvc
+
