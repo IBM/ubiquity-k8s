@@ -16,69 +16,118 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
-            ### SCBE :
-          - name: SCBE_DEFAULT_SERVICE
-            value: "SCBE_DEFAULT_SERVICE_VALUE"
+          ### SCBE:
           - name: SCBE_MANAGEMENT_IP
             value: "SCBE_MANAGEMENT_IP_VALUE"
           - name: SCBE_MANAGEMENT_PORT
             value: "8440"
           - name: SCBE_USERNAME
             value: "SCBE_USERNAME_VALUE"
+## Secret Set: for SCBE_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: scbe-credentials
+#                key: username
+
           - name: SCBE_PASSWORD
             value: "SCBE_PASSWORD_VALUE"
-          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT # SCBE certificate path file inside the container
-            value: ""
+## Secret Set: for SCBE_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: scbe-credentials
+#                key: password
 
+          - name: SCBE_SSL_MODE            # Values : require/verify-full
+            value: "SCBE_SSL_MODE_VALUE"
+
+#          - name: UBIQUITY_SERVER_VERIFY_SCBE_CERT
+#            value: "/var/lib/ubiquity/ssl/public/scbe-trusted-ca.crt"  # This is the default path
+
+          - name: SCBE_DEFAULT_SERVICE
+            value: "SCBE_DEFAULT_SERVICE_VALUE"
+
+          ### Ubiquity configuration:
+          - name: LOG_LEVEL         # debug / info / error
+            value: "debug"          # TODO will come from generic configMap
+          - name: DEFAULT_VOLUME_SIZE
+            value: "2"              # TODO will come from ubiquity configMap
+          - name: UBIQUITY_INSTANCE_NAME
+            value: "UBIQUITY_INSTANCE_NAME_VALUE"   # TODO will come from ubiquity configMap
+          - name: DEFAULT_FSTYPE    # ext4 or xfs
+            value: "ext4"           # TODO will come from ubiquity configMap
 
           - name: PORT              # Ubiquity port
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-          - name: CONFIG_PATH       # Ubiquity config directory
-            value: "/tmp"
           - name: DEFAULT_BACKEND   # or other backends, such as :scbe, spectrum-scale-nfs
             value: "scbe"
-          - name: LOG_LEVEL         # debug / info / error
-            value: "debug"
-          - name: DEFAULT_VOLUME_SIZE
-            value: "2"
-          - name: UBIQUITY_INSTANCE_NAME
-            value: "UBIQUITY_INSTANCE_NAME_VALUE"
-          - name: DEFAULT_FSTYPE    # ext4 or xfs
-            value: "ext4"
 
-            # Ubiquity certificates:
-          - name: UBIQUITY_SERVER_USE_SSL      # boolean (true or false)
-            value: ""
+#          - name: UBIQUITY_SERVER_CERT_PUBLIC
+#            value: "/var/lib/ubiquity/ssl/private/ubiquity.crt"   # This is the default path
+#          - name: UBIQUITY_SERVER_CERT_PRIVATE # path-to-private-key-file
+#            value: "/var/lib/ubiquity/ssl/private/ubiquity.key"   # This is the default path
 
-            ### Ubiquity DB :
-          - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname
-            value: "ubiquity-db"          # the ubiquity-db service name
-          - name: UBIQUITY_DB_PSQL_PORT
-            value: ""                     # TODO we should specify the default port
-          - name: UBIQUITY_DB_USER        # Ubiquity DB user
-            value: ""
-          - name: UBIQUITY_DB_PASSWORD    # Ubiquity DB password
-            value: ""
-          - name: UBIQUITY_DB_NAME
-            value: ""
+            ### Ubiquity DB:
+          - name: UBIQUITY_DB_PSQL_HOST   # Ubiquity DB hostname, should point to the ubiquity-db service name
+            value: "ubiquity-db"
+          - name: UBIQUITY_DB_PSQL_PORT   # Ubiquity DB port, should point to the ubiquity-db port
+            value: "5432"
+
+          - name: UBIQUITY_DB_USERNAME
+            value: "UBIQUITY_DB_USERNAME_VALUE" # for none SSL
+## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: username
+
+          - name: UBIQUITY_DB_PASSWORD
+            value: "UBIQUITY_DB_PASSWORD_VALUE" # for none SSL
+## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: password
+
+          - name: UBIQUITY_DB_NAME                                # TODO must set to work with the new postgres image
+            value: "UBIQUITY_DB_NAME_VALUE" # for none Cert only
 
           - name: UBIQUITY_DB_CONNECT_TIMEOUT
             value: "3"
-          - name: UBIQUITY_DB_SSL_MODE         # Values : disable/require/verify-ca/verify-full. The default is disable
-            value: ""
-          - name: UBIQUITY_DB_SSL_ROOT_CERT    # path to CA that signed your PG certificate
-            value: ""
 
-#        volumeMounts:
-#        - mountPath: /container/path/to/certificate    #
-#          readOnly: true
-#          name: certificates
-#
-#      volumes:
-#      - name: certificates
-#        hostPath:
-#          path: /host/path/to/certificate  # pub scbe, ubiquity key\dev
-#        secret:
-#          secretName: mysecret
+          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
+            value: "UBIQUITY_DB_SSL_MODE_VALUE"   # for none SSL
+
+#          - name: UBIQUITY_DB_SSL_ROOT_CERT
+#            value: "/var/lib/ubiquity/ssl/public/ubiquity-db-trusted-ca.crt"   # This is the default path
+
+# Certificate Set : use the below volumeMounts and volumes only if predefine certificate given
+# Cert #        volumeMounts:
+# Cert #        - name: ubiquity-private-certificate
+# Cert #          mountPath: /var/lib/ubiquity/ssl/private
+# Cert #          readOnly: true
+# Cert #        - name: ubiquity-public-certificates
+# Cert #          mountPath: /var/lib/ubiquity/ssl/public
+# Cert #          readOnly: true
+# Cert #
+# Cert #      volumes:
+# Cert #      - name: ubiquity-private-certificate
+# Cert #        secret:
+# Cert #          secretName: ubiquity-private-certificate
+# Cert #          items:
+# Cert #          - key: ubiquity.crt
+# Cert #            path: ubiquity.crt
+# Cert #            mode: 0600
+# Cert #          - key: ubiquity.key
+# Cert #            path: ubiquity.key
+# Cert #            mode: 0600
+# Cert #      - name: ubiquity-public-certificates
+# Cert #        configMap:
+# Cert #          name: ubiquity-public-certificates
+# Cert #          items:
+# Cert #          - key: ubiquity-db-trusted-ca.crt
+# Cert #            path: ubiquity-db-trusted-ca.crt
+# Cert #          - key: scbe-trusted-ca.crt
+# Cert #            path: scbe-trusted-ca.crt
+

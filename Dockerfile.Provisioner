@@ -8,6 +8,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -tags netgo -v -a --ldflags '-w -linkmode 
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
+ENV UBIQUITY_PLUGIN_VERIFY_CA=/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-provisioner .
 CMD ["./ubiquity-k8s-provisioner"]

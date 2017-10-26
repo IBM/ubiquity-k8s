@@ -15,11 +15,45 @@ spec:
         ports:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
+        env:
+          - name: UBIQUITY_DB_USERNAME
+            value: "UBIQUITY_DB_USERNAME_VALUE"
+## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: username
+
+          - name: UBIQUITY_DB_PASSWORD
+            value: "UBIQUITY_DB_PASSWORD_VALUE"
+## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
+#            valueFrom:
+#              secretKeyRef:
+#                name: ubiquity-db-credentials
+#                key: password
+
+          - name: UBIQUITY_DB_NAME
+            value: "ubiquity"
+
         volumeMounts:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
+# Certificate Set : use the below volumeMounts only if predefine certificate given
+# Cert #          - name: ubiquity-db-private-certificate
+# Cert #            mountPath: /var/lib/postgresql/ssl/private/
       volumes:
-        - name: ibm-ubiquity-db
-          persistentVolumeClaim:
-            claimName: ibm-ubiquity-db
+      - name: ibm-ubiquity-db
+        persistentVolumeClaim:
+          claimName: ibm-ubiquity-db
+# Certificate Set : use the below volumes only if predefine certificate given
+# Cert #      - name: ubiquity-db-private-certificate
+# Cert #        secret:
+# Cert #          secretName: ubiquity-db-private-certificate
+# Cert #          items:
+# Cert #          - key: ubiquity-db.key
+# Cert #            path: ubiquity-db.key
+# Cert #            mode: 0600
+# Cert #          - key: ubiquity-db.crt
+# Cert #            path: ubiquity-db.crt
+# Cert #            mode: 0600
