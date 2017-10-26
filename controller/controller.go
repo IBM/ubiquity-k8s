@@ -511,7 +511,7 @@ func (c *Controller) doActivate(activateRequest resources.ActivateRequest) error
 func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest) error {
 	defer c.logger.Trace(logs.DEBUG)()
 
-	ubAttachRequest := resources.AttachRequest{Name: attachRequest.Name, Host: attachRequest.Host}
+	ubAttachRequest := resources.AttachRequest{Name: attachRequest.Name, Host: getHost(attachRequest.Host)}
 	_, err := c.Client.Attach(ubAttachRequest)
 	if err != nil {
 		return c.logger.ErrorRet(err, "Client.Activate failed")
@@ -523,7 +523,7 @@ func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest
 func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest) error {
 	defer c.logger.Trace(logs.DEBUG)()
 
-	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: detachRequest.Host}
+	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: getHost(detachRequest.Host)}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
 		return c.logger.ErrorRet(err, "failed")
@@ -565,3 +565,13 @@ func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (reso
 	return resources.Volume{}, fmt.Errorf("Volume not found")
 }
 
+func getHost(hostRequest string) string {
+    if hostRequest != "" {
+        return hostRequest
+    }
+    hostname, err := os.Hostname()
+    if err != nil {
+        return ""
+    }
+    return hostname
+}
