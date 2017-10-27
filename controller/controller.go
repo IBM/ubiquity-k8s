@@ -181,7 +181,7 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", detachRequest}})
 
-	if true {
+	if c.isVersion15() {
 		c.logger.Debug("legacy detach (skipping)")
 		response = k8sresources.FlexVolumeResponse{
 			Status: "Success",
@@ -294,7 +294,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
             Message: err.Error(),
         }
     } else {
-		if true {
+		if c.isVersion15() {
 			c.logger.Debug("legacy detach (during unmount)")
 			pvName := path.Base(unmountRequest.MountPath)
 			detachRequest := k8sresources.FlexVolumeDetachRequest{Name: pvName}
