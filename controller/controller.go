@@ -181,17 +181,24 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", detachRequest}})
 
-	err := c.doDetach(detachRequest)
-	if err != nil {
-		msg := fmt.Sprintf(
-			"Failed to detach volume [%s] from host [%s]. Error: %#v",
-			detachRequest.Name,
-			detachRequest.Host,
-			err)
-		response = k8sresources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
-	} else {
+	if true {
+		c.logger.Debug("legacy detach (skipping)")
 		response = k8sresources.FlexVolumeResponse{
 			Status: "Success",
+		}
+	} else {
+		err := c.doDetach(detachRequest)
+		if err != nil {
+			msg := fmt.Sprintf(
+				"Failed to detach volume [%s] from host [%s]. Error: %#v",
+				detachRequest.Name,
+				detachRequest.Host,
+				err)
+			response = k8sresources.FlexVolumeResponse{Status: "Failure", Message: msg, Device: ""}
+		} else {
+			response = k8sresources.FlexVolumeResponse{
+				Status: "Success",
+			}
 		}
 	}
 
@@ -287,9 +294,26 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
             Message: err.Error(),
         }
     } else {
-        response = k8sresources.FlexVolumeResponse{
-            Status: "Success",
-        }
+		if true {
+			c.logger.Debug("legacy detach (during unmount)")
+			pvName := path.Base(unmountRequest.MountPath)
+			detachRequest := k8sresources.FlexVolumeDetachRequest{Name: pvName}
+			err = c.doDetach(detachRequest)
+			if err != nil {
+				response = k8sresources.FlexVolumeResponse{
+					Status:  "Failure",
+					Message: err.Error(),
+				}
+			} else {
+				response = k8sresources.FlexVolumeResponse{
+					Status: "Success",
+				}
+			}
+		} else {
+			response = k8sresources.FlexVolumeResponse{
+				Status: "Success",
+			}
+		}
     }
 
     c.logger.Debug("", logs.Args{{"response", response}})
@@ -574,4 +598,20 @@ func getHost(hostRequest string) string {
         return ""
     }
     return hostname
+}
+
+func (c *Controller) isVersion15() bool {
+	var err error
+	cmd := "kubectl"
+	args := []string{"version"}
+	if err = c.exec.IsExecutable(cmd); err != nil {
+		c.logger.Debug("failed", logs.Args{{"error", err}})
+		return false
+	}
+	out, err := c.exec.Execute(cmd, args)
+	outStr := string(out)
+	c.logger.Debug("", logs.Args{{"out", outStr}, {"err", err}})
+	isVersion15 := strings.HasPrefix(outStr, "Client Version: version.Info{Major:\"1\", Minor:\"5\"")
+	c.logger.Debug("", logs.Args{{"isVersion15", isVersion15}})
+	return isVersion15
 }
