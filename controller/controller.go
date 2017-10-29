@@ -576,8 +576,14 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 		return false, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
-	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}})
-	return false, nil
+	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost]
+	if !ok {
+		return false, c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+	}
+
+	isAttached := isAttachedRequest.Host == attachTo
+	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"host", isAttachedRequest.Host}, {"attachTo", attachTo}, {"isAttached", isAttached}})
+	return isAttached, nil
 }
 
 func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (resources.Volume, error) {
