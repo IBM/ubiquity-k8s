@@ -17,23 +17,22 @@ spec:
           name: ubiq-db-port  # no more then 15 chars
         env:
           - name: UBIQUITY_DB_USERNAME
-            value: "UBIQUITY_DB_USERNAME_VALUE"
-## Secret Set: for UBIQUITY_DB_USERNAME instead of the value above # TODO
-#            valueFrom:
-#              secretKeyRef:
-#                name: ubiquity-db-credentials
-#                key: username
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-db-credentials
+                key: username
 
           - name: UBIQUITY_DB_PASSWORD
-            value: "UBIQUITY_DB_PASSWORD_VALUE"
-## Secret Set: for UBIQUITY_DB_PASSWORD instead of the value above # TODO
-#            valueFrom:
-#              secretKeyRef:
-#                name: ubiquity-db-credentials
-#                key: password
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-db-credentials
+                key: password
 
           - name: UBIQUITY_DB_NAME
-            value: "ubiquity"
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-db-credentials
+                key: dbname
 
         volumeMounts:
           - name: ibm-ubiquity-db

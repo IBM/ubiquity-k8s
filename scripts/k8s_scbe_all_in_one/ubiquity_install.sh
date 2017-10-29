@@ -75,6 +75,7 @@ function update_ymls_with_playholders()
           value=`echo $line | awk -F= '{print $2}'`
           sed -i "s|${placeholder}|${value}|g" "$YML_DIR"/*.yml
           sed -i "s|${placeholder}|${value}|g" "$SANITY_YML_DIR"/*.yml
+          sed -i "s|${placeholder}|${value}|g" "${YML_DIR}/../ubiquity-configmaps.yml"
        done
        echo "Finish to update yaml according to ${placeholder_file}"
    else
@@ -260,11 +261,11 @@ fi
 # update yamls if -c flag given
 [ -n "${CONFIG_SED_FILE}" ] && update_ymls_with_playholders ${CONFIG_SED_FILE}
 
-
-
 # Start to create ubiquity components in order
 # --------------------------------------------
 create_only_namespace_and_services
+
+kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmaps.yml
 
 kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
 wait_for_deployment ubiquity 20 5 $NS

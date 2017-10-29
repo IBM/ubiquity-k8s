@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+# Setting for Ubiquity deployment
+  name: ubiquity-configmap
+data:
+   # SCBE server IP or FQDN.
+   SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
+
+   # SCBE server port. Optional parameter. Default is 8440.
+   SCBE-MANAGEMENT-PORT: 8440
+
+   # SCBE storage service to be used by default, if not specified by the plugin.
+   SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
+
+   # Optional parameter. Default is 1.
+   DEFAULT-VOLUME-SIZE: 2
+
+   # A prefix for any new volume created on the storage system. Default is none.
+   UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
+
+   # Optional parameter. Default is ext4. Possible values are ext4 or xfs.
+   DEFAULT-FSTYPE: ext4 # ext4 or xfs
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ubiquity-deployments-configmap
+# Common setting for deployments: ubiquity, ubiquity-db, ubiquity-k8s-provisioner and ubiquity-k8s-flex (daemon-set)
+data:
+   LOG-LEVEL: "LOG_LEVEL_VALUE"   # debug / info / error
+   SSL-MODE: "SSL_MODE_VALUE" # Values : require/verify-full
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scbe-credentials
+# SCBE credential needed for deployments : ubiquity, ubiquity-k8s-provisioner and ubiquity-k8s-flex
+# TODO : should be define as secret
+data:
+   # User name defined for SCBE Ubiquity interface.
+   username: "SCBE_USERNAME_VALUE"
+
+   # Password defined for SCBE Ubiquity interface.
+   password: "SCBE_PASSWORD_VALUE"
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ubiquity-db-credentials
+# Ubiquity DB credential needed for deployments : ubiquity, ubiquity-db
+# TODO : should be define as secret
+data:
+   # User name to set on the ubiquity-db deployment. Do not set it to postgres user name since its already exist.
+   username: "UBIQUITY_DB_USERNAME_VALUE"
+
+   # Password to set on the ubiquity-db deployment
+   password: "UBIQUITY_DB_PASSWORD_VALUE"
+
+   # The DB name that will be created on the ubiquity-db
+   dbname: "ubiquity"
