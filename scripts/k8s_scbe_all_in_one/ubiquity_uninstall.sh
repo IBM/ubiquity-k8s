@@ -119,6 +119,7 @@ $kubectl_delete -f $YML_DIR/ubiquity-k8s-flex-daemonset.yml
 $kubectl_delete configmap $flex_conf
 
 $kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
+$kubectl_delete -f ${YML_DIR}/../ubiquity-configmaps.yml
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
