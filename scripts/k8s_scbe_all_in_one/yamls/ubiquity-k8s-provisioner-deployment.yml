@@ -29,25 +29,25 @@ spec:
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
               configMapKeyRef:
-                name: ubiquity-deployments-configmap
+                name: ubiquity-configmap
                 key: LOG-LEVEL
 
           - name: UBIQUITY_USERNAME
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: scbe-credentials
                 key: username
 
           - name: UBIQUITY_PASSWORD
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: scbe-credentials
                 key: password
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
               configMapKeyRef:
-                name: ubiquity-deployments-configmap
+                name: ubiquity-configmap
                 key: SSL-MODE
 
         volumeMounts:

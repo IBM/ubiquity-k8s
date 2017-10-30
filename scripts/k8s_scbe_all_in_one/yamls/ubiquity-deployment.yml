@@ -20,20 +20,20 @@ spec:
           #################################
           - name: SCBE_USERNAME
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: scbe-credentials
                 key: username
 
           - name: SCBE_PASSWORD
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: scbe-credentials
                 key: password
 
           - name: SCBE_SSL_MODE            # Values : require/verify-full
             valueFrom:
               configMapKeyRef:
-                name: ubiquity-deployments-configmap
+                name: ubiquity-configmap
                 key: SSL-MODE
 
           - name: SCBE_MANAGEMENT_IP
@@ -83,7 +83,7 @@ spec:
           - name: LOG_LEVEL         # debug / info / error
             valueFrom:
               configMapKeyRef:
-                name: ubiquity-deployments-configmap
+                name: ubiquity-configmap
                 key: LOG-LEVEL
 
           - name: PORT              # Ubiquity port
@@ -106,26 +106,26 @@ spec:
 
           - name: UBIQUITY_DB_USERNAME
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: username
 
           - name: UBIQUITY_DB_PASSWORD
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: password
 
           - name: UBIQUITY_DB_NAME                                # TODO must set to work with the new postgres image
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: dbname
 
           - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
             valueFrom:
               configMapKeyRef:
-                name: ubiquity-deployments-configmap
+                name: ubiquity-configmap
                 key: SSL-MODE
 
 

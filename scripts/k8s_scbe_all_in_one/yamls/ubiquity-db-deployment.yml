@@ -18,19 +18,19 @@ spec:
         env:
           - name: UBIQUITY_DB_USERNAME
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: username
 
           - name: UBIQUITY_DB_PASSWORD
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: password
 
           - name: UBIQUITY_DB_NAME
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: ubiquity-db-credentials
                 key: dbname
 

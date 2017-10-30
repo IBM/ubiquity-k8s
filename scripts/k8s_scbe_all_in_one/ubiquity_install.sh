@@ -69,13 +69,13 @@ function update_ymls_with_playholders()
    [ ! -f "${placeholder_file}" ] && { echo "Error : ${placeholder_file} not found."; exit 3; }
    read -p "Updating ymls with placeholders from ${placeholder_file} file. Are you sure (y/n): " yn
    if [ "$yn" = "y" ]; then
-       for line in `cat ${placeholder_file}`; do
+       for line in `cat ${placeholder_file} | grep -v "^#"`; do
           echo "   $line"
-          placeholder=`echo $line | awk -F= '{print $1}'`
-          value=`echo $line | awk -F= '{print $2}'`
+          placeholder=`echo "$line" | awk -F\| '{print $1}'`
+          value=`echo "$line" | awk -F\| '{print $2}'`
           sed -i "s|${placeholder}|${value}|g" "$YML_DIR"/*.yml
           sed -i "s|${placeholder}|${value}|g" "$SANITY_YML_DIR"/*.yml
-          sed -i "s|${placeholder}|${value}|g" "${YML_DIR}/../ubiquity-configmaps.yml"
+          sed -i "s|${placeholder}|${value}|g" "${YML_DIR}/../"*.yml
        done
        echo "Finish to update yaml according to ${placeholder_file}"
    else
@@ -149,7 +149,28 @@ function create_private_certificates_secrets_and_public_as_configmap()
     echo ""
     echo "Finished to create secrets and configmap for Ubiquity certificates."
 }
+
 function already_exist() { echo "Error: Secret $1 is already exist. Please delete it first."; exit 2; }
+
+function create_configmap_and_credentials_secrets()
+{
+    if ! kubectl get $nsf configmap ubiquity-configmap >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmap.yml
+    else
+       echo "ubiquity-configmap configmap already exist. (Skip creation)"
+    fi
+    if ! kubectl get $nsf secret scbe-credentials >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../scbe-credentials.yml
+    else
+       echo "scbe-credentials secret already exist. (Skip creation)"
+    fi
+
+    if ! kubectl get $nsf secret ubiquity-db-credentials >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../ubiquity-db-credentials.yml
+    else
+       echo "ubiquity-db-credentials secret already exist. (Skip creation)"
+    fi
+}
 
 # Variables
 scripts=$(dirname $0)
@@ -264,8 +285,7 @@ fi
 # Start to create ubiquity components in order
 # --------------------------------------------
 create_only_namespace_and_services
-
-kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmaps.yml
+create_configmap_and_credentials_secrets
 
 kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
 wait_for_deployment ubiquity 20 5 $NS
