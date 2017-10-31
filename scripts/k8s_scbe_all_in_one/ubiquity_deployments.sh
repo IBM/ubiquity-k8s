@@ -53,6 +53,7 @@ function usage()
    echo "   start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
    echo "   stop   : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
    echo "   status : Display all ubiquity components"
+   echo "   statuswide : Display all ubiquity components"
    echo "   getall : Display related components on <namespace> and the default namespaces."
    echo "            by #> kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
    echo "   getallwide : getall with more details (-o wide)"
@@ -138,33 +139,44 @@ function status()
 {
     # kubectl get on all the ubiquity components, if one of the components are not found
     rc=0
+    flags="$1"
 
-    cmd="kubectl get storageclass | egrep \"ubiquity|^NAME\""
+    cmd="kubectl get $flags storageclass | egrep \"ubiquity|^NAME\""
     echo $cmd
     echo '---------------------------------------------------------------------'
-    kubectl get storageclass | egrep "ubiquity|^NAME" || rc=$?
+    kubectl get $flags  storageclass | egrep "ubiquity|^NAME" || rc=$?
     echo ""
 
-    cmd="kubectl get $nsf cm/k8s-config pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
+    cmd="kubectl get $nsf $flags secret/ubiquity-db-credentials secret/scbe-credentials cm/k8s-config cm/ubiquity-k8s-flex.conf cm/ubiquity-configmap pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
     echo $cmd
     echo '---------------------------------------------------------------------'
     $cmd  || rc=$?
 
     echo ""
-    cmd="kubectl get $nsf pod | egrep \"^ubiquity|^NAME\""
+    cmd="kubectl get $nsf $flags  pod | egrep \"^ubiquity|^NAME\""
     echo $cmd
     echo '---------------------------------------------------------------------'
-    kubectl get $nsf pod | egrep "^ubiquity|^NAME" || rc=$?
+    kubectl get $nsf $flags  pod | egrep "^ubiquity|^NAME" || rc=$?
 
     if [ $rc != 0 ]; then
        echo ""
        echo "Ubiquity status [NOT ok]. Some components are missing(review the output above)"
        exit 5
-    #else
-    #   # TODO verify deployment status
-    #   verify_deployments_status ubiquity ubiquity-db ubiquity-k8s-provisioner $NS
+    else
+      kubectl get $nsf pod | egrep "^ubiquity" | grep -v Running > /dev/null 2>&1 && rc=$? || rc=$?
+      if [ $rc = 0 ]; then
+          echo ""
+          echo "Ubiquity status [NOT ok]. Some Pods are NOT in Running state (review the output above)"
+          exit 5
+      fi
     fi
 }
+
+function statuswide()
+{
+    status "-o wide"
+}
+
 
 function verify_deployments_status()
 {
@@ -254,7 +266,7 @@ SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_utils.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
-actions="start stop status getall getallwide collect_logs sanity"
+actions="start stop status statuswide getall getallwide collect_logs sanity"
 
 # Handle flags
 NS="ubiquity" # default namespace

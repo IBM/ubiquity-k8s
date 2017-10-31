@@ -22,7 +22,6 @@ data:
    # Optional parameter. Default is ext4. Possible values are ext4 or xfs.
    DEFAULT-FSTYPE: ext4
 
-
    # The keys below are used also by: ubiquity-db, ubiquity-k8s-provisioner and ubiquity-k8s-flex (daemon-set)
    # -----------------------------------------------
 
