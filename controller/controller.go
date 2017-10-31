@@ -187,7 +187,7 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 			Status: "Success",
 		}
 	} else {
-		err := c.doDetach(detachRequest)
+		err := c.doDetach(detachRequest, true)
 		if err != nil {
 			msg := fmt.Sprintf(
 				"Failed to detach volume [%s] from host [%s]. Error: %#v",
@@ -269,7 +269,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", unmountRequest}})
-    var err error
+	var err error
 
 	// Validate that the mountpoint is a symlink as ubiquity expect it to be
 	realMountPoint, err := c.exec.EvalSymlinks(unmountRequest.MountPath)
@@ -283,41 +283,51 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	if strings.HasPrefix(realMountPoint, ubiquityMountPrefix) {
 		// SCBE backend flow
 		err = c.doUnmountScbe(unmountRequest, realMountPoint)
-    } else {
-        // SSC backend flow
-        err = c.doUnmountSsc(unmountRequest, realMountPoint)
-    }
+	} else {
+		// SSC backend flow
+		err = c.doUnmountSsc(unmountRequest, realMountPoint)
+	}
 
-    if err != nil {
-        response = k8sresources.FlexVolumeResponse{
-            Status:  "Failure",
-            Message: err.Error(),
-        }
-    } else {
-		if c.isVersion15() {
-			c.logger.Debug("legacy detach (during unmount)")
-			pvName := path.Base(unmountRequest.MountPath)
-			detachRequest := k8sresources.FlexVolumeDetachRequest{Name: pvName}
-			err = c.doDetach(detachRequest)
-			if err != nil {
-				response = k8sresources.FlexVolumeResponse{
-					Status:  "Failure",
-					Message: err.Error(),
-				}
-			} else {
-				response = k8sresources.FlexVolumeResponse{
-					Status: "Success",
-				}
+	if err != nil {
+		response = k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: err.Error(),
+		}
+	} else {
+		err = c.doLegacyDetach(unmountRequest)
+		if err != nil {
+			response = k8sresources.FlexVolumeResponse{
+				Status:  "Failure",
+				Message: err.Error(),
 			}
 		} else {
 			response = k8sresources.FlexVolumeResponse{
 				Status: "Success",
 			}
 		}
-    }
+	}
 
-    c.logger.Debug("", logs.Args{{"response", response}})
-    return response
+	c.logger.Debug("", logs.Args{{"response", response}})
+	return response
+}
+
+func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmountRequest) error	{
+	defer c.logger.Trace(logs.DEBUG)()
+	var err error
+
+	pvName := path.Base(unmountRequest.MountPath)
+	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: pvName}
+	err = c.doDetach(detachRequest, false)
+	if err != nil {
+		return c.logger.ErrorRet(err, "failed")
+	} else {
+		err = c.doAfterDetach(detachRequest)
+		if err != nil {
+			return c.logger.ErrorRet(err, "failed")
+		}
+	}
+
+	return nil
 }
 
 func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, error) {
@@ -544,19 +554,27 @@ func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest
 	return nil
 }
 
-func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest) error {
+func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest, checkIfAttached bool) error {
 	defer c.logger.Trace(logs.DEBUG)()
+
+	if checkIfAttached {
+		opts := make(map[string]string)
+		opts["volumeName"] = detachRequest.Name
+		isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "", Host:detachRequest.Host, Opts: opts}
+		isAttached, err := c.doIsAttached(isAttachedRequest)
+		if err != nil {
+			return c.logger.ErrorRet(err, "failed")
+		}
+		if !isAttached {
+			return nil
+		}
+	}
 
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: getHost(detachRequest.Host)}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
 		return c.logger.ErrorRet(err, "failed")
 	}
-
-    err = c.doAfterDetach(detachRequest)
-    if err != nil {
-        return c.logger.ErrorRet(err, "failed")
-    }
 
 	return nil
 }
