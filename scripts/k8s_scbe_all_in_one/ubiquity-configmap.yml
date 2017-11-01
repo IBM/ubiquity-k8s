@@ -8,7 +8,7 @@ data:
    SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
 
    # SCBE server port. Optional parameter. Default is 8440.
-   SCBE-MANAGEMENT-PORT: "8440"
+   SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
 
    # SCBE storage service to be used by default, if not specified by the plugin.
    SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
@@ -20,7 +20,7 @@ data:
    UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
 
    # Optional parameter. Default is ext4. Possible values are ext4 or xfs.
-   DEFAULT-FSTYPE: ext4
+   DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
 
    # The keys below are used also by: ubiquity-db, ubiquity-k8s-provisioner and ubiquity-k8s-flex (daemon-set)
    # -----------------------------------------------

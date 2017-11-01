@@ -1,0 +1,401 @@
+#!/bin/bash -e
+
+###################################################
+# Copyright 2017 IBM Corp.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+###################################################
+
+# -------------------------------------------------------------------------
+# The script install all Ubiquity components inside kubernetes(k8s) cluster.
+#
+# Create the following components:
+#   1. Ubiquity service
+#   2. Ubiquity-db service
+#   3. Ubiquity deployment
+#   4. configmap k8s-config for Ubiquity-k8s-provisioner  (if already exist then skip creation)
+#   5. Ubiquity-k8s-provisioner deployment
+#   6. Storage class that match for the UbiquityDB PVC
+#   7. PVC for the UbiquityDB
+#   8. ubiquity-k8s-flex DaemonSet (deploy the flex + flex config file to all nodes)
+#   9. optional : ubiquity-db deployment (only if -d flag specify. Use it only if the flex already deployed in the past on the nodes,
+#                 therefor no restart for kubelet is needed before run the deployment)
+#
+# Prerequisites to run this test:
+#   - The script assumes all the yamls exist under ./yamls and updated with relevant configuration.
+#     If config file (with placeholder KEY=VALUE) given as argument then the script will apply all the place holders inside all the yaml files.
+#   - Run the script in the Kubernetes master node where you have access to kubectl command.
+#   - See usage function below for more details about flags.
+#
+# -------------------------------------------------------------------------
+
+function usage()
+{
+  cmd=`basename $0`
+  cat << EOF
+USAGE   $cmd -s <STEP> <FLAGS>
+  <STEP>:
+    update-ymls
+        Replace the placeholders from -c <file> on the relevant ymls.
+        Flag -c <ubiquity-config-file> is mandatory for this step
+    install
+        Install all ubiquity component by order (except for ubiquity-db)
+        Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner. By default ~/.kube/conf.
+        Flag -n <namespace>. By default its \"ubiquity\" namespace.
+    create-ubiquity-db
+        Creates only the ubiquity-db deployment and waits for its creation.
+        Use this option after install-ubiquity finished and after manual restart of the kubelets done on the nodes.
+        Flag -n <namespace>. By default its \"ubiquity\" namespace.
+
+    create-services
+        Use it only if SSL_MODE=verify-full
+        This step creates ubiquity namespace, ubiqutiy and ubiquity-db k8s service only.
+        If in order to create certificates you need to see the ubiquity and ubiqity-db IPs, then run this step.
+        Flag -n <namespace>. By default its \"ubiquity\" namespace.
+    create-secrets-for-certificates
+        Use it only if SSL_MODE=verify-full
+        Creates secrets and configmap for ubiquity certificates:
+            Secrets ubiquity-private-certificate and ubiquity-db-private-certificate.
+            Configmap ubiquity-public-certificates.
+        Flag -t <certificates-directory> that contains all the expected certificate files.
+
+    -h : Display this usage
+EOF
+  exit 1
+}
+
+# STEP function
+function update-ymls()
+{
+   ########################################################################
+   ##  Replace all the placeholders in the config file in all the relevant yml files.
+   ##  If nothing to replace then exit with error.
+   ########################################################################
+
+   # Step validation
+   [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
+   [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error : ${CONFIG_SED_FILE} not found."; exit 3; }
+   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
+
+   base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
+   was_updated="false" # if nothing to update then exit with error
+
+   read -p "Updating ymls with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
+   if [ "$yn" != "y" ]; then
+     echo "Skip updating the ymls with placeholder."
+     return
+   fi
+
+   ssl_mode=""
+   # Loop over the config file and do the replacements
+   for line in `cat ${CONFIG_SED_FILE} | grep -v "^\s*#"`; do
+      placeholder=`echo "$line" | awk -F= '{print $1}'`
+      value=`echo "$line" | awk -F= '{print $2}'`
+      files_to_update=`grep ${placeholder} "$YML_DIR"/*.yml "$SANITY_YML_DIR"/*.yml "$scripts"/*.yml | awk -F: '{printf $1" "}'`
+      if [ -n "$files_to_update" ]; then
+         echo "$base64_placeholders" | grep "$placeholder" >/dev/null && rc=$?  || rc=$?
+         replace_with_base64=""
+         if [ $rc -eq 0 ]; then
+            value="`echo -n $value | base64`"
+            replace_with_base64="(base64) "
+         fi
+         printf "Update ${replace_with_base64}placeholder [%-30s] in files : $files_to_update \n" $placeholder
+         sed -i "s|${placeholder}|${value}|g" $files_to_update
+         [ "$placeholder" = "SSL_MODE_VALUE" ] && ssl_mode="$value" || :
+         was_updated="true"
+      else
+         printf "WARNING : placeholder [%-30s] was NOT found in ymls\n" "$placeholder"
+      fi
+   done
+
+   if [ "$was_updated" = "false" ]; then
+      echo "ERROR : Nothing was updated in ymls (placeholders were NOT found in ymls)."
+      echo "        Consider to update yamls manually"
+      exit 2
+   fi
+
+   if [ "$ssl_mode" = "verify-full" ]; then
+       ymls_to_updates="${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml ${YML_DIR}/ubiquity-deployment.yml ${YML_DIR}/ubiquity-db-deployment.yml"
+
+       echo "Certificates updates related:"
+       echo "  SSL_MODE_VALUE=verify-full, therefor updating ymls to enable dedicated certificates."
+       echo "  By enable Volumes and VolumeMounts tags for certificates in the following ymls: $ymls_to_updates"
+
+       # this sed just removes the comments from all the certificates lines on the ymls
+       sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
+       echo "  Certificates updates DONE."
+   fi
+
+   echo "Finish to update yaml according to ${CONFIG_SED_FILE}"
+   echo ""
+}
+
+# STEP function
+function install()
+{
+    ########################################################################
+    ##  Install all ubiquity component in order and wait for creation to complete.
+    ##  Fail if the deployments are already exist.
+    ########################################################################
+    echo "Install Ubiquity in namespace [$NS]..."
+
+    [ ! -f "$KUBECONF" ] && { echo "Error: $KUBECONF not exist"; exit 2; }
+
+    create_only_namespace_and_services
+    create_configmap_and_credentials_secrets
+
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+    wait_for_deployment ubiquity 20 5 $NS
+
+    if ! kubectl get $nsf cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
+        kubectl create $nsf configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
+    else
+        echo "Skip the creation of ${K8S_CONFIGMAP_FOR_PROVISIONER} configmap, because its already exist"
+    fi
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+    wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
+
+    # Create Storage class and PVC, then wait for PVC and PV creation
+    if ! kubectl get $nsf -f ${YML_DIR}/storage-class.yml > /dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/storage-class.yml
+    else
+        echo "Skip the creation of ${YML_DIR}/storage-class.yml Storage Class, because its already exist"
+    fi
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-db-pvc.yml
+    echo "Waiting for ${UBIQUITY_DB_PVC_NAME} PVC to be created"
+    wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 60 5 $NS
+    pvname=`kubectl get $nsf pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
+    echo "Waiting for ${pvname} PV to be created"
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3 $NS
+
+    # Create ${flex_conf} configmap with the ubiquity-service clusterIP
+    ubiquity_service_ip=`kubectl get $nsf svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
+    echo "Deploy flex driver as infinit daemonset, Its also copy the flex config file with the ubiquity service IP [$ubiquity_service_ip]"
+    flex_conf="ubiquity-k8s-flex.conf"
+    sed -i "s/address = .*/address = \"${ubiquity_service_ip}\"/"  ${YML_DIR}/${flex_conf}
+    kubectl create $nsf configmap ${flex_conf} --from-file ${YML_DIR}/${flex_conf}
+
+    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+
+    if [ "${to_deploy_ubiquity_db}" == "true" ]; then
+        create-ubiquity-db
+    else
+        echo ""
+        echo "Ubiquity installation finished, but Ubiquity is NOT ready yet."
+        echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
+        echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
+        echo "                Note : View ubiquity status by $> ./ubiquity_deployments.sh -a status -n $NS"
+        echo ""
+    fi
+}
+
+# STEP function
+function create-ubiquity-db()
+{
+   ########################################################################
+   ##  Creates only the ubiquity-db deployment and wait for creation.
+   ########################################################################
+
+    echo "Creating ubiquity-db deployment... (Assume flex plugin was already loaded on all the nodes)"
+    kubectl create --namespace $NS -f ${YML_DIR}/ubiquity-db-deployment.yml
+    echo "Waiting for deployment [ubiquity-db] to be created..."
+    wait_for_deployment ubiquity-db 40 5 $NS
+    echo ""
+    echo "Ubiquity installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh -a status -n $NS)"
+}
+
+# STEP function (certificates related)
+function create-services()
+{
+    ########################################################################
+    ##  Creates the secrets and configmap as ubiquity ymls expect it to be.
+    ##  The function operates only if:
+    ##      1. $CERT_DIR dir exist and with the right key and crt files.
+    ##      2. The secrets and config are not exist.
+    ########################################################################
+    echo "Partially install Ubiquity - creates only the ubiquity and ubiquity-db services up."
+    create_only_namespace_and_services $NS
+    kubectl get $nsf svc/ubiquity svc/ubiquity-db
+    echo ""
+    echo "Finish to create namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
+    echo "Attention: To complete Ubiqutiy installation do :"
+    echo "   Prerequisite"
+    echo "     (1) Generate dedicated certificates for ubiquity, ubiquity-db and scbe. (with specific name files)"
+    echo "     (2) Create secrets and configmap to store the certificates and trusted CA files, by just running :"
+    echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
+    echo "   Complete the installation:"
+    echo "     (1)  $> $0 -s install -c <file> -n $NS"
+    echo "     (2)  Manually restart kubelet service on all minions to reload the new flex driver"
+    echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
+    echo ""
+}
+
+# STEP function (certificates related)
+function create-secrets-for-certificates()
+{
+    ########################################################################
+    ##  Creates the secrets and configmap as ubiquity ymls expect it to be.
+    ##  The function operates only if:
+    ##      1. $CERT_DIR dir exist and with the right key and crt files.
+    ##      2. The secrets and config are not exist.
+    ########################################################################
+    echo "Creating secrets [ubiquity-private-certificate and ubiquity-db-private-certificate] and configmap [ubiquity-public-certificates] based from directory $CERT_DIR"
+    [ ! -d "$CERT_DIR" ] && { echo "Error: $CERT_DIR directory not found."; exit 2; }
+
+    # Validation all cert files in the $CERT_DIR directory
+    expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt scbe-trusted-ca.crt "
+    for certfile in $expected_cert_files; do
+        [ ! -f $CERT_DIR/$certfile ] && { echo "Missing cert file $CERT_DIR/$certfile"; echo "Mandatory certificate files are : $expected_cert_files"; exit 2; }
+    done
+
+    # Validation secrets and configmap not exist before creation
+    kubectl get secret $nsf ubiquity-db-private-certificate >/dev/null 2>&1 && already_exist "secret [ubiquity-db-private-certificate]" || :
+    kubectl get secret $nsf ubiquity-private-certificate >/dev/null 2>&1 && already_exist "secret [ubiquity-private-certificate]" || :
+    kubectl get configmap $nsf ubiquity-public-certificates >/dev/null 2>&1 && already_exist "configmap [ubiquity-public-certificates]" || :
+
+    # Creating secrets and configmap
+    cd $CERT_DIR
+    kubectl create secret $nsf generic ubiquity-db-private-certificate --from-file=ubiquity-db.key --from-file=ubiquity-db.crt
+    kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
+    kubectl create configmap $nsf ubiquity-public-certificates --from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt
+    cd -
+
+    kubectl get $nsf secrets/ubiquity-db-private-certificate secrets/ubiquity-private-certificate cm/ubiquity-public-certificates
+    echo ""
+    echo "Finished to create secrets and configmap for Ubiquity certificates."
+}
+
+
+
+function already_exist() { echo "Error: Secret $1 is already exist. Please delete it first."; exit 2; }
+
+function create_only_namespace_and_services()
+{
+    # This function create ubiquity name space, ubiquity service and ubiquity-db service (if not exist)
+
+    # Create ubiquity namespace
+    if [ "$NS" = "$UBIQUITY_DEFAULT_NAMESPACE" ]; then
+        if ! kubectl get namespace $UBIQUITY_DEFAULT_NAMESPACE >/dev/null 2>&1; then
+           kubectl create -f ${YML_DIR}/ubiquity-namespace.yml
+        else
+           echo "$UBIQUITY_DEFAULT_NAMESPACE already exist. (Skip namespace creation)"
+        fi
+    fi
+
+    # Create ubiquity service
+    if ! kubectl get $nsf service ${UBIQUITY_SERVICE_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
+    else
+       echo "$UBIQUITY_SERVICE_NAME service already exist. (Skip service creation)"
+    fi
+
+    # Create ubiquity-db service
+    if ! kubectl get $nsf service ${UBIQUITY_DB_SERVICE_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-db-service.yml
+    else
+       echo "$UBIQUITY_DB_SERVICE_NAME service already exist. (Skip service creation)"
+    fi
+}
+
+function create_configmap_and_credentials_secrets()
+{
+    if ! kubectl get $nsf configmap ubiquity-configmap >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmap.yml
+    else
+       echo "ubiquity-configmap configmap already exist. (Skip creation)"
+    fi
+    if ! kubectl get $nsf secret scbe-credentials >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../scbe-credentials.yml
+    else
+       echo "scbe-credentials secret already exist. (Skip creation)"
+    fi
+
+    if ! kubectl get $nsf secret ubiquity-db-credentials >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/../ubiquity-db-credentials.yml
+    else
+       echo "ubiquity-db-credentials secret already exist. (Skip creation)"
+    fi
+}
+
+## MAIN ##
+##########
+
+# Variables
+scripts=$(dirname $0)
+YML_DIR="$scripts/yamls"
+SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
+UTILS=$scripts/ubiquity_utils.sh
+UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
+K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
+steps="update-ymls install create-ubiquity-db create-services create-secrets-for-certificates"
+
+[ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
+. $UTILS # include utils for wait function and status
+
+# Handle flags
+NS="$UBIQUITY_DEFAULT_NAMESPACE" # Set as the default namespace
+to_deploy_ubiquity_db="false"
+KUBECONF=~/.kube/config
+CONFIG_SED_FILE=""
+STEP=""
+CERT_DIR=""
+while getopts ":dc:k:s:n:t:h" opt; do
+  case $opt in
+    d)
+      to_deploy_ubiquity_db="true"
+      ;;
+    c)
+      CONFIG_SED_FILE=$OPTARG
+      ;;
+    k)
+      KUBECONF=$OPTARG
+      ;;
+    s)
+      STEP=$OPTARG
+      found=false
+      for step_index in $steps; do
+          [ "$STEP" == "$step_index" ] && found=true
+      done
+
+      [ "$found" == "false" ] && { echo "Error: step [$STEP] is not supported."; usage; }
+      ;;
+    n)
+      NS=$OPTARG
+      ;;
+    t)
+      CERT_DIR=$OPTARG
+      ;;
+    h)
+      usage
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      ;;
+  esac
+done
+nsf="--namespace ${NS}" # namespace flag for kubectl command
+
+# Validations
+[ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
+which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exit 2; }
+[ -z "$STEP" ] && usage || :
+
+
+# Execute the step function
+echo "Executing STEP [$STEP]..."
+$STEP
