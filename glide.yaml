@@ -13,7 +13,7 @@ import:
   - resources
   - utils
 - package: k8s.io/apimachinery
-  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
+  version: release-1.8
   subpackages:
   - pkg/api/errors
   - pkg/api/resource
@@ -27,7 +27,7 @@ import:
   - pkg/util/wait
   - pkg/watch
 - package: k8s.io/client-go
-  version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
+  version: release-5.0
   subpackages:
   - kubernetes
   - kubernetes/typed/core/v1
@@ -36,10 +36,11 @@ import:
   - tools/clientcmd
   - tools/record
   - tools/remotecommand
+  - tools/reference
 - package: k8s.io/api
-  version: e24ed681f56165befbea50a24f7e9f1c079ac366
+  version: release-1.8
 - package: k8s.io/kubernetes
-  version: df7f4b3526a580ef122aaeef61ab52842a60a88b
+  version: release-1.8
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/version
