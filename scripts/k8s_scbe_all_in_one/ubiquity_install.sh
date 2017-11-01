@@ -36,6 +36,7 @@
 #     If config file (with placeholder KEY=VALUE) given as argument then the script will apply all the place holders inside all the yaml files.
 #   - Run the script in the Kubernetes master node where you have access to kubectl command.
 #   - See usage function below for more details about flags.
+#
 # -------------------------------------------------------------------------
 
 function usage()
@@ -65,22 +66,42 @@ function update_ymls_with_playholders()
 {
    placeholder_file="$1"
    [ -z "${placeholder_file}" ] && return
-
    [ ! -f "${placeholder_file}" ] && { echo "Error : ${placeholder_file} not found."; exit 3; }
+   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
+
+   was_updated="false" # if nothing to update then exit with error
    read -p "Updating ymls with placeholders from ${placeholder_file} file. Are you sure (y/n): " yn
-   if [ "$yn" = "y" ]; then
-       for line in `cat ${placeholder_file} | grep -v "^#"`; do
-          echo "   $line"
-          placeholder=`echo "$line" | awk -F\| '{print $1}'`
-          value=`echo "$line" | awk -F\| '{print $2}'`
-          sed -i "s|${placeholder}|${value}|g" "$YML_DIR"/*.yml
-          sed -i "s|${placeholder}|${value}|g" "$SANITY_YML_DIR"/*.yml
-          sed -i "s|${placeholder}|${value}|g" "${YML_DIR}/../"*.yml
-       done
-       echo "Finish to update yaml according to ${placeholder_file}"
-   else
-      echo "Running installation without update ymls with placeholder."
+   if [ "$yn" != "y" ]; then
+     echo "Skip updating the ymls with placeholder."
+     return
    fi
+   base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
+   for line in `cat ${placeholder_file} | grep -v "^\s*#"`; do
+      placeholder=`echo "$line" | awk -F= '{print $1}'`
+      value=`echo "$line" | awk -F= '{print $2}'`
+      files_to_update=`grep ${placeholder} "$YML_DIR"/*.yml "$SANITY_YML_DIR"/*.yml "$scripts"/*.yml | awk -F: '{printf $1" "}'`
+      if [ -n "$files_to_update" ]; then
+         echo "$base64_placeholders" | grep "$placeholder" >/dev/null && rc=$?  || rc=$?
+         replace_with_base64=""
+         if [ $rc -eq 0 ]; then
+            value="`echo -n $value | base64`"
+            replace_with_base64="(base64) "
+         fi
+         printf "Update ${replace_with_base64}placeholder [%-30s] in files : $files_to_update \n" $placeholder
+         sed -i "s|${placeholder}|${value}|g" $files_to_update
+         was_updated="true"
+      else
+         printf "WARNING : placeholder [%-30s] was NOT found in ymls\n" "$placeholder"
+      fi
+   done
+
+   if [ "$was_updated" = "false" ]; then
+      echo "ERROR : Nothing was updated in ymls (placeholders were NOT found in ymls)."
+      echo "        Consider to update yamls manually, or do NOT use -c flag."
+      exit 2
+   fi
+   echo "Finish to update yaml according to ${placeholder_file}"
+   echo ""
 }
 
 function create_only_ubiquity_db_deployment()

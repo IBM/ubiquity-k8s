@@ -1,0 +1,23 @@
+# This is an Ubiquity PVC template.
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "<PVC name>"
+  # NOTE : Uses annotations storage-class only in k8s 1.5 version.
+  # ------
+  #annotations:
+  #  volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME"
+
+  # NOTE : User label only if you want to set the PV name (the default is PV=PVC-ID)
+  # ------
+  #labels:
+  #  pv-name: "ibm-ubiquity-db"   # Ubiquity provisioner will create a PV with ibm-ubiquity-db instead of PVC-ID.
+spec:
+  # NOTE : Use storageClassName only in k8s version 1.6+. For lower versions uses volume.beta.kubernetes.io/storage-class
+  storageClassName: <Storage Class Name>
+
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: <Numner>Gi
