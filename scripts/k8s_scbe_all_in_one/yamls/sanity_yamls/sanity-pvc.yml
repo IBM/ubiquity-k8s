@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: "sanity-pvc"
   annotations:
-    volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME"
+    volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
 spec:
   accessModes:
     - ReadWriteOnce # Currently Ubiquity scbe backend supports only ReadWriteOnce mode

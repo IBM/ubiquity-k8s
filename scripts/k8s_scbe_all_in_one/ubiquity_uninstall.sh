@@ -86,7 +86,6 @@ done
 nsf="--namespace ${NS}" # namespace flag for kubectl command
 
 kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
-echo "Uninstall Ubiquity from namespace [$NS]..."
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
@@ -94,6 +93,15 @@ echo "Uninstall Ubiquity from namespace [$NS]..."
 kubectl get namespace $NS >/dev/null 2>&1 || { echo "[$NS] namespace not exist. Stop the uninstall process."; exit 3; }
 
 . $UTILS # include utils for wait function and status
+
+
+echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components, including ubiquity-db, credentials and namespace."
+read -p "Are you sure (y/n): " yn
+if [ "$yn" != "y" ]; then
+   echo "Skip uninstall."
+   exit 0
+fi
+echo "Start to uninstall \"$PRODUCT_NAME\" from namespace [$NS]..."
 
 # First phase : delete the ubiquity-db deployment and ubiquity-db-pvc before deleting ubiquity and provisioner.
 if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
@@ -126,6 +134,6 @@ $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 
-
-echo "Ubiquity uninstall finished."
+echo ""
+echo "\"$PRODUCT_NAME\" uninstall finished."
 

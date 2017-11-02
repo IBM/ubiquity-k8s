@@ -17,24 +17,48 @@
 ###################################################
 
 # -------------------------------------------------------------------------
-# The script install all Ubiquity components inside kubernetes(k8s) cluster.
+# The script installs the "IBM Storage Enabler for Containers" inside a Kubernetes Cluster.
+#       "IBM Storage Enabler for Containers"
+#       "IBM Storage Dynamic Provisioner for Kubernetes"
+#       "IBM Storage Flex Volume for Kubernetes"
 #
-# Create the following components:
-#   1. Ubiquity service
-#   2. Ubiquity-db service
-#   3. Ubiquity deployment
-#   4. configmap k8s-config for Ubiquity-k8s-provisioner  (if already exist then skip creation)
-#   5. Ubiquity-k8s-provisioner deployment
-#   6. Storage class that match for the UbiquityDB PVC
-#   7. PVC for the UbiquityDB
-#   8. ubiquity-k8s-flex DaemonSet (deploy the flex + flex config file to all nodes)
-#   9. optional : ubiquity-db deployment (only if -d flag specify. Use it only if the flex already deployed in the past on the nodes,
-#                 therefor no restart for kubelet is needed before run the deployment)
+# The script have few STEPs.
+#
+# STEP "update-ymls"
+#   Just update all the ymls with the placeholders given in the -c <file>.
+#
+# STEP "install" creates the following components:
+#   1. Namespace    "ubiquity"                (skip if already exist)
+#   2. Service(clusterIP type) "ubiquity"     (skip if already exist)
+#   3. Service(clusterIP type) "ubiquity-db"  (skip if already exist)
+#   4. ConfigMap    "ubiquity-configmap"      (skip if already exist)
+#   5. Secret       "scbe-credentials"        (skip if already exist)
+#   6. Secret       "ubiquity-db-credentials" (skip if already exist)
+#   3. Deployment   "ubiquity"
+#   4. ConfigMap    "k8s-config"              (skip if already exist)
+#   5. Deployment   "ubiquity-k8s-provisioner"
+#   6. StorageClass <name given by user>      (skip if already exist)
+#   7. PVC          "ibm-ubiquity-db"
+#   8. DaemonSet    "ubiquity-k8s-flex"
+#
+# STEP "create-ubiquity-db" creates the following components:
+#   9. Deployment   "ubiquity-db"
+#
+#
+# Only for SSL_MODE=verify-full, you should first run the following STEPS  (before "install" STEP)
+# STEP "create-services" creates the following components:
+#   1. Namespace    "ubiquity"                (skip if already exist)
+#   2. Service(clusterIP type) "ubiquity"     (skip if already exist)
+#   3. Service(clusterIP type) "ubiquity-db"  (skip if already exist)
+#
+# STEP "create-secrets-for-certificates" creates the following components:
+#   1. secret    "ubiquity-db-private-certificate"
+#   2. secret    "ubiquity-private-certificate"
+#   3. configmap "ubiquity-public-certificates"
 #
 # Prerequisites to run this test:
 #   - The script assumes all the yamls exist under ./yamls and updated with relevant configuration.
-#     If config file (with placeholder KEY=VALUE) given as argument then the script will apply all the place holders inside all the yaml files.
-#   - Run the script in the Kubernetes master node where you have access to kubectl command.
+#   - kubectl, base64 command lines must exist on the node you run the script.
 #   - See usage function below for more details about flags.
 #
 # -------------------------------------------------------------------------
@@ -74,82 +98,20 @@ EOF
   exit 1
 }
 
-# STEP function
-function update-ymls()
-{
-   ########################################################################
-   ##  Replace all the placeholders in the config file in all the relevant yml files.
-   ##  If nothing to replace then exit with error.
-   ########################################################################
-
-   # Step validation
-   [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
-   [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error : ${CONFIG_SED_FILE} not found."; exit 3; }
-   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
-
-   base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
-   was_updated="false" # if nothing to update then exit with error
-
-   read -p "Updating ymls with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
-   if [ "$yn" != "y" ]; then
-     echo "Skip updating the ymls with placeholder."
-     return
-   fi
-
-   ssl_mode=""
-   # Loop over the config file and do the replacements
-   for line in `cat ${CONFIG_SED_FILE} | grep -v "^\s*#"`; do
-      placeholder=`echo "$line" | awk -F= '{print $1}'`
-      value=`echo "$line" | awk -F= '{print $2}'`
-      files_to_update=`grep ${placeholder} "$YML_DIR"/*.yml "$SANITY_YML_DIR"/*.yml "$scripts"/*.yml | awk -F: '{printf $1" "}'`
-      if [ -n "$files_to_update" ]; then
-         echo "$base64_placeholders" | grep "$placeholder" >/dev/null && rc=$?  || rc=$?
-         replace_with_base64=""
-         if [ $rc -eq 0 ]; then
-            value="`echo -n $value | base64`"
-            replace_with_base64="(base64) "
-         fi
-         printf "Update ${replace_with_base64}placeholder [%-30s] in files : $files_to_update \n" $placeholder
-         sed -i "s|${placeholder}|${value}|g" $files_to_update
-         [ "$placeholder" = "SSL_MODE_VALUE" ] && ssl_mode="$value" || :
-         was_updated="true"
-      else
-         printf "WARNING : placeholder [%-30s] was NOT found in ymls\n" "$placeholder"
-      fi
-   done
-
-   if [ "$was_updated" = "false" ]; then
-      echo "ERROR : Nothing was updated in ymls (placeholders were NOT found in ymls)."
-      echo "        Consider to update yamls manually"
-      exit 2
-   fi
-
-   if [ "$ssl_mode" = "verify-full" ]; then
-       ymls_to_updates="${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml ${YML_DIR}/ubiquity-deployment.yml ${YML_DIR}/ubiquity-db-deployment.yml"
-
-       echo "Certificates updates related:"
-       echo "  SSL_MODE_VALUE=verify-full, therefor updating ymls to enable dedicated certificates."
-       echo "  By enable Volumes and VolumeMounts tags for certificates in the following ymls: $ymls_to_updates"
-
-       # this sed just removes the comments from all the certificates lines on the ymls
-       sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
-       echo "  Certificates updates DONE."
-   fi
-
-   echo "Finish to update yaml according to ${CONFIG_SED_FILE}"
-   echo ""
-}
 
 # STEP function
 function install()
 {
     ########################################################################
-    ##  Install all ubiquity component in order and wait for creation to complete.
+    ##  Install all ubiquity components in the right order and wait for creation to complete.
     ##  Fail if the deployments are already exist.
     ########################################################################
-    echo "Install Ubiquity in namespace [$NS]..."
 
-    [ ! -f "$KUBECONF" ] && { echo "Error: $KUBECONF not exist"; exit 2; }
+    [ -z "$KUBECONF" ] && { echo "Error: Missing -k <file> flag for STEP [$STEP]"; exit 4; } || :
+    [ ! -f "$KUBECONF" ] && { echo "Error : $KUBECONF not found."; exit 3; } || :
+
+    echo "Start to install \"$PRODUCT_NAME\"..."
+    echo "Installation will be done inside the namespace [$NS]."
 
     create_only_namespace_and_services
     create_configmap_and_credentials_secrets
@@ -191,12 +153,106 @@ function install()
         create-ubiquity-db
     else
         echo ""
-        echo "Ubiquity installation finished, but Ubiquity is NOT ready yet."
+        echo "\"$PRODUCT_NAME\" installation finished, but its NOT ready yet."
         echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
         echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
         echo "                Note : View ubiquity status by $> ./ubiquity_deployments.sh -a status -n $NS"
         echo ""
     fi
+}
+
+# STEP function
+function update-ymls()
+{
+   ########################################################################
+   ##  Replace all the placeholders in the config file in all the relevant yml files.
+   ##  If nothing to replace then exit with error.
+   ########################################################################
+
+    # Prepare map of keys inside ubiquity.config and there associated yml file.
+    UBIQUITY_CONFIGMAP_YML=ubiquity-configmap.yml
+    SCBE_CRED_YML=scbe-credentials.yml
+    UBIQUITY_DB_CRED_YML=ubiquity-db-credentials.yml
+    FIRST_STORAGECLASS_YML=yamls/storage-class.yml
+    PVCS_USES_STORAGECLASS_YML="ubiquiyt-db-pvc.yml sanity_yamls/sanity-pvc.yml"
+    declare -A KEY_FILE_DICT
+    KEY_FILE_DICT['SCBE_MANAGEMENT_IP_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['SCBE_MANAGEMENT_PORT_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['SCBE_DEFAULT_SERVICE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['UBIQUITY_INSTANCE_NAME_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['DEFAULT_FSTYPE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['LOG_LEVEL_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['SCBE_USERNAME_VALUE']="${SCBE_CRED_YML}"
+    KEY_FILE_DICT['SCBE_PASSWORD_VALUE']="${SCBE_CRED_YML}"
+    KEY_FILE_DICT['UBIQUITY_DB_USERNAME_VALUE']="${UBIQUITY_DB_CRED_YML}"
+    KEY_FILE_DICT['UBIQUITY_DB_PASSWORD_VALUE']="${UBIQUITY_DB_CRED_YML}"
+    KEY_FILE_DICT['STORAGE_CLASS_NAME_VALUE']="${FIRST_STORAGECLASS_YML} ${PVCS_USES_STORAGECLASS_YML}"
+    KEY_FILE_DICT['STORAGE_CLASS_PROFILE_VALUE']="${FIRST_STORAGECLASS_YML}"
+    KEY_FILE_DICT['STORAGE_CLASS_FSTYPE_VALUE']="${FIRST_STORAGECLASS_YML}"
+
+   # Step validation
+   [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
+   [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error : ${CONFIG_SED_FILE} not found."; exit 3; }
+   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
+
+   base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
+   was_updated="false" # if nothing to update then exit with error
+
+   read -p "Updating ymls with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
+   if [ "$yn" != "y" ]; then
+     echo "Skip updating the ymls with placeholder."
+     return
+   fi
+
+   ssl_mode=""
+   # Loop over the config file and do the replacements
+   for line in `cat ${CONFIG_SED_FILE} | grep -v "^\s*#"`; do
+      placeholder=`echo "$line" | awk -F= '{print $1}'`
+      value=`echo "$line" | awk -F= '{print $2}'`
+
+      files_to_update=`grep ${placeholder} "$YML_DIR"/*.yml "$SANITY_YML_DIR"/*.yml "$scripts"/*.yml | awk -F: '{printf $1" "}'`
+      if [ -n "$files_to_update" ]; then
+         echo "$base64_placeholders" | grep "$placeholder" >/dev/null && rc=$?  || rc=$?
+         replace_with_base64=""
+         if [ $rc -eq 0 ]; then
+            value="`echo -n $value | base64`"
+            replace_with_base64="(base64) "
+         fi
+         printf "Update ${replace_with_base64}placeholder [%-30s] in files : $files_to_update \n" $placeholder
+         sed -i "s|${placeholder}|${value}|g" $files_to_update
+         [ "$placeholder" = "SSL_MODE_VALUE" ] && ssl_mode="$value" || :
+         was_updated="true"
+      else
+         files_related="${KEY_FILE_DICT[$placeholder]}"
+         if [ -z "$files_related" ]; then
+            printf "WARNING : placeholder [%-30s] was NOT found in ymls\n" "$placeholder"
+         else
+            printf "WARNING : placeholder [%-30s] was NOT found in ymls: $files_related \n" "$placeholder"
+         fi
+      fi
+   done
+
+   if [ "$was_updated" = "false" ]; then
+      echo "ERROR : Nothing was updated in ymls (placeholders were NOT found in ymls)."
+      echo "        Consider to update yamls manually"
+      exit 2
+   fi
+
+   if [ "$ssl_mode" = "verify-full" ]; then
+       ymls_to_updates="${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml ${YML_DIR}/ubiquity-deployment.yml ${YML_DIR}/ubiquity-db-deployment.yml"
+
+       echo "Certificates updates related:"
+       echo "  SSL_MODE_VALUE=verify-full, therefor updating ymls to enable dedicated certificates."
+       echo "  By enable Volumes and VolumeMounts tags for certificates in the following ymls: $ymls_to_updates"
+
+       # this sed just removes the comments from all the certificates lines on the ymls
+       sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
+       echo "  Certificates updates DONE."
+   fi
+
+   echo "Finish to update yaml according to ${CONFIG_SED_FILE}"
+   echo ""
 }
 
 # STEP function
@@ -211,7 +267,7 @@ function create-ubiquity-db()
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 40 5 $NS
     echo ""
-    echo "Ubiquity installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh -a status -n $NS)"
+    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh -a status -n $NS)"
 }
 
 # STEP function (certificates related)
@@ -249,13 +305,19 @@ function create-secrets-for-certificates()
     ##      1. $CERT_DIR dir exist and with the right key and crt files.
     ##      2. The secrets and config are not exist.
     ########################################################################
-    echo "Creating secrets [ubiquity-private-certificate and ubiquity-db-private-certificate] and configmap [ubiquity-public-certificates] based from directory $CERT_DIR"
+    [ -z "$CERT_DIR" ] && { echo "Error: Missing -t <file> flag for STEP [$STEP]."; exit 4; } || :
     [ ! -d "$CERT_DIR" ] && { echo "Error: $CERT_DIR directory not found."; exit 2; }
+
+    echo "Creating secrets [ubiquity-private-certificate and ubiquity-db-private-certificate] and configmap [ubiquity-public-certificates] based from directory $CERT_DIR"
 
     # Validation all cert files in the $CERT_DIR directory
     expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt scbe-trusted-ca.crt "
     for certfile in $expected_cert_files; do
-        [ ! -f $CERT_DIR/$certfile ] && { echo "Missing cert file $CERT_DIR/$certfile"; echo "Mandatory certificate files are : $expected_cert_files"; exit 2; }
+        if [ ! -f $CERT_DIR/$certfile ]; then
+            echo "Error: Missing cert file $CERT_DIR/$certfile inside directory $CERT_DIR."
+            echo "       Mandatory certificate files are : $expected_cert_files"
+            exit 2
+        fi
     done
 
     # Validation secrets and configmap not exist before creation

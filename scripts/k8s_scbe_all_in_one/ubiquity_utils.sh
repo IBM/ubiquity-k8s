@@ -25,6 +25,7 @@ PVC_GOOD_STATUS=Bound
 UBIQUITY_DEFAULT_NAMESPACE="ubiquity"
 UBIQUITY_SERVICE_NAME="ubiquity"
 UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
+PRODUCT_NAME="IBM Storage Enabler for Containers"
 
 # example : wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
 function wait_for_item()

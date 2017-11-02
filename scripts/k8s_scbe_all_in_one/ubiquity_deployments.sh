@@ -131,7 +131,7 @@ function collect_logs()
     status > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
 
     echo ""
-    echo "Finish collecting Ubiquity logs inside directory -> $logdir"
+    echo "Finish collecting \"$PRODUCT_NAME\" logs inside directory -> $logdir"
 }
 
 
@@ -256,7 +256,7 @@ function sanity()
     wait_for_item_to_delete pv $pvname 10 2 "" $NS
 
     echo ""
-    echo "Ubiquity sanity finished successfully."
+    echo "\"$PRODUCT_NAME\" sanity finished successfully."
 }
 
 
