@@ -626,13 +626,13 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 }
 
 func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, k8sresources.UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
+	logFile, err := os.OpenFile(path.Join(logPath, k8sresources.UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE, 0640)
 	if err != nil {
 		fmt.Printf("Failed to setup logger: %s\n", err.Error())
 		return nil, nil
 	}
 	log.SetOutput(logFile)
-	logger := log.New(io.MultiWriter(logFile), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
+	logger := log.New(io.MultiWriter(logFile, os.Stdout), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
 	return logger, logFile
 }
 
