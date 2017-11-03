@@ -1,29 +1,38 @@
 #!/bin/bash -e
 
-###################################################
-# Copyright 2017 IBM Corp.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###################################################
-
 # -------------------------------------------------------------------------
-# The script installs the "IBM Storage Enabler for Containers" inside a Kubernetes Cluster.
+# "IBM Storage Enabler for Containers" installer script that installs
+# the following components inside the kubernetes cluster:
 #       "IBM Storage Enabler for Containers"
 #       "IBM Storage Dynamic Provisioner for Kubernetes"
 #       "IBM Storage Flex Volume for Kubernetes"
 #
-# The script have few STEPs.
+# How to Run the installer:
+# ==========================================
+# Preparations:
+#  1. MANUEL operation : update the ubiquity.config with the relevant VALUEs.
+#  2. Only for SSL_MODE=verify-full, you first need to run the following steps:
+#       2.1. If you need the IP of ubiquity to generate certificates then run this command:
+#           $> ubiquity_installer.sh --step create-services
+#       2.2. MANUEL operation: creates a dedicated certificates for ubiquity, ubiquity-db and SCBE. (not responsibility of this script)
+#       2.3. Generate kubernetes secrets that will holds the certificates created in #2.2 step, by running the command:
+#           $> ubiquity_installer.sh --step create-secrets-for-certificates -t <certificates-directory>
+#  3. Update the ymls with the key=values from the ubiquity.config file, by running the command:
+#    $> ubiquity_installer.sh --step update-ymls -f ubiquity.config
+
+# Installation:
+#  1. Install the solution (without ubiquity-db):
+#    $> ubiquity_installer.sh --step install -k <k8s-config-file>
+#    NOTE : <k8s-config-file> is needed for the ubiquity-k8s-provisioner to access the Kubernetes API server.
 #
+#  2. MANUEL operation : The user MUST manual restart the kubelet on all the minions, and then run #4
+#
+#  3. Install the ubiquity-db after step #3 is ready (this is the ubiqutiy database deployment)
+#     $> ubiquity_installer.sh --step create-ubiquity-db
+#
+#
+# Describe the script STEPs in great detail:
+# ==========================================
 # STEP "update-ymls"
 #   Just update all the ymls with the placeholders given in the -c <file>.
 #
@@ -44,8 +53,6 @@
 # STEP "create-ubiquity-db" creates the following components:
 #   9. Deployment   "ubiquity-db"
 #
-#
-# Only for SSL_MODE=verify-full, you should first run the following STEPS  (before "install" STEP)
 # STEP "create-services" creates the following components:
 #   1. Namespace    "ubiquity"                (skip if already exist)
 #   2. Service(clusterIP type) "ubiquity"     (skip if already exist)
@@ -57,6 +64,7 @@
 #   3. configmap "ubiquity-public-certificates"
 #
 # Prerequisites to run this test:
+# ===============================
 #   - The script assumes all the yamls exist under ./yamls and updated with relevant configuration.
 #   - kubectl, base64 command lines must exist on the node you run the script.
 #   - See usage function below for more details about flags.
@@ -69,31 +77,31 @@ function usage()
   cat << EOF
 USAGE   $cmd -s <STEP> <FLAGS>
   <STEP>:
-    update-ymls
+    -s update-ymls -c <file>
         Replace the placeholders from -c <file> on the relevant ymls.
         Flag -c <ubiquity-config-file> is mandatory for this step
-    install
+
+    -s install [-k <k8s config file>] [-n <namespace>]
         Install all ubiquity component by order (except for ubiquity-db)
         Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner. By default ~/.kube/conf.
         Flag -n <namespace>. By default its \"ubiquity\" namespace.
-    create-ubiquity-db
+    -s create-ubiquity-db [-n <namespace>]
         Creates only the ubiquity-db deployment and waits for its creation.
         Use this option after install-ubiquity finished and after manual restart of the kubelets done on the nodes.
         Flag -n <namespace>. By default its \"ubiquity\" namespace.
 
-    create-services
+    -s create-services [-n <namespace>]
         Use it only if SSL_MODE=verify-full
         This step creates ubiquity namespace, ubiqutiy and ubiquity-db k8s service only.
         If in order to create certificates you need to see the ubiquity and ubiqity-db IPs, then run this step.
         Flag -n <namespace>. By default its \"ubiquity\" namespace.
-    create-secrets-for-certificates
+    -s create-secrets-for-certificates -t <certificates-directory>  [-n <namespace>]
         Use it only if SSL_MODE=verify-full
         Creates secrets and configmap for ubiquity certificates:
             Secrets ubiquity-private-certificate and ubiquity-db-private-certificate.
             Configmap ubiquity-public-certificates.
         Flag -t <certificates-directory> that contains all the expected certificate files.
-
-    -h : Display this usage
+ -h : Display this usage
 EOF
   exit 1
 }
@@ -119,6 +127,7 @@ function install()
     kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
     wait_for_deployment ubiquity 20 5 $NS
 
+    echo "Creating ${K8S_CONFIGMAP_FOR_PROVISIONER} for ubiquity-k8s-provisioner from file [$KUBECONF]."
     if ! kubectl get $nsf cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
         kubectl create $nsf configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
     else
@@ -156,7 +165,7 @@ function install()
         echo "\"$PRODUCT_NAME\" installation finished, but its NOT ready yet."
         echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
         echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
-        echo "                Note : View ubiquity status by $> ./ubiquity_deployments.sh -a status -n $NS"
+        echo "                Note : View ubiquity status by $> ./ubiquity_cli.sh -a status -n $NS"
         echo ""
     fi
 }
@@ -169,7 +178,17 @@ function update-ymls()
    ##  If nothing to replace then exit with error.
    ########################################################################
 
-    # Prepare map of keys inside ubiquity.config and there associated yml file.
+   # Step validation
+   [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
+   [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error : ${CONFIG_SED_FILE} not found."; exit 3; }
+   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
+   which egrep > /dev/null 2>&1 || { echo "Error: egrep command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
+
+   # Validate key=value file format and no missing VALUE fill up
+   egrep -v "^\s*#|^\s*$" ${CONFIG_SED_FILE} |  grep -v "^.\+=.\+$" && { echo "Error: ${CONFIG_SED_FILE} format must have only key=value lines. The above lines are with bad format."; exit 2; } || :
+   grep "=VALUE$" ${CONFIG_SED_FILE} && { echo "Error: You must fill up the VALUE in ${CONFIG_SED_FILE} file."; exit 2; } || :
+
+    # Prepare map of keys inside ${CONFIG_SED_FILE} and there associated yml file.
     UBIQUITY_CONFIGMAP_YML=ubiquity-configmap.yml
     SCBE_CRED_YML=scbe-credentials.yml
     UBIQUITY_DB_CRED_YML=ubiquity-db-credentials.yml
@@ -190,11 +209,6 @@ function update-ymls()
     KEY_FILE_DICT['STORAGE_CLASS_NAME_VALUE']="${FIRST_STORAGECLASS_YML} ${PVCS_USES_STORAGECLASS_YML}"
     KEY_FILE_DICT['STORAGE_CLASS_PROFILE_VALUE']="${FIRST_STORAGECLASS_YML}"
     KEY_FILE_DICT['STORAGE_CLASS_FSTYPE_VALUE']="${FIRST_STORAGECLASS_YML}"
-
-   # Step validation
-   [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
-   [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error : ${CONFIG_SED_FILE} not found."; exit 3; }
-   which base64 > /dev/null 2>&1 || { echo "Error: base64 command not found in PATH. So cannot update ymls with base64 secret."; exit 2; }
 
    base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
    was_updated="false" # if nothing to update then exit with error
@@ -267,7 +281,7 @@ function create-ubiquity-db()
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 40 5 $NS
     echo ""
-    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_deployments.sh -a status -n $NS)"
+    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_cli.sh -a status -n $NS)"
 }
 
 # STEP function (certificates related)
