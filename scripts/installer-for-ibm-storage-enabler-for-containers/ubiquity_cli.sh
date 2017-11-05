@@ -5,28 +5,20 @@
 # The tool is an helper to do the following actions : start, stop, status, collect_logs, sanity.
 # The script assume that you already installed ubiquity via the ubiquity_install.sh script.
 #
-# Start flow order:
+# "start" action flow:
 #   1. Validate ubiquity pvc exist (exit if not)
 #   2. Create ubiquity deployment
 #   3. Create ubiquity-k8s-provisioner deployment
 #   4. Create ubiquity-k8s-flex Daemonset
-#   4. Create ubiquity-db-deployment deployment
+#   4. Create ubiquity-db-deployment deployment  (last one because it uses PVC, so ubiquity must go up before)
 #
-# Start flow order:
+# "stop" action flow:
 #   1. Delete ubiquity-db-deployment deployment
 #   2. Delete Ubiquity-k8s-provisioner deployment
 #   3. Create ubiquity-k8s-flex Daemonset
 #   4. Delete Ubiquity deployment
 #
-# Assuming the following components was already created during the ubiquity_install.sh script.
-#   - Ubiquity service
-#   - Ubiquity-db service
-#   - configmap k8s-config for Ubiquity-k8s-provisioner
-#   - Storage class that match for the UbiquityDB PVC
-#   - PVC for the UbiquityDB
-#   - FlexVolume already installed on each minion and configured well
-#
-# Note : More details see usage below.
+# See Usage for more detail.
 # -------------------------------------------------------------------------
 
 
@@ -34,15 +26,14 @@ function usage()
 {
    echo "Usage, $0 -a [`echo $actions | sed 's/ /|/g'`] [-n <namespace>] [-h]"
    echo " -a <action>"
-   echo "   start  : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
-   echo "   stop   : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
-   echo "   status : Display all ubiquity components"
-   echo "   statuswide : Display all ubiquity components"
-   echo "   getall : Display related components on <namespace> and the default namespaces."
-   echo "            by #> kubectl get configmap,storageclass,pv,pvc,service,daemonset,deployment,pod"
+   echo "   start      : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
+   echo "   stop       : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
+   echo "   status     : Display all ubiquity components"
+   echo "   statuswide : Display all ubiquity components (-o wide flag)"
+   echo "   getall     : Display related components on <namespace> and the default namespaces."
    echo "   getallwide : getall with more details (-o wide)"
    echo "   collect_logs : Create a directory with all Ubiquity logs"
-   echo "   sanity    : create and delete pvc and pod"
+   echo "   sanity       : This is a sanity test - create and delete pvc and pod."
    echo " -n <namespace>  : Optional, by default its \"ubiquity\""
    echo " -h : Display this usage"
 
@@ -60,10 +51,14 @@ function start()
     wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2 $NS
 
     kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+    wait_for_deployment ubiquity 20 5 $NS
+
     kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+    wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
+
     kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
     kubectl create $nsf -f ${YML_DIR}/ubiquity-db-deployment.yml
-    # TODO add some wait for deployment before run the ubiquity-db
+    wait_for_deployment ubiquity-db 40 5 $NS
     echo "Finished to start ubiquity components. Note : View ubiquity status by : $> $0 -a status -n $NS"
 }
 
@@ -71,7 +66,7 @@ function stop()
 {
     kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
 
-    # TODO In addition it can works on the k8s object instead on yaml files
+    # TODO Instead of using yml file to delete object, we can just delete them by object name
     $kubectl_delete -f $YML_DIR/ubiquity-db-deployment.yml
     echo "Wait for ubiquity-db deployment deletion..."
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
@@ -247,7 +242,7 @@ function sanity()
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
 SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
-UTILS=$scripts/ubiquity_utils.sh
+UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 actions="start stop status statuswide getall getallwide collect_logs sanity"

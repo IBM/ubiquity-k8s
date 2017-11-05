@@ -13,22 +13,24 @@
 #  1. MANUEL operation : update the ubiquity.config with the relevant VALUEs.
 #  2. Only for SSL_MODE=verify-full, you first need to run the following steps:
 #       2.1. If you need the IP of ubiquity to generate certificates then run this command:
-#           $> ubiquity_installer.sh --step create-services
+#           $> ./ubiquity_installer.sh -s create-services
 #       2.2. MANUEL operation: creates a dedicated certificates for ubiquity, ubiquity-db and SCBE. (not responsibility of this script)
 #       2.3. Generate kubernetes secrets that will holds the certificates created in #2.2 step, by running the command:
-#           $> ubiquity_installer.sh --step create-secrets-for-certificates -t <certificates-directory>
+#           $> ./ubiquity_installer.sh -s create-secrets-for-certificates -t <certificates-directory>
+
 #  3. Update the ymls with the key=values from the ubiquity.config file, by running the command:
-#    $> ubiquity_installer.sh --step update-ymls -f ubiquity.config
+#    $> ./ubiquity_installer.sh -s update-ymls -c ubiquity.config
 
 # Installation:
 #  1. Install the solution (without ubiquity-db):
-#    $> ubiquity_installer.sh --step install -k <k8s-config-file>
+#    $> ./ubiquity_installer.sh -s install -k <k8s-config-file>
 #    NOTE : <k8s-config-file> is needed for the ubiquity-k8s-provisioner to access the Kubernetes API server.
+#           k8s config file usually can be found ~/.kube/config or in /etc/kubernetes directory.
 #
 #  2. MANUEL operation : The user MUST manual restart the kubelet on all the minions, and then run #4
 #
 #  3. Install the ubiquity-db after step #3 is ready (this is the ubiqutiy database deployment)
-#     $> ubiquity_installer.sh --step create-ubiquity-db
+#     $> ./ubiquity_installer.sh -s create-ubiquity-db
 #
 #
 # Describe the script STEPs in great detail:
@@ -76,27 +78,25 @@ function usage()
   cmd=`basename $0`
   cat << EOF
 USAGE   $cmd -s <STEP> <FLAGS>
-  <STEP>:
+  -s <STEP>:
     -s update-ymls -c <file>
         Replace the placeholders from -c <file> on the relevant ymls.
         Flag -c <ubiquity-config-file> is mandatory for this step
-
-    -s install [-k <k8s config file>] [-n <namespace>]
+    -s install -k <k8s config file> [-n <namespace>]
         Install all ubiquity component by order (except for ubiquity-db)
-        Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner. By default ~/.kube/conf.
+        Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner.
+        This file usually can be found in ~/.kube/config or in /etc/kubernetes directory.
         Flag -n <namespace>. By default its \"ubiquity\" namespace.
     -s create-ubiquity-db [-n <namespace>]
         Creates only the ubiquity-db deployment and waits for its creation.
         Use this option after install-ubiquity finished and after manual restart of the kubelets done on the nodes.
-        Flag -n <namespace>. By default its \"ubiquity\" namespace.
 
+    Steps only for SSL_MODE=verify-full:
     -s create-services [-n <namespace>]
-        Use it only if SSL_MODE=verify-full
         This step creates ubiquity namespace, ubiqutiy and ubiquity-db k8s service only.
         If in order to create certificates you need to see the ubiquity and ubiqity-db IPs, then run this step.
         Flag -n <namespace>. By default its \"ubiquity\" namespace.
     -s create-secrets-for-certificates -t <certificates-directory>  [-n <namespace>]
-        Use it only if SSL_MODE=verify-full
         Creates secrets and configmap for ubiquity certificates:
             Secrets ubiquity-private-certificate and ubiquity-db-private-certificate.
             Configmap ubiquity-public-certificates.
@@ -410,7 +410,7 @@ function create_configmap_and_credentials_secrets()
 scripts=$(dirname $0)
 YML_DIR="$scripts/yamls"
 SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
-UTILS=$scripts/ubiquity_utils.sh
+UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 steps="update-ymls install create-ubiquity-db create-services create-secrets-for-certificates"
@@ -421,7 +421,7 @@ steps="update-ymls install create-ubiquity-db create-services create-secrets-for
 # Handle flags
 NS="$UBIQUITY_DEFAULT_NAMESPACE" # Set as the default namespace
 to_deploy_ubiquity_db="false"
-KUBECONF=~/.kube/config
+KUBECONF="" #~/.kube/config
 CONFIG_SED_FILE=""
 STEP=""
 CERT_DIR=""

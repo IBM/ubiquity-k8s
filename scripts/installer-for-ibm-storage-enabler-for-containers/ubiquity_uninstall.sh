@@ -47,7 +47,7 @@ function usage()
 scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
-UTILS=$scripts/ubiquity_utils.sh
+UTILS=$scripts/ubiquity_lib.sh
 flex_conf="ubiquity-k8s-flex.conf"
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
@@ -79,7 +79,7 @@ kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 [ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
-kubectl get namespace $NS >/dev/null 2>&1 || { echo "[$NS] namespace not exist. Stop the uninstall process."; exit 3; }
+kubectl get namespace $NS >/dev/null 2>&1 || { echo "Error: [$NS] namespace not exist. Stop the uninstall process."; exit 3; }
 
 . $UTILS # include utils for wait function and status
 
