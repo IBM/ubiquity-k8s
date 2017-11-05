@@ -1,11 +1,12 @@
+# This is an Ubiquity Storage Class template.
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: "STORAGE_CLASS_NAME"
+  name: "<NAME>"
 #  annotations:
 #   storageclass.beta.kubernetes.io/is-default-class: "true"
 provisioner: "ubiquity/flex"
 parameters:
-  profile: "SCBE_SERVICE_NAME"
-  fstype: "FSTYPE_VALUE"        # xfs or ext4
+  profile: "<SCBE Service Name>"
+  fstype: "<Filesystem Type>"        # xfs or ext4
   backend: "scbe"

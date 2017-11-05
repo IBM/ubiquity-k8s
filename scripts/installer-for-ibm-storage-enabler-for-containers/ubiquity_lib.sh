@@ -1,21 +1,5 @@
 #!/bin/bash -e
 
-###################################################
-# Copyright 2017 IBM Corp.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###################################################
-
 #------------------------------------------
 # Share library for un\install scripts
 #------------------------------------------
@@ -25,6 +9,8 @@ PVC_GOOD_STATUS=Bound
 UBIQUITY_DEFAULT_NAMESPACE="ubiquity"
 UBIQUITY_SERVICE_NAME="ubiquity"
 UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
+PRODUCT_NAME="IBM Storage Enabler for Containers"
+EXIT_WAIT_TIMEOUT_MESSAGE="Error: Script exit due to wait timeout."
 
 # example : wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
 function wait_for_item()
@@ -43,7 +29,8 @@ function wait_for_item()
          return
       else
          if [ "$retries" -eq 0 ]; then
-             echo "Status of item $item_name was not reached to status ${item_wanted_status}. exit."
+             echo "Error: Status of item $item_name was not reached to status ${item_wanted_status}. exit."
+             echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
             echo "${item_type} [${item_name}] status [$status] != [${item_wanted_status}] wish state. sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
@@ -66,16 +53,18 @@ function wait_for_item_to_delete()
   ns=$6
   while true; do
       if [ -n "$regex" ]; then
-        kubectl get --namespace $ns ${item_type} | grep "${item_name}" && rc=$? || rc=$?
+        kubectl get --namespace $ns ${item_type} 2>/dev/null | grep "${item_name}"  && rc=$? || rc=$?
       else
-        kubectl get --namespace $ns  ${item_type} ${item_name} && rc=$? || rc=$?
+        kubectl get --namespace $ns  ${item_type} ${item_name} 2>/dev/null && rc=$? || rc=$?
+        # send stderr to /dev/null to avoid printing the "Error... not found" to console.
       fi
       if [ $rc -ne 0 ]; then
          echo "${item_type} [${item_name}] was deleted (after `expr $max_retries - $retries`/${max_retries} tries)"
          return
       else
          if [ "$retries" -eq 0 ]; then
-             echo "${item_type} [${item_name}] still exist after all ${max_retries} retries. exit."
+             echo "Error: ${item_type} [${item_name}] still exist after all ${max_retries} retries. exit."
+             echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
             echo "${item_type} [${item_name}] still exist. sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
@@ -140,7 +129,8 @@ function wait_for_deployment(){
 
     while ! kubectl get --namespace $ns deployment $item_name > /dev/null 2>&1; do
        if [ "$retries" -eq 0 ]; then
-          echo "${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
           echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
@@ -152,7 +142,8 @@ function wait_for_deployment(){
     generation=$(get_generation $item_name $ns)
     while [[ $(get_observed_generation $item_name $ns) -lt ${generation} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
           echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
@@ -168,7 +159,8 @@ function wait_for_deployment(){
     [ -z "$available" ] && available=0
     while [[ ${available} -ne ${replicas} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] available replica ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
           echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"

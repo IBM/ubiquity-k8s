@@ -14,27 +14,29 @@ spec:
       - name: ubiquity-k8s-flex
         image: UBIQUITY_K8S_FLEX_IMAGE # place holder
         env:
+          - name: LOG_LEVEL       # debug / info / error
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: LOG-LEVEL
+
           - name: UBIQUITY_USERNAME
-            value: "UBIQUITY_USERNAME_VALUE"
-## Secret Set: for SCBE_USERNAME instead of the value above # TODO
-#            valueFrom:
-#              secretKeyRef:
-#                name: scbe-credentials
-#                key: username
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: username
 
           - name: UBIQUITY_PASSWORD
-            value: "UBIQUITY_PASSWORD_VALUE"
-## Secret Set: for SCBE_PASSWORD instead of the value above # TODO
-#            valueFrom:
-#              secretKeyRef:
-#                name: scbe-credentials
-#                key: password
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
-            value: "UBIQUITY_PLUGIN_SSL_MODE_VALUE"
-
-#          - name: UBIQUITY_PLUGIN_VERIFY_CA
-#            value: "/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt"
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SSL-MODE
 
         imagePullPolicy: Always
         command: ["./setup_flex.sh"]

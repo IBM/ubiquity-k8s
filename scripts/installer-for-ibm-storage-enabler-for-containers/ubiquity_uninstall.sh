@@ -1,22 +1,11 @@
 #!/bin/bash
 
-###################################################
-# Copyright 2017 IBM Corp.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-###################################################
-
 # -------------------------------------------------------------------------
+# "IBM Storage Enabler for Containers" uninstall script.
+# the following IBM components inside the kubernetes cluster:
+#       "IBM Storage Enabler for Containers"
+#       "IBM Storage Dynamic Provisioner for Kubernetes"
+#       "IBM Storage Flex Volume for Kubernetes"
 # The script uninstall all Ubiquity components (including the ubiquity data which locate in PV ibm-ubiquity-db).
 #
 # Delete the following components by order:
@@ -58,7 +47,7 @@ function usage()
 scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
-UTILS=$scripts/ubiquity_utils.sh
+UTILS=$scripts/ubiquity_lib.sh
 flex_conf="ubiquity-k8s-flex.conf"
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
@@ -86,14 +75,22 @@ done
 nsf="--namespace ${NS}" # namespace flag for kubectl command
 
 kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
-echo "Uninstall Ubiquity from namespace [$NS]..."
 
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 [ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
-kubectl get namespace $NS >/dev/null 2>&1 || { echo "[$NS] namespace not exist. Stop the uninstall process."; exit 3; }
+kubectl get namespace $NS >/dev/null 2>&1 || { echo "Error: [$NS] namespace not exist. Stop the uninstall process."; exit 3; }
 
 . $UTILS # include utils for wait function and status
+
+
+echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components, including ubiquity-db, credentials and namespace."
+read -p "Are you sure (y/n): " yn
+if [ "$yn" != "y" ]; then
+   echo "Skip uninstall."
+   exit 0
+fi
+echo "Start to uninstall \"$PRODUCT_NAME\" from namespace [$NS]..."
 
 # First phase : delete the ubiquity-db deployment and ubiquity-db-pvc before deleting ubiquity and provisioner.
 if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
@@ -119,10 +116,13 @@ $kubectl_delete -f $YML_DIR/ubiquity-k8s-flex-daemonset.yml
 $kubectl_delete configmap $flex_conf
 
 $kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
+$kubectl_delete -f ${YML_DIR}/../ubiquity-configmap.yml
+$kubectl_delete -f ${YML_DIR}/../scbe-credentials.yml
+$kubectl_delete -f ${YML_DIR}/../ubiquity-db-credentials.yml
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 
-
-echo "Ubiquity uninstall finished."
+echo ""
+echo "\"$PRODUCT_NAME\" uninstall finished."
 

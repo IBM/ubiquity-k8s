@@ -44,6 +44,11 @@ if [ -n "$UBIQUITY_PLUGIN_SSL_MODE" ]; then
    # Note: SslMode in the config file is by default verify-full
 fi
 
+if [ -n "$LOG_LEVEL" ]; then
+    echo "Update \"logLevel\" in config file based on environment LOG_LEVEL"
+    sed -i "s/^logLevel =.*/logLevel = \"$LOG_LEVEL\"/" ${FLEX_TMP}
+fi
+
 # Now ubiquity config file is ready with all the updates.
 mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
 
