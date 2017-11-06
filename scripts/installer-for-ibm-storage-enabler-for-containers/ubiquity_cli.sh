@@ -10,7 +10,7 @@
 #   2. Create ubiquity deployment
 #   3. Create ubiquity-k8s-provisioner deployment
 #   4. Create ubiquity-k8s-flex Daemonset
-#   4. Create ubiquity-db-deployment deployment  (last one because it uses PVC, so ubiquity must go up before)
+#   5. Create ubiquity-db-deployment deployment  (This step uses PVC, so ubiqiuty must be up and ready for it)
 #
 # "stop" action flow:
 #   1. Delete ubiquity-db-deployment deployment
