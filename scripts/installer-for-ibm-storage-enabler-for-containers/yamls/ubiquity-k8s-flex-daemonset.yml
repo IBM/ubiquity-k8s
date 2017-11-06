@@ -1,0 +1,76 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: ubiquity-k8s-flex
+  labels:
+    app: ubiquity-k8s-flex
+spec:
+  template:
+    metadata:
+      labels:
+        name: ubiquity-k8s-flex
+    spec:
+      tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: ubiquity-k8s-flex
+        image: UBIQUITY_K8S_FLEX_IMAGE # place holder
+        env:
+          - name: LOG_LEVEL       # debug / info / error
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: LOG-LEVEL
+
+          - name: UBIQUITY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: username
+
+          - name: UBIQUITY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
+
+          - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SSL-MODE
+
+        imagePullPolicy: Always
+        command: ["./setup_flex.sh"]
+        volumeMounts:
+        - name: host-k8splugindir
+          mountPath: /mnt/flex
+        - name: host-etc-ubiquity
+          mountPath: /etc/ubiquity
+        - name: ubiquity-k8s-flex-conf
+          mountPath: /mnt/ubiquity-k8s-flex-conf
+# Certificate Set : use the below volumeMounts only if predefine certificate given
+# Cert #        - name: ubiquity-public-certificates
+# Cert #          mountPath: /var/lib/ubiquity/ssl/public
+# Cert #          readOnly: true
+
+      volumes:
+      - name: host-k8splugindir
+        hostPath:
+          path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
+      - name: host-etc-ubiquity
+        hostPath:
+          path: /etc/ubiquity  # This directory must exist on the host
+      - name: ubiquity-k8s-flex-conf
+        configMap:
+          name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file
+# Certificate Set : use the below volumes only if predefine certificate given
+# Cert #      - name: ubiquity-public-certificates
+# Cert #        configMap:
+# Cert #          name: ubiquity-public-certificates
+# Cert #          items:
+# Cert #            - key: ubiquity-trusted-ca.crt
+# Cert #              path: ubiquity-trusted-ca.crt
+
+#      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
