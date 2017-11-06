@@ -10,7 +10,6 @@ MNT_FLEX=/mnt/flex  # Assume the host-path to the kubelet-plugins directory is m
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 FLEX_CONF_PATH=/mnt/ubiquity-k8s-flex-conf/${FLEX_CONF}  # The conf file to copy to the host
-ETC_UBIQUITY=/etc/ubiquity  # mount point in the container for /etc/ubiquity in the host
 
 if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
   echo "Creating the flex driver directory [$DRIVER] for the first time."
@@ -22,8 +21,8 @@ echo "Copying the flex driver ~/$DRIVER into ${MNT_FLEX_DRIVER_DIR} directory"
 cp ~/$DRIVER "${MNT_FLEX_DRIVER_DIR}/.$DRIVER"
 mv -f "${MNT_FLEX_DRIVER_DIR}/.$DRIVER" "${MNT_FLEX_DRIVER_DIR}/$DRIVER"
 
-echo "Copying the flex config file ${FLEX_CONF_PATH} to ${ETC_UBIQUITY}/${FLEX_CONF}"
-FLEX_TMP="${ETC_UBIQUITY}/.${FLEX_CONF}"
+echo "Copying the flex config file ${FLEX_CONF_PATH} to ${MNT_FLEX_DRIVER_DIR}/${FLEX_CONF}"
+FLEX_TMP="${MNT_FLEX_DRIVER_DIR}/.${FLEX_CONF}"
 cp ${FLEX_CONF_PATH} ${FLEX_TMP}
 if [ -n "$UBIQUITY_USERNAME" ]; then
     echo "Update \"username\" in config file based on environment UBIQUITY_USERNAME"
@@ -50,17 +49,17 @@ if [ -n "$LOG_LEVEL" ]; then
 fi
 
 # Now ubiquity config file is ready with all the updates.
-mv -f ${FLEX_TMP} ${ETC_UBIQUITY}/${FLEX_CONF}
+mv -f ${FLEX_TMP} ${MNT_FLEX_DRIVER_DIR}/${FLEX_CONF}
 
 if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
    if [ -f "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
-       echo "Copy the ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${ETC_UBIQUITY}"
-       cp $UBIQUITY_PLUGIN_VERIFY_CA ${ETC_UBIQUITY}
+       echo "Copy the ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${MNT_FLEX_DRIVER_DIR}"
+       cp $UBIQUITY_PLUGIN_VERIFY_CA ${MNT_FLEX_DRIVER_DIR}
    else
-       echo "The ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA file does not exist, so cannot copy it to ${ETC_UBIQUITY}"
+       echo "The ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA file does not exist, so cannot copy it to ${MNT_FLEX_DRIVER_DIR}"
    fi
 else
-       echo "The ubiquity public certificate ENV UBIQUITY_PLUGIN_VERIFY_CA is empty, so cannot copy the certificate to ${ETC_UBIQUITY}"
+       echo "The ubiquity public certificate ENV UBIQUITY_PLUGIN_VERIFY_CA is empty, so cannot copy the certificate to ${MNT_FLEX_DRIVER_DIR}"
 fi
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"

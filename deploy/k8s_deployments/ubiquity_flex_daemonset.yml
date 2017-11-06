@@ -1,3 +1,5 @@
+# NOTE : This script is obsolete - go to scripts/installer-for-ibm-storage-enabler-for-containers
+
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -19,16 +21,11 @@ spec:
         - name: host-k8splugindir
           mountPath: /mnt/flex
         - name: host-etc-ubiquity
-          mountPath: /etc/ubiquity
-        - name: ubiquity-k8s-flex-conf
           mountPath: /mnt/ubiquity-k8s-flex-conf
       volumes:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
-      - name: host-etc-ubiquity
-        hostPath:
-          path: /etc/ubiquity
       - name: ubiquity-k8s-flex-conf
         configMap:
           name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file
