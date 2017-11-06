@@ -17,10 +17,10 @@
 #       2.2. MANUEL operation: creates a dedicated certificates for ubiquity, ubiquity-db and SCBE. (not responsibility of this script)
 #       2.3. Generate kubernetes secrets that will holds the certificates created in #2.2 step, by running the command:
 #           $> ./ubiquity_installer.sh -s create-secrets-for-certificates -t <certificates-directory>
-
+#
 #  3. Update the ymls with the key=values from the ubiquity.config file, by running the command:
 #    $> ./ubiquity_installer.sh -s update-ymls -c ubiquity.config
-
+#
 # Installation:
 #  1. Install the solution (without ubiquity-db):
 #    $> ./ubiquity_installer.sh -s install -k <k8s-config-file>
