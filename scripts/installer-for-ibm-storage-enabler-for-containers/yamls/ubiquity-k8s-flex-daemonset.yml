@@ -10,6 +10,9 @@ spec:
       labels:
         name: ubiquity-k8s-flex
     spec:
+      tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
       containers:
       - name: ubiquity-k8s-flex
         image: UBIQUITY_K8S_FLEX_IMAGE # place holder
