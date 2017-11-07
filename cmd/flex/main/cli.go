@@ -39,7 +39,7 @@ import (
 var configFile = flag.String(
 	"configFile",
 	k8sresources.FlexConfPath,
-	"config file with ubiquity client configuration params",
+	"Flex Volume configuration file",
 )
 
 // All the method should printout as response:
