@@ -38,7 +38,7 @@ import (
 
 var configFile = flag.String(
 	"configFile",
-	k8sresources.FlexLogFilePath,
+	k8sresources.FlexConfPath,
 	"config file with ubiquity client configuration params",
 )
 
