@@ -46,8 +46,6 @@ spec:
         volumeMounts:
         - name: host-k8splugindir
           mountPath: /mnt/flex
-        - name: host-etc-ubiquity
-          mountPath: /etc/ubiquity
         - name: ubiquity-k8s-flex-conf
           mountPath: /mnt/ubiquity-k8s-flex-conf
 # Certificate Set : use the below volumeMounts only if predefine certificate given
@@ -59,9 +57,6 @@ spec:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
-      - name: host-etc-ubiquity
-        hostPath:
-          path: /etc/ubiquity  # This directory must exist on the host
       - name: ubiquity-k8s-flex-conf
         configMap:
           name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file

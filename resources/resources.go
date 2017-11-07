@@ -13,6 +13,9 @@ const UbiquityFlexLogFileName = UbiquityK8sFlexVolumeDriverName + ".log"
 
 const UbiquityProvisionerName = "ubiquity-k8s-provisioner"
 const UbiquityProvisionerLogFileName = UbiquityProvisionerName + ".log"
+const FlexDir = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/" + UbiquityK8sFlexVolumeDriverVendor + "~" + UbiquityK8sFlexVolumeDriverName
+const FlexLogFilePath = FlexDir + "/" + UbiquityFlexLogFileName
+const FlexConfPath = FlexDir + "/" + UbiquityK8sFlexVolumeDriverName + ".conf"
 
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`
