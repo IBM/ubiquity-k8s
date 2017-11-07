@@ -64,12 +64,11 @@ else
 fi
 
 
-
+# Run a tail -f on the flex log file (which locate on the host), so it will be visible by running kubectl logs <flex POD>
+tail -F /var/tmp/ubiquity-k8s-flex.log &
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]"
 while : ; do
-  # Run a tail -f on the flex log file (which locate on the host), so it will be visible by running kubectl logs <flex POD>
   # TODO change to the new location later on : /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex.log &
-  tail -F /var/tmp/ubiquity-k8s-flex.log &
   sleep 86400 # every 24 hours
   echo "Start ubiquity logrotate"
   /usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
