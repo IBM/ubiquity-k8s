@@ -1,6 +1,6 @@
 /var/tmp/ubiquity-k8s-flex.log {
     su root root
-    size 1M
+    size 50M
     daily
     rotate 5
     copytruncate 
