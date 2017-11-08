@@ -31,13 +31,15 @@ import (
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
+	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/utils/logs"
+	"strconv"
 )
 
 var configFile = flag.String(
 	"configFile",
-	"/etc/ubiquity/ubiquity-k8s-flex.conf",
-	"config file with ubiquity client configuration params",
+	k8sresources.FlexConfPath,
+	"Flex Volume configuration file",
 )
 
 // All the method should printout as response:
@@ -63,6 +65,12 @@ func (i *InitCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
+
+	err = os.MkdirAll(config.LogPath, 0640)
+	if err != nil {
+		panic(fmt.Errorf("Failed to setup log dir"))
+	}
+
 	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	if err != nil {
@@ -498,6 +506,32 @@ func (u *UnmountCommand) Execute(args []string) error {
 	return printResponse(unmountResponse)
 }
 
+type TestUbiquityCommand struct {
+	Test func() `short:"i" long:"init" description:"Initialize the plugin"`
+}
+
+func (i *TestUbiquityCommand) Execute(args []string) error {
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in Test Ubiquity %#v", err),
+		}
+		return printResponse(response)
+	}
+	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	controller, err := createController(config)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to create controller %#v", err),
+		}
+		return printResponse(response)
+	}
+	response := controller.TestUbiquity(config)
+	return printResponse(response)
+}
+
 type Options struct{}
 
 func main() {
@@ -511,6 +545,7 @@ func main() {
 	var waitForAttachCommand WaitForAttachCommand
 	var mountDeviceCommand MountDeviceCommand
 	var unmountDeviceCommand UnmountDeviceCommand
+	var testUbiquityCommand TestUbiquityCommand
 
 	var options Options
 	var parser = flags.NewParser(&options, flags.Default)
@@ -555,6 +590,10 @@ func main() {
 		"Unmount Device",
 		"Unmount Device",
 		&unmountDeviceCommand)
+	parser.AddCommand("testubiquity",
+		"Tests connectivity to ubiquity",
+		"Tests connectivity to ubiquity",
+		&testUbiquityCommand)
 
 	_, err := parser.Parse()
 	if err != nil {
@@ -568,8 +607,7 @@ func createController(config resources.UbiquityPluginConfig) (*controller.Contro
 	logger, _ := setupLogger(config.LogPath)
 	//defer closeLogs(logFile)
 
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := controller.NewController(logger, storageApiURL, config)
+	controller, err := controller.NewController(logger, config)
 	return controller, err
 }
 
@@ -580,6 +618,10 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 		return resources.UbiquityPluginConfig{}, err
 
 	}
+	// Create environment variables for some of the config params
+	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
+	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }
 

@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+# Settings for Ubiquity deployment
+  name: ubiquity-configmap
+data:
+   # SCBE server IP or FQDN.
+   SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
+
+   # SCBE server port. Optional parameter. Default is 8440.
+   SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
+
+   # SCBE storage service to be used by default, if not specified by the plugin.
+   SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
+
+   # Optional parameter. Default is 1GB. The size for a new volume if not specified by the user when creating a new volume.
+   DEFAULT-VOLUME-SIZE: "1"
+
+   # A prefix for any new volume created on the storage system. Default is none.
+   UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
+
+   # Optional parameter. Default is ext4. Possible values are ext4 or xfs.
+   DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
+
+   # The keys below are used also by: ubiquity-db, ubiquity-k8s-provisioner and ubiquity-k8s-flex (daemon-set)
+   # -----------------------------------------------
+
+   # Values : debug / info / error
+   LOG-LEVEL: "LOG_LEVEL_VALUE"
+
+   # Values : require/verify-full
+   SSL-MODE: "SSL_MODE_VALUE"

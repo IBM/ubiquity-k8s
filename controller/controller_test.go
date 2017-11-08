@@ -17,14 +17,14 @@
 package controller_test
 
 import (
-	"fmt"
+//	"fmt"
 	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	ctl "github.com/IBM/ubiquity-k8s/controller"
-	k8sresources "github.com/IBM/ubiquity-k8s/resources"
+//	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
 )
@@ -106,6 +106,7 @@ var _ = Describe("Controller", func() {
 		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
 		//	})
 	})
+	/*
 	Context(".Mount", func() {
 		AfterEach(func() {
 
@@ -263,6 +264,6 @@ var _ = Describe("Controller", func() {
 			Expect(detachRequest.Name).To(Equal("pvname"))
 			Expect(fakeExec.RemoveCallCount()).To(Equal(1))
 		})
-
 	})
+	*/
 })
