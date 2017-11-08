@@ -68,6 +68,7 @@ fi
 tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
 
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]."
+
 while : ; do
   sleep 86400 # every 24 hours
   /usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
