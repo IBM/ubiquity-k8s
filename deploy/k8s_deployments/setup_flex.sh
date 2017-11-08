@@ -62,7 +62,13 @@ else
        echo "The ubiquity server certificate will not be verified. (UBIQUITY_PLUGIN_VERIFY_CA environmnet variable does not exist)"
 fi
 
+
+# Run a tail -F on the flex log file (which locate on the host), so it will be visible by running kubectl logs <flex POD>
+tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
+
 echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]."
+
 while : ; do
-  sleep 3600
+  sleep 86400 # every 24 hours
+  /usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
 done
