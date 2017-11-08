@@ -38,8 +38,8 @@ import (
 
 var configFile = flag.String(
 	"configFile",
-	"/etc/ubiquity/ubiquity-k8s-flex.conf",
-	"config file with ubiquity client configuration params",
+	k8sresources.FlexConfPath,
+	"Flex Volume configuration file",
 )
 
 // All the method should printout as response:

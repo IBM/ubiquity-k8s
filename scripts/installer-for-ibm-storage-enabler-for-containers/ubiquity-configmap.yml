@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-# Setting for Ubiquity deployment
+# Settings for Ubiquity deployment
   name: ubiquity-configmap
 data:
    # SCBE server IP or FQDN.
@@ -14,7 +14,7 @@ data:
    SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
 
    # Optional parameter. Default is 1GB. The size for a new volume if not specified by the user when creating a new volume.
-   DEFAULT-VOLUME-SIZE: "2"
+   DEFAULT-VOLUME-SIZE: "1"
 
    # A prefix for any new volume created on the storage system. Default is none.
    UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
