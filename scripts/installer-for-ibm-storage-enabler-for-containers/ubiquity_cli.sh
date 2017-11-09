@@ -126,7 +126,7 @@ function status()
     kubectl get $flags  storageclass | egrep "ubiquity|^NAME" || rc=$?
     echo ""
 
-    cmd="kubectl get $nsf $flags secret/ubiquity-db-credentials secret/scbe-credentials cm/k8s-config cm/ubiquity-k8s-flex.conf cm/ubiquity-configmap pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
+    cmd="kubectl get $nsf $flags secret/ubiquity-db-credentials secret/scbe-credentials cm/k8s-config cm/ubiquity-configmap pv/ibm-ubiquity-db pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
     echo $cmd
     echo '---------------------------------------------------------------------'
     $cmd  || rc=$?
