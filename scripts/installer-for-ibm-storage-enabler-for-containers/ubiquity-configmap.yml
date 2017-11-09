@@ -42,4 +42,4 @@ data:
    UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
 
    # Values: true or false. Choose true if the nodes have only FC connectivity.
-   SKIP-RESCAN-ISCSI: SKIP_RESCAN_ISCSI_VALUE
+   SKIP-RESCAN-ISCSI: "SKIP_RESCAN_ISCSI_VALUE"

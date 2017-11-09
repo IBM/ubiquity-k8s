@@ -389,11 +389,10 @@ function create_configmap_and_credentials_secrets()
            echo "       Review $> kubectl get $nsf svc/ubiquity"
            exit 4
         fi
-
         echo "Update the UBIQUITY-IP-ADDRESS: ${ubiquity_service_ip} in the file [${YML_DIR}/../ubiquity-configmap.yml]"
         sed -i "s/UBIQUITY-IP-ADDRESS:\s*\".*\"/UBIQUITY-IP-ADDRESS: \"${ubiquity_service_ip}\"/" ${YML_DIR}/../ubiquity-configmap.yml
 
-        ${YML_DIR}/../ubiquity-configmap.yml
+        # Now create the configmap
         kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmap.yml
     else
        echo "ubiquity-configmap configmap already exist. (Skip creation)"

@@ -22,6 +22,7 @@ MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
+echo "Starting $DRIVER Pod [`date`]"
 # Create ibm flex directory and copy the flex binary
 # ------------------------------------------------------
 if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
@@ -51,6 +52,8 @@ function missing_env() { echo "Error: missing environment variable $1"; exit 1; 
 [ -z "$UBIQUITY_PORT" ] && UBIQUITY_PORT=9999 || :
 
 cat > $FLEX_TMP << EOF
+# This file was generated automatically by the $DRIVER Pod.
+
 logPath = "${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
 backends = ["scbe"]
 logLevel = "$LOG_LEVEL"
@@ -83,19 +86,20 @@ if [ -n "$UBIQUITY_PLUGIN_VERIFY_CA" ]; then
        echo "Copy the ubiquity public certificate $UBIQUITY_PLUGIN_VERIFY_CA to the host ${MNT_FLEX_DRIVER_DIR}."
        cp $UBIQUITY_PLUGIN_VERIFY_CA ${MNT_FLEX_DRIVER_DIR}
    else
-       echo "The ubiquity server certificate will not be verified. ($UBIQUITY_PLUGIN_VERIFY_CA file does not exist)"
+       echo "Attention: The ubiquity server certificate will not be verified. ($UBIQUITY_PLUGIN_VERIFY_CA file does not exist)"
    fi
 else
-       echo "The ubiquity server certificate will not be verified. (UBIQUITY_PLUGIN_VERIFY_CA environmnet variable does not exist)"
+       echo "Attention: The ubiquity server certificate will not be verified. (UBIQUITY_PLUGIN_VERIFY_CA environmnet variable does not exist)"
 fi
 
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
 echo ""
 echo ""
-echo "This Pod will handle log rotation for the flex log file on the host [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log]"
-echo "Running in the background the command tail -F <flex log>, so the flex log will be visible though kubectl logs <flex POD>"
-echo "[`date`] Start to run in background #> tail -F ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log"
+echo "This Pod will handle log rotation for the <flex log> on the host [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log]"
+echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
+echo "[`date`] Start to run in background #>"
+echo "tail -F ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log"
 echo "-----------------------------------------------"
 tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
 
