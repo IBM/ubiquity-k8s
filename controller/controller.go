@@ -181,7 +181,7 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", detachRequest}})
 
-	if c.isVersion15() {
+	if detachRequest.Version == k8sresources.KubernetesVersion_1_5 {
 		c.logger.Debug("legacy detach (skipping)")
 		response = k8sresources.FlexVolumeResponse{
 			Status: "Success",
@@ -622,20 +622,4 @@ func getHost(hostRequest string) string {
         return ""
     }
     return hostname
-}
-
-func (c *Controller) isVersion15() bool {
-	var err error
-	cmd := "kubectl"
-	args := []string{"version"}
-	if err = c.exec.IsExecutable(cmd); err != nil {
-		c.logger.Debug("failed", logs.Args{{"error", err}})
-		return false
-	}
-	out, err := c.exec.Execute(cmd, args)
-	outStr := string(out)
-	c.logger.Debug("", logs.Args{{"out", outStr}, {"err", err}})
-	isVersion15 := strings.HasPrefix(outStr, "Client Version: version.Info{Major:\"1\", Minor:\"5\"")
-	c.logger.Debug("", logs.Args{{"isVersion15", isVersion15}})
-	return isVersion15
 }
