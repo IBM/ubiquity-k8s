@@ -548,7 +548,7 @@ func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest
 	ubAttachRequest := resources.AttachRequest{Name: attachRequest.Name, Host: getHost(attachRequest.Host)}
 	_, err := c.Client.Attach(ubAttachRequest)
 	if err != nil {
-		return c.logger.ErrorRet(err, "Client.Activate failed")
+		return c.logger.ErrorRet(err, "Client.Attach failed")
 	}
 
 	return nil

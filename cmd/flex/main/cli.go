@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path"
 
@@ -32,6 +30,7 @@ import (
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"strconv"
 )
@@ -603,10 +602,7 @@ func main() {
 }
 
 func createController(config resources.UbiquityPluginConfig) (*controller.Controller, error) {
-
-	logger, _ := setupLogger(config.LogPath)
-	//defer closeLogs(logFile)
-
+	logger := utils.SetupOldLogger(k8sresources.UbiquityFlexLogFileName)
 	controller, err := controller.NewController(logger, config)
 	return controller, err
 }
@@ -623,22 +619,6 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
 	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
-}
-
-func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, k8sresources.UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
-	if err != nil {
-		fmt.Printf("Failed to setup logger: %s\n", err.Error())
-		return nil, nil
-	}
-	log.SetOutput(logFile)
-	logger := log.New(io.MultiWriter(logFile), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
-	return logger, logFile
-}
-
-func closeLogs(logFile *os.File) {
-	logFile.Sync()
-	logFile.Close()
 }
 
 func printResponse(f k8sresources.FlexVolumeResponse) error {

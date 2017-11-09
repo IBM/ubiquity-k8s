@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"path"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	k8sutils "github.com/IBM/ubiquity-k8s/utils"
@@ -52,9 +51,8 @@ func main() {
 		panic(fmt.Errorf("Failed to setup log dir"))
 	}
 
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerLogFileName))()
-	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerName)
-	defer utils.CloseLogs(logFile)
+	defer logs.InitStdoutLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel))()
+	logger := utils.SetupOldLogger(k8sresources.UbiquityProvisionerName)
 
 	logger.Printf("Provisioner %s specified", provisioner)
 
