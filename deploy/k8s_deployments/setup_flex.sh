@@ -10,6 +10,7 @@ MNT_FLEX=/mnt/flex  # Assume the host-path to the kubelet-plugins directory is m
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 FLEX_CONF_PATH=/mnt/ubiquity-k8s-flex-conf/${FLEX_CONF}  # The conf file to copy to the host
+HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/
 
 if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
   echo "Creating the flex driver directory [$DRIVER] for the first time."
@@ -62,11 +63,15 @@ else
        echo "The ubiquity server certificate will not be verified. (UBIQUITY_PLUGIN_VERIFY_CA environmnet variable does not exist)"
 fi
 
-
-# Run a tail -F on the flex log file (which locate on the host), so it will be visible by running kubectl logs <flex POD>
+echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}"
+echo ""
+echo ""
+echo "This Pod will handle automatically the log rotation of the flex log file on the host [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log]"
+echo "Running in the background the command tail -F <flex log>, so the flex log will be visible though kubectl logs <flex POD>"
+echo "[`date`] Start to run in background #> tail -F ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log"
+echo "-----------------------------------------------"
 tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
 
-echo "Finished to copy the flex driver [$DRIVER] and a config file [${FLEX_CONF}]."
 
 while : ; do
   sleep 86400 # every 24 hours
