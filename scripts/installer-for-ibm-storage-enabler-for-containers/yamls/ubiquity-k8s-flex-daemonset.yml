@@ -11,6 +11,10 @@ spec:
         name: ubiquity-k8s-flex
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+#      - key: dedicated
+#        operator: Equal
+#        value: master
+#        effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       containers:
@@ -19,6 +23,9 @@ spec:
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
+
+          - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
+            value: "scbe"
 
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
@@ -62,7 +69,7 @@ spec:
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: host-k8splugindir
-          mountPath: /mnt/flex
+          mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public

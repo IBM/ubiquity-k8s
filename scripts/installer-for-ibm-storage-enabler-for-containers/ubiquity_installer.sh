@@ -151,16 +151,31 @@ function install()
 
     echo "Deploy flex driver as a daemonset on all nodes and all masters.  (The daemonset will use the ubiquity service IP)"
     kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
-    # TODO need to wait for daemon set creation to complete
+    wait_for_daemonset ubiquity-k8s-flex 20 3 $NS
+
+    daemonset_desiredNumberScheduled="$(get_daemonset_desiredNumberScheduled ubiquity-k8s-flex $NS)"
+    number_of_nodes=`kubectl get nodes| awk '$2 ~/Ready/' | wc -l`
+    flex_missing=false
+    if [ "$daemonset_desiredNumberScheduled" != "$number_of_nodes" ]; then
+        echo ""
+        echo "*WARNING*: "
+        echo "   ubiquity-k8s-flex daemonset pod MUST run on each node and master in the cluster."
+        echo "   But it run only on $daemonset_desiredNumberScheduled from $number_of_nodes nodes(and masters in the cluster)."
+        flex_missing=true
+    fi
+
+
 
     if [ "${to_deploy_ubiquity_db}" == "true" ]; then
         create-ubiquity-db
     else
         echo ""
         echo "\"$PRODUCT_NAME\" installation finished, but its NOT ready yet."
-        echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
-        echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
-        echo "                Note : View ubiquity status by $> ./ubiquity_cli.sh -a status -n $NS"
+        echo "  You must do : "
+        [ "$flex_missing" = "true" ] && echo "     (0) ubiquity-k8s-flex daemonset pod MUST run on all nodes including all masters (Check why it does NOT)."
+        echo "     (1) Manually restart kubelet service on all minions to reload the new flex driver"
+        echo "     (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
+        echo "     Note : View ubiquity status by $> ./ubiquity_cli.sh -a status -n $NS"
         echo ""
     fi
 }
@@ -278,7 +293,9 @@ function create-ubiquity-db()
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 40 5 $NS
     echo ""
-    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_cli.sh -a status -n $NS)"
+    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. "
+    echo "           - Get status      $> ./ubiquity_cli.sh -a status -n $NS"
+    echo "           - Run sanity test $> ./ubiquity_cli.sh -a sanity -n $NS"
 }
 
 # STEP function (certificates related)
