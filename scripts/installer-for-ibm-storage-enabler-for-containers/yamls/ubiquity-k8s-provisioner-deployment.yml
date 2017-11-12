@@ -23,7 +23,7 @@ spec:
             value: "1"
           - name: LOG_PATH         # provisioner log file directory
             value: "/tmp"
-          - name: BACKENDS         # used backends "spectrum-scale,spectrum-scale-nfs,scbe"
+          - name: BACKENDS         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
             value: "scbe"
 
           - name: LOG_LEVEL       # debug / info / error

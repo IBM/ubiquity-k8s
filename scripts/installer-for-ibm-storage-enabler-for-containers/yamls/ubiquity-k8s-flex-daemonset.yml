@@ -11,12 +11,22 @@ spec:
         name: ubiquity-k8s-flex
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+#      - key: dedicated
+#        operator: Equal
+#        value: master
+#        effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       containers:
       - name: ubiquity-k8s-flex
         image: UBIQUITY_K8S_FLEX_IMAGE # place holder
         env:
+          - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
+            value: "9999"
+
+          - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
+            value: "scbe"
+
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
               configMapKeyRef:
@@ -41,13 +51,25 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
+          - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: UBIQUITY-IP-ADDRESS
+
+          - name: SKIP_RESCAN_ISCSI       # boolean
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SKIP-RESCAN-ISCSI
+
+
+
         imagePullPolicy: Always
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: host-k8splugindir
-          mountPath: /mnt/flex
-        - name: ubiquity-k8s-flex-conf
-          mountPath: /mnt/ubiquity-k8s-flex-conf
+          mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -57,9 +79,6 @@ spec:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
-      - name: ubiquity-k8s-flex-conf
-        configMap:
-          name: ubiquity-k8s-flex.conf  # Contain ubiquity-k8s-flex.conf file
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:

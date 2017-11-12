@@ -27,9 +27,9 @@
 #    NOTE : <k8s-config-file> is needed for the ubiquity-k8s-provisioner to access the Kubernetes API server.
 #           k8s config file usually can be found ~/.kube/config or in /etc/kubernetes directory.
 #
-#  2. MANUEL operation : The user MUST manual restart the kubelet on all the minions, and then run #4
+#  2. MANUEL operation : The user MUST manual restart the kubelet on all the minions
 #
-#  3. Install the ubiquity-db after step #3 is ready (this is the ubiqutiy database deployment)
+#  3. Install the ubiquity-db
 #     $> ./ubiquity_installer.sh -s create-ubiquity-db
 #
 #
@@ -149,23 +149,33 @@ function install()
     echo "Waiting for ${pvname} PV to be created"
     wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3 $NS
 
-    # Create ${flex_conf} configmap with the ubiquity-service clusterIP
-    ubiquity_service_ip=`kubectl get $nsf svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
-    echo "Deploy flex driver as infinit daemonset, Its also copy the flex config file with the ubiquity service IP [$ubiquity_service_ip]"
-    flex_conf="ubiquity-k8s-flex.conf"
-    sed -i "s/address = .*/address = \"${ubiquity_service_ip}\"/"  ${YML_DIR}/${flex_conf}
-    kubectl create $nsf configmap ${flex_conf} --from-file ${YML_DIR}/${flex_conf}
-
+    echo "Deploy flex driver as a daemonset on all nodes and all masters.  (The daemonset will use the ubiquity service IP)"
     kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+    wait_for_daemonset ubiquity-k8s-flex 20 3 $NS
+
+    daemonset_desiredNumberScheduled="$(get_daemonset_desiredNumberScheduled ubiquity-k8s-flex $NS)"
+    number_of_nodes=`kubectl get nodes| awk '$2 ~/Ready/' | wc -l`
+    flex_missing=false
+    if [ "$daemonset_desiredNumberScheduled" != "$number_of_nodes" ]; then
+        echo ""
+        echo "*WARNING*: "
+        echo "   ubiquity-k8s-flex daemonset pod MUST run on each node and master in the cluster."
+        echo "   But it run only on $daemonset_desiredNumberScheduled from $number_of_nodes nodes(and masters in the cluster)."
+        flex_missing=true
+    fi
+
+
 
     if [ "${to_deploy_ubiquity_db}" == "true" ]; then
         create-ubiquity-db
     else
         echo ""
         echo "\"$PRODUCT_NAME\" installation finished, but its NOT ready yet."
-        echo "  You must do : (1) Manually restart kubelet service on all minions to reload the new flex driver"
-        echo "                (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
-        echo "                Note : View ubiquity status by $> ./ubiquity_cli.sh -a status -n $NS"
+        echo "  You must do : "
+        [ "$flex_missing" = "true" ] && echo "     (0) ubiquity-k8s-flex daemonset pod MUST run on all nodes including all masters (Check why it does NOT)."
+        echo "     (1) Manually restart kubelet service on all minions to reload the new flex driver"
+        echo "     (2) Deploy ubiquity-db by      $> $0 -s create-ubiquity-db -n $NS"
+        echo "     Note : View ubiquity status by $> ./ubiquity_cli.sh -a status -n $NS"
         echo ""
     fi
 }
@@ -202,6 +212,7 @@ function update-ymls()
     KEY_FILE_DICT['DEFAULT_FSTYPE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['LOG_LEVEL_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['SKIP_RESCAN_ISCSI_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_USERNAME_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['SCBE_PASSWORD_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['UBIQUITY_DB_USERNAME_VALUE']="${UBIQUITY_DB_CRED_YML}"
@@ -209,6 +220,7 @@ function update-ymls()
     KEY_FILE_DICT['STORAGE_CLASS_NAME_VALUE']="${FIRST_STORAGECLASS_YML} ${PVCS_USES_STORAGECLASS_YML}"
     KEY_FILE_DICT['STORAGE_CLASS_PROFILE_VALUE']="${FIRST_STORAGECLASS_YML}"
     KEY_FILE_DICT['STORAGE_CLASS_FSTYPE_VALUE']="${FIRST_STORAGECLASS_YML}"
+
 
    base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
    was_updated="false" # if nothing to update then exit with error
@@ -281,7 +293,9 @@ function create-ubiquity-db()
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 40 5 $NS
     echo ""
-    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. (To list ubiquity deployments run $> ./ubiquity_cli.sh -a status -n $NS)"
+    echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. "
+    echo "           - Get status      $> ./ubiquity_cli.sh -a status -n $NS"
+    echo "           - Run sanity test $> ./ubiquity_cli.sh -a sanity -n $NS"
 }
 
 # STEP function (certificates related)
@@ -386,6 +400,16 @@ function create_only_namespace_and_services()
 function create_configmap_and_credentials_secrets()
 {
     if ! kubectl get $nsf configmap ubiquity-configmap >/dev/null 2>&1; then
+        ubiquity_service_ip=`kubectl get $nsf svc/ubiquity -o=custom-columns=:.spec.clusterIP | tail -1`
+        if [ -z "$ubiquity_service_ip" ]; then
+           echo "Error: Missing ubiquity service IP. The installer cannot continue without the ubiqutiy service IP."
+           echo "       Review $> kubectl get $nsf svc/ubiquity"
+           exit 4
+        fi
+        echo "Update the UBIQUITY-IP-ADDRESS: ${ubiquity_service_ip} in the file [${YML_DIR}/../ubiquity-configmap.yml]"
+        sed -i "s/UBIQUITY-IP-ADDRESS:\s*\".*\"/UBIQUITY-IP-ADDRESS: \"${ubiquity_service_ip}\"/" ${YML_DIR}/../ubiquity-configmap.yml
+
+        # Now create the configmap
         kubectl create $nsf -f ${YML_DIR}/../ubiquity-configmap.yml
     else
        echo "ubiquity-configmap configmap already exist. (Skip creation)"

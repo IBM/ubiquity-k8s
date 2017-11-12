@@ -10,15 +10,14 @@
 #
 # Delete the following components by order:
 #   1. ubiquity-db deployment (wait for deletion)
-#   2. PVC for the UbiquityDB (wait for deletion of PVC and PV)
+#   2. PVC for the ibm-ubiquity-db (wait for deletion of PVC and PV)
 #   3. Storage class that match for the UbiquityDB PVC
-#   4. Ubiquity-k8s-provisioner deployment
+#   4. ubiquity-k8s-provisioner deployment
 #   5. k8s-config configmap
 #   6. ubiquity-k8s-flex daemonset
-#   7. $flex_conf configmap
-#   8. Ubiquity deployment
-#   9. Ubiquity service
-#   10.Ubiquity-db service
+#   7. ubiquity deployment
+#   8. ubiquity service
+#   9. ubiquity-db service
 #
 # Note : The script delete the flex daemon set but it does NOT delete the flex driver on the nodes.
 #        Its not mandatory to delete the flex driver.
@@ -48,7 +47,6 @@ scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 UTILS=$scripts/ubiquity_lib.sh
-flex_conf="ubiquity-k8s-flex.conf"
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 
@@ -113,7 +111,6 @@ $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-deployment.yml
 $kubectl_delete configmap ${K8S_CONFIGMAP_FOR_PROVISIONER}
 
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-flex-daemonset.yml
-$kubectl_delete configmap $flex_conf
 
 $kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
 $kubectl_delete -f ${YML_DIR}/../ubiquity-configmap.yml

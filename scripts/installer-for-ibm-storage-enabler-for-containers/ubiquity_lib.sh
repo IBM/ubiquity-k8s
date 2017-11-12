@@ -87,32 +87,43 @@ function add_yaml_delimiter()
 function stepinc() { S=`expr $S + 1`; }
 
 function get_generation() {
-  # Args : $1 object name, $2 namespace
-  get_deployment_jsonpath '{.metadata.generation}' $1 $2
+  # Args : $1 object type $2 object name, $3 namespace
+  get_object_jsonpath $1 '{.metadata.generation}' $2 $3
 }
 
 function get_observed_generation() {
-  # Args : $1 object name, $2 namespace
-  get_deployment_jsonpath '{.status.observedGeneration}' $1 $2
+  # Args : $1 object type $2 object name, $3 namespace
+  get_object_jsonpath $1 '{.status.observedGeneration}' $2 $3
 }
 
 function get_replicas() {
   # Args : $1 object name, $2 namespace
-  get_deployment_jsonpath '{.spec.replicas}' $1 $2
+  get_object_jsonpath deployment '{.spec.replicas}' $1 $2
 }
 
 function get_available_replicas() {
   # Args : $1 object name, $2 namespace
-  get_deployment_jsonpath '{.status.availableReplicas}' $1 $2
+  get_object_jsonpath deployment '{.status.availableReplicas}' $1 $2
 }
 
-function get_deployment_jsonpath() {
-  # Args : $1 jsonpath, $2 object name, $3 namespace
-  local _jsonpath="$1"
-  item="$2"
-  ns="$3"
+function get_daemonset_numberAvailable() {
+  # Args : $1 object name, $2 namespace
+  get_object_jsonpath daemonset '{.status.numberAvailable}' $1 $2
+}
 
-  kubectl get --namespace $ns deployment "$item" -o "jsonpath=${_jsonpath}"
+function get_daemonset_desiredNumberScheduled() {
+  # Args : $1 object name, $2 namespace
+  get_object_jsonpath daemonset '{.status.desiredNumberScheduled}' $1 $2
+}
+
+function get_object_jsonpath() {
+  # Args : $1 jsonpath, $2 object name, $3 namespace
+  item_type="$1"
+  local _jsonpath="$2"
+  item="$3"
+  ns="$4"
+
+  kubectl get --namespace $ns $item_type "$item" -o "jsonpath=${_jsonpath}"
 }
 
 # e.g : wait_for_deployment ubiquity-db 3 10 ubiquity
@@ -139,14 +150,14 @@ function wait_for_deployment(){
       fi
     done
 
-    generation=$(get_generation $item_name $ns)
-    while [[ $(get_observed_generation $item_name $ns) -lt ${generation} ]]; do
+    generation=$(get_generation deployment $item_name $ns)
+    while [[ $(get_observed_generation deployment $item_name $ns) -lt ${generation} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
+          echo "${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
           retries=`expr $retries - 1`
           sleep $delay;
       fi
@@ -174,6 +185,66 @@ function wait_for_deployment(){
     echo "${item_type} [${item_name}] reached to expected replicas ${replicas}"
 }
 
+
+# e.g : wait_for_deployment ubiquity-db 3 10 ubiquity
+function wait_for_daemonset(){
+  # Args : $1 object type, $2 object name, $3 retries,
+  #        $4 max retries, $5 delay between retries, $6 namespace
+  item_type=daemonset
+  item_name=$1
+  retries=$2
+  max_retries=$2
+  delay=$3
+  ns=$4
+  echo "Waiting for daemonset [${item_name}] to be created..."
+
+    while ! kubectl get --namespace $ns daemonset $item_name > /dev/null 2>&1; do
+       if [ "$retries" -eq 0 ]; then
+          echo "Error: ${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
+          exit 2
+      else
+          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+
+    generation=$(get_generation daemonset $item_name $ns)
+    while [[ $(get_observed_generation daemonset $item_name $ns) -lt ${generation} ]]; do
+      if [ "$retries" -eq 0 ]; then
+          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
+          exit 2
+      else
+          echo "${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+    echo "${item_type} [${item_name}] reached to expected generation ${generation}"
+
+    replicas="$(get_daemonset_desiredNumberScheduled $item_name $ns)"
+
+    available=$(get_daemonset_numberAvailable $item_name $ns)
+    [ -z "$available" ] && available=0
+    while [[ ${available} -ne ${replicas} ]]; do
+      if [ "$retries" -eq 0 ]; then
+          echo "Error: ${item_type} [${item_name}] available Pods ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
+          exit 2
+      else
+          echo "${item_type} [${item_name}] available Pods ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
+          available=$(get_daemonset_numberAvailable $item_name $ns)
+          [ -z "$available" ] && available=0
+          retries=`expr $retries - 1`
+          sleep $delay;
+      fi
+    done
+
+    echo "${item_type} [${item_name}] reached to expected available ${replicas}"
+}
+
 # e.g : is_deployment_ok ubiquity-db ubiquity
 function is_deployment_ok(){
   # --------------------------------------------------------
@@ -186,7 +257,7 @@ function is_deployment_ok(){
 
   kubectl get --namespace $ns deployment $item_name >/dev/null 2>&1 || return 1 # not exist
 
-  [[ $(get_observed_generation $item_name $ns) -lt $(get_generation $item_name $ns) ]] && return 2 # observed_generation not meet
+  [[ $(get_observed_generation deployment $item_name $ns) -lt $(get_generation deployment $item_name $ns) ]] && return 2 # observed_generation not meet
 
   replicas="$(get_replicas $item_name $ns)"
   available=$(get_available_replicas $item_name $ns)

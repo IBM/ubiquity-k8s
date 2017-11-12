@@ -1,9 +1,11 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-# Settings for Ubiquity deployment
+# Settings for IBM Storage Enabler for Container
   name: ubiquity-configmap
 data:
+   # The keys below are used by: ubiquity deployment
+   # -----------------------------------------------
    # SCBE server IP or FQDN.
    SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
 
@@ -22,11 +24,22 @@ data:
    # Optional parameter. Default is ext4. Possible values are ext4 or xfs.
    DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
 
-   # The keys below are used also by: ubiquity-db, ubiquity-k8s-provisioner and ubiquity-k8s-flex (daemon-set)
-   # -----------------------------------------------
 
+   # The keys below are used by the following deployments: ubiquity, ubiquity-db, ubiquity-k8s-provisioner and by ubiquity-k8s-flex daemon-set
+   # -----------------------------------------------------------------------------------------------------------------------------------------
    # Values : debug / info / error
    LOG-LEVEL: "LOG_LEVEL_VALUE"
 
    # Values : require/verify-full
    SSL-MODE: "SSL_MODE_VALUE"
+
+
+   # The key below is used by ubiquity-k8s-flex daemon-set
+   # ----------------------------------------------------------
+
+   # The IP address of the ubiquity service. The ubiquity_installer.sh automatically update this field for the first installation process.
+   # User must update this key manually if the ubiqutiy service IP was changed.
+   UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
+
+   # Values: true or false. Choose true if the nodes have only FC connectivity.
+   SKIP-RESCAN-ISCSI: "SKIP_RESCAN_ISCSI_VALUE"

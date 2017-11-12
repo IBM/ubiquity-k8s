@@ -90,7 +90,7 @@ spec:
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-          - name: DEFAULT_BACKEND   # Ubiquity works with IBM Spectrum Control Base Edition (scbe backend name inside Ubiquity)
+          - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
             value: "scbe"
 
 
