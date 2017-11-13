@@ -11,10 +11,10 @@ spec:
         name: ubiquity-k8s-flex
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
-#      - key: dedicated
-#        operator: Equal
-#        value: master
-#        effect: NoSchedule
+      - key: dedicated
+        operator: Equal
+        value: master
+        effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       containers:
