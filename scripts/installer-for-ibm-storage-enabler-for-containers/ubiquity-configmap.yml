@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
 # Settings for IBM Storage Enabler for Container
   name: ubiquity-configmap
+  labels:
+    product: ibm-storage-enabler-for-containers
 data:
    # The keys below are used by: ubiquity deployment
    # -----------------------------------------------

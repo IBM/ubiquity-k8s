@@ -2,12 +2,15 @@ apiVersion: "extensions/v1beta1"
 kind: Deployment
 metadata:
   name: ubiquity-db
+  labels:
+    product: ibm-storage-enabler-for-containers
 spec:
   replicas: 1
   template:
     metadata:
       labels:
         app: ubiquity-db
+        product: ibm-storage-enabler-for-containers
     spec:
       containers:
       - name: ubiquity-db

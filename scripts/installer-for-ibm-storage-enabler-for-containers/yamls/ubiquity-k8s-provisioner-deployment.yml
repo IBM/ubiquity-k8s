@@ -2,12 +2,15 @@ apiVersion: "extensions/v1beta1"
 kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
+  labels:
+    product: ibm-storage-enabler-for-containers
 spec:
   replicas: 1
   template:
     metadata:
       labels:
         app: ubiquity-k8s-provisioner
+        product: ibm-storage-enabler-for-containers
     spec:
       containers:
       - name: ubiquity-k8s-provisioner

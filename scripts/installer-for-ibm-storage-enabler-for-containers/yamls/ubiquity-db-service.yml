@@ -4,6 +4,7 @@ metadata:
   name: ubiquity-db
   labels:
     app: ubiquity-db
+    product: ibm-storage-enabler-for-containers
 spec:
   ports:
     - port: 5432

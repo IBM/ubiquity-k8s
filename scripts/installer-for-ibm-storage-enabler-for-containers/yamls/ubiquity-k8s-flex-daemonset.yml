@@ -4,11 +4,13 @@ metadata:
   name: ubiquity-k8s-flex
   labels:
     app: ubiquity-k8s-flex
+    product: ibm-storage-enabler-for-containers
 spec:
   template:
     metadata:
       labels:
         name: ubiquity-k8s-flex
+        product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
 #      - key: dedicated
