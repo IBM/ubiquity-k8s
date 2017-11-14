@@ -569,8 +569,18 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 			return nil
 		}
 	}
+	host := detachRequest.Host
+	if host == "" {
+		// only when triggered during unmount
+		var err error
+		host, err = c.getHostAttached(detachRequest.Name)
+		if err != nil {
+			return c.logger.ErrorRet(err, "getHostAttached failed")
+		}
+	}
 
-	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: getHost(detachRequest.Host)}
+
+	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
 		return c.logger.ErrorRet(err, "failed")
@@ -588,20 +598,32 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 		return false, c.logger.ErrorRet(err, "failed")
 	}
 
-	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: volName}
-	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	attachTo, err := c.getHostAttached(volName)
 	if err != nil {
-		return false, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
-	}
-
-	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost]
-	if !ok {
-		return false, c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+		return false, c.logger.ErrorRet(err, "getHostAttached failed")
 	}
 
 	isAttached := isAttachedRequest.Host == attachTo
-	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"host", isAttachedRequest.Host}, {"attachTo", attachTo}, {"isAttached", isAttached}})
+	c.logger.Debug("", logs.Args{{"host", isAttachedRequest.Host}, {"attachTo", attachTo}, {"isAttached", isAttached}})
 	return isAttached, nil
+}
+
+func (c *Controller) getHostAttached(volName string) (string, error) {
+	defer c.logger.Trace(logs.DEBUG)()
+
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: volName}
+	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+	}
+
+	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
+	if !ok {
+		return "", c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+	}
+	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
+
+	return attachTo, nil
 }
 
 func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (resources.Volume, error) {
@@ -617,6 +639,8 @@ func getHost(hostRequest string) string {
     if hostRequest != "" {
         return hostRequest
     }
+    // Only in k8s 1.5 this os.Hostname will happened,
+    // because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
     hostname, err := os.Hostname()
     if err != nil {
         return ""
