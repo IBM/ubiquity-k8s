@@ -15,3 +15,6 @@ spec:
       persistentVolumeClaim:
         claimName: sanity-pvc
 
+#  nodeSelector:
+#     kubernetes.io/hostname: NODESELECTOR
+
