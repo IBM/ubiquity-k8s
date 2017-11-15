@@ -1,0 +1,8 @@
+/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex.log {
+    su root root
+    size 50M
+    daily
+    rotate 5
+    copytruncate 
+    create 0600 root root
+}

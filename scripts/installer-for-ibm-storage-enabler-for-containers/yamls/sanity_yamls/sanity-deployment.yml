@@ -1,0 +1,26 @@
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: sanity-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sanity-deployment
+    spec:
+      containers:
+      - name: container1
+        image: alpine:latest
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        volumeMounts:
+          - name: sanity-pvc
+            mountPath: "/data"
+      volumes:
+      - name: sanity-pvc
+        persistentVolumeClaim:
+          claimName: sanity-pvc
+
+#      nodeSelector:
+#        kubernetes.io/hostname: NODESELECTOR

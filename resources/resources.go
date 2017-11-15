@@ -2,7 +2,7 @@ package resources
 
 const KubernetesVersion_1_5 = "1.5"
 const KubernetesVersion_1_6OrLater = "atLeast1.6"
-
+const ProvisionerName = "ubiquity/flex"
 // This ubiquity flexvolume name must be part of the flexvol CLI directory and CLI name in the minions.
 // Here is template of the path:
 // /usr/libexec/kubernetes/kubelet-plugins/volume/exec/${UbiquityK8sFlexVolumeDriverVendor}~${UbiquityK8sFlexVolumeDriverName}/${UbiquityK8sFlexVolumeDriverName}
@@ -13,6 +13,9 @@ const UbiquityFlexLogFileName = UbiquityK8sFlexVolumeDriverName + ".log"
 
 const UbiquityProvisionerName = "ubiquity-k8s-provisioner"
 const UbiquityProvisionerLogFileName = UbiquityProvisionerName + ".log"
+const FlexDir = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/" + UbiquityK8sFlexVolumeDriverVendor + "~" + UbiquityK8sFlexVolumeDriverName
+const FlexLogFilePath = FlexDir + "/" + UbiquityFlexLogFileName
+const FlexConfPath = FlexDir + "/" + UbiquityK8sFlexVolumeDriverName + ".conf"
 
 type FlexVolumeResponse struct {
 	Status     string `json:"status"`

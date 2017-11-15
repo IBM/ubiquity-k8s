@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.7
+  - 1.9.1
 
 install:
   - sh scripts/run_glide_up
@@ -9,6 +9,7 @@ install:
   - sh scripts/build_provisioner
 
 script:
+  - sh scripts/run_glide_up
   - sh scripts/run_units.sh
 
 notifications:
