@@ -82,13 +82,23 @@ function test_flex_driver()
 {
     echo "Test the flex driver by running $> ${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity"
     testubiquity=`${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity 2>&1`
-    echo "$testubiquity"
+    flex_log=${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log
     if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
+       echo "$testubiquity"
        echo "Flex test passed Ok"
     else
        # Flex cli is not working, so print latest logs and exit with error.
-       tail -40 ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log || :
+
+       if [ -f "$flex_log" ]; then
+           echo "Error: Flex test was failed."
+           echo "tail the flex log file $flex_log"
+           echo "-----------------------[ Start view flex log ] ------------"
+           tail -40 $flex_log || :
+           echo "-----------------------[ End of flex log ] ------------"
+       fi
        echo ""
+       echo "Flex test failed with the following error:"
+       echo "$testubiquity"
        echo "Error: Flex test was failed - Please check ubiquity_configmap parameters."
        exit 4
     fi

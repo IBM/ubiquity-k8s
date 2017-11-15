@@ -92,7 +92,7 @@ echo "Start to uninstall \"$PRODUCT_NAME\" from namespace [$NS]..."
 
 # First phase : delete the ubiquity-db deployment and ubiquity-db-pvc before deleting ubiquity and provisioner.
 if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
-    $kubectl_delete -f $YML_DIR/ubiquity-db-deployment.yml
+    $kubectl_delete -f $YML_DIR/${UBIQUITY_DB_DEPLOY_YML}
     echo "Wait for ubiquity-db deployment deletion..."
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS # to match the prefix of the pod
@@ -107,15 +107,15 @@ wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
 
 # Second phase : Delete all the stateless components
 $kubectl_delete -f ${YML_DIR}/storage-class.yml
-$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-deployment.yml
+$kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
 $kubectl_delete configmap ${K8S_CONFIGMAP_FOR_PROVISIONER}
 
-$kubectl_delete -f $YML_DIR/ubiquity-k8s-flex-daemonset.yml
+$kubectl_delete -f $YML_DIR/${UBIQUITY_FLEX_DAEMONSET_YML}
 
-$kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
+$kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
 $kubectl_delete -f ${YML_DIR}/../ubiquity-configmap.yml
-$kubectl_delete -f ${YML_DIR}/../scbe-credentials.yml
-$kubectl_delete -f ${YML_DIR}/../ubiquity-db-credentials.yml
+$kubectl_delete -f ${YML_DIR}/../${SCBE_CRED_YML}
+$kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
