@@ -10,7 +10,7 @@
 # How to Run the installer:
 # ==========================================
 # Preparations:
-#  1. MANUEL operation : update the ubiquity.config with the relevant VALUEs.
+#  1. MANUEL operation : update the ubiquity_installer.conf with the relevant VALUEs.
 #  2. Only for SSL_MODE=verify-full, you first need to run the following steps:
 #       2.1. If you need the IP of ubiquity to generate certificates then run this command:
 #           $> ./ubiquity_installer.sh -s create-services
@@ -18,8 +18,8 @@
 #       2.3. Generate kubernetes secrets that will holds the certificates created in #2.2 step, by running the command:
 #           $> ./ubiquity_installer.sh -s create-secrets-for-certificates -t <certificates-directory>
 #
-#  3. Update the ymls with the key=values from the ubiquity.config file, by running the command:
-#    $> ./ubiquity_installer.sh -s update-ymls -c ubiquity.config
+#  3. Update the ymls with the key=values from the ubiquity_installer.conf file, by running the command:
+#    $> ./ubiquity_installer.sh -s update-ymls -c ubiquity_installer.conf
 #
 # Installation:
 #  1. Install the solution (without ubiquity-db):
@@ -124,7 +124,7 @@ function install()
     create_only_namespace_and_services
     create_configmap_and_credentials_secrets
 
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_DEPLOY_YML}
     wait_for_deployment ubiquity 20 5 $NS
 
     echo "Creating ${K8S_CONFIGMAP_FOR_PROVISIONER} for ubiquity-k8s-provisioner from file [$KUBECONF]."
@@ -133,7 +133,7 @@ function install()
     else
         echo "Skip the creation of ${K8S_CONFIGMAP_FOR_PROVISIONER} configmap, because its already exist"
     fi
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML}
     wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
     # Create Storage class and PVC, then wait for PVC and PV creation
@@ -150,7 +150,7 @@ function install()
     wait_for_item pv $pvname ${PVC_GOOD_STATUS} 20 3 $NS
 
     echo "Deploy flex driver as a daemonset on all nodes and all masters.  (The daemonset will use the ubiquity service IP)"
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
     wait_for_daemonset ubiquity-k8s-flex 20 3 $NS
 
     daemonset_desiredNumberScheduled="$(get_daemonset_desiredNumberScheduled ubiquity-k8s-flex $NS)"
@@ -200,11 +200,13 @@ function update-ymls()
 
     # Prepare map of keys inside ${CONFIG_SED_FILE} and there associated yml file.
     UBIQUITY_CONFIGMAP_YML=ubiquity-configmap.yml
-    SCBE_CRED_YML=scbe-credentials.yml
-    UBIQUITY_DB_CRED_YML=ubiquity-db-credentials.yml
     FIRST_STORAGECLASS_YML=yamls/storage-class.yml
     PVCS_USES_STORAGECLASS_YML="ubiquiyt-db-pvc.yml sanity_yamls/sanity-pvc.yml"
     declare -A KEY_FILE_DICT
+    KEY_FILE_DICT['UBIQUITY_IMAGE']="${UBIQUITY_DEPLOY_YML}"
+    KEY_FILE_DICT['UBIQUITY_DB_IMAGE']="${UBIQUITY_DB_DEPLOY_YML}"
+    KEY_FILE_DICT['UBIQUITY_K8S_PROVISIONER_IMAGE']="${UBIQUITY_PROVISIONER_DEPLOY_YML}"
+    KEY_FILE_DICT['UBIQUITY_K8S_FLEX_IMAGE']="${UBIQUITY_FLEX_DAEMONSET_YML}"
     KEY_FILE_DICT['SCBE_MANAGEMENT_IP_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_MANAGEMENT_PORT_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_DEFAULT_SERVICE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
@@ -213,6 +215,7 @@ function update-ymls()
     KEY_FILE_DICT['LOG_LEVEL_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SKIP_RESCAN_ISCSI_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
+    KEY_FILE_DICT['DEFAULT_VOLUME_SIZE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_USERNAME_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['SCBE_PASSWORD_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['UBIQUITY_DB_USERNAME_VALUE']="${UBIQUITY_DB_CRED_YML}"
@@ -266,7 +269,7 @@ function update-ymls()
    fi
 
    if [ "$ssl_mode" = "verify-full" ]; then
-       ymls_to_updates="${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml ${YML_DIR}/ubiquity-deployment.yml ${YML_DIR}/ubiquity-db-deployment.yml"
+       ymls_to_updates="${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML} ${YML_DIR}/${UBIQUITY_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}"
 
        echo "Certificates updates related:"
        echo "  SSL_MODE_VALUE=verify-full, therefor updating ymls to enable dedicated certificates."
@@ -278,7 +281,6 @@ function update-ymls()
    fi
 
    echo "Finish to update yaml according to ${CONFIG_SED_FILE}"
-   echo ""
 }
 
 # STEP function
@@ -289,7 +291,7 @@ function create-ubiquity-db()
    ########################################################################
 
     echo "Creating ubiquity-db deployment... (Assume flex plugin was already loaded on all the nodes)"
-    kubectl create --namespace $NS -f ${YML_DIR}/ubiquity-db-deployment.yml
+    kubectl create --namespace $NS -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 40 5 $NS
     echo ""
@@ -415,13 +417,13 @@ function create_configmap_and_credentials_secrets()
        echo "ubiquity-configmap configmap already exist. (Skip creation)"
     fi
     if ! kubectl get $nsf secret scbe-credentials >/dev/null 2>&1; then
-        kubectl create $nsf -f ${YML_DIR}/../scbe-credentials.yml
+        kubectl create $nsf -f ${YML_DIR}/../${SCBE_CRED_YML}
     else
        echo "scbe-credentials secret already exist. (Skip creation)"
     fi
 
     if ! kubectl get $nsf secret ubiquity-db-credentials >/dev/null 2>&1; then
-        kubectl create $nsf -f ${YML_DIR}/../ubiquity-db-credentials.yml
+        kubectl create $nsf -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
     else
        echo "ubiquity-db-credentials secret already exist. (Skip creation)"
     fi

@@ -24,14 +24,12 @@
 
 function usage()
 {
-   echo "Usage, $0 -a [`echo $actions | sed 's/ /|/g'`] [-n <namespace>] [-h]"
+   echo "Usage, $0 -a [`echo ${actions_} | sed 's/ /|/g'`] [-n <namespace>] [-h]"
    echo " -a <action>"
    echo "   start      : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
    echo "   stop       : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
    echo "   status     : Display all ubiquity components"
-   echo "   statuswide : Display all ubiquity components (-o wide flag)"
-   echo "   getall     : Display related components on <namespace> and the default namespaces."
-   echo "   getallwide : getall with more details (-o wide)"
+   echo "   status_wide : Display all ubiquity components (-o wide flag)"
    echo "   collect_logs : Create a directory with all Ubiquity logs"
    echo "   sanity       : This is a sanity test - create and delete pvc and pod."
    echo " -n <namespace>  : Optional, by default its \"ubiquity\""
@@ -50,16 +48,16 @@ function start()
     echo "Make sure ${UBIQUITY_DB_PVC_NAME} exists and bound to PV (exit otherwise)..."
     wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2 $NS
 
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_DEPLOY_YML}
     wait_for_deployment ubiquity 20 5 $NS
 
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML}
     wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
-    kubectl create $nsf -f ${YML_DIR}/ubiquity-db-deployment.yml
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
+    kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     wait_for_deployment ubiquity-db 40 5 $NS
-    echo "Finished to start ubiquity components. Note : View ubiquity status by : $> $0 -a status -n $NS"
+    echo "Finished to start ubiquity components successfully. Note : View ubiquity status by : $> $0 -a status -n $NS"
 }
 
 function stop()
@@ -67,15 +65,15 @@ function stop()
     kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
 
     # TODO Instead of using yml file to delete object, we can just delete them by object name
-    $kubectl_delete -f $YML_DIR/ubiquity-db-deployment.yml
+    $kubectl_delete -f $YML_DIR/${UBIQUITY_DB_DEPLOY_YML}
     echo "Wait for ubiquity-db deployment deletion..."
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS  # to match the prefix of the pod
 
-    $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-deployment.yml
-    $kubectl_delete -f ${YML_DIR}/ubiquity-k8s-flex-daemonset.yml
-    $kubectl_delete -f $YML_DIR/ubiquity-deployment.yml
-    echo "Finished to stop ubiquity deployments.   Note : View ubiquity status by : $> $0 -a status -n $NS"
+    $kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
+    $kubectl_delete -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
+    $kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
+    echo "Finished to stop ubiquity deployments successfully.   Note : View ubiquity status by : $> $0 -a status -n $NS"
 }
 
 function collect_logs()
@@ -102,15 +100,15 @@ function collect_logs()
 
     # kubectl logs on flex PODs
     for flex_pod in `kubectl get $nsf pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
-       echo "$klog pod ${flex_pod}"
-       $klog pod ${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
+       echo "$klog pod/${flex_pod}"
+       $klog pod/${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
-    echo "$0 status"
-    status > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
+    echo "$0 status_wide"
+    status_wide > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
 
     echo ""
-    echo "Finish collecting \"$PRODUCT_NAME\" logs inside directory -> $logdir"
+    echo "Finish to collect \"$PRODUCT_NAME\" logs inside directory -> $logdir"
 }
 
 
@@ -151,7 +149,7 @@ function status()
     fi
 }
 
-function statuswide()
+function status_wide()
 {
     status "-o wide"
 }
@@ -245,7 +243,8 @@ SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
-actions="start stop status statuswide getall getallwide collect_logs sanity"
+actions="start stop status status_wide getall getallwide collect_logs sanity"
+actions_=`echo $actions | sed 's/getall getallwide //'`
 
 # Handle flags
 NS="ubiquity" # default namespace
