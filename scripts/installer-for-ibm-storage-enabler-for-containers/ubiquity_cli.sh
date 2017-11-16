@@ -100,12 +100,12 @@ function collect_logs()
 
     # kubectl logs on flex PODs
     for flex_pod in `kubectl get $nsf pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
-       echo "$klog pod ${flex_pod}"
-       $klog pod ${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
+       echo "$klog pod/${flex_pod}"
+       $klog pod/${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
-    echo "$0 status"
-    status > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
+    echo "$0 status_wide"
+    status_wide > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
 
     echo ""
     echo "Finish to collect \"$PRODUCT_NAME\" logs inside directory -> $logdir"
