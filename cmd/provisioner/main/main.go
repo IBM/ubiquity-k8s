@@ -86,7 +86,9 @@ func main() {
 
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
-	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfig)
+	ubiquityConfigCopyWithPasswordStarred := ubiquityConfig
+	ubiquityConfigCopyWithPasswordStarred.CredentialInfo.Password = "****"
+	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfigCopyWithPasswordStarred)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error starting provisioner: %v", err)
