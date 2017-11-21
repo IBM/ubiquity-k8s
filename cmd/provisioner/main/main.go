@@ -88,7 +88,7 @@ func main() {
 	// the controller
 	ubiquityConfigCopyWithPasswordStarred := ubiquityConfig
 	ubiquityConfigCopyWithPasswordStarred.CredentialInfo.Password = "****"
-	fmt.Printf("starting the provisioner with logger %#v , remote client %#v and config %#v", logger, remoteClient, ubiquityConfigCopyWithPasswordStarred)
+	logger.Printf("starting the provisioner, remote client %#v, config %#v", remoteClient, ubiquityConfigCopyWithPasswordStarred)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error starting provisioner: %v", err)
