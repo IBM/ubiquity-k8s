@@ -1,5 +1,21 @@
 #!/bin/bash -e
 
+#*******************************************************************************
+#  Copyright 2017 IBM Corp.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#*******************************************************************************
+
 # -------------------------------------------------------------------------
 # "IBM Storage Enabler for Containers" installer script that installs
 # the following components inside the kubernetes cluster:
@@ -293,7 +309,7 @@ function create-ubiquity-db()
     echo "Creating ubiquity-db deployment... (Assume flex plugin was already loaded on all the nodes)"
     kubectl create --namespace $NS -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     echo "Waiting for deployment [ubiquity-db] to be created..."
-    wait_for_deployment ubiquity-db 40 5 $NS
+    wait_for_deployment ubiquity-db 50 5 $NS
     echo ""
     echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. "
     echo "           - Get status      $> ./ubiquity_cli.sh -a status -n $NS"

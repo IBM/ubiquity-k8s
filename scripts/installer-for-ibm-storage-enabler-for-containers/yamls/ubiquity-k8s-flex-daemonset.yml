@@ -22,7 +22,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: ubiquity-k8s-flex
-        image: UBIQUITY_K8S_FLEX_IMAGE # place holder
+        image: UBIQUITY_K8S_FLEX_IMAGE
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"

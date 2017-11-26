@@ -1,4 +1,4 @@
-# This is an Ubiquity PVC template.
+# This is an IBM Storage Enabler for Containers PVC template.
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:

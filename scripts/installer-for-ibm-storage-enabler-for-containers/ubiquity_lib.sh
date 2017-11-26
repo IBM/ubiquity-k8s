@@ -1,5 +1,21 @@
 #!/bin/bash -e
 
+#*******************************************************************************
+#  Copyright 2017 IBM Corp.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#*******************************************************************************
+
 #------------------------------------------
 # Share library for un\install scripts
 #------------------------------------------
@@ -33,7 +49,7 @@ function wait_for_item()
   while true; do
       status=`kubectl get --namespace $ns ${item_type} ${item_name} --no-headers -o custom-columns=Status:.status.phase`
       if [ "$status" = "$item_wanted_status" ]; then
-         echo "${item_type} [${item_name}] status [$status] as expected (after `expr $max_retries - $retries`/${max_retries} tries)"
+         echo "${item_type} [${item_name}] status [$status] as expected (after $(($max_retries - $retries))/${max_retries} tries)"
          return
       else
          if [ "$retries" -eq 0 ]; then
@@ -41,8 +57,8 @@ function wait_for_item()
              echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
-            echo "${item_type} [${item_name}] status [$status] != [${item_wanted_status}] wish state. sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
-            retries=`expr $retries - 1`
+            echo "${item_type} [${item_name}] status [$status] != [${item_wanted_status}] wish state. sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+            retries=$(($retries - 1))
             sleep $delay;
          fi
       fi
@@ -67,7 +83,7 @@ function wait_for_item_to_delete()
         # send stderr to /dev/null to avoid printing the "Error... not found" to console.
       fi
       if [ $rc -ne 0 ]; then
-         echo "${item_type} [${item_name}] was deleted (after `expr $max_retries - $retries`/${max_retries} tries)"
+         echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
          return
       else
          if [ "$retries" -eq 0 ]; then
@@ -75,8 +91,8 @@ function wait_for_item_to_delete()
              echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
-            echo "${item_type} [${item_name}] still exist. sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
-            retries=`expr $retries - 1`
+            echo "${item_type} [${item_name}] still exist. sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+            retries=$(($retries - 1))
             sleep $delay;
          fi
       fi
@@ -92,7 +108,7 @@ function add_yaml_delimiter()
     printf "\n\n%s\n" "$YAML_DELIMITER" >> $1
 }
 
-function stepinc() { S=`expr $S + 1`; }
+function stepinc() { S=$(($S + 1)); }
 
 function get_generation() {
   # Args : $1 object type $2 object name, $3 namespace
@@ -152,8 +168,8 @@ function wait_for_deployment(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
-          retries=`expr $retries - 1`
+          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
@@ -165,8 +181,8 @@ function wait_for_deployment(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
-          retries=`expr $retries - 1`
+          echo "${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
@@ -182,10 +198,10 @@ function wait_for_deployment(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
+          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
           available=$(get_available_replicas $item_name $ns)
           [ -z "$available" ] && available=0
-          retries=`expr $retries - 1`
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
@@ -212,8 +228,8 @@ function wait_for_daemonset(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
-          retries=`expr $retries - 1`
+          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
@@ -225,8 +241,8 @@ function wait_for_daemonset(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}] "
-          retries=`expr $retries - 1`
+          echo "${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
@@ -242,10 +258,10 @@ function wait_for_daemonset(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] available Pods ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [`expr $max_retries - $retries`/${max_retries}]"
+          echo "${item_type} [${item_name}] available Pods ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
           available=$(get_daemonset_numberAvailable $item_name $ns)
           [ -z "$available" ] && available=0
-          retries=`expr $retries - 1`
+          retries=$(($retries - 1))
           sleep $delay;
       fi
     done
