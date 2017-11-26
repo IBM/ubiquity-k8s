@@ -29,10 +29,10 @@ function usage()
    echo "   start      : Create ubiquity, provisioner deployments, flex daemonset and ubiquity-db deployments"
    echo "   stop       : Delete ubiquity-db (wait for deletion), provisioner, flex daemonset and ubiquity deployment"
    echo "   status     : Display all ubiquity components"
-   echo "   status_wide : Display all ubiquity components (-o wide flag)"
+   echo "   status_wide  : Display all ubiquity components (-o wide flag)"
    echo "   collect_logs : Create a directory with all Ubiquity logs"
    echo "   sanity       : This is a sanity test - create and delete pvc and pod."
-   echo " -n <namespace>  : Optional, by default its \"ubiquity\""
+   echo " -n <namespace> : Optional, by default its \"ubiquity\""
    echo " -h : Display this usage"
 
    exit 1
@@ -79,15 +79,18 @@ function stop()
 function collect_logs()
 {
     # Get logs from all ubiquity deployments and pods into a directory
-
     time=`date +"%m-%d-%Y-%T"`
     logdir=./ubiquity_collect_logs_$time
     klog="kubectl logs $nsf"
     mkdir $logdir
+
+    echo "Collecting \"$PRODUCT_NAME\" logs..."
     ubiquity_log_name=${logdir}/ubiquity.log
     ubiquity_db_log_name=${logdir}/ubiquity-db.log
     ubiquity_provisioner_log_name=${logdir}/ubiquity-k8s-provisioner.log
-    ubiquity_status_log_name=ubiquity_deployments_status.log
+    ubiquity_status_log_name=${logdir}/ubiquity_deployments_status
+    describe_all_per_label=${logdir}/ubiquity_describe_all_by_label
+    get_all_per_label=${logdir}/ubiquity_get_all_by_label
 
     # kubectl logs on all deployments
     echo "$klog deploy/ubiquity"
@@ -104,8 +107,17 @@ function collect_logs()
        $klog pod/${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
+
+    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc  -l product=${UBIQUITY_LABEL}"
+    echo "$describe_label_cmd"
+    $describe_label_cmd > $describe_all_per_label 2>&1 || :
+
+    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc  -l product=${UBIQUITY_LABEL}"
+    echo "$get_label_cmd"
+    $get_label_cmd > $get_all_per_label 2>&1 || :
+
     echo "$0 status_wide"
-    status_wide > ${logdir}/${ubiquity_status_log_name} 2<&1 || :
+    status_wide > ${ubiquity_status_log_name} 2<&1 || :
 
     echo ""
     echo "Finish to collect \"$PRODUCT_NAME\" logs inside directory -> $logdir"
@@ -242,6 +254,7 @@ YML_DIR="$scripts/yamls"
 SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
+UBIQUITY_LABEL="ibm-storage-enabler-for-containers"
 FLEX_DIRECTORY='/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex'
 actions="start stop status status_wide getall getallwide collect_logs sanity"
 actions_=`echo $actions | sed 's/getall getallwide //'`
