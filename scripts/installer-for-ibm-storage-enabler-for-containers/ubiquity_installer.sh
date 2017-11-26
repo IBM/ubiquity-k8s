@@ -293,7 +293,7 @@ function create-ubiquity-db()
     echo "Creating ubiquity-db deployment... (Assume flex plugin was already loaded on all the nodes)"
     kubectl create --namespace $NS -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     echo "Waiting for deployment [ubiquity-db] to be created..."
-    wait_for_deployment ubiquity-db 40 5 $NS
+    wait_for_deployment ubiquity-db 50 5 $NS
     echo ""
     echo "\"$PRODUCT_NAME\" installation finished successfully in the Kubernetes cluster. "
     echo "           - Get status      $> ./ubiquity_cli.sh -a status -n $NS"
