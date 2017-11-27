@@ -124,16 +124,20 @@ function collect_logs()
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
 
-    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc  -l product=${UBIQUITY_LABEL}"
+    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
     echo "$describe_label_cmd"
     $describe_label_cmd > $describe_all_per_label 2>&1 || :
 
-    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc  -l product=${UBIQUITY_LABEL}"
+    describe_pv_cmd="kubectl describe $nsf pv $UBIQUITY_DB_PVC_NAME"
+    echo "$describe_pv_cmd"
+    $describe_pv_cmd >> $describe_all_per_label 2>&1 || :
+
+    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
     echo "$get_label_cmd"
     $get_label_cmd > $get_all_per_label 2>&1 || :
 
     echo "$0 status_wide"
-    status_wide > ${ubiquity_status_log_name} 2<&1 || :
+    (status_wide) > ${ubiquity_status_log_name} 2>&1 || :
 
     echo ""
     echo "Finish to collect \"$PRODUCT_NAME\" logs inside directory -> $logdir"
