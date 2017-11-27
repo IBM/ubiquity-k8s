@@ -5,7 +5,9 @@ metadata:
 spec:
   containers:
   - name: CONNAME
-    image: midoblgsm/kubenode
+    image: ubuntu
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
     volumeMounts:
       - name: VOLNAME1
         mountPath: "MOUNTPATH1"
