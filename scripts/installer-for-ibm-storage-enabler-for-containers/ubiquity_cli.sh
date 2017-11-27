@@ -101,6 +101,7 @@ function collect_logs()
     mkdir $logdir
 
     echo "Collecting \"$PRODUCT_NAME\" logs..."
+    echo "The log files will be saved in the folder [$logdir]"
     ubiquity_log_name=${logdir}/ubiquity.log
     ubiquity_db_log_name=${logdir}/ubiquity-db.log
     ubiquity_provisioner_log_name=${logdir}/ubiquity-k8s-provisioner.log
@@ -140,7 +141,7 @@ function collect_logs()
     (status_wide) > ${ubiquity_status_log_name} 2>&1 || :
 
     echo ""
-    echo "Finish to collect \"$PRODUCT_NAME\" logs inside directory -> $logdir"
+    echo "Finish to collect \"$PRODUCT_NAME\" logs in the folder -> $logdir"
 }
 
 
