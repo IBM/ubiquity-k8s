@@ -17,24 +17,12 @@
 #*******************************************************************************
 
 # -------------------------------------------------------------------------
-# "IBM Storage Enabler for Containers" cli tool.
-# The tool is an helper to do the following actions : start, stop, status, collect_logs, sanity.
-# The script assume that you already installed ubiquity via the ubiquity_install.sh script.
+# IBM Storage Enabler for Containers CLI tool
+# This is a utility for starting/stopping IBM Storage Enabler for Containers (Ubiquity),
+# retrieving its status, collecting logs, running sanity test.
+# The script assumes that you already installed Ubiquity using the ubiquity_install.sh script.
 #
-# "start" action flow:
-#   1. Validate ubiquity pvc exist (exit if not)
-#   2. Create ubiquity deployment
-#   3. Create ubiquity-k8s-provisioner deployment
-#   4. Create ubiquity-k8s-flex Daemonset
-#   5. Create ubiquity-db-deployment deployment  (This step uses PVC, so ubiqiuty must be up and ready for it)
-#
-# "stop" action flow:
-#   1. Delete ubiquity-db-deployment deployment
-#   2. Delete Ubiquity-k8s-provisioner deployment
-#   3. Create ubiquity-k8s-flex Daemonset
-#   4. Delete Ubiquity deployment
-#
-# See Usage for more detail.
+# See Usage for details.
 # -------------------------------------------------------------------------
 
 
@@ -48,7 +36,7 @@ function usage()
    echo "   status_wide  : Display all ubiquity components (-o wide flag)"
    echo "   collect_logs : Create a directory with all Ubiquity logs"
    echo "   sanity       : This is a sanity test - create and delete pvc and pod."
-   echo " -n <namespace> : Optional, by default its \"ubiquity\""
+   echo " -n <namespace> : Optional, by default it is \"ubiquity\""
    echo " -h : Display this usage"
 
    exit 1
@@ -61,6 +49,14 @@ function help()
 
 function start()
 {
+    # ---------------------------------------------------------
+    # "start" action flow:
+    #   1. Validate ubiquity PVC exists. Exit if it does not.
+    #   2. Create ubiquity deployment.
+    #   3. Create ubiquity-k8s-provisioner deployment.
+    #   4. Create ubiquity-k8s-flex daemonset.
+    #   5. Create ubiquity-db-deployment deployment. This step uses PVC, so Ubiquity must be up and ready for it.
+    # ---------------------------------------------------------
     echo "Make sure ${UBIQUITY_DB_PVC_NAME} exists and bound to PV (exit otherwise)..."
     wait_for_item pvc ${UBIQUITY_DB_PVC_NAME} ${PVC_GOOD_STATUS} 5 2 $NS
 
@@ -73,28 +69,35 @@ function start()
     kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
     kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     wait_for_deployment ubiquity-db 40 5 $NS
-    echo "Finished to start ubiquity components successfully. Note : View ubiquity status by : $> $0 -a status -n $NS"
+    echo "Initialized Ubiquity components. Note: View deployments status by: $> $0 -a status -n $NS"
 }
 
 function stop()
 {
+    # ---------------------------------------------------------
+    # "stop" action flow:
+    #   1. Delete ubiquity-db-deployment deployment.
+    #   2. Delete ubiquity-k8s-provisioner deployment.
+    #   3. Create ubiquity-k8s-flex daemonset.
+    #   4. Delete Ubiquity deployment.
+    # ---------------------------------------------------------
     kubectl_delete="kubectl delete $nsf --ignore-not-found=true"
 
-    # TODO Instead of using yml file to delete object, we can just delete them by object name
+    # TODO Instead of using yml file to delete object, we can delete them according to object name
     $kubectl_delete -f $YML_DIR/${UBIQUITY_DB_DEPLOY_YML}
     echo "Wait for ubiquity-db deployment deletion..."
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
-    wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS  # to match the prefix of the pod
+    wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS  # to match the pod prefix
 
     $kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
     $kubectl_delete -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
     $kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
-    echo "Finished to stop ubiquity deployments successfully.   Note : View ubiquity status by : $> $0 -a status -n $NS"
+    echo "Stopped Ubiquity components.   Note: View deployments status by: $> $0 -a status -n $NS"
 }
 
 function collect_logs()
 {
-    # Get logs from all ubiquity deployments and pods into a directory
+    # Collect logs from all Ubiquity deployments and pods in a directory
     time=`date +"%m-%d-%Y-%T"`
     logdir=./ubiquity_collect_logs_$time
     klog="kubectl logs $nsf"
@@ -109,7 +112,7 @@ function collect_logs()
     describe_all_per_label=${logdir}/ubiquity_describe_all_by_label
     get_all_per_label=${logdir}/ubiquity_get_all_by_label
 
-    # kubectl logs on all deployments
+    # kubectl logs for all deployments
     echo "$klog deploy/ubiquity"
     $klog deploy/ubiquity > ${ubiquity_log_name} 2>&1 || :
     echo "$klog deploy/ubiquity-db"
@@ -118,7 +121,7 @@ function collect_logs()
     $klog deploy/ubiquity-k8s-provisioner > ${ubiquity_provisioner_log_name} 2>&1 || :
     files_to_collect="$ubiquity_log_name ${ubiquity_db_log_name} ${ubiquity_provisioner_log_name}"
 
-    # kubectl logs on flex PODs
+    # kubectl logs on Flex pods
     for flex_pod in `kubectl get $nsf pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
        echo "$klog pod/${flex_pod}"
        $klog pod/${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
@@ -141,13 +144,13 @@ function collect_logs()
     (status_wide) > ${ubiquity_status_log_name} 2>&1 || :
 
     echo ""
-    echo "Finish to collect \"$PRODUCT_NAME\" logs in the folder -> $logdir"
+    echo "Finished collecting \"$PRODUCT_NAME\" logs in the folder -> $logdir"
 }
 
 
 function status()
 {
-    # kubectl get on all the ubiquity components, if one of the components are not found
+    # kubectl get status for all the ubiquity components, if one of the components is not found
     rc=0
     flags="$1"
 
@@ -170,13 +173,13 @@ function status()
 
     if [ $rc != 0 ]; then
        echo ""
-       echo "Ubiquity status [NOT ok]. Some components are missing(review the output above)"
+       echo "Ubiquity status [not OK]. Some components are missing(review the output above)"
        exit 5
     else
       kubectl get $nsf pod | egrep "^ubiquity" | grep -v Running > /dev/null 2>&1 && rc=$? || rc=$?
       if [ $rc = 0 ]; then
           echo ""
-          echo "Ubiquity status [NOT ok]. Some Pods are NOT in Running state (review the output above)"
+          echo "Ubiquity status [not OK]. Some pods are NOT in Running state (review the output above)"
           exit 5
       fi
     fi
@@ -201,7 +204,7 @@ function verify_deployments_status()
        done
        if [ -n "$bad_deployment" ]; then
            echo ""
-           echo "Ubiquity status [NOT ok]. Some deployments are NOT ok (review the output above)."
+           echo "Ubiquity status [not OK]. Some deployments are not OK (review the output above)."
            exit 6
        fi
        # TODO also need to validate that the daemon set is in the current state
@@ -248,7 +251,7 @@ function sanity()
     echo "Sanity description:"
     echo "    1. Create $pvc, $pod and wait for creation."
     echo "    2. Delete the $pod, $pvc and wait for deletion."
-    echo "    Note : Uses yamls from directory ${SANITY_YML_DIR}, and uses the ubiquity storage class."
+    echo "    Note: Uses yml files from directory ${SANITY_YML_DIR}"
     echo "--------------------------------------------------------------"
     echo ""
 
@@ -314,7 +317,7 @@ nsf="--namespace ${NS}" # namespace flag for kubectl command
 # Validations
 [ ! -d "$YML_DIR" ] && { echo "Error: YML directory [$YML_DIR] does not exist."; exit 1; }
 which kubectl > /dev/null 2>&1 || { echo "Error: kubectl not found in PATH"; exit 2; }
-[ ! -f $UTILS ] && { echo "Error: $UTILS file not found"; exit 3; }
+[ ! -f $UTILS ] && { echo "Error: $UTILS file is not found"; exit 3; }
 . $UTILS # include utils for wait function and status
 [ -z "$action" ] && usage
 
