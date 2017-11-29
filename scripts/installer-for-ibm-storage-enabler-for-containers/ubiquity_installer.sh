@@ -146,8 +146,8 @@ function install()
     if [ "$daemonset_desiredNumberScheduled" != "$number_of_nodes" ]; then
         echo ""
         echo "*WARNING*: "
-        echo " The ubiquity-k8s-flex daemonset pod MUST run on each node and master in the cluster."
-        echo "   But it run only on $daemonset_desiredNumberScheduled from $number_of_nodes nodes(and masters in the cluster)."
+        echo "  The ubiquity-k8s-flex daemonset pod MUST run on each worker and master nodes in the cluster."
+        echo "  But it run only on $daemonset_desiredNumberScheduled from $number_of_nodes nodes(and masters in the cluster)."
         flex_missing=true
     fi
 

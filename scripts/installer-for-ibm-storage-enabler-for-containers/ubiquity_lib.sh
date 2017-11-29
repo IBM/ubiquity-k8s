@@ -186,7 +186,7 @@ function wait_for_deployment(){
           sleep $delay;
       fi
     done
-    echo "${item_type} [${item_name}] reached the expected generation ${generation}"
+    echo "${item_type} [${item_name}] reached the expected generation [${generation}]"
 
     replicas="$(get_replicas $item_name $ns)"
 
@@ -206,7 +206,7 @@ function wait_for_deployment(){
       fi
     done
 
-    echo "${item_type} [${item_name}] reached the expected replicas ${replicas}"
+    echo "${item_type} [${item_name}] reached the expected replicas [${replicas}]"
 }
 
 
@@ -246,7 +246,7 @@ function wait_for_daemonset(){
           sleep $delay;
       fi
     done
-    echo "${item_type} [${item_name}] reached the expected generation ${generation}"
+    echo "${item_type} [${item_name}] reached the expected generation [${generation}]"
 
     replicas="$(get_daemonset_desiredNumberScheduled $item_name $ns)"
 
@@ -258,7 +258,7 @@ function wait_for_daemonset(){
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] available pods are [${available}] while expected quantaty is [${replicas}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
+          echo "${item_type} [${item_name}] available pods are [${available}] while expected quantity is [${replicas}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
           available=$(get_daemonset_numberAvailable $item_name $ns)
           [ -z "$available" ] && available=0
           retries=$(($retries - 1))
@@ -266,7 +266,7 @@ function wait_for_daemonset(){
       fi
     done
 
-    echo "${item_type} [${item_name}] reached the expected available ${replicas}"
+    echo "${item_type} [${item_name}] reached the expected available pods [${replicas}]"
 }
 
 # e.g : is_deployment_ok ubiquity-db ubiquity
