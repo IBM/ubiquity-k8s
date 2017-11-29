@@ -31,7 +31,7 @@
 #       2.2. Manually create dedicated SSL certificates for IBM Storage Enabler for Containers server, its database container and SCBE. This procedure is out of scope of this script.
 #       2.3. Generate Kubernetes secrets for the certificates, created in the previous step. Run this command: $> ./ubiquity_installer.sh -s create-secrets-for-certificates -t <certificates-directory>.
 #
-#  3. Update the relevant parameters in the *.yml files by running this command:
+#  3. Update the relevant parameters in the yml files by running this command:
 #     $> ./ubiquity_installer.sh -s update-ymls -c ubiquity_installer.conf.
 #
 # Installation
@@ -54,10 +54,10 @@ function usage()
 USAGE   $cmd -s <STEP> <FLAGS>
   -s <STEP>:
     -s update-ymls -c <file>
-        Replace the placeholders from -c <file> in the relevant *.yml files.
+        Replace the placeholders from -c <file> in the relevant yml files.
         Flag -c <ubiquity-config-file> is mandatory for this step
     -s install -k <k8s config file> [-n <namespace>]
-        Installs all IBM Storage Enabler for Containers components in orderly fashion (except for ubiquity-db).
+        Installs all $PRODUCT_NAME components in orderly fashion (except for ubiquity-db).
         Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner.
         Usually, this file is stored in the ~/.kube/config or in /etc/kubernetes directory.
         Flag -n <namespace>. By default, it is \"ubiquity\" namespace.
@@ -67,10 +67,10 @@ USAGE   $cmd -s <STEP> <FLAGS>
 
     Steps required for SSL_MODE=verify-full:
     -s create-services [-n <namespace>]
-        Creates the IBM Storage Enabler for Containers namespace(ubiquity) and generates two Kubernetes services that provide the DNS/IP address combinations for the server and database containers.
+        Creates the $PRODUCT_NAME namespace(ubiquity) and generates two Kubernetes services that provide the DNS/IP address combinations for the server and database containers.
         Flag -n <namespace>. By default, it is \"ubiquity\" namespace.
     -s create-secrets-for-certificates -t <certificates-directory>  [-n <namespace>]
-        Creates secrets and configmap for the IBM Storage Enabler for Containers certificates:
+        Creates secrets and configmap for the $PRODUCT_NAME certificates:
             Secrets ubiquity-private-certificate and ubiquity-db-private-certificate.
             Configmap ubiquity-public-certificates.
         Flag -t <certificates-directory> that contains all the expected certificate files.
@@ -160,7 +160,7 @@ function install()
         echo "\"$PRODUCT_NAME\" Installation finished, but the deployment is not ready yet."
         echo "  Perform the following: "
         [ "$flex_missing" = "true" ] && echo "     (0) Verify that ubiquity-k8s-flex daemonset pod runs on all nodes including all masters. If not, check why."
-        echo "     (1) Manually restart the kubelet service on all minions to reload the new FlexVolume driver"
+        echo "     (1) Manually restart the kubelet service on all Kubernetes nodes to reload the new FlexVolume driver."
         echo "     (2) Deploy ubiquity-db by $> $0 -s create-ubiquity-db -n $NS"
         echo "     Note : View status by $> ./ubiquity_cli.sh -a status -n $NS"
         echo ""
@@ -171,14 +171,14 @@ function install()
 function update-ymls()
 {
    ########################################################################  
-   ##  Replaces all the placeholders in all the relevant *.yml files.
+   ##  Replaces all the placeholders in all the relevant yml files.
    ##  If there is nothing to replace, it exits with error.
    ########################################################################
 
    # Step validation
    [ -z "${CONFIG_SED_FILE}" ] && { echo "Error: Missing -c <file> flag for STEP [$STEP]"; exit 4; } || :
    [ ! -f "${CONFIG_SED_FILE}" ] && { echo "Error: ${CONFIG_SED_FILE} is not found."; exit 3; }
-   which base64 > /dev/null 2>&1 || { echo "Error: Base64 command is not found in PATH. Failed to update *.yml files with base64 secret."; exit 2; }
+   which base64 > /dev/null 2>&1 || { echo "Error: Base64 command is not found in PATH. Failed to update yml files with base64 secret."; exit 2; }
    which egrep > /dev/null 2>&1 || { echo "Error: egrep command is not found in PATH. Failed to update ymls with base64 secret."; exit 2; }
 
    # Validate key=value file format and there are no missing VALUE
@@ -215,9 +215,9 @@ function update-ymls()
    base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE"
    was_updated="false" # if there is nothing to update, exit with error
 
-   read -p "Updating *.yml files with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
+   read -p "Updating yml files with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
    if [ "$yn" != "y" ]; then
-     echo "Skip updating the *.yml files with placeholder."
+     echo "Skip updating the yml files with placeholder."
      return
    fi
 
@@ -242,16 +242,16 @@ function update-ymls()
       else
          files_related="${KEY_FILE_DICT[$placeholder]}"
          if [ -z "$files_related" ]; then
-            printf "WARNING: placeholder [%-30s] was NOT found in *.yml files\n" "$placeholder"
+            printf "WARNING: placeholder [%-30s] was NOT found in yml files\n" "$placeholder"
          else
-            printf "WARNING: placeholder [%-30s] was NOT found in *.yml files: $files_related \n" "$placeholder"
+            printf "WARNING: placeholder [%-30s] was NOT found in yml files: $files_related \n" "$placeholder"
          fi
       fi
    done
 
    if [ "$was_updated" = "false" ]; then
-      echo "ERROR: Nothing was updated in *.yml files  (placeholders were NOT found in *.yml files )."
-      echo "        Consider updating *.yml files manually"
+      echo "ERROR: Nothing was updated in yml files  (placeholders were NOT found in yml files)."
+      echo "        Consider updating yml files manually"
       exit 2
    fi
 
@@ -259,15 +259,15 @@ function update-ymls()
        ymls_to_updates="${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML} ${YML_DIR}/${UBIQUITY_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}"
 
        echo "Related to certificate update:"
-       echo "  SSL_MODE_VALUE=verify-full, updating *.yml files  to enable dedicated certificates."
-       echo "  By enable Volumes and VolumeMounts tags for certificates in the following *.yml files: $ymls_to_updates"
+       echo "  SSL_MODE_VALUE=verify-full, updating yml files  to enable dedicated certificates."
+       echo "  By enable Volumes and VolumeMounts tags for certificates in the following yml files: $ymls_to_updates"
 
-       # this sed removes the comments from all the certificate lines in the *.yml files 
+       # this sed removes the comments from all the certificate lines in the yml files
        sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
        echo "  Certificate updates are completed."
    fi
 
-   echo "Finished updating *.yml files according to ${CONFIG_SED_FILE}"
+   echo "Finished updating yml files according to ${CONFIG_SED_FILE}"
 }
 
 # STEP function
@@ -302,7 +302,8 @@ function create-services()
     kubectl get $nsf svc/ubiquity svc/ubiquity-db
     echo ""
     echo "Finished creating namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
-    echo "Attention: To complete the IBM Storage Enabler for Containers installation:"
+    echo "Attention: To complete the $PRODUCT_NAME installation with SSL_MODE=verify-full:"
+    echo "   Prerequisite:"
     echo "     (1) Generate dedicated certificates for 'ubiquity', 'ubiquity-db' and SCBE, using specific file names"
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
@@ -355,7 +356,7 @@ function create-secrets-for-certificates()
 
     kubectl get $nsf secrets/ubiquity-db-private-certificate secrets/ubiquity-private-certificate cm/ubiquity-public-certificates
     echo ""
-    echo "Finished creating secrets and ConfigMap for IBM Storage Enabler for Containers certificates."
+    echo "Finished creating secrets and ConfigMap for $PRODUCT_NAME certificates."
 }
 
 

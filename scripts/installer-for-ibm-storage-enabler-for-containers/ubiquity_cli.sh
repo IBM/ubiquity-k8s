@@ -18,8 +18,9 @@
 
 # -------------------------------------------------------------------------
 # IBM Storage Enabler for Containers CLI tool
-# This is a utility for starting/stoping IBM Storage Enabler for Containers (Ubiquity), retrieving its status, collecting logs, running sanity test.
-# The script asumes that you already installed Ubiquity using the ubiquity_install.sh script.
+# This is a utility for starting/stopping IBM Storage Enabler for Containers (Ubiquity),
+# retrieving its status, collecting logs, running sanity test.
+# The script assumes that you already installed Ubiquity using the ubiquity_install.sh script.
 #
 # See Usage for details.
 # -------------------------------------------------------------------------
@@ -91,7 +92,7 @@ function stop()
     $kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
     $kubectl_delete -f ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML}
     $kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
-    echo "Stopped Ubiquity components.   Note: View deployment status by: $> $0 -a status -n $NS"
+    echo "Stopped Ubiquity components.   Note: View deployments status by: $> $0 -a status -n $NS"
 }
 
 function collect_logs()

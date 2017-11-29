@@ -18,7 +18,7 @@
 
 # -------------------------------------------------------------------------
 # IBM Storage Enabler for Containers uninstall script
-# The script unistalls following IBM Storage Enabler for Containers (Ubiquity) components from the Kubernetes cluster:
+# The script uninstalls following IBM Storage Enabler for Containers (Ubiquity) components from the Kubernetes cluster:
 #       IBM Storage Enabler for Containers
 #       IBM Storage Dynamic Provisioner for Kubernetes
 #       IBM Storage FlexVolume for Kubernetes
