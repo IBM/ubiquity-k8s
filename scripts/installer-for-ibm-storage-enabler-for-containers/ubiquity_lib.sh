@@ -17,7 +17,7 @@
 #*******************************************************************************
 
 #------------------------------------------
-# Share library for un\install scripts
+# Share library for ubiquity_installer.sh and ubiquity_uninstall.sh scripts
 #------------------------------------------
 
 NO_RESOURCES_STR="No resources found."
@@ -26,7 +26,7 @@ UBIQUITY_DEFAULT_NAMESPACE="ubiquity"
 UBIQUITY_SERVICE_NAME="ubiquity"
 UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
 PRODUCT_NAME="IBM Storage Enabler for Containers"
-EXIT_WAIT_TIMEOUT_MESSAGE="Error: Script exit due to wait timeout."
+EXIT_WAIT_TIMEOUT_MESSAGE="Error: Script exits due to wait timeout."
 SCBE_CRED_YML=scbe-credentials-secret.yml
 UBIQUITY_DB_CRED_YML=ubiquity-db-credentials-secret.yml
 UBIQUITY_DEPLOY_YML=ubiquity-deployment.yml
@@ -36,7 +36,7 @@ UBIQUITY_FLEX_DAEMONSET_YML=ubiquity-k8s-flex-daemonset.yml
 
 
 
-# example : wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
+# Example: wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
 function wait_for_item()
 {
   item_type=$1
@@ -53,11 +53,11 @@ function wait_for_item()
          return
       else
          if [ "$retries" -eq 0 ]; then
-             echo "Error: Status of item $item_name was not reached to status ${item_wanted_status}. exit."
+             echo "Error: Status of item $item_name was not reached the status ${item_wanted_status}. Exiting."
              echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
-            echo "${item_type} [${item_name}] status [$status] != [${item_wanted_status}] wish state. sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+            echo "${item_type} [${item_name}] status is [$status] while expected status is [${item_wanted_status}]. sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
             retries=$(($retries - 1))
             sleep $delay;
          fi
@@ -87,11 +87,11 @@ function wait_for_item_to_delete()
          return
       else
          if [ "$retries" -eq 0 ]; then
-             echo "Error: ${item_type} [${item_name}] still exist after all ${max_retries} retries. exit."
+             echo "Error: ${item_type} [${item_name}] still exists after all ${max_retries} retries. Exiting."
              echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
              exit 2
          else
-            echo "${item_type} [${item_name}] still exist. sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+            echo "${item_type} [${item_name}] still exists. sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
             retries=$(($retries - 1))
             sleep $delay;
          fi
@@ -101,7 +101,7 @@ function wait_for_item_to_delete()
 
 
 
-# TODO : need to add another wait function for container status (which is inside managed object - POD)
+# TODO: need to add another wait function for container status (which is inside managed object - POD)
 function add_yaml_delimiter()
 {
     YAML_DELIMITER='---'
@@ -150,7 +150,7 @@ function get_object_jsonpath() {
   kubectl get --namespace $ns $item_type "$item" -o "jsonpath=${_jsonpath}"
 }
 
-# e.g : wait_for_deployment ubiquity-db 3 10 ubiquity
+# For example, wait_for_deployment ubiquity-db 3 10 ubiquity
 function wait_for_deployment(){
   # Args : $1 object type, $2 object name, $3 retries,
   #        $4 max retries, $5 delay between retries, $6 namespace
@@ -160,15 +160,15 @@ function wait_for_deployment(){
   max_retries=$2
   delay=$3
   ns=$4
-  echo "Waiting for deployment [${item_name}] to be created..."
+  echo "Waiting for deployment [${item_name}] to be in Running state..."
 
     while ! kubectl get --namespace $ns deployment $item_name > /dev/null 2>&1; do
        if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] does not exist, after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          echo "${item_type} [${item_name}] does not exist, sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}] "
           retries=$(($retries - 1))
           sleep $delay;
       fi
@@ -177,16 +177,16 @@ function wait_for_deployment(){
     generation=$(get_generation deployment $item_name $ns)
     while [[ $(get_observed_generation deployment $item_name $ns) -lt ${generation} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] generation number is [$(get_observed_generation deployment $item_name $ns)] while expected value is [${generation}], after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation deployment $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          echo "${item_type} [${item_name}] generation number is [$(get_observed_generation deployment $item_name $ns)] while expected value is [${generation}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}] "
           retries=$(($retries - 1))
           sleep $delay;
       fi
     done
-    echo "${item_type} [${item_name}] reached to expected generation ${generation}"
+    echo "${item_type} [${item_name}] reached the expected generation ${generation}"
 
     replicas="$(get_replicas $item_name $ns)"
 
@@ -194,11 +194,11 @@ function wait_for_deployment(){
     [ -z "$available" ] && available=0
     while [[ ${available} -ne ${replicas} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] available replica ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] available replicas are [${available}] while expected value is [${replicas}], after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] available replica ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+          echo "${item_type} [${item_name}] available replicas are [${available}] while expected value is [${replicas}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
           available=$(get_available_replicas $item_name $ns)
           [ -z "$available" ] && available=0
           retries=$(($retries - 1))
@@ -206,7 +206,7 @@ function wait_for_deployment(){
       fi
     done
 
-    echo "${item_type} [${item_name}] reached to expected replicas ${replicas}"
+    echo "${item_type} [${item_name}] reached the expected replicas ${replicas}"
 }
 
 
@@ -220,15 +220,15 @@ function wait_for_daemonset(){
   max_retries=$2
   delay=$3
   ns=$4
-  echo "Waiting for daemonset [${item_name}] to be created..."
+  echo "Waiting for daemonset [${item_name}] to be in Running state..."
 
     while ! kubectl get --namespace $ns daemonset $item_name > /dev/null 2>&1; do
        if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] still not exist, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] does not exist, after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] still not exist, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          echo "${item_type} [${item_name}] does not exist, sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}] "
           retries=$(($retries - 1))
           sleep $delay;
       fi
@@ -237,16 +237,16 @@ function wait_for_daemonset(){
     generation=$(get_generation daemonset $item_name $ns)
     while [[ $(get_observed_generation daemonset $item_name $ns) -lt ${generation} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] generation is [$(get_observed_generation daemonset $item_name $ns]) while the expected value is [${generation}], after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] generation $(get_observed_generation daemonset $item_name $ns) < ${generation}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}] "
+          echo "${item_type} [${item_name}] generation is [$(get_observed_generation daemonset $item_name $ns)] while the expected value is [${generation}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}] "
           retries=$(($retries - 1))
           sleep $delay;
       fi
     done
-    echo "${item_type} [${item_name}] reached to expected generation ${generation}"
+    echo "${item_type} [${item_name}] reached the expected generation ${generation}"
 
     replicas="$(get_daemonset_desiredNumberScheduled $item_name $ns)"
 
@@ -254,11 +254,11 @@ function wait_for_daemonset(){
     [ -z "$available" ] && available=0
     while [[ ${available} -ne ${replicas} ]]; do
       if [ "$retries" -eq 0 ]; then
-          echo "Error: ${item_type} [${item_name}] available Pods ${available} != ${replicas}, even after all ${max_retries} retries. exit."
+          echo "Error: ${item_type} [${item_name}] available pods are [${available}] while expected quantaty is [${replicas}], after all ${max_retries} retries. Exiting."
           echo "$EXIT_WAIT_TIMEOUT_MESSAGE"
           exit 2
       else
-          echo "${item_type} [${item_name}] available Pods ${available} != ${replicas}, sleeping [${delay} sec] before retry to check [$(($max_retries - $retries))/${max_retries}]"
+          echo "${item_type} [${item_name}] available pods are [${available}] while expected quantaty is [${replicas}], sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
           available=$(get_daemonset_numberAvailable $item_name $ns)
           [ -z "$available" ] && available=0
           retries=$(($retries - 1))
@@ -266,27 +266,27 @@ function wait_for_daemonset(){
       fi
     done
 
-    echo "${item_type} [${item_name}] reached to expected available ${replicas}"
+    echo "${item_type} [${item_name}] reached the expected available ${replicas}"
 }
 
 # e.g : is_deployment_ok ubiquity-db ubiquity
 function is_deployment_ok(){
   # --------------------------------------------------------
-  # Description : Verify if deployment is OK.
-  # Return value : if deployment ok then return code is 0, else !=0
+  # Description: Verify that deployment is OK.
+  # Return value: if deployment OK, return code is 0, else !=0
   # --------------------------------------------------------
   item_type=deployment
   item_name=$1
   ns=$2
 
-  kubectl get --namespace $ns deployment $item_name >/dev/null 2>&1 || return 1 # not exist
+  kubectl get --namespace $ns deployment $item_name >/dev/null 2>&1 || return 1 # does not exist
 
-  [[ $(get_observed_generation deployment $item_name $ns) -lt $(get_generation deployment $item_name $ns) ]] && return 2 # observed_generation not meet
+  [[ $(get_observed_generation deployment $item_name $ns) -lt $(get_generation deployment $item_name $ns) ]] && return 2 # observed_generation not met
 
   replicas="$(get_replicas $item_name $ns)"
   available=$(get_available_replicas $item_name $ns)
   [ -z "$available" ] && available=0
-  [[ ${available} -ne ${replicas} ]] && return 3 # replicas not meet
+  [[ ${available} -ne ${replicas} ]] && return 3 # replicas not met
 
   return 0 # deployment is OK
 }
