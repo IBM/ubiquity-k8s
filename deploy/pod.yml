@@ -5,7 +5,9 @@ metadata:
 spec:
   containers:
   - name: write-pod
-    image: midoblgsm/kubenode
+    image: ubuntu
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
     volumeMounts:
       - name: ubiquity-pvc
         mountPath: "/mnt"

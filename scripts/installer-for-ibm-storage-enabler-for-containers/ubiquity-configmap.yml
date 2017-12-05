@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+# IBM Storage Enabler for Containers Kubernetes daemonset and deployments settings.
+  name: ubiquity-configmap
+  labels:
+    product: ibm-storage-enabler-for-containers
+data:
+   # The keys below are used by ubiquity deployment
+   # -----------------------------------------------
+   # IP or FQDN of SCBE server.
+   SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
+
+   # Communication port of SCBE server. Optional parameter with default value set at 8440.
+   SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
+
+   # Default SCBE storage service to be used, if not specified by the plugin.
+   SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
+
+   # The size for a new volume if not specified by the user when creating a new volume. Optional parameter with default value set at 1GB.
+   DEFAULT-VOLUME-SIZE: "DEFAULT_VOLUME_SIZE_VALUE"
+
+   # A prefix for any new volume created on the storage system. Default value is None.
+   UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
+
+   # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
+   DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
+
+
+   # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
+   # ----------------------------------------------------------------------------------------------------------------------------
+   # Log level. Allowed values: debug, info, error.
+   LOG-LEVEL: "LOG_LEVEL_VALUE"
+
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+   SSL-MODE: "SSL_MODE_VALUE"
+
+
+   # The following keys are used by the ubiquity-k8s-flex daemonset
+   # --------------------------------------------------------------
+   # The IP address of the ubiquity service object. The ubiquity_installer.sh automatically updates this field during the initial installation.
+   # The user must update this key manually if the ubiqutiy service object IP was changed.
+   UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
+
+   # Allowed values: true or false. Set to true if the nodes have FC connectivity.
+   SKIP-RESCAN-ISCSI: "SKIP_RESCAN_ISCSI_VALUE"

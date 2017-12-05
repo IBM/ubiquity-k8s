@@ -18,7 +18,9 @@ spec:
     spec:
       containers:
       - name: test-deployment
-        image: midoblgsm/kubenode
+        image: ubuntu
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - mountPath: "/mnt"
