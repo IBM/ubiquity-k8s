@@ -6,6 +6,8 @@ metadata:
     app: ubiquity-k8s-flex
     product: ibm-storage-enabler-for-containers
 spec:
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
