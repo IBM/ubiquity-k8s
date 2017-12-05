@@ -308,7 +308,7 @@ function create-services()
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
-    echo "     (1)  $> $0 -s install -c <file> -n $NS"
+    echo "     (1)  $> $0 -s install -k <file> -n $NS"
     echo "     (2)  Manually restart kubelet service on all kubernetes nodes to reload the new FlexVolume driver"
     echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
     echo ""
