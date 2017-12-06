@@ -56,30 +56,11 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	config, err := readConfig(*configFile)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to read config in Init %#v", err),
-		}
-		return printResponse(response)
+	response := k8sresources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Plugin init successfully",
 	}
 
-	err = os.MkdirAll(config.LogPath, 0640)
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup log dir"))
-	}
-
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
-	controller, err := createController(config)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed tocreate controller %#v", err),
-		}
-		return printResponse(response)
-	}
-	response := controller.Init(config)
 	return printResponse(response)
 }
 
