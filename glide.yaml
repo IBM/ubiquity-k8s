@@ -9,7 +9,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: dev
+  version: fix/detach_cleanup
   subpackages:
   - remote
   - resources
