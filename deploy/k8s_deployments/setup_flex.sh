@@ -127,6 +127,7 @@ VENDOR=ibm
 DRIVER=ubiquity-k8s-flex
 DRIVER_DIR=${VENDOR}"~"${DRIVER}
 HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec   # Assume the host-path to the kubelet-plugins directory is mounted here
+LOG_DIR=/tmp
 MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
@@ -139,16 +140,17 @@ install_flex_trusted_ca
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
 echo ""
+/usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
 
 test_flex_driver
 
 echo ""
-echo "This Pod will handle log rotation for the <flex log> on the host [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log]"
+echo "This Pod will handle log rotation for the <flex log> on the host [${LOG_DIR}/${DRIVER}.log]"
 echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
 echo "[`date`] Start to run in background #>"
-echo "tail -F ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log"
+echo "tail -F ${LOG_DIR}/${DRIVER}.log"
 echo "-----------------------------------------------"
-tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
+tail -F ${LOG_DIR}/${DRIVER}.log &
 
 while : ; do
   sleep 86400 # every 24 hours
