@@ -127,7 +127,7 @@ VENDOR=ibm
 DRIVER=ubiquity-k8s-flex
 DRIVER_DIR=${VENDOR}"~"${DRIVER}
 HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec   # Assume the host-path to the kubelet-plugins directory is mounted here
-LOG_DIR=/tmp
+LOG_DIR=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
@@ -140,7 +140,6 @@ install_flex_trusted_ca
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
 echo ""
-/usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
 
 test_flex_driver
 
