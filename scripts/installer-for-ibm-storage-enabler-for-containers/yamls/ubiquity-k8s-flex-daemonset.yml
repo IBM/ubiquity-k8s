@@ -70,7 +70,6 @@ spec:
 
 
 
-        imagePullPolicy: Always
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: host-k8splugindir
