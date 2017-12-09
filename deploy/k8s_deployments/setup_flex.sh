@@ -53,7 +53,7 @@ function generate_flex_conf_from_envs_and_install_it()
     cat > $FLEX_TMP << EOF
 # This file was generated automatically by the $DRIVER Pod.
 
-logPath = "${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
+logPath = "$LOG_DIR"
 backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
@@ -82,18 +82,17 @@ function test_flex_driver()
 {
     echo "Test the flex driver by running $> ${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity"
     testubiquity=`${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity 2>&1`
-    flex_log=${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log
     if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
        echo "$testubiquity"
        echo "Flex test passed Ok"
     else
        # Flex cli is not working, so print latest logs and exit with error.
 
-       if [ -f "$flex_log" ]; then
+       if [ -f "${LOG_PATH}" ]; then
            echo "Error: Flex test was failed."
-           echo "tail the flex log file $flex_log"
+           echo "tail the flex log file ${LOG_PATH}"
            echo "-----------------------[ Start view flex log ] ------------"
-           tail -40 $flex_log || :
+           tail -40 ${LOG_PATH} || :
            echo "-----------------------[ End of flex log ] ------------"
        fi
        echo ""
@@ -128,6 +127,7 @@ DRIVER=ubiquity-k8s-flex
 DRIVER_DIR=${VENDOR}"~"${DRIVER}
 HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec   # Assume the host-path to the kubelet-plugins directory is mounted here
 LOG_DIR=${HOST_K8S_PLUGIN_DIR}
+LOG_PATH=${LOG_DIR}/${DRIVER}.log
 MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
@@ -144,12 +144,12 @@ echo ""
 test_flex_driver
 
 echo ""
-echo "This Pod will handle log rotation for the <flex log> on the host [${LOG_DIR}/${DRIVER}.log]"
+echo "This Pod will handle log rotation for the <flex log> on the host [${LOG_PATH}]"
 echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
 echo "[`date`] Start to run in background #>"
-echo "tail -F ${LOG_DIR}/${DRIVER}.log"
+echo "tail -F ${LOG_PATH}"
 echo "-----------------------------------------------"
-tail -F ${LOG_DIR}/${DRIVER}.log &
+tail -F ${LOG_PATH} &
 
 while : ; do
   sleep 86400 # every 24 hours
