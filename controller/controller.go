@@ -33,6 +33,8 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"path/filepath"
 	"github.com/IBM/ubiquity/remote/mounter"
+	"github.com/nightlyone/lockfile"
+	"time"
 )
 
 //Controller this is a structure that controls volume management
@@ -43,23 +45,42 @@ type Controller struct {
 	legacyLogger *log.Logger
 	config resources.UbiquityPluginConfig
 	mounterPerBackend map[string]resources.Mounter
+	unmountFlock       lockfile.Lockfile
 }
 
 //NewController allows to instantiate a controller
 func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
+	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
+	if err != nil {
+		panic(err)
+	}
 
 	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
 	if err != nil {
 		return nil, err
 	}
-	return &Controller{logger: logs.GetLogger(), legacyLogger: logger, Client: remoteClient, exec: utils.NewExecutor(), config: config, mounterPerBackend: make(map[string]resources.Mounter)}, nil
+	return &Controller{
+		logger: logs.GetLogger(),
+		legacyLogger: logger,
+		Client: remoteClient,
+		exec: utils.NewExecutor(),
+		config: config,
+		mounterPerBackend: make(map[string]resources.Mounter),
+		unmountFlock: unmountFlock}, nil
 }
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
 func NewControllerWithClient(logger *log.Logger, client resources.StorageClient, exec utils.Executor) *Controller {
+	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
+	if err != nil {
+		panic(err)
+	}
+
 	utils.NewExecutor()
-	return &Controller{logger: logs.GetLogger(), legacyLogger: logger, Client: client, exec: exec}
+	return &Controller{logger: logs.GetLogger(), legacyLogger: logger, Client: client, exec: exec, unmountFlock: unmountFlock}
 }
+
+
 
 //Init method is to initialize the k8sresourcesvolume
 func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.FlexVolumeResponse {
@@ -267,6 +288,20 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 //Unmount methods unmounts the volume from the pod
 func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountRequest) k8sresources.FlexVolumeResponse {
 	defer c.logger.Trace(logs.DEBUG)()
+	// locking for concurrent rescans and reduce rescans if no need
+	c.logger.Debug("Ask for unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
+	for {
+		err := c.unmountFlock.TryLock()
+		if err == nil {
+			break
+		}
+		c.logger.Debug("unmountFlock.TryLock failed", logs.Args{{"error", err}})
+		time.Sleep(time.Duration(100*time.Millisecond))
+	}
+	c.logger.Debug("Got unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
+	defer c.unmountFlock.Unlock()
+	defer c.logger.Debug("Released unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
+
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", unmountRequest}})
 	var err error
