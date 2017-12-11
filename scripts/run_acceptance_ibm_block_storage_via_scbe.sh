@@ -106,7 +106,7 @@ function basic_tests_on_one_node()
 
 	echo "## ---> ${S}.1. Verify the volume was attached to the kubelet node $node1"
 	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1 | grep "$wwn"'
 	ssh root@$node1 'mount |grep "$wwn"| grep "$fstype"'
 
@@ -451,7 +451,7 @@ function tests_with_second_node()
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
 	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
 	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'"
 
@@ -541,6 +541,26 @@ function setup()
         ssh root@$node2 "docker volume ls | grep $CName" && { echo "need to clean $CName volumes on remote node $node2"; exit 3; } || :
     fi
 }
+
+function find_multipath_faulty()
+{
+    echo "find_multipath_faulty"
+    echo "====================="
+	echo "multipath status on [$node1]"
+	echo "==========[Start]=================="
+	ssh root@$node1 'multipath -ll' || :
+    echo "==========[End]=================="
+	ssh root@$node1 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..." || :
+
+	if [ -n "$node2" ]; then
+       echo "multipath status on [$node2]"
+	   echo "==========[Start]=================="
+       ssh root@$node2 'multipath -ll' || :
+       echo "==========[End]=================="
+	   ssh root@$node2 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..."	|| :
+	fi
+}
+
 function usage()
 {
     echo "Usage $> $0 [ubiquity-namespace] [-h]"
