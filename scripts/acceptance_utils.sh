@@ -42,6 +42,8 @@ function wait_for_item_to_delete()
   retries=$3
   max_retries=$3
   delay=$4
+  fail="$5"
+  [ -z "$fail" ] && fail=true
   while true; do
       kubectl get ${item_type} ${item_name} && rc=$? || rc=$?
       if [ $rc -ne 0 ]; then
@@ -50,7 +52,7 @@ function wait_for_item_to_delete()
       else
          if [ "$retries" -eq 0 ]; then
              echo "${item_type} named [${item_name}] still exist after all ${max_retries} retries. exit."
-             exit 2
+             [ "$fail" = "true" ] && exit 2 || { echo "Ignore wait timeout for item ${item_type} ${item_name}. Move on."; return; }
          else
             echo "${item_type} named [${item_name}] still exist. sleeping [$delay] before retry [`expr $max_retries - $retries`/${max_retries}]"
             retries=`expr $retries - 1`
