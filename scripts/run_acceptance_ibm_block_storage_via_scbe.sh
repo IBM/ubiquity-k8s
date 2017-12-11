@@ -57,6 +57,7 @@ function basic_tests_on_one_node()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [basic POD test with PVC] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Creating Storage class for ${profile} service"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -106,7 +107,7 @@ function basic_tests_on_one_node()
 
 	echo "## ---> ${S}.1. Verify the volume was attached to the kubelet node $node1"
 	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1 | grep "$wwn"'
 	ssh root@$node1 'mount |grep "$wwn"| grep "$fstype"'
 
@@ -189,6 +190,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [All in one suite] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -245,6 +247,7 @@ function basic_test_POD_with_2_volumes()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
+    find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -323,6 +326,7 @@ function fstype_basic_check()
 	stepinc
     printf "\n\n\n\n"
 	echo "########################### [ Run Pod with volume per fstype [${FS_SUPPORTED}] ] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
 
   	my_yml=$scripts/../deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
@@ -413,7 +417,7 @@ function tests_with_second_node()
 	printf "\n\n\n\n"
 	echo "########################### [Migrate POD from node1 to node2 ] ###############"
     [ -z "$node2" ] && { echo "Skip running migration test - because env ACCEPTANCE_WITH_SECOND_NODE was not set."; return; }
-
+    find_multipath_faulty
 	stepinc
 	echo "####### ---> ${S} Steps on NODE1 $node1"
 
@@ -451,7 +455,7 @@ function tests_with_second_node()
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
 	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
 	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'"
 
@@ -512,6 +516,7 @@ function setup()
     wwn=`kubectl get $nsf pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
 	ssh root@$node1 'df | egrep "ubiquity" | grep -v $wwn' && exit 1 || :
 	ssh root@$node1 'multipath -ll | grep IBM | grep -v $wwn' && exit 1 || :
+	find_multipath_faulty
 	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1 | grep -v $wwn' && exit 1 || :
 	kubectl get $nsf pvc 2>&1 | grep "$POSTGRES_PV"
 	kubectl get $nsf pv 2>&1 | grep "$POSTGRES_PV"
@@ -541,6 +546,26 @@ function setup()
         ssh root@$node2 "docker volume ls | grep $CName" && { echo "need to clean $CName volumes on remote node $node2"; exit 3; } || :
     fi
 }
+
+function find_multipath_faulty()
+{
+    echo "find_multipath_faulty"
+    echo "====================="
+	echo "multipath status on [$node1]"
+	echo "==========[Start]=================="
+	ssh root@$node1 'multipath -ll' || :
+    echo "==========[End]=================="
+	ssh root@$node1 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..." || :
+
+	if [ -n "$node2" ]; then
+       echo "multipath status on [$node2]"
+	   echo "==========[Start]=================="
+       ssh root@$node2 'multipath -ll' || :
+       echo "==========[End]=================="
+	   ssh root@$node2 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..."	|| :
+	fi
+}
+
 function usage()
 {
     echo "Usage $> $0 [ubiquity-namespace] [-h]"
