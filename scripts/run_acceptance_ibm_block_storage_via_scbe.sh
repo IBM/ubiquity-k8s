@@ -167,7 +167,7 @@ function basic_tests_on_one_node()
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
     wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 100 2 false
+    wait_for_item_to_delete pv $pvname 50 4 false
 
 	echo "## ---> ${S}.1. Verity the storage side : check volume is no longer exist"
     echo "Skip step"
@@ -232,7 +232,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     kubectl delete -f ${ymk_sc_and_pvc_and_pod1}
     wait_for_item_to_delete pod $PODName 1120 3
     wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 100 2 false
+    wait_for_item_to_delete pv $pvname 50 4 false
     wait_for_item_to_delete storageclass $profile 10 3
 }
 
@@ -309,8 +309,8 @@ function basic_test_POD_with_2_volumes()
     wait_for_item_to_delete pod $PODName 1120 3
     wait_for_item_to_delete pvc ${PVCName}1 10 2
     wait_for_item_to_delete pvc ${PVCName}2 10 2
-    wait_for_item_to_delete pv ${pvname1} 100 2 false
-    wait_for_item_to_delete pv ${pvname2} 100 2 false
+    wait_for_item_to_delete pv ${pvname1} 50 4 false
+    wait_for_item_to_delete pv ${pvname2} 50 4 false
     wait_for_item_to_delete storageclass $profile 10 3
 }
 
@@ -502,7 +502,7 @@ function tests_with_second_node()
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
     wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 100 2 false
+    wait_for_item_to_delete pv $pvname 50 4 false
 
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
