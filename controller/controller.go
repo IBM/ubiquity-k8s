@@ -296,7 +296,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			break
 		}
 		c.logger.Debug("unmountFlock.TryLock failed", logs.Args{{"error", err}})
-		time.Sleep(time.Duration(100*time.Millisecond))
+		time.Sleep(time.Duration(500*time.Millisecond))
 	}
 	c.logger.Debug("Got unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
 	defer c.unmountFlock.Unlock()
