@@ -3,6 +3,7 @@
     size 50M
     daily
     rotate 5
+    compress
     copytruncate 
     create 0600 root root
 }
