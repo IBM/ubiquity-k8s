@@ -14,3 +14,5 @@ WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/deploy/k8s_deployments/ubiquity_logrotate /etc/logrotate.d/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/deploy/k8s_deployments/setup_flex.sh .
+COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/LICENSE .
+COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/notices_file_for_ibm_storage_enabler_for_containers ./NOTICES
