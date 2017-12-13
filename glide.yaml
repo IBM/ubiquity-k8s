@@ -46,6 +46,8 @@ import:
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/version
+- package: github.com/nightlyone/lockfile
+  version: 6a197d5ea61168f2ac821de2b7f011b250904900
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega
