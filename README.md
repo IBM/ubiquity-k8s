@@ -16,7 +16,7 @@ The code is provided as is, without warranty. Any issue will be handled on a bes
 
 ## Solution overview
 
-![Ubiquity Overview](images/ubiquity_architecture_draft_for_github.jpg)   TODO (with no docker)
+![Ubiquity Overview](images/ubiquity_architecture_draft_for_github.jpg)
 
 Ubiquity Kubernetes deployment:
    *   Ubiquity Kubernetes Dynamic Provisioner (ubiquity-k8s-provisioner) runs as a Kubernetes deployment with replica=1.
