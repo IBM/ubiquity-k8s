@@ -13,64 +13,6 @@ Note : The Ubiquity Dynamic Provisioner configuration is described in the [READM
 Perform the following installation and configuration procedures on each node in the Kubernetes cluster that requires access to Ubiquity volumes.
 
 
-### 1. Installing connectivity packages
-The FlexVolume supports FC or iSCSI connectivity to the storage systems.
-
-  * RHEL, SLES
-
-```bash
-   sudo yum -y install sg3_utils
-   sudo yum -y install iscsi-initiator-utils  # only if you need iSCSI
-```
-
-### 2. Configuring multipathing
-The FlexVolume requires multipath devices. Configure the `multipath.conf` file according to the storage system requirements.
-  * RHEL, SLES
-
-```bash
-   yum install device-mapper-multipath
-   sudo modprobe dm-multipath
-
-   cp multipath.conf /etc/multipath.conf  # Default file can be copied from  /usr/share/doc/device-mapper-multipath-*/multipath.conf to /etc
-   systemctl start multipathd
-   systemctl status multipathd  # Make sure its active
-   multipath -ll  # Make sure no error appear.
-```
-
-### 3. Configure storage system connectivity
-  *  Verify that the hostname of the Kubernetes node is defined on the relevant storage systems with the valid WWPNs or IQN of the node. The hostname on the storage system must be the same as the output of `hostname` command on the Kubernetes node. Otherwise, you will not be able to run stateful containers.
-
-  *  For iSCSI, discover and log in to the iSCSI targets of the relevant storage systems:
-
-```bash
-   iscsiadm -m discoverydb -t st -p ${storage system iSCSI portal IP}:3260 --discover   # To discover targets
-   iscsiadm -m node  -p ${storage system iSCSI portal IP/hostname} --login              # To log in to targets
-```
-
-### 4. Configuring Ubiquity FlexVolume for SCBE
-
-The ubiquity-k8s-flex.conf must be created in the /etc/ubiquity directory. Configure the Ubiquity FlexVolume by editing the file, as illustrated below.
-
-Just make sure backends set to "scbe".
-
- ```toml
- logPath = "/var/tmp"  # The Ubiquity FlexVolume will write logs to file "ubiquity-k8s-flex.log" in this path.
- backends = ["scbe"] # Backend name, such as scbe or spectrum-scale.
- logLevel = "info" # Optional parameter. Possible values are debug, info or error. Default is "info".
-
-
- [UbiquityServer]
- address = "IP"  # IP/hostname of the Ubiquity service
- port = 9999     # TCP port on which the Ubiquity service is listening
- ```
-  * Verify that the logPath, exists on the host to enable the FlexVolume to run properly.
-
-<br>
-<br>
-<br>
-<br>
-
-
 # Usage example for Ubiquity Dynamic Provisioner and FlexVolume
 
 ## Basic flow for running a stateful container with Ubiquity volume
