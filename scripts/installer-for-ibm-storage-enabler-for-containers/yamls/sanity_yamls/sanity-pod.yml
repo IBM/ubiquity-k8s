@@ -1,11 +1,11 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: pod1          # Pod name
+  name: sanity-pod          # Pod name
 spec:
   containers:
   - name: container1  # Container name
-    image: ubuntu:latest
+    image: alpine:latest
     command: [ "/bin/sh", "-c", "--" ]
     args: [ "while true; do sleep 30; done;" ]
     volumeMounts:
@@ -15,5 +15,8 @@ spec:
   volumes:
     - name: vol1
       persistentVolumeClaim:
-        claimName: pvc1
+        claimName: sanity-pvc
+
+#  nodeSelector:
+#     kubernetes.io/hostname: NODESELECTOR
 

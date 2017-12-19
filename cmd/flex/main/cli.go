@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path"
 
@@ -31,13 +29,16 @@ import (
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/resources"
+	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
+	"strconv"
 )
 
 var configFile = flag.String(
 	"configFile",
-	"/etc/ubiquity/ubiquity-k8s-flex.conf",
-	"config file with ubiquity client configuration params",
+	k8sresources.FlexConfPath,
+	"Flex Volume configuration file",
 )
 
 // All the method should printout as response:
@@ -55,24 +56,11 @@ type InitCommand struct {
 }
 
 func (i *InitCommand) Execute(args []string) error {
-	config, err := readConfig(*configFile)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to read config in Init %#v", err),
-		}
-		return printResponse(response)
+	response := k8sresources.FlexVolumeResponse{
+		Status:  "Success",
+		Message: "Plugin init successfully",
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
-	controller, err := createController(config)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed tocreate controller %#v", err),
-		}
-		return printResponse(response)
-	}
-	response := controller.Init(config)
+
 	return printResponse(response)
 }
 
@@ -108,7 +96,7 @@ func (g *GetVolumeNameCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -160,7 +148,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -205,7 +193,7 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[1]), &opts)
@@ -244,7 +232,7 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[0]), &opts)
@@ -294,7 +282,7 @@ func (d *DetachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -329,7 +317,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[2]), &opts)
@@ -368,7 +356,7 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0]}
@@ -449,7 +437,7 @@ func (m *MountCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -484,7 +472,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.DEBUG, path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -496,6 +484,32 @@ func (u *UnmountCommand) Execute(args []string) error {
 	}
 	unmountResponse := controller.Unmount(unmountRequest)
 	return printResponse(unmountResponse)
+}
+
+type TestUbiquityCommand struct {
+	Test func() `short:"i" long:"init" description:"Initialize the plugin"`
+}
+
+func (i *TestUbiquityCommand) Execute(args []string) error {
+	config, err := readConfig(*configFile)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to read config in Test Ubiquity %#v", err),
+		}
+		return printResponse(response)
+	}
+	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	controller, err := createController(config)
+	if err != nil {
+		response := k8sresources.FlexVolumeResponse{
+			Status:  "Failure",
+			Message: fmt.Sprintf("Failed to create controller %#v", err),
+		}
+		return printResponse(response)
+	}
+	response := controller.TestUbiquity(config)
+	return printResponse(response)
 }
 
 type Options struct{}
@@ -511,6 +525,7 @@ func main() {
 	var waitForAttachCommand WaitForAttachCommand
 	var mountDeviceCommand MountDeviceCommand
 	var unmountDeviceCommand UnmountDeviceCommand
+	var testUbiquityCommand TestUbiquityCommand
 
 	var options Options
 	var parser = flags.NewParser(&options, flags.Default)
@@ -555,6 +570,10 @@ func main() {
 		"Unmount Device",
 		"Unmount Device",
 		&unmountDeviceCommand)
+	parser.AddCommand("testubiquity",
+		"Tests connectivity to ubiquity",
+		"Tests connectivity to ubiquity",
+		&testUbiquityCommand)
 
 	_, err := parser.Parse()
 	if err != nil {
@@ -564,12 +583,8 @@ func main() {
 }
 
 func createController(config resources.UbiquityPluginConfig) (*controller.Controller, error) {
-
-	logger, _ := setupLogger(config.LogPath)
-	//defer closeLogs(logFile)
-
-	storageApiURL := fmt.Sprintf("http://%s:%d/ubiquity_storage", config.UbiquityServer.Address, config.UbiquityServer.Port)
-	controller, err := controller.NewController(logger, storageApiURL, config)
+	logger := utils.SetupOldLogger(k8sresources.UbiquityFlexLogFileName)
+	controller, err := controller.NewController(logger, config)
 	return controller, err
 }
 
@@ -580,23 +595,11 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 		return resources.UbiquityPluginConfig{}, err
 
 	}
+	// Create environment variables for some of the config params
+	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
+	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
-}
-
-func setupLogger(logPath string) (*log.Logger, *os.File) {
-	logFile, err := os.OpenFile(path.Join(logPath, k8sresources.UbiquityFlexLogFileName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
-	if err != nil {
-		fmt.Printf("Failed to setup logger: %s\n", err.Error())
-		return nil, nil
-	}
-	log.SetOutput(logFile)
-	logger := log.New(io.MultiWriter(logFile), "ubiquity-flexvolume: ", log.Lshortfile|log.LstdFlags)
-	return logger, logFile
-}
-
-func closeLogs(logFile *os.File) {
-	logFile.Sync()
-	logFile.Close()
 }
 
 func printResponse(f k8sresources.FlexVolumeResponse) error {

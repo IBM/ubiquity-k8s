@@ -16,7 +16,7 @@
 # Script prerequisites:
 #  ====================
 #    1. SCBE server up and running with 1 service delegated to ubiquity interface (service name given by $ACCEPTANCE_PROFILE)
-#    2. ubiqutiy server up and running with SCBE backend configured
+#    2. ubiquity server up and running with SCBE backend configured
 #    3. ubiquity-provisioner up and running and also ubiquity-flexvolume-cli locate on the k8s nodes
 #    4. setup connectivity between the minions to the related storage system of the service.
 #    5. root SSH passwordless between master and minions (so test will validate on the minions the mount devices via ssh)
@@ -57,13 +57,19 @@ function basic_tests_on_one_node()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [basic POD test with PVC] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Creating Storage class for ${profile} service"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
     cat $yml_sc_profile
-    kubectl create -f ${yml_sc_profile}
+    # kubectl create -f ${yml_sc_profile} || true
+    if ! kubectl get storageclass $profile >/dev/null 2>&1; then
+        kubectl create -f ${yml_sc_profile}
+    else
+        echo "Storage class $profile already exist, so no need to create it."
+    fi
     kubectl get storageclass $profile
 
 	echo "####### ---> ${S}. Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
@@ -74,10 +80,10 @@ function basic_tests_on_one_node()
     kubectl create -f ${yml_pvc}
 
 	echo "####### ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 30 3
 
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 30 3
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
 
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
@@ -100,10 +106,10 @@ function basic_tests_on_one_node()
 
 
 	echo "## ---> ${S}.1. Verify the volume was attached to the kubelet node $node1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
-	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
-	ssh root@$node1 "mount |grep $wwn| grep $fstype"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
+	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1 | grep "$wwn"'
+	ssh root@$node1 'mount |grep "$wwn"| grep "$fstype"'
 
 	echo "## ---> ${S}.2. Verify volume exist inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data"
@@ -118,7 +124,8 @@ function basic_tests_on_one_node()
 
 	stepinc
 	echo "####### ---> ${S}. Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+        # Add : at the end of touch, because kubectl has a known exit code issue.
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	stepinc
@@ -130,8 +137,8 @@ function basic_tests_on_one_node()
 	sleep 2 # some times mount is not refreshed immediate
 	ssh root@$node1 "df | egrep ubiquity | grep $wwn" && exit 1 || :
 	ssh root@$node1 "multipath -ll | grep -i $wwn" && exit 1 || :
-	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
-	ssh root@$node1 "mount |grep $wwn| grep $fstype" && exit 1 || :
+	ssh root@$node1 "lsblk | egrep ubiquity -B 1 | grep $wwn" && exit 1 || :
+	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'" && exit 1 || :
 
 	echo "## ---> ${S}.2. Verify PVC and PV still exist"
     kubectl get pvc $PVCName
@@ -159,8 +166,8 @@ function basic_tests_on_one_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
-    wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 10 2
+    wait_for_item_to_delete pvc $PVCName 30 3
+    wait_for_item_to_delete pv $pvname 50 4 false
 
 	echo "## ---> ${S}.1. Verity the storage side : check volume is no longer exist"
     echo "Skip step"
@@ -183,6 +190,7 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [All in one suite] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -209,22 +217,22 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
     kubectl create -f ${ymk_sc_and_pvc_and_pod1}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 30 3
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 30 3
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 1120 3
 
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data/file_on_A9000_volume"
 
 	echo "## ---> ${S}.4 Delete all in one (SC, PVC, PV and POD)"
     kubectl delete -f ${ymk_sc_and_pvc_and_pod1}
     wait_for_item_to_delete pod $PODName 1120 3
-    wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 10 2
+    wait_for_item_to_delete pvc $PVCName 30 3
+    wait_for_item_to_delete pv $pvname 50 4 false
     wait_for_item_to_delete storageclass $profile 10 3
 }
 
@@ -239,6 +247,7 @@ function basic_test_POD_with_2_volumes()
 	stepinc
 	printf "\n\n\n\n"
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
+    find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
     yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
@@ -270,12 +279,12 @@ function basic_test_POD_with_2_volumes()
     kubectl create -f ${my_yml}
 
 	echo "## ---> ${S}.1. Verify PVC and PV info status and inpect"
-    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 10 3
-    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pvc ${PVCName}1 ${PVC_GOOD_STATUS} 30 3
+    wait_for_item pvc ${PVCName}2 ${PVC_GOOD_STATUS} 30 3
     pvname1=`kubectl get pvc ${PVCName}1 --no-headers -o custom-columns=name:spec.volumeName`
     pvname2=`kubectl get pvc ${PVCName}2 --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 10 3
-    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 30 3
+    wait_for_item pv ${pvname2} ${PVC_GOOD_STATUS} 30 3
 
  	echo "## ---> ${S}.2. Verify POD info status "
     wait_for_item pod $PODName Running 1120 3
@@ -283,25 +292,25 @@ function basic_test_POD_with_2_volumes()
 	echo "## ---> ${S}.3 Write DATA on the volume by create a file in /data inside the container"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data1"
     kubectl exec -it  $PODName -c ${CName} -- bash -c "df /data2"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data1/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data1/file_on_A9000_volume"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch /data2/file_on_A9000_volume" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l /data2/file_on_A9000_volume"
 
 
  	echo "## ---> ${S}.4. Verify 2 vols attached and mounted in the kubelet node"
     wwn1=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname1}`
     wwn2=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn ${pvname2}`
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn2"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn1'"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn2'"
 
 	echo "## ---> ${S}.5 Delete all in one (SC, 2 PVCs, PV and POD)"
     kubectl delete -f ${my_yml}
     wait_for_item_to_delete pod $PODName 1120 3
-    wait_for_item_to_delete pvc ${PVCName}1 10 2
-    wait_for_item_to_delete pvc ${PVCName}2 10 2
-    wait_for_item_to_delete pv ${pvname1} 10 2
-    wait_for_item_to_delete pv ${pvname2} 10 2
+    wait_for_item_to_delete pvc ${PVCName}1 30 3
+    wait_for_item_to_delete pvc ${PVCName}2 30 3
+    wait_for_item_to_delete pv ${pvname1} 50 4 false
+    wait_for_item_to_delete pv ${pvname2} 50 4 false
     wait_for_item_to_delete storageclass $profile 10 3
 }
 
@@ -317,6 +326,7 @@ function fstype_basic_check()
 	stepinc
     printf "\n\n\n\n"
 	echo "########################### [ Run Pod with volume per fstype [${FS_SUPPORTED}] ] ###############"
+	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
 
   	my_yml=$scripts/../deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
@@ -351,9 +361,9 @@ function fstype_basic_check()
 
     for fstype in ${FS_SUPPORTED}; do
         echo "## ---> ${S}.1. Verify PVC, PV and POD of $fstype"
-        wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 10 3
+        wait_for_item pvc ${PVCName}-${fstype} ${PVC_GOOD_STATUS} 30 3
         pvname1=`kubectl get pvc ${PVCName}-${fstype} --no-headers -o custom-columns=name:spec.volumeName`
-        wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 10 3
+        wait_for_item pv ${pvname1} ${PVC_GOOD_STATUS} 30 3
         wait_for_item pod ${PODName}-${fstype} Running 1120 3
 
 
@@ -367,16 +377,16 @@ function fstype_basic_check()
     kubectl delete -f ${my_yml}
     for fstype in ${FS_SUPPORTED}; do
         wait_for_item_to_delete pod ${PODName}-${fstype} 1120 3
-        wait_for_item_to_delete pvc ${PVCName}-${fstype} 10 2
+        wait_for_item_to_delete pvc ${PVCName}-${fstype} 30 3
         wait_for_item_to_delete storageclass ${profile}-${fstype} 10 3
     done
     
     # Now also wait for PVs is still exist
-    pvs=`kubectl get pv --no-headers -o custom-columns=wwn:metadata.name`
-    [ -z "$pvs" ] && return
-    for pv in $pvs; do
-        wait_for_item_to_delete pv $pv 10 2
-    done
+    # pvs=`kubectl get pv --no-headers -o custom-columns=wwn:metadata.name`
+    # [ -z "$pvs" ] && return
+    # for pv in $pvs; do
+    #     wait_for_item_to_delete pv $pv 60 2
+    # done
 }
 
 function one_node_negative_tests()
@@ -407,7 +417,7 @@ function tests_with_second_node()
 	printf "\n\n\n\n"
 	echo "########################### [Migrate POD from node1 to node2 ] ###############"
     [ -z "$node2" ] && { echo "Skip running migration test - because env ACCEPTANCE_WITH_SECOND_NODE was not set."; return; }
-
+    find_multipath_faulty
 	stepinc
 	echo "####### ---> ${S} Steps on NODE1 $node1"
 
@@ -428,9 +438,9 @@ function tests_with_second_node()
     kubectl create -f ${yml_pvc}
 
 	echo "## ---> ${S}.3. Verify PVC and PV info status and inpect"
-    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pvc $PVCName ${PVC_GOOD_STATUS} 30 3
     pvname=`kubectl get pvc $PVCName --no-headers -o custom-columns=name:spec.volumeName`
-    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 10 3
+    wait_for_item pv $pvname ${PVC_GOOD_STATUS} 30 3
     kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
 
@@ -444,14 +454,14 @@ function tests_with_second_node()
 
 
 	echo "## ---> ${S}.5. Verify the volume was attached to the kubelet node $node1"
-	ssh root@$node1 "df | egrep ubiquity | grep $wwn"
-	ssh root@$node1 "multipath -ll | grep -i $wwn"
+	ssh root@$node1 "df | egrep ubiquity | grep '$wwn'"
+	ssh root@$node1 "multipath -ll | grep -i $wwn" || { echo "ERROR: BAD multipath state - Did not find WWN [$wwn] in multipath -ll. Skip this validation."; }
 	ssh root@$node1 'lsblk | egrep "ubiquity|^NAME" -B 1'
-	ssh root@$node1 "mount |grep $wwn| grep $fstype"
+	ssh root@$node1 "mount |grep '$wwn' | grep '$fstype'"
 
 	echo "## ---> ${S}.6 Write DATA on the volume by create a file in /data inside the container"
         file_create_node1="/data/file_created_on_${node1}"
-	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}"
+	kubectl exec -it  $PODName -c ${CName} -- bash -c "touch ${file_create_node1}" || :
 	kubectl exec -it  $PODName -c ${CName} -- bash -c "ls -l ${file_create_node1}"
 
 	stepinc
@@ -491,8 +501,8 @@ function tests_with_second_node()
 	stepinc
 	echo "####### ---> ${S}. Remove the PVC and PV"
 	kubectl delete -f ${yml_pvc}
-    wait_for_item_to_delete pvc $PVCName 10 2
-    wait_for_item_to_delete pv $pvname 10 2
+    wait_for_item_to_delete pvc $PVCName 30 3
+    wait_for_item_to_delete pv $pvname 50 4 false
 
 	stepinc
 	echo "####### ---> ${S}. Remove the Storage Class $profile"
@@ -503,11 +513,13 @@ function tests_with_second_node()
 function setup()
 {
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
-	ssh root@$node1 'df | egrep "ubiquity"' && exit 1 || :
-	ssh root@$node1 'multipath -ll | grep IBM' && exit 1 || :
-	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1' && exit 1 || :
-	kubectl get pvc 2>&1 | grep "$NO_RESOURCES_STR"
-	kubectl get pv 2>&1 | grep "$NO_RESOURCES_STR"
+    wwn=`kubectl get $nsf pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
+	ssh root@$node1 'df | egrep "ubiquity" | grep -v $wwn' && exit 1 || :
+	ssh root@$node1 'multipath -ll | grep IBM | grep -v $wwn' && exit 1 || :
+	find_multipath_faulty
+	ssh root@$node1 'lsblk | egrep "ubiquity" -B 1 | grep -v $wwn' && exit 1 || :
+	kubectl get $nsf pvc 2>&1 | grep "$POSTGRES_PV"
+	kubectl get $nsf pv 2>&1 | grep "$POSTGRES_PV"
 
     echo "Skip clean up the environment for acceptance test (TODO)"
     return
@@ -534,7 +546,44 @@ function setup()
         ssh root@$node2 "docker volume ls | grep $CName" && { echo "need to clean $CName volumes on remote node $node2"; exit 3; } || :
     fi
 }
-[ "$1" = "-h" ] && { echo "$0 can get the following envs :"; echo "        ACCEPTANCE_PROFILE, ACCEPTANCE_WITH_NEGATIVE, ACCEPTANCE_WITH_SECOND_NODE"; exit 0; }
+
+function find_multipath_faulty()
+{
+    echo "find_multipath_faulty"
+    echo "====================="
+	echo "multipath status on [$node1]"
+	echo "==========[Start]=================="
+	ssh root@$node1 'multipath -ll' || :
+    echo "==========[End]=================="
+	ssh root@$node1 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..." || :
+
+	if [ -n "$node2" ]; then
+       echo "multipath status on [$node2]"
+	   echo "==========[Start]=================="
+       ssh root@$node2 'multipath -ll' || :
+       echo "==========[End]=================="
+	   ssh root@$node2 'multipath -ll | egrep "failed|faulty|##"' && echo "ERROR: Some faulty multipathing found [$node1]. Continue with the test..."	|| :
+	fi
+}
+
+function usage()
+{
+    echo "Usage $> $0 [ubiquity-namespace] [-h]"
+    echo "    [ubiquity-namespace] : The namespace where Ubiqutiy is running."
+    echo "    -h : Print this usage."
+    echo "    Environment variables:";
+    echo "        export ACCEPTANCE_PROFILE=<The SCBE profile name to work with>"
+    echo "        export ACCEPTANCE_WITH_NEGATIVE=<bool>. true in order to run additional negative tests"
+    echo "        export ACCEPTANCE_WITH_FIRST_NODE=<IP of first minion>"
+    echo "        export ACCEPTANCE_WITH_SECOND_NODE=<IP of second minion for volume migration scenario>"
+    # TODO : should refactor usage with flags -n <namespace> -p <scbe profile> -f <first node IP> -s <second node IP> -g (for negative)
+    exit 1
+}
+
+[ "$1" = "-h" ] && { usage; }
+[ -n "$1" ] && NS=$1 || NS=ubiquity
+nsf="--namespace $NS"
+echo "Assume Ubiquity namespace is [$NS]"
 scripts=$(dirname $0)
 
 S=0 # steps counter
@@ -552,6 +601,7 @@ yml_pvc_template=$scripts/../deploy/scbe_volume_pvc_template.yml
 yml_pod_template=$scripts/../deploy/scbe_volume_with_pod_template.yml
 yml_two_vols_pod_template=$scripts/../deploy/scbe_volume_with_pod_with_2vols_template.yml
 
+POSTGRES_PV="ibm-ubiquity-db"
 FS_SUPPORTED="ext4 xfs"
 YAML_DELIMITER='---'
 PVCName=accept-pvc

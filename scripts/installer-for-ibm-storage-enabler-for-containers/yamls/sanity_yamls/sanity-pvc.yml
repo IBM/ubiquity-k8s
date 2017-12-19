@@ -1,0 +1,12 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "sanity-pvc"
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
+spec:
+  accessModes:
+    - ReadWriteOnce # Currently Ubiquity scbe backend supports only ReadWriteOnce mode
+  resources:
+    requests:
+      storage: 1Gi  # Size in Gi unit only

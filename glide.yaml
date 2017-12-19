@@ -1,43 +1,52 @@
 package: github.com/IBM/ubiquity-k8s
 import:
 - package: github.com/BurntSushi/toml
+  version: v0.3.0  
 - package: github.com/jessevdk/go-flags
+  version: f88afde2fa19a30cf50ba4b05b3d13bc6bae3079
 - package: github.com/kubernetes-incubator/external-storage
-  version: 7ed750505f701c978a79ebf001cc37fc529d73d0
+  version: 094dd501fc4ff313fb872e90e19f774819f192b7
   subpackages:
-  - lib/controller
-  - lib/leaderelection
+  - lib
 - package: github.com/IBM/ubiquity
   subpackages:
   - remote
   - resources
   - utils
-- package: k8s.io/client-go
-  version: v2.0.0
+- package: k8s.io/apimachinery
+  version: release-1.8
   subpackages:
-  - kubernetes
-  - kubernetes/typed/core/v1
-  - pkg/api
   - pkg/api/errors
-  - pkg/api/unversioned
-  - pkg/api/v1
-  - pkg/apis/storage/v1beta1
-  - pkg/fields
+  - pkg/api/resource
+  - pkg/apis/meta/v1
   - pkg/runtime
   - pkg/types
   - pkg/util/runtime
   - pkg/util/uuid
+  - pkg/util/validation
+  - pkg/util/validation/field
   - pkg/util/wait
-  - pkg/version
   - pkg/watch
-  - tools/cache
-  - tools/record
-- package: k8s.io/apimachinery
+- package: k8s.io/client-go
+  version: release-5.0
   subpackages:
-  - pkg/types
+  - kubernetes
+  - kubernetes/typed/core/v1
+  - rest
+  - tools/cache
+  - tools/clientcmd
+  - tools/record
+  - tools/remotecommand
+  - tools/reference
+- package: k8s.io/api
+  version: release-1.8
 - package: k8s.io/kubernetes
+  version: release-1.8
   subpackages:
   - pkg/util/goroutinemap
+  - pkg/util/version
+- package: github.com/nightlyone/lockfile
+  version: 6a197d5ea61168f2ac821de2b7f011b250904900
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega

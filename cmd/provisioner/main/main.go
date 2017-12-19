@@ -17,71 +17,50 @@
 package main
 
 import (
-	"flag"
-
-	"time"
-
 	"fmt"
-	"os/user"
-	"path"
-
-	"github.com/BurntSushi/toml"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
+	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
-	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/kubernetes-incubator/external-storage/lib/leaderelection"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	"k8s.io/client-go/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
 )
 
 var (
-	provisioner          = flag.String("provisioner", "ubiquity/flex", "Name of the provisioner. The provisioner will only provision volumes for claims that request a StorageClass with a provisioner field set equal to this name.")
-	master               = flag.String("master", "", "Master URL to build a client config from. Either this or kubeconfig needs to be set if the provisioner is being run out of cluster.")
-	configFile           = flag.String("config", "/etc/ubiquity/ubiquity-k8s-provisioner.conf", "config file with ubiquity client configuration params")
-	failedRetryThreshold = flag.Int("retries", 3, "number of retries on failure of provisioner")
-)
-
-const (
-	leasePeriod   = leaderelection.DefaultLeaseDuration
-	retryPeriod   = leaderelection.DefaultRetryPeriod
-	renewDeadline = leaderelection.DefaultRenewDeadline
-	termLimit     = leaderelection.DefaultTermLimit
+	provisioner = k8sresources.ProvisionerName
+	configFile  = os.Getenv("KUBECONFIG")
 )
 
 func main() {
-	usr, err := user.Current()
+
+	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get the active user: %v", err))
+		panic(fmt.Errorf("Failed to load config %#v", err))
 	}
-	homedir := usr.HomeDir
+	fmt.Printf("Starting ubiquity plugin with %s config file\n", configFile)
 
-	kubeconfig := flag.String("kubeconfig", fmt.Sprintf("%s/.kube/config", homedir), "Absolute path to the kubeconfig file. Either this or master needs to be set if the provisioner is being run out of cluster.")
-	flag.Parse()
-	var ubiquityConfig resources.UbiquityPluginConfig
-	fmt.Printf("Starting ubiquity plugin with %s config file\n", *configFile)
-	if _, err := toml.DecodeFile(*configFile, &ubiquityConfig); err != nil {
-		fmt.Println(err)
-		return
+	err = os.MkdirAll(ubiquityConfig.LogPath, 0640)
+	if err != nil {
+		panic(fmt.Errorf("Failed to setup log dir"))
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), path.Join(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerLogFileName))()
-	logger, logFile := utils.SetupLogger(ubiquityConfig.LogPath, k8sresources.UbiquityProvisionerName)
-	defer utils.CloseLogs(logFile)
 
-	logger.Printf("Provisioner %s specified", *provisioner)
+	defer logs.InitStdoutLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel))()
+	logger := utils.SetupOldLogger(k8sresources.UbiquityProvisionerName)
 
-	// Create the client according to whether we are running in or out-of-cluster
+	logger.Printf("Provisioner %s specified", provisioner)
+
 	var config *rest.Config
-	if *master != "" || *kubeconfig != "" {
-		logger.Printf("Uses k8s configuration file name %s", *kubeconfig)
-		config, err = clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
+
+	if configFile != "" {
+		logger.Printf("Uses k8s configuration file name %s", configFile)
+		config, err = clientcmd.BuildConfigFromFlags("", configFile)
 	} else {
 		config, err = rest.InClusterConfig()
 	}
@@ -99,22 +78,26 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Error getting server version: %v", err))
 	}
-	ubiquityEndpoint := fmt.Sprintf("http://%s:%d/ubiquity_storage", ubiquityConfig.UbiquityServer.Address, ubiquityConfig.UbiquityServer.Port)
-	logger.Printf("ubiquity endpoint")
-	remoteClient, err := remote.NewRemoteClient(logger, ubiquityEndpoint, ubiquityConfig)
+	remoteClient, err := remote.NewRemoteClientSecure(logger, ubiquityConfig)
 	if err != nil {
-		logger.Printf("Error getting server version: %v", err)
+		logger.Printf("Error getting remote Client: %v", err)
+		panic("Error getting remote client")
 	}
 
 	// Create the provisioner: it implements the Provisioner interface expected by
 	// the controller
-	// nfsProvisioner := vol.NewNFProvisioner(exportDir, clientset, *useGanesha, ganeshaConfig)
+	ubiquityConfigCopyWithPasswordStarred := ubiquityConfig
+	ubiquityConfigCopyWithPasswordStarred.CredentialInfo.Password = "****"
+	logger.Printf("starting the provisioner, remote client %#v, config %#v", remoteClient, ubiquityConfigCopyWithPasswordStarred)
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
+		logger.Printf("Error starting provisioner: %v", err)
 		panic("Error starting ubiquity client")
 	}
-	// Start the provision controller which will dynamically provision NFS PVs
 
-	pc := controller.NewProvisionController(clientset, 15*time.Second, *provisioner, flexProvisioner, serverVersion.GitVersion, true, *failedRetryThreshold, leasePeriod, renewDeadline, retryPeriod, termLimit)
+	// Start the provision controller which will dynamically provision Ubiquity PVs
+
+	pc := controller.NewProvisionController(clientset, provisioner, flexProvisioner, serverVersion.GitVersion)
 	pc.Run(wait.NeverStop)
 }
+

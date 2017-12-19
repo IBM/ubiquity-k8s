@@ -1,0 +1,16 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "ibm-ubiquity-db"
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
+  labels:
+    pv-name: "ibm-ubiquity-db"   # Ubiquity provisioner will create a PV with ibm-ubiquity-db instead of PVC-ID.
+    product: ibm-storage-enabler-for-containers
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

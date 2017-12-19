@@ -19,14 +19,14 @@ package volume_test
 import (
 	"fmt"
 
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"k8s.io/client-go/pkg/api/v1"
-
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Provisioner", func() {
@@ -75,7 +75,7 @@ var _ = Describe("Provisioner", func() {
 
 		It("fails when ubiquityClient returns an error", func() {
 			fakeClient.RemoveVolumeReturns(fmt.Errorf("error removing volume"))
-			objectMeta := v1.ObjectMeta{Name: "vol1"}
+			objectMeta := metav1.ObjectMeta{Name: "vol1"}
 			volume := v1.PersistentVolume{ObjectMeta: objectMeta}
 			err = provisioner.Delete(&volume)
 			Expect(err).To(HaveOccurred())
@@ -83,7 +83,7 @@ var _ = Describe("Provisioner", func() {
 		})
 		It("succeeds when volume  name exists and ubiquityClient does not return an error", func() {
 			fakeClient.RemoveVolumeReturns(nil)
-			objectMeta := v1.ObjectMeta{Name: "vol1"}
+			objectMeta := metav1.ObjectMeta{Name: "vol1"}
 			volume := v1.PersistentVolume{ObjectMeta: objectMeta}
 			err = provisioner.Delete(&volume)
 			Expect(err).ToNot(HaveOccurred())
