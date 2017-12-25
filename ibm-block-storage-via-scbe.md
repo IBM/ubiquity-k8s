@@ -51,7 +51,9 @@ metadata:
 spec:
   containers:
   - name: container1  # Container name
-    image: midoblgsm/kubenode
+    image: alpine:latest
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
     volumeMounts:
       - name: vol1
         mountPath: "/data"  # mountpoint for vol1(pvc1)
@@ -233,7 +235,9 @@ metadata:
 spec:
   containers:
   - name: container1  # Container name
-    image: midoblgsm/kubenode
+    image: alpine:latest
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "while true; do sleep 30; done;" ]
     volumeMounts:
       - name: vol1
         mountPath: "/data"  # Mountpoint for the vol1(pvc1)
