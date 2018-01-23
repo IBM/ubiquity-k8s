@@ -74,6 +74,8 @@ spec:
         volumeMounts:
         - name: host-k8splugindir
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+        - name: flex-logdir
+          mountPath: /tmp
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -83,6 +85,9 @@ spec:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
+      - name: flex-logdir
+        hostPath:
+          path: /tmp
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:
