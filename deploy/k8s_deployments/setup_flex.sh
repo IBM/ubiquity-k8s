@@ -136,7 +136,7 @@ HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec   # Assu
 MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
-FLEX_LOG_DIR=/tmp
+FLEX_LOG_DIR=/tmp/log/ubiquity
 
 echo "[`date`]"
 echo "Starting $DRIVER Pod..."
@@ -158,3 +158,6 @@ echo "tail -F ${FLEX_LOG_DIR}/ubiquity-k8s-flex.log"
 echo "-----------------------------------------------"
 tail -F ${FLEX_LOG_DIR}/ubiquity-k8s-flex.log &
 
+while : ; do
+    sleep 86400 # every 24 hours
+done
