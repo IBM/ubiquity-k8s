@@ -30,7 +30,7 @@ function create_flex_log_dir()
     # Create /tmp directory
     if [ ! -d "${FLEX_LOG_DIR}" ]; then
       echo "Creating the flex log directory [$FLEX_LOG_DIR] for the first time."
-      mkdir "${FLEX_LOG_DIR}"
+      mkdir -p "${FLEX_LOG_DIR}"
     fi
 }
 
