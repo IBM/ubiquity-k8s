@@ -138,6 +138,10 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 		return nil, err
 	}
 
+	if volume_details["volumeName"] != options.PVName {
+		options.PVName = volume_details["volumeName"]
+	}
+
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
 	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
@@ -216,6 +220,10 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	}
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: options.PVName}
+	if _, exists := createVolumeRequest.Opts["PVNameForDS8k"]; exists {
+		options.PVName = createVolumeRequest.Opts["PVNameForDS8k"].(string)
+		getVolumeConfigRequest = resources.GetVolumeConfigRequest{Name: options.PVName}
+	}
 	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
