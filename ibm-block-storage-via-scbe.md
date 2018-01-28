@@ -393,7 +393,7 @@ COOL
 ```bash
 #> kubectl delete pod $pod
 pod "sanity-deployment-75f959859f-dh979" deleted
-root@k8s-shay-v18-master:/var/tmp/new/installer-for-ibm-storage-enabler-for-containers-1.0.0-185/yamls/sanity_yamls# kubectl get -o wide deploy,pod
+#> kubectl get -o wide deploy,pod
 NAME                       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE       CONTAINERS   IMAGES          SELECTOR
 deploy/sanity-deployment   1         1         1            0           3m        container1   alpine:latest   app=sanity-deployment
 
