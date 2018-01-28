@@ -324,6 +324,121 @@ For example:
 storageclass "gold" deleted
 ```
 
+### Example of stateful container in a Deployment while POD fail over to second node
+This section describes how to run stateful container inside a Deployment, and then delete the POD and see how kubernetes schedule the POD on other node in the cluster and moving its volume with it.
+
+
+Prerequisits
+1. Create the same storage class (as previous example)
+```bash
+#> kubectl create -f storage_class_gold.yml
+storageclass "gold" created
+```
+2. Create the PVC (as previous example)
+```bash
+#> kubectl create -f pvc1.yml
+persistentvolumeclaim "pvc1 created
+```
+
+Create Kubernetes Deployment with stateful POD (on node2) and write some data inside
+```bash
+#> cat sanity-deployment.yml 
+apiVersion: "extensions/v1beta1"
+kind: Deployment
+metadata:
+  name: sanity-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sanity-deployment
+    spec:
+      containers:
+      - name: container1
+        image: alpine:latest
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        volumeMounts:
+          - name: sanity-pvc
+            mountPath: "/data"
+      volumes:
+      - name: sanity-pvc
+        persistentVolumeClaim:
+          claimName: sanity-pvc
+#> kubectl create -f sanity-deployment.yml 
+deployment "sanity-deployment" created
+
+#> kubectl get -o wide deploy,pod
+NAME                       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE       CONTAINERS   IMAGES          SELECTOR
+deploy/sanity-deployment   1         1         1            1           1m        container1   alpine:latest   app=sanity-deployment
+
+NAME                                    READY     STATUS    RESTARTS   AGE       IP             NODE
+po/sanity-deployment-75f959859f-dh979   1/1       Running   0          1m        IP1            minion2
+
+#> pod=`kubectl get pod | awk '/sanity-deployment/{print $1}'`
+#> echo $pod
+sanity-deployment-75f959859f-dh979
+
+#> kubectl exec $pod -- /bin/sh -c "df -h /data"
+Filesystem                Size      Used Available Use% Mounted on
+/dev/mapper/36001738cfc9035eb0000000000cff94b
+                        922.7M      1.2M    857.8M   0% /data
+#> kubectl exec $pod -- /bin/sh -c "echo COOL > /data/file"
+#> kubectl exec $pod -- /bin/sh -c "cat /data/file"
+COOL
+```
+
+Delete the POD so Kubernetes will reschedule the POD on a diffrent node (node1)
+```bash
+#> kubectl delete pod $pod
+pod "sanity-deployment-75f959859f-dh979" deleted
+root@k8s-shay-v18-master:/var/tmp/new/installer-for-ibm-storage-enabler-for-containers-1.0.0-185/yamls/sanity_yamls# kubectl get -o wide deploy,pod
+NAME                       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE       CONTAINERS   IMAGES          SELECTOR
+deploy/sanity-deployment   1         1         1            0           3m        container1   alpine:latest   app=sanity-deployment
+
+NAME                                    READY     STATUS              RESTARTS   AGE       IP             NODE
+po/sanity-deployment-75f959859f-dh979   1/1       Terminating         0          3m        10.244.2.251   k8s-shay-v18-minion2
+po/sanity-deployment-75f959859f-wpbkl   0/1       ContainerCreating   0          7s        <none>         k8s-shay-v18-minion1
+
+#############
+## Wait a few seconds for detaching the PV from node2 and attaching it to node1
+#############
+
+#> kubectl get -o wide deploy,pod
+NAME                       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE       CONTAINERS   IMAGES          SELECTOR
+deploy/sanity-deployment   1         1         1            1           4m        container1   alpine:latest   app=sanity-deployment
+
+NAME                                    READY     STATUS    RESTARTS   AGE       IP            NODE
+po/sanity-deployment-75f959859f-wpbkl   1/1       Running   0          1m        10.244.1.13   k8s-shay-v18-minion1
+
+
+#> pod=`kubectl get pod | awk '/sanity-deployment/{print $1}'`
+
+#############
+## Now check data remains
+#############
+#> pod=`kubectl get pod | awk '/sanity-deployment/{print $1}'`
+#> echo $pod
+sanity-deployment-75f959859f-wpbkl
+
+#> kubectl exec $pod -- /bin/sh -c "cat /data/file"
+COOL
+
+```
+
+Tier down the Deployment, PVC, PV and Storage Class
+```bash
+#> kubectl delete deploy/sanity-deployment
+deployment "sanity-deployment" deleted
+
+kubectl delete deploy/sanity-deployment
+deployment "sanity-deployment" deleted
+
+#> kubectl delete -f storage_class_gold.yml
+storageclass "gold" deleted
+```
+
 # Troubleshooting
 ### Server error
 If the `bad status code 500 INTERNAL SERVER ERROR` error is displayed, check the `/var/log/sc/hsgsvr.log` log file on the SCBE node for explanation.
