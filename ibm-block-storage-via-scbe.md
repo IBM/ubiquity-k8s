@@ -268,7 +268,7 @@ Filesystem          Size  Used Avail Use% Mounted on
 
 #> kubectl exec pod1 touch /data/FILE
 #> kubectl exec pod1 ls /data/FILE
-File
+FILE
 
 #> kubectl describe pod pod1| grep "^Node:" # Where kubernetes deploy and run the Pod1
 Node:		k8s-node1/[IP]
