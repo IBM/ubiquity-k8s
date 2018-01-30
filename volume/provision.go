@@ -54,6 +54,9 @@ const (
 	serviceEnv   = "SERVICE_NAME"
 	namespaceEnv = "POD_NAMESPACE"
 	nodeEnv      = "NODE_NAME"
+
+	MaxVolumeNameLengthForDS8k = 16
+	VolumeNameInvalidMessage = "the length of the volume name for DS8k, should less than 16 chars"
 )
 
 func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClient, config resources.UbiquityPluginConfig) (controller.Provisioner, error) {
@@ -120,10 +123,12 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 		return nil, fmt.Errorf("options missing PVC %#v", options)
 	}
 
+	setPVLabel := false
 	// override volume name according to label
 	pvName, ok := options.PVC.Labels["pv-name"]
 	if ok {
 		options.PVName = pvName
+		setPVLabel = true
 	}
 
 	capacity, exists := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
@@ -133,14 +138,16 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 	fmt.Printf("PVC with capacity %d", capacity.Value())
 	capacityMB := capacity.Value() / (1024 * 1024)
 
-	volume_details, err := p.createVolume(options, capacityMB)
+	volume_details, err := p.createVolume(options, capacityMB, setPVLabel)
 	if err != nil {
 		return nil, err
 	}
 
-	if volume_details["volumeName"] != options.PVName {
-		options.PVName = volume_details["volumeName"]
+	if volume_details["createdVolumeName"] != options.PVName {
+		options.PVName = volume_details["createdVolumeName"]
 	}
+
+	delete(volume_details, "createdVolumeName")
 
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
@@ -199,7 +206,7 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 	return nil
 }
 
-func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64) (map[string]string, error) {
+func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64, setPVLabel bool) (map[string]string, error) {
 	ubiquityParams := make(map[string]interface{})
 	if capacity != 0 {
 		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)    // SSc backend expect quota option
@@ -214,23 +221,35 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	}
 	b := backendName.(string)
 	createVolumeRequest := resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
-	err := p.ubiquityClient.CreateVolume(createVolumeRequest)
+	volumeName, err := p.ubiquityClient.CreateVolume(createVolumeRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error creating volume: %v", err)
+		if strings.Contains(err.Error(), VolumeNameInvalidMessage){
+			if setPVLabel {
+				return nil, fmt.Errorf("error creating volume: %v", err)
+			} else {
+				ubiquityParams["volumeNameLen"] = MaxVolumeNameLengthForDS8k
+				createVolumeRequest = resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
+				volumeName, err = p.ubiquityClient.CreateVolume(createVolumeRequest)
+				if err != nil {
+					return nil, fmt.Errorf("error creating volume: %v", err)
+				}
+			}
+
+		} else {
+			return nil, fmt.Errorf("error creating volume: %v", err)
+		}
 	}
 
+	options.PVName = volumeName
+
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: options.PVName}
-	if _, exists := createVolumeRequest.Opts["PVNameForDS8k"]; exists {
-		options.PVName = createVolumeRequest.Opts["PVNameForDS8k"].(string)
-		getVolumeConfigRequest = resources.GetVolumeConfigRequest{Name: options.PVName}
-	}
 	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
 	}
+	volumeConfig["createdVolumeName"] = options.PVName
 
 	flexVolumeConfig := make(map[string]string)
-	flexVolumeConfig["volumeName"] = options.PVName
 	for key, value := range volumeConfig {
 		flexVolumeConfig[key] = fmt.Sprintf("%v", value)
 	}
