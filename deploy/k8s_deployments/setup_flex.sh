@@ -25,15 +25,6 @@ function install_flex_driver()
     mv -f "${MNT_FLEX_DRIVER_DIR}/.$DRIVER" "${MNT_FLEX_DRIVER_DIR}/$DRIVER"
 }
 
-function create_flex_log_dir()
-{
-    # Create /tmp directory
-    if [ ! -d "${FLEX_LOG_DIR}" ]; then
-      echo "Creating the flex log directory [$FLEX_LOG_DIR] for the first time."
-      mkdir -p "${FLEX_LOG_DIR}"
-    fi
-}
-
 function generate_flex_conf_from_envs_and_install_it()
 {
     # Generate and copy the flex config file
@@ -49,6 +40,8 @@ function generate_flex_conf_from_envs_and_install_it()
     [ -z "$UBIQUITY_IP_ADDRESS" ] && missing_env UBIQUITY_IP_ADDRESS || :
 
     # Other environment variable with default values
+    [ -z "$FLEX_LOG_DIR" ] && FLEX_LOG_DIR=/var/log || :
+    [ -z "$FLEX_LOG_ROTATE_MAXSIZE" ] && FLEX_LOG_ROTATE_MAXSIZE=50 || :
     [ -z "$LOG_LEVEL" ] && LOG_LEVEL=info || :
     [ -z "$SKIP_RESCAN_ISCSI" ] && SKIP_RESCAN_ISCSI=false || :
     [ -z "$UBIQUITY_PLUGIN_USE_SSL" ] && UBIQUITY_PLUGIN_USE_SSL=true || :
@@ -59,7 +52,8 @@ function generate_flex_conf_from_envs_and_install_it()
     cat > $FLEX_TMP << EOF
 # This file was generated automatically by the $DRIVER Pod.
 
-logPath = "${FLEX_LOG_DIR}"
+logPath = "$FLEX_LOG_DIR"
+logRotateMaxSize = "$FLEX_LOG_ROTATE_MAXSIZE"
 backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
@@ -82,6 +76,15 @@ EOF
 
     # Now ubiquity config file is ready with all the updates.
     mv -f ${FLEX_TMP} ${MNT_FLEX_DRIVER_DIR}/${FLEX_CONF}
+}
+
+function create_flex_log_dir()
+{
+    # Create flex log directory
+    if [ ! -d "${FLEX_LOG_DIR}" ]; then
+      echo "Creating the flex log directory [$FLEX_LOG_DIR] for the first time."
+      mkdir -p "${FLEX_LOG_DIR}"
+    fi
 }
 
 function test_flex_driver()
@@ -136,13 +139,12 @@ HOST_K8S_PLUGIN_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec   # Assu
 MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
-FLEX_LOG_DIR=/tmp/log/ubiquity
 
 echo "[`date`]"
 echo "Starting $DRIVER Pod..."
 install_flex_driver
-create_flex_log_dir
 generate_flex_conf_from_envs_and_install_it
+create_flex_log_dir
 install_flex_trusted_ca
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
