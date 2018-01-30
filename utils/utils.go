@@ -11,6 +11,11 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 
 	config := resources.UbiquityPluginConfig{}
 	config.LogLevel = os.Getenv("LOG_LEVEL")
+	LogRotateMaxSize, err := strconv.Atoi(os.Getenv("FLEX_LOG_ROTATE_MAXSIZE"))
+	if err != nil {
+		return config, err
+	}
+	config.LogRotateMaxSize = LogRotateMaxSize
 	config.LogPath = os.Getenv("LOG_PATH")
 	config.Backends = strings.Split(os.Getenv("BACKENDS"), ",")
 	ubiquity := resources.UbiquityServerConnectionInfo{}
