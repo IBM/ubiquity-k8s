@@ -217,7 +217,8 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	}
 	b := backendName.(string)
 	createVolumeRequest := resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
-	volumeName, err := p.ubiquityClient.CreateVolume(createVolumeRequest)
+	//CreateVolumeName will create volume and return volumeName
+	createdVolumeName, err := p.ubiquityClient.CreateVolumeName(createVolumeRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), VolumeNameInvalidMessage){
 			_, exist := options.PVC.Labels["pv-name"]
@@ -226,7 +227,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 			} else {
 				ubiquityParams["volumeNameMaxLen"] = MaxVolumeNameLength
 				createVolumeRequest = resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
-				volumeName, err = p.ubiquityClient.CreateVolume(createVolumeRequest)
+				createdVolumeName, err = p.ubiquityClient.CreateVolumeName(createVolumeRequest)
 				if err != nil {
 					return nil, fmt.Errorf("error creating volume: %v", err)
 				}
@@ -237,12 +238,12 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 		}
 	}
 
-	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: volumeName}
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: createdVolumeName}
 	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
 	}
-	volumeConfig["createdVolumeName"] = volumeName
+	volumeConfig["createdVolumeName"] = createdVolumeName
 
 	flexVolumeConfig := make(map[string]string)
 	for key, value := range volumeConfig {
