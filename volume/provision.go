@@ -141,9 +141,10 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 		return nil, err
 	}
 
-
+	//override volume name since it maybe changed
 	options.PVName = volume_details["createdVolumeName"]
 	delete(volume_details, "createdVolumeName")
+	fmt.Printf("createdVolumeName %s", options.PVName)
 
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
@@ -237,7 +238,7 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 			return nil, fmt.Errorf("error creating volume: %v", err)
 		}
 	}
-
+	
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: createdVolumeName}
 	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
