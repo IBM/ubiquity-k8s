@@ -56,7 +56,7 @@ const (
 	nodeEnv      = "NODE_NAME"
 
 	MaxVolumeNameLength = 16
-	VolumeNameInvalidMessage = "the length of the volume name for DS8k, should less than 16 chars"
+	VolumeNameInvalidMessage = "Volume names are limited to 16 characters"
 )
 
 func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClient, config resources.UbiquityPluginConfig) (controller.Provisioner, error) {
