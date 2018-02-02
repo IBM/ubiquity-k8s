@@ -54,6 +54,8 @@ const (
 	serviceEnv   = "SERVICE_NAME"
 	namespaceEnv = "POD_NAMESPACE"
 	nodeEnv      = "NODE_NAME"
+
+	VolumeNameLengthInvalidMessage = "Volume names are limited to 16 characters"
 )
 
 func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClient, config resources.UbiquityPluginConfig) (controller.Provisioner, error) {
@@ -138,10 +140,6 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 		return nil, err
 	}
 
-	if volume_details["volumeName"] != options.PVName {
-		options.PVName = volume_details["volumeName"]
-	}
-
 	annotations := make(map[string]string)
 	annotations[annCreatedBy] = createdBy
 	annotations[annProvisionerId] = k8sresources.UbiquityProvisionerName
@@ -216,14 +214,14 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	createVolumeRequest := resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
 	err := p.ubiquityClient.CreateVolume(createVolumeRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), VolumeNameLengthInvalidMessage) {
+			return nil, fmt.Errorf("Please make sure you had set pv-name label in pvc yml" +
+				", and make sure the len of u_{instance_name}_{pv-name} <= 16, %v", err)
+		}
 		return nil, fmt.Errorf("error creating volume: %v", err)
 	}
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: options.PVName}
-	if _, exists := createVolumeRequest.Opts["PVNameForDS8k"]; exists {
-		options.PVName = createVolumeRequest.Opts["PVNameForDS8k"].(string)
-		getVolumeConfigRequest = resources.GetVolumeConfigRequest{Name: options.PVName}
-	}
 	volumeConfig, err := p.ubiquityClient.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error getting volume config details: %v", err)
