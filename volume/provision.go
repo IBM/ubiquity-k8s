@@ -54,6 +54,8 @@ const (
 	serviceEnv   = "SERVICE_NAME"
 	namespaceEnv = "POD_NAMESPACE"
 	nodeEnv      = "NODE_NAME"
+
+	VolumeNameLengthInvalidMessage = "Volume names are limited to 16 characters"
 )
 
 func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClient, config resources.UbiquityPluginConfig) (controller.Provisioner, error) {
@@ -212,6 +214,10 @@ func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacit
 	createVolumeRequest := resources.CreateVolumeRequest{Name: options.PVName, Backend: b, Opts: ubiquityParams}
 	err := p.ubiquityClient.CreateVolume(createVolumeRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), VolumeNameLengthInvalidMessage) {
+			return nil, fmt.Errorf("Please make sure you had set pv-name label in pvc yml" +
+				", and make sure the len of u_{instance_name}_{pv-name} <= 16, %v", err)
+		}
 		return nil, fmt.Errorf("error creating volume: %v", err)
 	}
 
