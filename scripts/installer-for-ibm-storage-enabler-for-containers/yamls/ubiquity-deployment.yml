@@ -79,6 +79,12 @@ spec:
                 name: ubiquity-configmap
                 key: DEFAULT-FSTYPE
 
+          - name: IBM_UBIQUITY_DB_PV_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: IBM-UBIQUITY-DB-PV-NAME
+
 
 
           ### Ubiquity generic parameters:
