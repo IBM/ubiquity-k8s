@@ -88,7 +88,7 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: /var/log
+          mountPath: FLEX_LOG_DIR_VALUE
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -101,7 +101,7 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: /var/log  # This directory must exist on the host
+          path: FLEX_LOG_DIR_VALUE  # This directory must exist on the host
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:
