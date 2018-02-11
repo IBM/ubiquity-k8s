@@ -1,0 +1,8 @@
+schemaVersion: '2.0.0'
+
+commandTests:
+# check that ca-certificates package installed
+  - name: "ca-certificates package"
+    command: "apk"
+    args: ["info"]
+    expectedOutput: ["ca-certificates\n"]

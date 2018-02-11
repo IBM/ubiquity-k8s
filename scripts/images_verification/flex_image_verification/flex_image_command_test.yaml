@@ -1,0 +1,12 @@
+schemaVersion: '2.0.0'
+
+commandTests:
+# check that ca-certificates and logrotate packages installed
+  - name: "ca-certificates package"
+    command: "apk"
+    args: ["info"]
+    expectedOutput: ["ca-certificates\n"]
+  - name: "logrotate package"
+    command: "apk"
+    args: ["info"]
+    expectedOutput: ["logrotate\n"]
