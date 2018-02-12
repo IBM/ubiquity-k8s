@@ -4,8 +4,6 @@ import:
   version: v0.3.0  
 - package: github.com/jessevdk/go-flags
   version: f88afde2fa19a30cf50ba4b05b3d13bc6bae3079
-- package: github.com/natefinch/lumberjack
-  version: v2.0
 - package: github.com/kubernetes-incubator/external-storage
   version: 094dd501fc4ff313fb872e90e19f774819f192b7
   subpackages:
