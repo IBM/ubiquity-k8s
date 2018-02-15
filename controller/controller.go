@@ -308,6 +308,8 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 
 	// Validate that the mountpoint is a symlink as ubiquity expect it to be
 	realMountPoint, err := c.exec.EvalSymlinks(unmountRequest.MountPath)
+	// TODO idempotent, don't use EvalSymlinks to identify the backend, instead check the volume backend. In addition when we check the eval of the slink, if its not exist we should jump to detach (if its not slink then we should fail)
+
 	if err != nil {
 		msg := fmt.Sprintf("Cannot execute umount because the mountPath [%s] is not a symlink as expected. Error: %#v", unmountRequest.MountPath, err)
 		c.logger.Error(msg)
@@ -475,7 +477,9 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 	pvName := path.Base(unmountRequest.MountPath)
 	getVolumeRequest := resources.GetVolumeRequest{Name: pvName}
 
+
 	volume, err := c.Client.GetVolume(getVolumeRequest)
+	// TODO idempotent, if volume not exist then log warning and return success
 	mounter, err := c.getMounterForBackend(volume.Backend)
 	if err != nil {
 		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
@@ -496,6 +500,7 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 	}
 
 	c.logger.Debug(fmt.Sprintf("Removing the slink [%s] to the real mountpoint [%s]", unmountRequest.MountPath, realMountPoint))
+	// TODO idempotent, don't fail if slink not exist. But double check its slink, if not then fail with error.
 	err = c.exec.Remove(unmountRequest.MountPath)
 	if err != nil {
 		err = fmt.Errorf("fail to remove slink %s. Error %#v", unmountRequest.MountPath, err)
