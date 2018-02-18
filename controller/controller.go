@@ -397,6 +397,7 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: name}
 	volume, err := c.Client.GetVolume(getVolumeRequest)
+	// TODO idempotent, should fail if vol not exist in ubiquity
 	mounter, err := c.getMounterForBackend(volume.Backend)
 	if err != nil {
 		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
@@ -619,7 +620,7 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		}
 	}
 
-
+	// TODO idempotent, don't trigger Detach if host is empty (even after getHostAttached)
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
