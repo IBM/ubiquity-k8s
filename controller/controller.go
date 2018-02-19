@@ -261,6 +261,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", mountRequest}})
 
+	// TODO check if volume exist first and what its backend type
 	mountedPath, err := c.doMount(mountRequest)
 	if err != nil {
 		response = k8sresources.FlexVolumeResponse{
@@ -389,6 +390,7 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	defer c.logger.Trace(logs.DEBUG)()
 
 	name := mountRequest.MountDevice
+	// TODO move it down near the Mount triggering
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: name}
 	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
@@ -404,11 +406,13 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(err, "getMounterForBackend failed")
 	}
 
+	// TODO should be agnostic to the backend, currently its scbe oriented.
 	wwn, ok := mountRequest.Opts["Wwn"]
 	if !ok {
 		err = fmt.Errorf("mountRequest.Opts[Wwn] not found")
 		return "", c.logger.ErrorRet(err, "failed")
 	}
+
 
 	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
 	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig}
@@ -443,11 +447,16 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	} else {
 		// For k8s 1.6 and later kubelet creates a folder as the MountPath, including the volume name, whenwe try to create the symlink this will fail because the same name exists. This is why we need to remove it before continuing.
 		ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
+
+		// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
 		if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
 			lnPath = mountRequest.MountPath
 		} else {
 			lnPath, _ = path.Split(mountRequest.MountPath)
 		}
+
+		// TODO idempotent, If the  <pod-directory>/<pvc> is already slink and it points to the right place (/ubiquity/WWN) then do nothing. (if the slink point to wrong location we should raise error)
+		// TODO idempotent, If the  <pod-directory>/<pvc> is a directory, flex should delete the directory. but if the directory doesn't exist then flex should continue with no error.
 		c.logger.Debug("removing folder", logs.Args{{"folder", mountRequest.MountPath}})
 		err = os.Remove(mountRequest.MountPath)
 		if err != nil && !os.IsExist(err) {
@@ -456,6 +465,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 		}
 	}
 
+	// TODO, uses golang slink instead
 	symLinkCommand := "/bin/ln"
 	args := []string{"-s", mountedPath, lnPath}
 	c.logger.Debug(fmt.Sprintf("creating slink from %s -> %s", mountedPath, lnPath))
