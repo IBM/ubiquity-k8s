@@ -7,7 +7,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -tags netgo -v -a --ldflags '-w -linkmode 
 
 
 FROM alpine:3.7
-RUN apk --no-cache add ca-certificates=20171114-r0 openssl=1.0.2n-r0
+RUN apk --no-cache add ca-certificates=20171114-r0
 RUN apk --update add logrotate
 ENV UBIQUITY_PLUGIN_VERIFY_CA=/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt
 WORKDIR /root/
