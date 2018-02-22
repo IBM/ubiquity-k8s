@@ -1,12 +1,12 @@
 schemaVersion: '2.0.0'
 
 commandTests:
-# check that ca-certificates and logrotate packages installed
-  - name: "ca-certificates package"
+    # check that alpine version is 3.7.0 and ca-certificates version 20171114-r0 package installed
+  - name: "alpine version 3.7.0"
+    command: "cat"
+    args: ["/etc/alpine-release"]
+    expectedOutput: ["3.7.0"]
+  - name: "ca-certificates version 20171114-r0 package"
     command: "apk"
-    args: ["info"]
-    expectedOutput: ["ca-certificates\n"]
-  - name: "logrotate package"
-    command: "apk"
-    args: ["info"]
-    expectedOutput: ["logrotate\n"]
+    args: ["info", "-vv"]
+    expectedOutput: ["ca-certificates-20171114-r0"]
