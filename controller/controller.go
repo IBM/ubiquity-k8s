@@ -370,6 +370,7 @@ func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmoun
 
 func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, error) {
 	defer c.logger.Trace(logs.DEBUG)()
+
 	mounterInst, ok := c.mounterPerBackend[backend]
 	if ok {
 		return mounterInst, nil
@@ -380,8 +381,7 @@ func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, er
 	} else if backend == resources.SCBE {
 		c.mounterPerBackend[backend] = mounter.NewScbeMounter(c.config.ScbeRemoteConfig)
 	} else {
-		err := fmt.Errorf("Mounter not found for backend: %s", backend)
-		return nil, c.logger.ErrorRet(err, "failed")
+		return nil, &NoMounterForVolumeError{backend}
 	}
 	return c.mounterPerBackend[backend], nil
 }
@@ -390,16 +390,14 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	defer c.logger.Trace(logs.DEBUG)()
 
 	name := mountRequest.MountDevice
-	// TODO move it down near the Mount triggering
-	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: name}
-	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
-	if err != nil {
-		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
-	}
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: name}
 	volume, err := c.Client.GetVolume(getVolumeRequest)
-	// TODO idempotent, should fail if vol not exist in ubiquity
+	if err != nil {
+		err = fmt.Errorf("Required volume [%s] not found in DB. error [%s]", name ,err.Error())
+		return "", c.logger.ErrorRet(err, "GetVolume failed")
+	}
+
 	mounter, err := c.getMounterForBackend(volume.Backend)
 	if err != nil {
 		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
@@ -413,6 +411,12 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(err, "failed")
 	}
 
+
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: name}
+	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+	}
 
 	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
 	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig}

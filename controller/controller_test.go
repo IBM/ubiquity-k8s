@@ -18,15 +18,15 @@ package controller_test
 
 import (
 //	"fmt"
-	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	ctl "github.com/IBM/ubiquity-k8s/controller"
-//	k8sresources "github.com/IBM/ubiquity-k8s/resources"
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
+	"fmt"
 )
 
 var _ = Describe("Controller", func() {
@@ -42,8 +42,8 @@ var _ = Describe("Controller", func() {
 		ubiquityConfig = resources.UbiquityPluginConfig{}
 		fakeClient = new(fakes.FakeStorageClient)
 		controller = ctl.NewControllerWithClient(testLogger, fakeClient, fakeExec)
-		os.MkdirAll("/tmp/test/mnt2", 0777)
 	})
+
 
 	Context(".Init", func() {
 
@@ -106,6 +106,32 @@ var _ = Describe("Controller", func() {
 		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
 		//	})
 	})
+	Context(".Mount", func() {
+		It("should fail if volume not in ubiqutiyDB", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("error"))
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(MatchRegexp(".*not found in DB. error"))
+			Expect(mountResponse.Status).To(Equal("Failure"))
+			Expect(mountResponse.Device).To(Equal(""))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+		})
+		It("should fail if volume has no backend in ubiqutiyDB", func() {
+			badBackend := "XXX"
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: badBackend, Mountpoint:"fake"}, nil)
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(MatchRegexp(badBackend))
+			Expect(mountResponse.Status).To(Equal("Failure"))
+			Expect(mountResponse.Device).To(Equal(""))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(0))
+		})
+
+	})
+
 	/*
 	Context(".Mount", func() {
 		AfterEach(func() {
