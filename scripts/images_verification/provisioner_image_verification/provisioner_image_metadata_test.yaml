@@ -1,0 +1,6 @@
+schemaVersion: '2.0.0' 
+metadataTest:
+  env:
+    - key: "UBIQUITY_PLUGIN_VERIFY_CA"
+      value: "/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt"
+  workdir: ["/root/"]
