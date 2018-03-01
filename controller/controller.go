@@ -69,15 +69,24 @@ func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*
 		unmountFlock: unmountFlock}, nil
 }
 
+
+
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, client resources.StorageClient, exec utils.Executor) *Controller {
+func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor) *Controller {
 	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
 	if err != nil {
 		panic(err)
 	}
 
-	utils.NewExecutor()
-	return &Controller{logger: logs.GetLogger(), legacyLogger: logger, Client: client, exec: exec, unmountFlock: unmountFlock}
+	return &Controller{
+		logger: logs.GetLogger(),
+		legacyLogger: logger,
+		Client: client,
+		exec: exec,
+		config: config,
+		mounterPerBackend: make(map[string]resources.Mounter),
+		unmountFlock: unmountFlock,
+	}
 }
 
 
@@ -386,40 +395,60 @@ func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, er
 	return c.mounterPerBackend[backend], nil
 }
 
-func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
+
+func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest) (resources.MountRequest, error) {
+	/*
+	Prepare the mounter.Mount request
+	 */
 	defer c.logger.Trace(logs.DEBUG)()
 
-	name := mountRequest.MountDevice
-
-	getVolumeRequest := resources.GetVolumeRequest{Name: name}
-	volume, err := c.Client.GetVolume(getVolumeRequest)
+	// Prepare request for mounter - step1 get volume's config from ubiquity
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: mountRequest.MountDevice}
+	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
-		err = fmt.Errorf("Required volume [%s] not found in DB. error [%s]", name ,err.Error())
-		return "", c.logger.ErrorRet(err, "GetVolume failed")
+		return resources.MountRequest{}, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
-	mounter, err := c.getMounterForBackend(volume.Backend)
-	if err != nil {
-		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
-		return "", c.logger.ErrorRet(err, "getMounterForBackend failed")
-	}
-
+	// Prepare request for mounter - step2 generate the designated mountpoint for this volume.
 	// TODO should be agnostic to the backend, currently its scbe oriented.
 	wwn, ok := mountRequest.Opts["Wwn"]
 	if !ok {
-		err = fmt.Errorf("mountRequest.Opts[Wwn] not found")
-		return "", c.logger.ErrorRet(err, "failed")
+		err = fmt.Errorf(MissingWwnMountRequestErrorStr)
+		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
 	}
-
-
-	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: name}
-	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
-	if err != nil {
-		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
-	}
-
 	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
 	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig}
+	return ubMountRequest, nil
+}
+
+func (c *Controller) getMounterByPV(pvname string) (resources.Mounter, error) {
+	defer c.logger.Trace(logs.DEBUG)()
+
+	getVolumeRequest := resources.GetVolumeRequest{Name: pvname}
+	volume, err := c.Client.GetVolume(getVolumeRequest)
+	if err != nil {
+		return nil, c.logger.ErrorRet(err, "GetVolume failed")
+	}
+	mounter, err := c.getMounterForBackend(volume.Backend)
+	if err != nil {
+		return nil, c.logger.ErrorRet(err, "getMounterForBackend failed")
+	}
+
+	return mounter, nil
+}
+
+func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
+	defer c.logger.Trace(logs.DEBUG)()
+	mounter, err := c.getMounterByPV(mountRequest.MountDevice)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "getMounterByPV failed")
+	}
+
+	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
+	}
+
 	mountpoint, err := mounter.Mount(ubMountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "mounter.Mount failed")
@@ -427,6 +456,8 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 
 	return mountpoint, nil
 }
+
+
 
 func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
 	defer c.logger.Trace(logs.DEBUG)()

@@ -27,3 +27,5 @@ type NoMounterForVolumeError struct {
 func (e *NoMounterForVolumeError) Error() string {
 	return fmt.Sprintf("Mounter not found for backend: %s", e.mounter)
 }
+
+const MissingWwnMountRequestErrorStr = "volume related to scbe backend must have mountRequest.Opts[Wwn] not found (expect to have wwn for scbe backend volume type)"

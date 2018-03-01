@@ -27,6 +27,7 @@ import (
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
 	"fmt"
+	"encoding/json"
 )
 
 var _ = Describe("Controller", func() {
@@ -41,7 +42,7 @@ var _ = Describe("Controller", func() {
 		fakeExec = new(fakes.FakeExecutor)
 		ubiquityConfig = resources.UbiquityPluginConfig{}
 		fakeClient = new(fakes.FakeStorageClient)
-		controller = ctl.NewControllerWithClient(testLogger, fakeClient, fakeExec)
+		controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec)
 	})
 
 
@@ -108,11 +109,11 @@ var _ = Describe("Controller", func() {
 	})
 	Context(".Mount", func() {
 		It("should fail if volume not in ubiqutiyDB", func() {
-			fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("error"))
+			fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("error not found in DB"))
 
 			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
 			mountResponse := controller.Mount(mountRequest)
-			Expect(mountResponse.Message).To(MatchRegexp(".*not found in DB. error"))
+			Expect(mountResponse.Message).To(MatchRegexp(".*error not found in DB"))
 			Expect(mountResponse.Status).To(Equal("Failure"))
 			Expect(mountResponse.Device).To(Equal(""))
 			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
@@ -129,6 +130,61 @@ var _ = Describe("Controller", func() {
 			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(0))
 		})
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig failed", func() {
+			errstr := "error GetVolumeConfig"
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint:"fake"}, nil)
+			byt := []byte(`{"":""}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, fmt.Errorf(errstr))
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(MatchRegexp(errstr))
+			Expect(mountResponse.Status).To(Equal("Failure"))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+		})
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain Wwn key", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint:"fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(Equal(ctl.MissingWwnMountRequestErrorStr))
+			Expect(mountResponse.Status).To(Equal("Failure"))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+		})
+
+		/*
+		It("should fail if mounter.Mount failed", func() {
+			// TODO need to mock the mounter in getMounterForBackend
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint:"fake"}, nil)
+			byt := []byte(`{"Wwn":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(Equal(ctl.MissingWwnMountRequestErrorStr))
+			Expect(mountResponse.Status).To(Equal("Failure"))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+		})
+		// TODO continue to add more unit tests
+		*/
+
 
 	})
 
