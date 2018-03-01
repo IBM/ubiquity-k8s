@@ -29,11 +29,11 @@ data:
 
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------
-   # Flex log path. Allow to configure it, just make sure the the new path exist on all the minons and update the hostpath in the daemonset
-   FLEX_LOG_DIR: "FLEX_LOG_DIR_VALUE"
+   # Flex log path. Allow to configure it, just make sure the the new path exist on all the minons and update the hostpath in the Flex daemonset
+   FLEX-LOG-DIR: "FLEX_LOG_DIR_VALUE"
 
-   #Maxlog size(MB) for rotate
-   FLEX_LOG_ROTATE_MAXSIZE: "50"
+   # Maxlog size(MB) for rotate
+   FLEX-LOG-ROTATE-MAXSIZE: "50"
 
    # Log level. Allowed values: debug, info, error.
    LOG-LEVEL: "LOG_LEVEL_VALUE"

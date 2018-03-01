@@ -6,6 +6,7 @@
 # 1. Deploy flex driver & config file & trusted ca file(if exist) from the container into the host path
 #    /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 # 2. Run tail -f on the flex log file, so it will be visible via kubectl logs <flex Pod>
+# 3. Start infinite loop every 24 hours on the host for tailing the flex log file
 ###########################################################################
 
 set -o errexit
@@ -156,9 +157,9 @@ echo ""
 echo "This Pod will handle log rotation for the <flex log> on the host [${FLEX_LOG_DIR}/${DRIVER}.log]"
 echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
 echo "[`date`] Start to run in background #>"
-echo "tail -F ${FLEX_LOG_DIR}/ubiquity-k8s-flex.log"
+echo "tail -F ${FLEX_LOG_DIR}/${DRIVER}.log"
 echo "-----------------------------------------------"
-tail -F ${FLEX_LOG_DIR}/ubiquity-k8s-flex.log &
+tail -F ${FLEX_LOG_DIR}/${DRIVER}.log &
 
 while : ; do
     sleep 86400 # every 24 hours

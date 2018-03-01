@@ -36,13 +36,13 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
-                key: FLEX_LOG_DIR
+                key: FLEX-LOG-DIR
 
           - name: FLEX_LOG_ROTATE_MAXSIZE # 50MB default
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
-                key: FLEX_LOG_ROTATE_MAXSIZE
+                key: FLEX-LOG-ROTATE-MAXSIZE
 
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
