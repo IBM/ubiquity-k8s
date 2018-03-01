@@ -26,6 +26,9 @@ data:
    # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
    DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
 
+   # DB pv name.
+   IBM-UBIQUITY-DB-PV-NAME: IBM_UBIQUITY_DB_PV_NAME_VALUE
+
 
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------
