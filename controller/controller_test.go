@@ -164,9 +164,11 @@ var _ = Describe("Controller", func() {
 			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
 		})
 
-		/*
+
 		It("should fail if mounter.Mount failed", func() {
 			// TODO need to mock the mounter in getMounterForBackend
+			errstr := "TODO set error in mounter"
+
 			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint:"fake"}, nil)
 			byt := []byte(`{"Wwn":"fake"}`)
 			var dat map[string]interface{}
@@ -175,15 +177,15 @@ var _ = Describe("Controller", func() {
 			}
 			fakeClient.GetVolumeConfigReturns(dat, nil)
 
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{}}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pvnamedir", MountDevice: "pv1", Opts: map[string]string{"Wwn":"fake"}}
 			mountResponse := controller.Mount(mountRequest)
-			Expect(mountResponse.Message).To(Equal(ctl.MissingWwnMountRequestErrorStr))
+			Expect(mountResponse.Message).To(Equal(errstr))
 			Expect(mountResponse.Status).To(Equal("Failure"))
 			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
 			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
 		})
 		// TODO continue to add more unit tests
-		*/
+
 
 
 	})

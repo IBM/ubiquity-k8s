@@ -20,6 +20,7 @@ import (
 	"fmt"
 )
 
+// TODO need to remove this error, since its moved to ubiquity it self
 type NoMounterForVolumeError struct {
 	mounter string
 }
