@@ -15,6 +15,10 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	if err != nil {
 		return config, err
 	}
+
+	if LogRotateMaxSize == 0 {
+		LogRotateMaxSize = 50
+	}
 	config.LogRotateMaxSize = LogRotateMaxSize
 	config.LogPath = os.Getenv("LOG_PATH")
 	config.Backends = strings.Split(os.Getenv("BACKENDS"), ",")
