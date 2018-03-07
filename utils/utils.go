@@ -13,11 +13,11 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	config.LogLevel = os.Getenv("LOG_LEVEL")
 	LogRotateMaxSize, err := strconv.Atoi(os.Getenv("FLEX_LOG_ROTATE_MAXSIZE"))
 	if err != nil {
-		return config, err
-	}
-
-	if LogRotateMaxSize == 0 {
-		LogRotateMaxSize = 50
+		if LogRotateMaxSize == 0 {
+			LogRotateMaxSize = 50
+		} else {
+			return config, err
+		}
 	}
 	config.LogRotateMaxSize = LogRotateMaxSize
 	config.LogPath = os.Getenv("LOG_PATH")
