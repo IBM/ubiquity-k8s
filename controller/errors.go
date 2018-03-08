@@ -30,3 +30,14 @@ func (e *NoMounterForVolumeError) Error() string {
 }
 
 const MissingWwnMountRequestErrorStr = "volume related to scbe backend must have mountRequest.Opts[Wwn] not found (expect to have wwn for scbe backend volume type)"
+
+const FailRemovePVorigDirErrorStr = "Failed removing existing volume directory"
+type FailRemovePVorigDirError struct {
+	err string
+	dir error
+}
+
+func (e *FailRemovePVorigDirError) Error() string {
+	return fmt.Sprintf(FailRemovePVorigDirErrorStr + ". dir=[%s], err=[%#v]", e.dir, e.err)
+}
+

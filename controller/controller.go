@@ -20,13 +20,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"github.com/IBM/ubiquity/utils/logs"
 
-
-	"bytes"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
@@ -37,6 +34,9 @@ import (
 	"time"
 )
 
+const FlexSuccessStr = "Success"
+const FlexFailureStr = "Failure"
+
 //Controller this is a structure that controls volume management
 type Controller struct {
 	Client resources.StorageClient
@@ -46,6 +46,7 @@ type Controller struct {
 	config resources.UbiquityPluginConfig
 	mounterPerBackend map[string]resources.Mounter
 	unmountFlock       lockfile.Lockfile
+	mounterFactory mounter.MounterFactory
 }
 
 //NewController allows to instantiate a controller
@@ -66,13 +67,15 @@ func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*
 		exec: utils.NewExecutor(),
 		config: config,
 		mounterPerBackend: make(map[string]resources.Mounter),
-		unmountFlock: unmountFlock}, nil
+		unmountFlock: unmountFlock,
+		mounterFactory: mounter.NewMounterFactory(),
+	}, nil
 }
 
 
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor) *Controller {
+func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
 	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
 	if err != nil {
 		panic(err)
@@ -86,6 +89,7 @@ func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPlugin
 		config: config,
 		mounterPerBackend: make(map[string]resources.Mounter),
 		unmountFlock: unmountFlock,
+		mounterFactory: mFactory,
 	}
 }
 
@@ -379,18 +383,17 @@ func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmoun
 
 func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, error) {
 	defer c.logger.Trace(logs.DEBUG)()
-
+	var err error
 	mounterInst, ok := c.mounterPerBackend[backend]
 	if ok {
+		// mounter already exist in the controller backend list
 		return mounterInst, nil
-	} else if backend == resources.SpectrumScale {
-		c.mounterPerBackend[backend] = mounter.NewSpectrumScaleMounter(c.legacyLogger)
-	} else if backend == resources.SoftlayerNFS || backend == resources.SpectrumScaleNFS {
-		c.mounterPerBackend[backend] = mounter.NewNfsMounter(c.legacyLogger)
-	} else if backend == resources.SCBE {
-		c.mounterPerBackend[backend] = mounter.NewScbeMounter(c.config.ScbeRemoteConfig)
 	} else {
-		return nil, &NoMounterForVolumeError{backend}
+		// mounter not exist in the controller backend list, so get it now
+		c.mounterPerBackend[backend], err = c.mounterFactory.GetMounterPerBackend(backend, c.legacyLogger, c.config)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.mounterPerBackend[backend], nil
 }
@@ -493,10 +496,11 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 		// TODO idempotent, If the  <pod-directory>/<pvc> is already slink and it points to the right place (/ubiquity/WWN) then do nothing. (if the slink point to wrong location we should raise error)
 		// TODO idempotent, If the  <pod-directory>/<pvc> is a directory, flex should delete the directory. but if the directory doesn't exist then flex should continue with no error.
 		c.logger.Debug("removing folder", logs.Args{{"folder", mountRequest.MountPath}})
-		err = os.Remove(mountRequest.MountPath)
+		err = c.exec.Remove(mountRequest.MountPath)
 		if err != nil && !os.IsExist(err) {
-			err = fmt.Errorf("Failed removing existing volume directory %#v", err)
-			return c.logger.ErrorRet(err, "failed")
+			return c.logger.ErrorRet(
+				&FailRemovePVorigDirError{mountRequest.MountPath, err},
+				"failed")
 		}
 	}
 
@@ -504,13 +508,9 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	symLinkCommand := "/bin/ln"
 	args := []string{"-s", mountedPath, lnPath}
 	c.logger.Debug(fmt.Sprintf("creating slink from %s -> %s", mountedPath, lnPath))
-	var stderr bytes.Buffer
-	cmd := exec.Command(symLinkCommand, args...)
-	cmd.Stderr = &stderr
-	err = cmd.Run()
+	_, err = c.exec.Execute(symLinkCommand, args)
 	if err != nil {
-		err = fmt.Errorf("Controller: mount failed to symlink %#v", stderr.String())
-		c.logger.ErrorRet(err, "failed")
+		return c.logger.ErrorRet(err, "Controller: failed symlink")
 	}
 
 	c.logger.Debug("Volume mounted successfully", logs.Args{{"mountedPath", mountedPath}})
