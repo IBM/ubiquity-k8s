@@ -54,7 +54,7 @@ function generate_flex_conf_from_envs_and_install_it()
 # This file was generated automatically by the $DRIVER Pod.
 
 logPath = "$FLEX_LOG_DIR"
-logRotateMaxSize = "$FLEX_LOG_ROTATE_MAXSIZE"
+logRotateMaxSize = $FLEX_LOG_ROTATE_MAXSIZE
 backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 

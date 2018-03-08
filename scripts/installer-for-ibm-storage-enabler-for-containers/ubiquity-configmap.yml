@@ -33,7 +33,7 @@ data:
    FLEX-LOG-DIR: "FLEX_LOG_DIR_VALUE"
 
    # Maxlog size(MB) for rotate
-   FLEX-LOG-ROTATE-MAXSIZE: "50"
+   FLEX-LOG-ROTATE-MAXSIZE: 50
 
    # Log level. Allowed values: debug, info, error.
    LOG-LEVEL: "LOG_LEVEL_VALUE"
