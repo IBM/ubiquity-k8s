@@ -4,14 +4,14 @@ IBM block storage can be used as persistent storage for Kubernetes via Ubiquity 
 Ubiquity communicates with the IBM storage systems through [IBM Spectrum Connect](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SC) 3.4.0. SC creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
 Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
-# Usage example for Ubiquity Dynamic Provisioner and FlexVolume
-The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation (including usage examples) from [IBM Fix Central](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Control&release=All&platform=Linux&function=all). 
+# Usage examples for Ubiquity Dynamic Provisioner and FlexVolume
+The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation (including full usage examples) from [IBM Fix Central](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all). 
 
-* [Basic flow for running a stateful container](#basic-flow-for-running-a-stateful-container-with-Ubiquity-volume)
-* [Basic flow breakdown](#basic-flow-breakdown)   
-* [Deployment fail over stateful POD](#deployment-fail-over-stateful-pod)
+* [Example 1 : Basic flow for running a stateful container with Ubiquity volume](#example-1-:-basic-flow-for-running-a-stateful-container-with-Ubiquity-volume)
+* [Example 2 : Basic flow breakdown](#example-2-:-basic-flow-breakdown)   
+* [Example 3 : Deployment fail over example](#example-3-:-deployment-fail-over-example)
 
-## Basic flow for running a stateful container with Ubiquity volume
+## Example 1 : Basic flow for running a stateful container with Ubiquity volume
 Flow overview:
 1. Create a StorageClass `gold` that refers to SC storage service `gold` with `xfs` as a file system type.
 2. Create a PVC `pvc1` that uses the StorageClass `gold`.
@@ -133,6 +133,8 @@ storageclass "gold" deleted
 
 <br>
 <br>
+<br>
+<br>
 
 
 
@@ -140,7 +142,7 @@ storageclass "gold" deleted
 
 
 
-## Basic flow breakdown
+## Example 2 : Basic flow breakdown
 This section describes separate steps of the generic flow in greater detail.
 
 
@@ -334,11 +336,14 @@ storageclass "gold" deleted
 ```
 
 
+<br>
+<br>
+<br>
+<br>
 
 
 
-
-### Deployment fail over stateful POD from node2 -> node1
+## Example 3 : Deployment fail over example
 This section describes how to run stateful Pod with k8s Deployment object, and then delete the Pod and see how kubernetes schedule the pod on different node and the PV follows.
 
 
