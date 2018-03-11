@@ -7,9 +7,9 @@ Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic
 # Usage examples for Ubiquity Dynamic Provisioner and FlexVolume
 The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation (including full usage examples) from [IBM Fix Central](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all). 
 
-* [Example 1 : Basic flow for running a stateful container with Ubiquity volume](#example-1-:-basic-flow-for-running-a-stateful-container-with-Ubiquity-volume)
-* [Example 2 : Basic flow breakdown](#example-2-:-basic-flow-breakdown)   
-* [Example 3 : Deployment fail over example](#example-3-:-deployment-fail-over-example)
+* [Example 1 : Basic flow for running a stateful container in a pod(#example-1--basic-flow-for-running-a-stateful-container-with-Ubiquity-volume)
+* [Example 2 : Basic flow breakdown](#example-2--basic-flow-breakdown)   
+* [Example 3 : Deployment fail over](#example-3--deployment-fail-over-example)
 
 ## Example 1 : Basic flow for running a stateful container with Ubiquity volume
 Flow overview:
@@ -35,18 +35,21 @@ parameters:
   fstype: "xfs"     # Optional parameter. Possible values are ext4 or xfs. Default is configured on Ubiquity server
   backend: "scbe"   # Backend name for IBM block storage provisioning ("scbe" is the SC backend name)
 
+
+
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "pvc1"      # PVC name
-  annotations:
-    volume.beta.kubernetes.io/storage-class: "gold"  # The Storage Class name for the PVC
 spec:
+  storageClassName: "gold"
   accessModes:
     - ReadWriteOnce # Currently, Ubiquity SC backend supports ReadWriteOnce mode only
   resources:
     requests:
       storage: 1Gi  # Size in Gi. Default size is configured on Ubiquity server
+
+
 
 kind: Pod
 apiVersion: v1
@@ -181,9 +184,8 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "pvc1"    # PVC name
-  annotations:
-    volume.beta.kubernetes.io/storage-class: "gold"  # The storage class name for the PVC
 spec:
+  storageClassName: "gold"
   accessModes:
     - ReadWriteOnce  # Currently, Ubiquity SC backend supports ReadWriteOnce mode only
   resources:
@@ -457,3 +459,7 @@ deployment "sanity-deployment" deleted
 #> kubectl delete -f storage_class_gold.yml
 storageclass "gold" deleted
 ```
+
+</br>
+
+Note: For detailed examples, refer to the relevant chapters of the IBM Storage Enabler for Containers [user guide](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all).
