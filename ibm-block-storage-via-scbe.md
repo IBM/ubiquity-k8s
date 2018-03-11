@@ -463,4 +463,4 @@ storageclass "gold" deleted
 
 </br>
 
-Note: For detailed examples, refer to the relevant chapters of the IBM Storage Enabler for Containers [user guide](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all).
+**Note:** For detailed usage examples, refer to the IBM Storage Enabler for Containers [user guide](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all).
