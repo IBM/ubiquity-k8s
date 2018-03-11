@@ -1,15 +1,19 @@
-# IBM Block Storage System via Spectrum Control Base Edition
+# IBM Block Storage System via IBM Spectrum Connect
 
 IBM block storage can be used as persistent storage for Kubernetes via Ubiquity service.
-Ubiquity communicates with the IBM storage systems through [IBM Spectrum Control Base Edition](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SCBE) 3.2.0. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
+Ubiquity communicates with the IBM storage systems through [IBM Spectrum Connect](https://www.ibm.com/support/knowledgecenter/en/STWMS9) (SC) 3.4.0. SC creates a storage profile (for example, gold, silver or bronze) and makes it available for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner.
 Available IBM block storage systems for Ubiquity FlexVolume and Ubiquity Dynamic Provisioner are listed in the [Ubiquity Service](https://github.com/IBM/ubiquity/).
 
-
 # Usage example for Ubiquity Dynamic Provisioner and FlexVolume
+The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation (including usage examples) from [IBM Fix Central](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Control&release=All&platform=Linux&function=all). 
+
+* [Basic flow for running a stateful container](#basic-flow-for-running-a-stateful-container-with-Ubiquity-volume)
+* [Basic flow breakdown](#basic-flow-breakdown)   
+* [Deployment fail over stateful POD](#deployment-fail-over-stateful-pod)
 
 ## Basic flow for running a stateful container with Ubiquity volume
 Flow overview:
-1. Create a StorageClass `gold` that refers to SCBE storage service `gold` with `xfs` as a file system type.
+1. Create a StorageClass `gold` that refers to SC storage service `gold` with `xfs` as a file system type.
 2. Create a PVC `pvc1` that uses the StorageClass `gold`.
 3. Create a Pod `pod1` with container `container1` that uses PVC `pvc1`.
 3. Start I/Os into `/data/myDATA` in `pod1\container1`.
@@ -27,9 +31,9 @@ metadata:
    storageclass.beta.kubernetes.io/is-default-class: "true"  # Optional parameter. Set this Storage Class as the default
 provisioner: "ubiquity/flex"  # Ubiquity provisioner name
 parameters:
-  profile: "gold"   # SCBE storage service name
+  profile: "gold"   # SC storage service name
   fstype: "xfs"     # Optional parameter. Possible values are ext4 or xfs. Default is configured on Ubiquity server
-  backend: "scbe"   # Backend name for IBM block storage provisioning
+  backend: "scbe"   # Backend name for IBM block storage provisioning ("scbe" is the SC backend name)
 
 kind: PersistentVolumeClaim
 apiVersion: v1
@@ -39,7 +43,7 @@ metadata:
     volume.beta.kubernetes.io/storage-class: "gold"  # The Storage Class name for the PVC
 spec:
   accessModes:
-    - ReadWriteOnce # Currently, Ubiquity scbe backend supports ReadWriteOnce mode only
+    - ReadWriteOnce # Currently, Ubiquity SC backend supports ReadWriteOnce mode only
   resources:
     requests:
       storage: 1Gi  # Size in Gi. Default size is configured on Ubiquity server
@@ -131,6 +135,11 @@ storageclass "gold" deleted
 <br>
 
 
+
+
+
+
+
 ## Basic flow breakdown
 This section describes separate steps of the generic flow in greater detail.
 
@@ -147,7 +156,7 @@ metadata:
    storageclass.beta.kubernetes.io/is-default-class: "true" # Optional parameter. Set this the storage class as the default
 provisioner: "ubiquity/flex"   # Ubiquity provisioner name
 parameters:
-  profile: "gold"              # SCBE storage service name
+  profile: "gold"              # SC storage service name
   fstype: "xfs"                # Optional parameter. Possible values are ext4 or xfs. Default is configured on the Ubiquity server
   backend: "scbe"              # Backend name for IBM block storage provisioning
 
@@ -174,7 +183,7 @@ metadata:
     volume.beta.kubernetes.io/storage-class: "gold"  # The storage class name for the PVC
 spec:
   accessModes:
-    - ReadWriteOnce  # Currently, Ubiquity scbe backend supports ReadWriteOnce mode only
+    - ReadWriteOnce  # Currently, Ubiquity SC backend supports ReadWriteOnce mode only
   resources:
     requests:
       storage: 1Gi  # Size in Gi. Default size is configured on Ubiquity server
@@ -324,8 +333,13 @@ For example:
 storageclass "gold" deleted
 ```
 
+
+
+
+
+
 ### Deployment fail over stateful POD from node2 -> node1
-This section describes how to run stateful container inside a Deployment, and then delete the POD and see how kubernetes schedule the POD on other node in the cluster and moving its volume with it.
+This section describes how to run stateful Pod with k8s Deployment object, and then delete the Pod and see how kubernetes schedule the pod on different node and the PV follows.
 
 
 - Prerequisits
@@ -438,19 +452,3 @@ deployment "sanity-deployment" deleted
 #> kubectl delete -f storage_class_gold.yml
 storageclass "gold" deleted
 ```
-
-# Troubleshooting
-### Server error
-If the `bad status code 500 INTERNAL SERVER ERROR` error is displayed, check the `/var/log/sc/hsgsvr.log` log file on the SCBE node for explanation.
-
-### Updating the volume on the storage side
-Do not change a volume on a storage system itself, use `kubectl` command instead.
-Any volume operation on the storage itself, requires a manual action on the minion (kublet node). For example, if you unmap a volume directly from the storage, you must clean up the multipath device of this volume and rescan the operating system on the minion (kubelet node).
-
-### An attached volume cannot be attached to different host
-A volume can be used only by one node at a time. In order to use a volume on different node, you must stop the Pod that uses the volume and then start a new Pod with the volume on different host.
-
-### Cannot delete volume attached to a host
-You cannot delete volume that is currently attached to a host. Any attempt will result in the `Volume [vol] already attached to [host]` error message.
-If volume is not attached to any host, but this error is still displayed, run a new container, using this volume, then stop the container and remove the volume to delete it.
-
