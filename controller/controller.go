@@ -442,6 +442,12 @@ func (c *Controller) getMounterByPV(pvname string) (resources.Mounter, error) {
 
 func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
+
+	// Support only >=1.6
+	if mountRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return "", c.logger.ErrorRet(&k8sVersionNotSupported{mountRequest.Version}, "failed")
+	}
+
 	mounter, err := c.getMounterByPV(mountRequest.MountDevice)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "getMounterByPV failed")
@@ -460,57 +466,99 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	return mountpoint, nil
 }
 
+func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirectory string) string{
+	/*
+	   mountedPath is the original device mountpoint (e.g /ubiquity/<WWN>)
+	   The function return the k8sPVDirectory based on the backend.
+	*/
+
+	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
+	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
+	var lnPath string
+	if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
+		lnPath = k8sPVDirectory
+	} else {
+		lnPath, _ = path.Split(k8sPVDirectory) // TODO verify why Scale backend use this split?
+	}
+	return lnPath
+}
 
 
 func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
+	/*
+	 Create symbolic link instead of the k8s PV directory that will point to the ubiquity mountpoint.
+	 For example(SCBE backend):
+	 	k8s PV directory : /var/lib/kubelet/pods/a9671a20-0fd6-11e8-b968-005056a41609/volumes/ibm~ubiquity-k8s-flex/pvc-6811c716-0f43-11e8-b968-005056a41609
+	 	symbolic link should be : /ubiquity/<WWN>
+	 Idempotent:
+	 	1. if k8s PV dir not exist, then just create the slink.
+	 	2. if k8s PV dir exist, then delete the dir and create slink instead.
+	 	3. if k8s PV dir is already slink to the right location, skip.
+	 	4. if k8s PV dir is already slink to wrong location, raise error.
+	 	5. else raise error.
+	 Params:
+	 	mountedPath : the real mountpoint (e.g: scbe backend its /ubiqutiy/<WWN>)
+	 	mountRequest.MountPath : the PV k8s directory
+	 k8s version support:
+	  	k8s version < 1.6 not supported. Note in version <1.6 the attach/mount,
+	  		the mountDir (MountPath) is not created trying to do mount and ln will fail because the dir is not found,
+	  		so we need to create the directory before continuing)
+		k8s version >= 1.6 supported. Note in version >=1.6 the kubelet creates a folder as the MountPath,
+			including the volume name, whenwe try to create the symlink this will fail because the same name exists.
+			This is why we need to remove it before continuing.
+
+	  */
+
 	defer c.logger.Trace(logs.DEBUG)()
-	var lnPath string
+	var k8sPVDirectoryPath string
 	var err error
 
-	if mountRequest.Version == k8sresources.KubernetesVersion_1_5 {
-		//For k8s 1.5, by the time we do the attach/mount, the mountDir (MountPath) is not created trying to do mount and ln will fail because the dir is not found, so we need to create the directory before continuing
-		dir := filepath.Dir(mountRequest.MountPath)
-		lnPath = mountRequest.MountPath
-		k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
-		if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
-			if os.IsNotExist(err) {
-				c.logger.Debug("creating volume directory", logs.Args{{"dir", dir}})
-				err = os.MkdirAll(dir, 0777)
-				if err != nil && !os.IsExist(err) {
-					err = fmt.Errorf("Failed creating volume directory %#v", err)
-					return c.logger.ErrorRet(err, "failed")
-				}
+	k8sPVDirectoryPath = c.getK8sPVDirectoryByBackend(mountedPath, mountRequest.MountPath)
+
+	// Identify the PV directory by using Lstat and then handle all idempotend cases (use Lstat to get the dir or slink detail and not the evaluation of it)
+	fileInfo, err := c.exec.Lstat(k8sPVDirectoryPath)
+	if err != nil {
+		if c.exec.IsNotExist(err) {
+			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
+			c.logger.Info("PV directory(k8s-mountpoint) nor slink are not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{ "should-point-to-mountpoint",mountedPath}})
+			c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{ "mountpoint",mountedPath}})
+			err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
+			if err != nil {
+				return c.logger.ErrorRet(err, "Controller: failed to create symlink")
 			}
-		}
-	} else {
-		// For k8s 1.6 and later kubelet creates a folder as the MountPath, including the volume name, whenwe try to create the symlink this will fail because the same name exists. This is why we need to remove it before continuing.
-		ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
-
-		// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
-		if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
-			lnPath = mountRequest.MountPath
 		} else {
-			lnPath, _ = path.Split(mountRequest.MountPath)
+			// Maybe some permissions issue
+			return c.logger.ErrorRet(err, "Controller: failed to identify PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
 		}
-
-		// TODO idempotent, If the  <pod-directory>/<pvc> is already slink and it points to the right place (/ubiquity/WWN) then do nothing. (if the slink point to wrong location we should raise error)
-		// TODO idempotent, If the  <pod-directory>/<pvc> is a directory, flex should delete the directory. but if the directory doesn't exist then flex should continue with no error.
-		c.logger.Debug("removing folder", logs.Args{{"folder", mountRequest.MountPath}})
-		err = c.exec.Remove(mountRequest.MountPath)
-		if err != nil && !os.IsExist(err) {
+	} else if c.exec.IsDir(fileInfo) {
+		// Positive flow - the k8s-mountpoint should exist in advance and we should delete it in order to create slink instead
+		c.logger.Debug("As expected the PV directory(k8s-mountpoint) is a directory, so remove it to prepate slink to mountpoint instead", logs.Args{{"k8s-mountpath", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+		err = c.exec.Remove(k8sPVDirectoryPath)
+		if err != nil{
 			return c.logger.ErrorRet(
-				&FailRemovePVorigDirError{mountRequest.MountPath, err},
+				&FailRemovePVorigDirError{k8sPVDirectoryPath, err},
 				"failed")
 		}
-	}
-
-	// TODO, uses golang slink instead
-	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, lnPath}
-	c.logger.Debug(fmt.Sprintf("creating slink from %s -> %s", mountedPath, lnPath))
-	_, err = c.exec.Execute(symLinkCommand, args)
-	if err != nil {
-		return c.logger.ErrorRet(err, "Controller: failed symlink")
+		c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{ "mountpoint",mountedPath}})
+		err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
+		if err != nil {
+			return c.logger.ErrorRet(err, "Controller: failed to create symlink")
+		}
+	} else if c.exec.IsSlink(fileInfo){
+		// Its already slink so check if slink is ok and skip else raise error
+		evalSlink, err := c.exec.EvalSymlinks(k8sPVDirectoryPath)
+		if err != nil{
+			return c.logger.ErrorRet(err, "Controller: Idempotent - failed eval the slink of PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
+		}
+		if evalSlink == mountedPath{
+			c.logger.Info("PV directory(k8s-mountpoint) is already slink and point to the right mountpoint. Idempotent - skip slink creation.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{ "mountpoint",mountedPath}})
+		} else{
+			return c.logger.ErrorRet(
+				&wrongSlinkError{k8sPVDirectoryPath, mountedPath, evalSlink},
+				"failed")
+		}
+	} else{
+		return c.logger.ErrorRet(&k8sPVDirectoryIsNotDirNorSlinkError{k8sPVDirectoryPath}, "failed")
 	}
 
 	c.logger.Debug("Volume mounted successfully", logs.Args{{"mountedPath", mountedPath}})
@@ -630,6 +678,11 @@ func (c *Controller) doActivate(activateRequest resources.ActivateRequest) error
 
 func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest) error {
 	defer c.logger.Trace(logs.DEBUG)()
+
+	// Support only >=1.6
+	if attachRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return c.logger.ErrorRet(&k8sVersionNotSupported{attachRequest.Version}, "failed")
+	}
 
 	ubAttachRequest := resources.AttachRequest{Name: attachRequest.Name, Host: getHost(attachRequest.Host)}
 	_, err := c.Client.Attach(ubAttachRequest)

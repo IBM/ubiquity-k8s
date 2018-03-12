@@ -41,3 +41,32 @@ func (e *FailRemovePVorigDirError) Error() string {
 	return fmt.Sprintf(FailRemovePVorigDirErrorStr + ". dir=[%s], err=[%#v]", e.dir, e.err)
 }
 
+const WrongSlinkErrorStr = "Idempotent - The existing slink point to a wrong mountpoint."
+type wrongSlinkError struct {
+	slink string
+	wrongPointTo string
+	expectedPointTo string
+}
+
+func (e *wrongSlinkError) Error() string {
+	return fmt.Sprintf(WrongSlinkErrorStr + " slink=[%s] expected-mountpoint=[%s], wrong-mountpoint=[%s]", e.slink, e.expectedPointTo, e.wrongPointTo)
+}
+
+const SupportK8sVesion = "Support only k8s version >= 1.6."
+type k8sVersionNotSupported struct {
+	version string
+}
+
+func (e *k8sVersionNotSupported) Error() string {
+	return fmt.Sprintf(SupportK8sVesion + " Version [%s] is not supported.", e.version)
+}
+
+const K8sPVDirectoryIsNotDirNorSlinkErrorStr = "k8s PV directory, k8s-mountpoint, is not a directory nor slink."
+type k8sPVDirectoryIsNotDirNorSlinkError struct {
+	slink string
+}
+
+func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
+	return fmt.Sprintf(K8sPVDirectoryIsNotDirNorSlinkErrorStr + " slink=[%s]", e.slink)
+}
+
