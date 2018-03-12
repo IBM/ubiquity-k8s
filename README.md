@@ -1,4 +1,8 @@
 # Ubiquity Kubernetes Persistent Storage
+[![Build Status](https://travis-ci.org/IBM/ubiquity-k8s.svg?branch=master)](https://travis-ci.org/IBM/ubiquity-k8s)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/IBM/ubiquity-k8s)](https://goreportcard.com/report/github.com/IBM/ubiquity-k8s)
+
 This project includes components for managing [Kubernetes persistent storage](https://kubernetes.io/docs/concepts/storage/persistent-volumes), using [Ubiquity](https://github.com/IBM/ubiquity) service.
 - Ubiquity Dynamic Provisioner for creating and deleting persistent volumes
 - Ubiquity FlexVolume Driver CLI for attaching and detaching persistent volumes
