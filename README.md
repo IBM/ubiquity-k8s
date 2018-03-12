@@ -1,4 +1,8 @@
 # Ubiquity Kubernetes Persistent Storage
+[![Build Status](https://travis-ci.org/IBM/ubiquity-k8s.svg?branch=master)](https://travis-ci.org/IBM/ubiquity-k8s)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+[![Go Report Card](https://goreportcard.com/badge/github.com/IBM/ubiquity-k8s)](https://goreportcard.com/report/github.com/IBM/ubiquity-k8s)
+
 This project includes components for managing [Kubernetes persistent storage](https://kubernetes.io/docs/concepts/storage/persistent-volumes), using [Ubiquity](https://github.com/IBM/ubiquity) service.
 - Ubiquity Dynamic Provisioner for creating and deleting persistent volumes
 - Ubiquity FlexVolume Driver CLI for attaching and detaching persistent volumes
@@ -6,9 +10,9 @@ This project includes components for managing [Kubernetes persistent storage](ht
 Currently, the following storage systems use Ubiquity:
 * IBM block storage.
 
-   The IBM block storage is supported for Kubernetes via IBM Spectrum Control Base Edition (SCBE) version 3.3.0 and later. Ubiquity communicates with the IBM storage systems through SCBE. SCBE creates a storage profile (for example, gold, silver or bronze) and makes it available for Kubernetes. For details about supported storage systems, refer to the latest SCBE release notes.
+   The IBM block storage is supported for Kubernetes via IBM Spectrum Connect (3.4.0), previously known as IBM Spectrum Control Base Edition (3.3.0). Ubiquity communicates with the IBM storage systems through Spectrum Connect. Spectrum Connect creates a storage profile (for example, gold, silver or bronze) and makes it available for Kubernetes. For details about supported storage systems, refer to the latest Spectrum Connect release notes.
    
-   The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation from [IBM Fix Central](https://www-945.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Control&release=All&platform=Linux&function=all). For details on the IBM Storage Enabler for Containers, see the relevant sections in the SCBE user guide.   
+   The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation from [IBM Fix Central](https://www.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all). For details on the IBM Storage Enabler for Containers, see the relevant sections in the Spectrum Connect user guide.
 
 * IBM Spectrum Scale, for testing only.
 
