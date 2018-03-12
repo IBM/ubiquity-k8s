@@ -233,7 +233,7 @@ Display the additional PV information, such as volume WWN, its location on the s
 
 ### Create a Pod with an Ubiquity volume
 The creation of a Pod/Deployment causes the FlexVolume to:
-* Attach the volume to the host
+* Attach the volume to the host (This action triggered from the controller-manager on the master node.)
 * Rescan and discover the multipath device of the new volume
 * Create xfs or ext4 filesystem on the device (if filesystem does not exist on the volume)
 * Mount the new multipath device on /ubiquity/[WWN of the volume]
