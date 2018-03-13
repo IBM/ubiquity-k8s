@@ -8,13 +8,13 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
-   # IP or FQDN of SCBE server.
+   # IP or FQDN of Spectrum Connect(SCBE) server.
    SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
 
-   # Communication port of SCBE server. Optional parameter with default value set at 8440.
+   # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
    SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
 
-   # Default SCBE storage service to be used, if not specified by the plugin.
+   # Default Spectrum Connect storage service to be used, if not specified by the plugin.
    SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
 
    # The size for a new volume if not specified by the user when creating a new volume. Optional parameter with default value set at 1GB.

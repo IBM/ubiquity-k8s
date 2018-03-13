@@ -19,8 +19,8 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
-          ### SCBE connectivity parameters:
-          #################################
+          ### Spectrum Connect(SCBE) connectivity parameters:
+          #############################################
           - name: SCBE_USERNAME
             valueFrom:
               secretKeyRef:
@@ -53,7 +53,7 @@ spec:
 
 
 
-          ### Ubiquity SCBE backend parameters:
+          ### Ubiquity Spectrum Connect(SCBE) backend parameters:
           #####################################
           - name: SCBE_DEFAULT_SERVICE
             valueFrom:
@@ -99,7 +99,7 @@ spec:
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-          - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
+          - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
             value: "scbe"
 
 
