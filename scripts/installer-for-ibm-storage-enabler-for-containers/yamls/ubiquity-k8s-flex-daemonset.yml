@@ -29,7 +29,7 @@ spec:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
 
-          - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Control Base Edition) as its backend.
+          - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
             value: "scbe"
 
           - name: LOG_LEVEL       # debug / info / error
