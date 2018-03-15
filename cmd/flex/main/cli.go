@@ -423,7 +423,7 @@ func (m *MountCommand) Execute(args []string) error {
 
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
-		MountDevice: volumeName,
+		MountDevice: volumeName, // The PV name
 		Opts:        mountOpts,
 		Version:     version,
 	}

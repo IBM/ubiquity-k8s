@@ -172,6 +172,10 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // Delete removes the directory that was created by Provision backing the given
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
+	msg := fmt.Sprintf("Delete volume name [%s]", volume.Name)
+	p.logger.Printf("ENTER : " + msg)
+	defer p.logger.Printf("EXIT : " + msg)
+
 	if volume.Name == "" {
 		return fmt.Errorf("volume name cannot be empty %#v", volume)
 	}
@@ -196,6 +200,10 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 }
 
 func (p *flexProvisioner) createVolume(options controller.VolumeOptions, capacity int64) (map[string]string, error) {
+	msg := fmt.Sprintf("Create volume name [%s]", options.PVName)
+	p.logger.Printf("ENTER : " + msg)
+	defer p.logger.Printf("EXIT : " + msg)
+
 	ubiquityParams := make(map[string]interface{})
 	if capacity != 0 {
 		ubiquityParams["quota"] = fmt.Sprintf("%dM", capacity)    // SSc backend expect quota option
