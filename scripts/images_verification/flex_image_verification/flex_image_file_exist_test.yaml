@@ -1,0 +1,23 @@
+schemaVersion: '2.0.0' 
+fileExistenceTests:
+# check that the ubiquity_logrotate, ubiquity-k8s-flex, setup_flex.sh, LICENSE and NOTICES files exists and has the correct permissions
+  - name: 'ubiquity_logrotate'
+    path: '/etc/logrotate.d/ubiquity_logrotate'
+    shouldExist: true
+    permissions: '-rw-r--r--'
+  - name: 'ubiquity-k8s-flex'
+    path: '/root/ubiquity-k8s-flex'
+    shouldExist: true
+    permissions: '-rwxr-xr-x'
+  - name: 'setup_flex.sh'
+    path: '/root/setup_flex.sh'
+    shouldExist: true
+    permissions: '-rwxr-xr-x'
+  - name: 'LICENSE'
+    path: '/root/LICENSE'
+    shouldExist: true
+    permissions: '-rw-r--r--'
+  - name: 'NOTICES'
+    path: '/root/NOTICES'
+    shouldExist: true
+    permissions: '-rw-r-----'

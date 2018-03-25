@@ -5,7 +5,7 @@ metadata:
   annotations:
     volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
   labels:
-    pv-name: "ibm-ubiquity-db"   # Ubiquity provisioner will create a PV with ibm-ubiquity-db instead of PVC-ID.
+    pv-name: "IBM_UBIQUITY_DB_PV_NAME_VALUE"   # Ubiquity provisioner will create a PV with dedicated name (by default its ibm-ubiquity-db)
     product: ibm-storage-enabler-for-containers
 
 spec:
