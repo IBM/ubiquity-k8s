@@ -70,3 +70,14 @@ func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
 	return fmt.Sprintf(K8sPVDirectoryIsNotDirNorSlinkErrorStr + " slink=[%s]", e.slink)
 }
 
+const TimeOutWaitingForUnmountFlockErrorStr = "Timeout waiting for unmount lock" // TODO consider to make it generic timeout error
+type TimeOutWaitingForUnmountFlockError struct {
+	timeout int
+	unmountlockName string
+}
+
+func (e *TimeOutWaitingForUnmountFlockError) Error() string {
+	return fmt.Sprintf(TimeOutWaitingForUnmountFlockErrorStr + " timeout=[%s], unmountlockName=[%s]", e.timeout, e.unmountlockName)
+}
+
+

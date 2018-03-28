@@ -34,8 +34,13 @@ import (
 	"time"
 )
 
-const FlexSuccessStr = "Success"
-const FlexFailureStr = "Failure"
+const (
+	FlexSuccessStr = "Success"
+	FlexFailureStr = "Failure"
+	MilisecondDelayBetweenUmountFlockTries = 500
+	MilisecondTimeOutCatchUnmountLock = 3 * 60 * 1000
+	unmountFlockName = "ubiquity.unmount.lock"
+)
 
 //Controller this is a structure that controls volume management
 type Controller struct {
@@ -47,11 +52,13 @@ type Controller struct {
 	mounterPerBackend map[string]resources.Mounter
 	unmountFlock       lockfile.Lockfile
 	mounterFactory mounter.MounterFactory
+	milisecondTimeOutCatchUnmountLock int
+	milisecondDelayBetweenUmountFlockTries int
 }
 
 //NewController allows to instantiate a controller
 func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
-	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
+	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), unmountFlockName))
 	if err != nil {
 		panic(err)
 	}
@@ -69,6 +76,9 @@ func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*
 		mounterPerBackend: make(map[string]resources.Mounter),
 		unmountFlock: unmountFlock,
 		mounterFactory: mounter.NewMounterFactory(),
+		milisecondTimeOutCatchUnmountLock: MilisecondDelayBetweenUmountFlockTries, // For UT
+		milisecondDelayBetweenUmountFlockTries: MilisecondTimeOutCatchUnmountLock, // For UT
+
 	}, nil
 }
 
@@ -76,7 +86,7 @@ func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
 func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
-	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
+	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), unmountFlockName))
 	if err != nil {
 		panic(err)
 	}
@@ -299,26 +309,52 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	return response
 }
 
+func (c *Controller) catchUnmountLockWithTimeout(unmountRequest k8sresources.FlexVolumeUnmountRequest) error {
+	defer c.logger.Trace(logs.DEBUG)()
+	// locking for concurrent rescans and reduce rescans if no need
+	c.logger.Debug("Ask for unmountFlock for mountpath (wait with timeout)", logs.Args{{"mountpath", unmountRequest.MountPath}})
+
+	c1 := make(chan error, 1)
+	go func() {
+		for {
+			err := c.unmountFlock.TryLock()
+			if err == nil {
+				break
+			}
+			c.logger.Debug("unmountFlock.TryLock failed", logs.Args{{"error", err}})
+			time.Sleep(time.Duration(MilisecondDelayBetweenUmountFlockTries * time.Millisecond))
+		}
+		c1 <- nil
+	}()
+
+	select {
+	case <- c1:
+		c.logger.Debug("Got unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
+		return nil
+
+	case <-time.After(MilisecondTimeOutCatchUnmountLock * time.Millisecond):
+		return c.logger.ErrorRet(
+			&TimeOutWaitingForUnmountFlockError{MilisecondTimeOutCatchUnmountLock, unmountFlockName},
+			"Fail on timeout",
+		)
+	}
+}
+
+
 //Unmount methods unmounts the volume from the pod
 func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountRequest) k8sresources.FlexVolumeResponse {
 	defer c.logger.Trace(logs.DEBUG)()
-	// locking for concurrent rescans and reduce rescans if no need
-	c.logger.Debug("Ask for unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
-	for {
-		err := c.unmountFlock.TryLock()
-		if err == nil {
-			break
-		}
-		c.logger.Debug("unmountFlock.TryLock failed", logs.Args{{"error", err}})
-		time.Sleep(time.Duration(500*time.Millisecond))
+
+	err := c.catchUnmountLockWithTimeout(unmountRequest)
+	if err != nil {
+		// Fail due to timeout waiting for flock
+		return k8sresources.FlexVolumeResponse{Status: "Failure", Message: err.Error(), Device: ""}
 	}
-	c.logger.Debug("Got unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
 	defer c.unmountFlock.Unlock()
 	defer c.logger.Debug("Released unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
 
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", unmountRequest}})
-	var err error
 
 	// Validate that the mountpoint is a symlink as ubiquity expect it to be
 	realMountPoint, err := c.exec.EvalSymlinks(unmountRequest.MountPath)

@@ -62,58 +62,6 @@ var _ = Describe("Controller", func() {
 			Expect(initResponse.Message).To(Equal("Plugin init successfully"))
 			Expect(initResponse.Device).To(Equal(""))
 		})
-
-		//Context(".Attach", func() {
-		//
-		//	It("fails when attachRequest does not have volumeName", func() {
-		//		fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
-		//		attachRequest := map[string]string{"Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
-		//		attachResponse := controller.Attach(attachRequest)
-		//		Expect(attachResponse.Status).To(Equal("Failure"))
-		//		Expect(fakeClient.GetVolumeCallCount()).To(Equal(0))
-		//	})
-		//
-		//	It("fails when client fails to fetch volume", func() {
-		//		fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
-		//		attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
-		//		attachResponse := controller.Attach(attachRequest)
-		//		Expect(attachResponse.Status).To(Equal("Failure"))
-		//		Expect(attachResponse.Message).To(Equal("Failed checking volume, call create before attach"))
-		//		Expect(attachResponse.Device).To(Equal("vol1"))
-		//	})
-		//
-		//	It("Succeeds when volume exists", func() {
-		//		fakeClient.GetVolumeReturns(resources.Volume{}, nil)
-		//		attachRequest := map[string]string{"volumeName": "vol1", "Filesystem": "gpfs1", "Size": "200m", "Fileset": "fs1", "Path": "myPath"}
-		//		attachResponse := controller.Attach(attachRequest)
-		//		Expect(attachResponse.Status).To(Equal("Success"))
-		//		Expect(attachResponse.Message).To(Equal("Volume already attached"))
-		//		Expect(attachResponse.Device).To(Equal("vol1"))
-		//		Expect(fakeClient.CreateVolumeCallCount()).To(Equal(0))
-		//	})
-		//})
-		//
-		//Context(".Detach", func() {
-		//	It("does not error when existing volume name is given", func() {
-		//		fakeClient.RemoveVolumeReturns(nil)
-		//		detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
-		//		detachResponse := controller.Detach(detachRequest)
-		//		Expect(detachResponse.Status).To(Equal("Success"))
-		//		Expect(detachResponse.Message).To(Equal("Volume detached successfully"))
-		//		Expect(detachResponse.Device).To(Equal("vol1"))
-		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
-		//	})
-		//
-		//	It("error when client fails to detach volume", func() {
-		//		err := fmt.Errorf("error detaching volume")
-		//		fakeClient.RemoveVolumeReturns(err)
-		//		detachRequest := resources.FlexVolumeDetachRequest{Name: "vol1"}
-		//		detachResponse := controller.Detach(detachRequest)
-		//		Expect(detachResponse.Status).To(Equal("Failure"))
-		//		Expect(detachResponse.Message).To(Equal(fmt.Sprintf("Failed to detach volume %#v", err)))
-		//		Expect(detachResponse.Device).To(Equal("vol1"))
-		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
-		//	})
 	})
 	Context(".Mount", func() {
 		It("should fail if k8s version < 1.6 (doMount)", func() {
@@ -491,9 +439,17 @@ var _ = Describe("Controller", func() {
 		})
 
 
+	})
+	Context(".Unmount", func() {
+		FIt("should fail if k8s version < 1.6 (doMount)", func() {
+			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "fakePVmountpath"}
 
+			unmountResponse := controller.Unmount(unmountRequest)
 
-
+			Expect(unmountResponse.Message).To(Equal("ssss"))
+			Expect(unmountResponse.Status).To(Equal(ctl.FlexFailureStr))
+			Expect(unmountResponse.Device).To(Equal(""))
+		})
 	})
 
 	/*
