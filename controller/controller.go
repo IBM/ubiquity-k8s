@@ -532,7 +532,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 		}
 	} else if c.exec.IsDir(fileInfo) {
 		// Positive flow - the k8s-mountpoint should exist in advance and we should delete it in order to create slink instead
-		c.logger.Debug("As expected the PV directory(k8s-mountpoint) is a directory, so remove it to prepate slink to mountpoint instead", logs.Args{{"k8s-mountpath", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+		c.logger.Debug("As expected the PV directory(k8s-mountpoint) is a directory, so remove it to prepare slink to mountpoint instead", logs.Args{{"k8s-mountpath", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
 		err = c.exec.Remove(k8sPVDirectoryPath)
 		if err != nil{
 			return c.logger.ErrorRet(
@@ -554,7 +554,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 			c.logger.Info("PV directory(k8s-mountpoint) is already slink and point to the right mountpoint. Idempotent - skip slink creation.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{ "mountpoint",mountedPath}})
 		} else{
 			return c.logger.ErrorRet(
-				&wrongSlinkError{k8sPVDirectoryPath, mountedPath, evalSlink},
+				&wrongSlinkError{slink: k8sPVDirectoryPath, wrongPointTo: evalSlink, expectedPointTo: mountedPath},
 				"failed")
 		}
 	} else{
