@@ -28,8 +28,8 @@ import (
 	flags "github.com/jessevdk/go-flags"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
-	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"strconv"
@@ -567,8 +567,8 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 
 	}
 	// Create environment variables for some of the config params
-	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
-	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
+	os.Setenv(remote.KeyUseSsl, strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode, config.SslConfig.SslMode)
 	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }
