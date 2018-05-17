@@ -79,15 +79,6 @@ EOF
     mv -f ${FLEX_TMP} ${MNT_FLEX_DRIVER_DIR}/${FLEX_CONF}
 }
 
-function create_flex_log_dir()
-{
-    # Create flex log directory
-    if [ ! -d "${FLEX_LOG_DIR}" ]; then
-      echo "Creating the flex log directory [$FLEX_LOG_DIR] for the first time."
-      mkdir -p "${FLEX_LOG_DIR}"
-    fi
-}
-
 function test_flex_driver()
 {
     echo "Test the flex driver by running $> ${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity"
@@ -145,7 +136,6 @@ echo "[`date`]"
 echo "Starting $DRIVER Pod..."
 install_flex_driver
 generate_flex_conf_from_envs_and_install_it
-create_flex_log_dir
 install_flex_trusted_ca
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
