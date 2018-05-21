@@ -551,7 +551,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 				"failed")
 		}
 	} else {
-		return c.logger.ErrorRet(&k8sPVDirectoryIsNotDirNorSlinkError{k8sPVDirectoryPath}, "failed")
+		return c.logger.ErrorRet(&k8sPVDirectoryIsNotDirNorSlinkError{k8sPVDirectoryPath, fileInfo}, "failed")
 	}
 
 	c.logger.Debug("Volume mounted successfully", logs.Args{{"mountedPath", mountedPath}})

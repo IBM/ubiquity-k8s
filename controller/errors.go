@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"os"
 )
 
 // TODO need to remove this error, since its moved to ubiquity it self
@@ -67,9 +68,12 @@ func (e *k8sVersionNotSupported) Error() string {
 const K8sPVDirectoryIsNotDirNorSlinkErrorStr = "k8s PV directory, k8s-mountpoint, is not a directory nor slink."
 
 type k8sPVDirectoryIsNotDirNorSlinkError struct {
-	slink string
+	slink    string
+	fileInfo os.FileInfo
 }
 
 func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
-	return fmt.Sprintf(K8sPVDirectoryIsNotDirNorSlinkErrorStr+" slink=[%s]", e.slink)
+	// The error string contains also the fileInfo for debug purpose, in order to identify for example what is the actual FileInfo.Mode().
+	return fmt.Sprintf(K8sPVDirectoryIsNotDirNorSlinkErrorStr+" slink=[%s], fileInfo=[%#v]",
+		e.slink, e.fileInfo)
 }
