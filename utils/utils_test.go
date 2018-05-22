@@ -50,6 +50,7 @@ func TestUtils1(t *testing.T) {
 	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
 		fmt.Println("LoadConfig failed: ",err)
+		t.Fail()
 	}
 	loadData := []struct{
 		envVar string
@@ -90,6 +91,7 @@ func TestUtils2(t *testing.T) {
 	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
 		fmt.Println("LoadConfig failed: ",err)
+		t.Fail()
 	}
 	loadData := []struct{
 		envVar string
@@ -119,6 +121,5 @@ func TestUtils2(t *testing.T) {
 		}
 	}
 }
-
 
 
