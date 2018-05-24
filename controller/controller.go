@@ -18,34 +18,35 @@ package controller
 
 import (
 	"fmt"
+	"github.com/IBM/ubiquity/utils/logs"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
-	"github.com/IBM/ubiquity/utils/logs"
 
-
-	"bytes"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/remote/mounter"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
-	"path/filepath"
-	"github.com/IBM/ubiquity/remote/mounter"
 	"github.com/nightlyone/lockfile"
+	"path/filepath"
 	"time"
 )
 
+const FlexSuccessStr = "Success"
+const FlexFailureStr = "Failure"
+
 //Controller this is a structure that controls volume management
 type Controller struct {
-	Client resources.StorageClient
-	exec   utils.Executor
-	logger logs.Logger
-	legacyLogger *log.Logger
-	config resources.UbiquityPluginConfig
+	Client            resources.StorageClient
+	exec              utils.Executor
+	logger            logs.Logger
+	legacyLogger      *log.Logger
+	config            resources.UbiquityPluginConfig
 	mounterPerBackend map[string]resources.Mounter
-	unmountFlock       lockfile.Lockfile
+	unmountFlock      lockfile.Lockfile
+	mounterFactory    mounter.MounterFactory
 }
 
 //NewController allows to instantiate a controller
@@ -60,27 +61,35 @@ func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*
 		return nil, err
 	}
 	return &Controller{
-		logger: logs.GetLogger(),
-		legacyLogger: logger,
-		Client: remoteClient,
-		exec: utils.NewExecutor(),
-		config: config,
+		logger:            logs.GetLogger(),
+		legacyLogger:      logger,
+		Client:            remoteClient,
+		exec:              utils.NewExecutor(),
+		config:            config,
 		mounterPerBackend: make(map[string]resources.Mounter),
-		unmountFlock: unmountFlock}, nil
+		unmountFlock:      unmountFlock,
+		mounterFactory:    mounter.NewMounterFactory(),
+	}, nil
 }
 
 //NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, client resources.StorageClient, exec utils.Executor) *Controller {
+func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
 	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
 	if err != nil {
 		panic(err)
 	}
 
-	utils.NewExecutor()
-	return &Controller{logger: logs.GetLogger(), legacyLogger: logger, Client: client, exec: exec, unmountFlock: unmountFlock}
+	return &Controller{
+		logger:            logs.GetLogger(),
+		legacyLogger:      logger,
+		Client:            client,
+		exec:              exec,
+		config:            config,
+		mounterPerBackend: make(map[string]resources.Mounter),
+		unmountFlock:      unmountFlock,
+		mounterFactory:    mFactory,
+	}
 }
-
-
 
 //Init method is to initialize the k8sresourcesvolume
 func (c *Controller) Init(config resources.UbiquityPluginConfig) k8sresources.FlexVolumeResponse {
@@ -143,7 +152,6 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 	return response
 }
 
-
 //GetVolumeName checks if volume is attached
 func (c *Controller) GetVolumeName(getVolumeNameRequest k8sresources.FlexVolumeGetVolumeNameRequest) k8sresources.FlexVolumeResponse {
 	defer c.logger.Trace(logs.DEBUG)()
@@ -187,7 +195,7 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 		}
 	} else {
 		response = k8sresources.FlexVolumeResponse{
-			Status: "Success",
+			Status:   "Success",
 			Attached: isAttached,
 		}
 	}
@@ -261,6 +269,7 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", mountRequest}})
 
+	// TODO check if volume exist first and what its backend type
 	mountedPath, err := c.doMount(mountRequest)
 	if err != nil {
 		response = k8sresources.FlexVolumeResponse{
@@ -296,7 +305,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			break
 		}
 		c.logger.Debug("unmountFlock.TryLock failed", logs.Args{{"error", err}})
-		time.Sleep(time.Duration(500*time.Millisecond))
+		time.Sleep(time.Duration(500 * time.Millisecond))
 	}
 	c.logger.Debug("Got unmountFlock for mountpath", logs.Args{{"mountpath", unmountRequest.MountPath}})
 	defer c.unmountFlock.Unlock()
@@ -308,6 +317,8 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 
 	// Validate that the mountpoint is a symlink as ubiquity expect it to be
 	realMountPoint, err := c.exec.EvalSymlinks(unmountRequest.MountPath)
+	// TODO idempotent, don't use EvalSymlinks to identify the backend, instead check the volume backend. In addition when we check the eval of the slink, if its not exist we should jump to detach (if its not slink then we should fail)
+
 	if err != nil {
 		msg := fmt.Sprintf("Cannot execute umount because the mountPath [%s] is not a symlink as expected. Error: %#v", unmountRequest.MountPath, err)
 		c.logger.Error(msg)
@@ -346,7 +357,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	return response
 }
 
-func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmountRequest) error	{
+func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmountRequest) error {
 	defer c.logger.Trace(logs.DEBUG)()
 	var err error
 
@@ -367,48 +378,80 @@ func (c *Controller) doLegacyDetach(unmountRequest k8sresources.FlexVolumeUnmoun
 
 func (c *Controller) getMounterForBackend(backend string) (resources.Mounter, error) {
 	defer c.logger.Trace(logs.DEBUG)()
+	var err error
 	mounterInst, ok := c.mounterPerBackend[backend]
 	if ok {
+		// mounter already exist in the controller backend list
 		return mounterInst, nil
-	} else if backend == resources.SpectrumScale {
-		c.mounterPerBackend[backend] = mounter.NewSpectrumScaleMounter(c.legacyLogger)
-	} else if backend == resources.SoftlayerNFS || backend == resources.SpectrumScaleNFS {
-		c.mounterPerBackend[backend] = mounter.NewNfsMounter(c.legacyLogger)
-	} else if backend == resources.SCBE {
-		c.mounterPerBackend[backend] = mounter.NewScbeMounter(c.config.ScbeRemoteConfig)
 	} else {
-		err := fmt.Errorf("Mounter not found for backend: %s", backend)
-		return nil, c.logger.ErrorRet(err, "failed")
+		// mounter not exist in the controller backend list, so get it now
+		c.mounterPerBackend[backend], err = c.mounterFactory.GetMounterPerBackend(backend, c.legacyLogger, c.config)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return c.mounterPerBackend[backend], nil
+}
+
+func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest) (resources.MountRequest, error) {
+	/*
+		Prepare the mounter.Mount request
+	*/
+	defer c.logger.Trace(logs.DEBUG)()
+
+	// Prepare request for mounter - step1 get volume's config from ubiquity
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: mountRequest.MountDevice}
+	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	if err != nil {
+		return resources.MountRequest{}, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+	}
+
+	// Prepare request for mounter - step2 generate the designated mountpoint for this volume.
+	// TODO should be agnostic to the backend, currently its scbe oriented.
+	wwn, ok := mountRequest.Opts["Wwn"]
+	if !ok {
+		err = fmt.Errorf(MissingWwnMountRequestErrorStr)
+		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
+	}
+	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
+	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig}
+	return ubMountRequest, nil
+}
+
+func (c *Controller) getMounterByPV(pvname string) (resources.Mounter, error) {
+	defer c.logger.Trace(logs.DEBUG)()
+
+	getVolumeRequest := resources.GetVolumeRequest{Name: pvname}
+	volume, err := c.Client.GetVolume(getVolumeRequest)
+	if err != nil {
+		return nil, c.logger.ErrorRet(err, "GetVolume failed")
+	}
+	mounter, err := c.getMounterForBackend(volume.Backend)
+	if err != nil {
+		return nil, c.logger.ErrorRet(err, "getMounterForBackend failed")
+	}
+
+	return mounter, nil
 }
 
 func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
-	name := mountRequest.MountDevice
-	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: name}
-	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	// Support only >=1.6
+	if mountRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return "", c.logger.ErrorRet(&k8sVersionNotSupported{mountRequest.Version}, "failed")
+	}
+
+	mounter, err := c.getMounterByPV(mountRequest.MountDevice)
 	if err != nil {
-		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+		return "", c.logger.ErrorRet(err, "getMounterByPV failed")
 	}
 
-	getVolumeRequest := resources.GetVolumeRequest{Name: name}
-	volume, err := c.Client.GetVolume(getVolumeRequest)
-	mounter, err := c.getMounterForBackend(volume.Backend)
+	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
 	if err != nil {
-		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
-		return "", c.logger.ErrorRet(err, "getMounterForBackend failed")
+		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
 
-	wwn, ok := mountRequest.Opts["Wwn"]
-	if !ok {
-		err = fmt.Errorf("mountRequest.Opts[Wwn] not found")
-		return "", c.logger.ErrorRet(err, "failed")
-	}
-
-	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
-	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig}
 	mountpoint, err := mounter.Mount(ubMountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "mounter.Mount failed")
@@ -417,52 +460,98 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	return mountpoint, nil
 }
 
-func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
-	defer c.logger.Trace(logs.DEBUG)()
+func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirectory string) string {
+	/*
+	   mountedPath is the original device mountpoint (e.g /ubiquity/<WWN>)
+	   The function return the k8sPVDirectory based on the backend.
+	*/
+
+	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
+	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
 	var lnPath string
+	if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
+		lnPath = k8sPVDirectory
+	} else {
+		lnPath, _ = path.Split(k8sPVDirectory) // TODO verify why Scale backend use this split?
+	}
+	return lnPath
+}
+
+func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
+	/*
+		 Create symbolic link instead of the k8s PV directory that will point to the ubiquity mountpoint.
+		 For example(SCBE backend):
+		 	k8s PV directory : /var/lib/kubelet/pods/a9671a20-0fd6-11e8-b968-005056a41609/volumes/ibm~ubiquity-k8s-flex/pvc-6811c716-0f43-11e8-b968-005056a41609
+		 	symbolic link should be : /ubiquity/<WWN>
+		 Idempotent:
+		 	1. if k8s PV dir not exist, then just create the slink.
+		 	2. if k8s PV dir exist, then delete the dir and create slink instead.
+		 	3. if k8s PV dir is already slink to the right location, skip.
+		 	4. if k8s PV dir is already slink to wrong location, raise error.
+		 	5. else raise error.
+		 Params:
+		 	mountedPath : the real mountpoint (e.g: scbe backend its /ubiqutiy/<WWN>)
+		 	mountRequest.MountPath : the PV k8s directory
+		 k8s version support:
+		  	k8s version < 1.6 not supported. Note in version <1.6 the attach/mount,
+		  		the mountDir (MountPath) is not created trying to do mount and ln will fail because the dir is not found,
+		  		so we need to create the directory before continuing)
+			k8s version >= 1.6 supported. Note in version >=1.6 the kubelet creates a folder as the MountPath,
+				including the volume name, whenwe try to create the symlink this will fail because the same name exists.
+				This is why we need to remove it before continuing.
+
+	*/
+
+	defer c.logger.Trace(logs.DEBUG)()
+	var k8sPVDirectoryPath string
 	var err error
 
-	if mountRequest.Version == k8sresources.KubernetesVersion_1_5 {
-		//For k8s 1.5, by the time we do the attach/mount, the mountDir (MountPath) is not created trying to do mount and ln will fail because the dir is not found, so we need to create the directory before continuing
-		dir := filepath.Dir(mountRequest.MountPath)
-		lnPath = mountRequest.MountPath
-		k8sRequiredMountPoint := path.Join(mountRequest.MountPath, mountRequest.MountDevice)
-		if _, err = os.Stat(k8sRequiredMountPoint); err != nil {
-			if os.IsNotExist(err) {
-				c.logger.Debug("creating volume directory", logs.Args{{"dir", dir}})
-				err = os.MkdirAll(dir, 0777)
-				if err != nil && !os.IsExist(err) {
-					err = fmt.Errorf("Failed creating volume directory %#v", err)
-					return c.logger.ErrorRet(err, "failed")
-				}
+	k8sPVDirectoryPath = c.getK8sPVDirectoryByBackend(mountedPath, mountRequest.MountPath)
+
+	// Identify the PV directory by using Lstat and then handle all idempotend cases (use Lstat to get the dir or slink detail and not the evaluation of it)
+	fileInfo, err := c.exec.Lstat(k8sPVDirectoryPath)
+	if err != nil {
+		if c.exec.IsNotExist(err) {
+			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
+			c.logger.Info("PV directory(k8s-mountpoint) nor slink are not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", mountedPath}})
+			c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+			err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
+			if err != nil {
+				return c.logger.ErrorRet(err, "Controller: failed to create symlink")
 			}
+		} else {
+			// Maybe some permissions issue
+			return c.logger.ErrorRet(err, "Controller: failed to identify PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
+		}
+	} else if c.exec.IsDir(fileInfo) {
+		// Positive flow - the k8s-mountpoint should exist in advance and we should delete it in order to create slink instead
+		c.logger.Debug("As expected the PV directory(k8s-mountpoint) is a directory, so remove it to prepare slink to mountpoint instead", logs.Args{{"k8s-mountpath", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+		err = c.exec.Remove(k8sPVDirectoryPath)
+		if err != nil {
+			return c.logger.ErrorRet(
+				&FailRemovePVorigDirError{k8sPVDirectoryPath, err},
+				"failed")
+		}
+		c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+		err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
+		if err != nil {
+			return c.logger.ErrorRet(err, "Controller: failed to create symlink")
+		}
+	} else if c.exec.IsSlink(fileInfo) {
+		// Its already slink so check if slink is ok and skip else raise error
+		evalSlink, err := c.exec.EvalSymlinks(k8sPVDirectoryPath)
+		if err != nil {
+			return c.logger.ErrorRet(err, "Controller: Idempotent - failed eval the slink of PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
+		}
+		if evalSlink == mountedPath {
+			c.logger.Info("PV directory(k8s-mountpoint) is already slink and point to the right mountpoint. Idempotent - skip slink creation.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
+		} else {
+			return c.logger.ErrorRet(
+				&wrongSlinkError{slink: k8sPVDirectoryPath, wrongPointTo: evalSlink, expectedPointTo: mountedPath},
+				"failed")
 		}
 	} else {
-		// For k8s 1.6 and later kubelet creates a folder as the MountPath, including the volume name, whenwe try to create the symlink this will fail because the same name exists. This is why we need to remove it before continuing.
-		ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
-		if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
-			lnPath = mountRequest.MountPath
-		} else {
-			lnPath, _ = path.Split(mountRequest.MountPath)
-		}
-		c.logger.Debug("removing folder", logs.Args{{"folder", mountRequest.MountPath}})
-		err = os.Remove(mountRequest.MountPath)
-		if err != nil && !os.IsExist(err) {
-			err = fmt.Errorf("Failed removing existing volume directory %#v", err)
-			return c.logger.ErrorRet(err, "failed")
-		}
-	}
-
-	symLinkCommand := "/bin/ln"
-	args := []string{"-s", mountedPath, lnPath}
-	c.logger.Debug(fmt.Sprintf("creating slink from %s -> %s", mountedPath, lnPath))
-	var stderr bytes.Buffer
-	cmd := exec.Command(symLinkCommand, args...)
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		err = fmt.Errorf("Controller: mount failed to symlink %#v", stderr.String())
-		c.logger.ErrorRet(err, "failed")
+		return c.logger.ErrorRet(&k8sPVDirectoryIsNotDirNorSlinkError{k8sPVDirectoryPath, fileInfo}, "failed")
 	}
 
 	c.logger.Debug("Volume mounted successfully", logs.Args{{"mountedPath", mountedPath}})
@@ -476,6 +565,7 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 	getVolumeRequest := resources.GetVolumeRequest{Name: pvName}
 
 	volume, err := c.Client.GetVolume(getVolumeRequest)
+	// TODO idempotent, if volume not exist then log warning and return success
 	mounter, err := c.getMounterForBackend(volume.Backend)
 	if err != nil {
 		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
@@ -496,6 +586,7 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 	}
 
 	c.logger.Debug(fmt.Sprintf("Removing the slink [%s] to the real mountpoint [%s]", unmountRequest.MountPath, realMountPoint))
+	// TODO idempotent, don't fail if slink not exist. But double check its slink, if not then fail with error.
 	err = c.exec.Remove(unmountRequest.MountPath)
 	if err != nil {
 		err = fmt.Errorf("fail to remove slink %s. Error %#v", unmountRequest.MountPath, err)
@@ -506,64 +597,64 @@ func (c *Controller) doUnmountScbe(unmountRequest k8sresources.FlexVolumeUnmount
 }
 
 func (c *Controller) doAfterDetach(detachRequest k8sresources.FlexVolumeDetachRequest) error {
-    defer c.logger.Trace(logs.DEBUG)()
+	defer c.logger.Trace(logs.DEBUG)()
 
-    getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
-    volume, err := c.Client.GetVolume(getVolumeRequest)
-    mounter, err := c.getMounterForBackend(volume.Backend)
-    if err != nil {
-        err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
-        return c.logger.ErrorRet(err, "failed")
-    }
+	getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
+	volume, err := c.Client.GetVolume(getVolumeRequest)
+	mounter, err := c.getMounterForBackend(volume.Backend)
+	if err != nil {
+		err = fmt.Errorf("Error determining mounter for volume: %s", err.Error())
+		return c.logger.ErrorRet(err, "failed")
+	}
 
-    getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name}
-    volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
-    if err != nil {
-        err = fmt.Errorf("Error for volume: %s", err.Error())
-        return c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
-    }
+	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name}
+	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
+	if err != nil {
+		err = fmt.Errorf("Error for volume: %s", err.Error())
+		return c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
+	}
 
-    afterDetachRequest := resources.AfterDetachRequest{VolumeConfig: volumeConfig}
-    if err := mounter.ActionAfterDetach(afterDetachRequest); err != nil {
-        err = fmt.Errorf("Error execute action after detaching the volume : %#v", err)
-        return c.logger.ErrorRet(err, "mounter.ActionAfterDetach failed")
-    }
+	afterDetachRequest := resources.AfterDetachRequest{VolumeConfig: volumeConfig}
+	if err := mounter.ActionAfterDetach(afterDetachRequest); err != nil {
+		err = fmt.Errorf("Error execute action after detaching the volume : %#v", err)
+		return c.logger.ErrorRet(err, "mounter.ActionAfterDetach failed")
+	}
 
-    return nil
+	return nil
 }
 
 func (c *Controller) doUnmountSsc(unmountRequest k8sresources.FlexVolumeUnmountRequest, realMountPoint string) error {
-    defer c.logger.Trace(logs.DEBUG)()
+	defer c.logger.Trace(logs.DEBUG)()
 
-    listVolumeRequest := resources.ListVolumesRequest{}
-    volumes, err := c.Client.ListVolumes(listVolumeRequest)
-    if err != nil {
-        err = fmt.Errorf("Error getting the volume list from ubiquity server %#v", err)
-        return c.logger.ErrorRet(err, "failed")
-    }
+	listVolumeRequest := resources.ListVolumesRequest{}
+	volumes, err := c.Client.ListVolumes(listVolumeRequest)
+	if err != nil {
+		err = fmt.Errorf("Error getting the volume list from ubiquity server %#v", err)
+		return c.logger.ErrorRet(err, "failed")
+	}
 
-    volume, err := getVolumeForMountpoint(unmountRequest.MountPath, volumes)
-    if err != nil {
-        err = fmt.Errorf(
-            "Error finding the volume with mountpoint [%s] from the list of ubiquity volumes %#v. Error is : %#v",
-            unmountRequest.MountPath,
-            volumes,
-            err)
-        return c.logger.ErrorRet(err, "failed")
-    }
+	volume, err := getVolumeForMountpoint(unmountRequest.MountPath, volumes)
+	if err != nil {
+		err = fmt.Errorf(
+			"Error finding the volume with mountpoint [%s] from the list of ubiquity volumes %#v. Error is : %#v",
+			unmountRequest.MountPath,
+			volumes,
+			err)
+		return c.logger.ErrorRet(err, "failed")
+	}
 
-    detachRequest := resources.DetachRequest{Name: volume.Name}
-    err = c.Client.Detach(detachRequest)
-    if err != nil && err.Error() != "fileset not linked" {
-        err = fmt.Errorf(
-            "Failed to unmount volume [%s] on mountpoint [%s]. Error: %#v",
-            volume.Name,
-            unmountRequest.MountPath,
-            err)
-        return c.logger.ErrorRet(err, "failed")
-    }
+	detachRequest := resources.DetachRequest{Name: volume.Name}
+	err = c.Client.Detach(detachRequest)
+	if err != nil && err.Error() != "fileset not linked" {
+		err = fmt.Errorf(
+			"Failed to unmount volume [%s] on mountpoint [%s]. Error: %#v",
+			volume.Name,
+			unmountRequest.MountPath,
+			err)
+		return c.logger.ErrorRet(err, "failed")
+	}
 
-    return nil
+	return nil
 }
 
 func (c *Controller) doActivate(activateRequest resources.ActivateRequest) error {
@@ -580,6 +671,11 @@ func (c *Controller) doActivate(activateRequest resources.ActivateRequest) error
 func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest) error {
 	defer c.logger.Trace(logs.DEBUG)()
 
+	// Support only >=1.6
+	if attachRequest.Version == k8sresources.KubernetesVersion_1_5 {
+		return c.logger.ErrorRet(&k8sVersionNotSupported{attachRequest.Version}, "failed")
+	}
+
 	ubAttachRequest := resources.AttachRequest{Name: attachRequest.Name, Host: getHost(attachRequest.Host)}
 	_, err := c.Client.Attach(ubAttachRequest)
 	if err != nil {
@@ -595,7 +691,7 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 	if checkIfAttached {
 		opts := make(map[string]string)
 		opts["volumeName"] = detachRequest.Name
-		isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "", Host:detachRequest.Host, Opts: opts}
+		isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "", Host: detachRequest.Host, Opts: opts}
 		isAttached, err := c.doIsAttached(isAttachedRequest)
 		if err != nil {
 			return c.logger.ErrorRet(err, "failed")
@@ -614,7 +710,7 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		}
 	}
 
-
+	// TODO idempotent, don't trigger Detach if host is empty (even after getHostAttached)
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
@@ -671,14 +767,14 @@ func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (reso
 }
 
 func getHost(hostRequest string) string {
-    if hostRequest != "" {
-        return hostRequest
-    }
-    // Only in k8s 1.5 this os.Hostname will happened,
-    // because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
-    hostname, err := os.Hostname()
-    if err != nil {
-        return ""
-    }
-    return hostname
+	if hostRequest != "" {
+		return hostRequest
+	}
+	// Only in k8s 1.5 this os.Hostname will happened,
+	// because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return hostname
 }

@@ -28,8 +28,8 @@ import (
 	flags "github.com/jessevdk/go-flags"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
-	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"strconv"
@@ -71,40 +71,11 @@ type GetVolumeNameCommand struct {
 }
 
 func (g *GetVolumeNameCommand) Execute(args []string) error {
-	if len(args) < 1 {
-
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Not enough arguments to getVolumeName call out"),
-		}
-		return printResponse(response)
+	// This GetVolumeName action in FlexVolume CLI is not relevant, we can just return not supported without logging anything.
+	response := k8sresources.FlexVolumeResponse{
+		Status: "Not supported",
 	}
-	getVolumeNameRequestOpts := make(map[string]string)
-	err := json.Unmarshal([]byte(args[0]), &getVolumeNameRequestOpts)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to read args in get volumeName %#v", err),
-		}
-		return printResponse(response)
-	}
-	config, err := readConfig(*configFile)
-	if err != nil {
-		response := k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to read config in get volumeName %#v", err),
-		}
-		return printResponse(response)
-	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize)()
-	controller, err := createController(config)
-
-	if err != nil {
-		panic(fmt.Sprintf("backend %s not found", config))
-	}
-	getVolumeNameRequest := k8sresources.FlexVolumeGetVolumeNameRequest{Opts: getVolumeNameRequestOpts}
-	getVolumeNameResponse := controller.GetVolumeName(getVolumeNameRequest)
-	return printResponse(getVolumeNameResponse)
+	return printResponse(response)
 }
 
 //AttachCommand attaches a volume to a node
@@ -423,7 +394,7 @@ func (m *MountCommand) Execute(args []string) error {
 
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
-		MountDevice: volumeName,
+		MountDevice: volumeName, // The PV name
 		Opts:        mountOpts,
 		Version:     version,
 	}
@@ -596,8 +567,8 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 
 	}
 	// Create environment variables for some of the config params
-	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
-	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
+	os.Setenv(remote.KeyUseSsl, strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode, config.SslConfig.SslMode)
 	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }

@@ -513,7 +513,8 @@ function tests_with_second_node()
 function setup()
 {
 	echo "####### ---> ${S}. Verify that no volume attached to the kube node1"
-    wwn=`kubectl get $nsf pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
+	POSTGRES_PV=`kubectl get $nsf pvc $POSTGRES_PVC --no-headers -o custom-columns=name:spec.volumeName`
+	wwn=`kubectl get $nsf pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $POSTGRES_PV`
 	ssh root@$node1 'df | egrep "ubiquity" | grep -v $wwn' && exit 1 || :
 	ssh root@$node1 'multipath -ll | grep IBM | grep -v $wwn' && exit 1 || :
 	find_multipath_faulty
@@ -601,7 +602,7 @@ yml_pvc_template=$scripts/../deploy/scbe_volume_pvc_template.yml
 yml_pod_template=$scripts/../deploy/scbe_volume_with_pod_template.yml
 yml_two_vols_pod_template=$scripts/../deploy/scbe_volume_with_pod_with_2vols_template.yml
 
-POSTGRES_PV="ibm-ubiquity-db"
+POSTGRES_PVC="ibm-ubiquity-db"
 FS_SUPPORTED="ext4 xfs"
 YAML_DELIMITER='---'
 PVCName=accept-pvc

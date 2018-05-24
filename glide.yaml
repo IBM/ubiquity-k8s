@@ -9,11 +9,12 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: fix/UB-624_Flex_should_not_write_log_into_flex_driver_directory
+  version: dev
   subpackages:
   - remote
   - resources
   - utils
+  - fakes
 - package: k8s.io/apimachinery
   version: release-1.8
   subpackages:
