@@ -16,7 +16,7 @@ import:
   - utils
   - fakes
 - package: k8s.io/apimachinery
-  version: release-1.8
+  version: kubernetes-1.9.8
   subpackages:
   - pkg/api/errors
   - pkg/api/resource
@@ -30,7 +30,7 @@ import:
   - pkg/util/wait
   - pkg/watch
 - package: k8s.io/client-go
-  version: release-5.0
+  version: v6.0.0
   subpackages:
   - kubernetes
   - kubernetes/typed/core/v1
@@ -41,9 +41,9 @@ import:
   - tools/remotecommand
   - tools/reference
 - package: k8s.io/api
-  version: release-1.8
+  version: kubernetes-1.9.8
 - package: k8s.io/kubernetes
-  version: release-1.8
+  version: v1.9.8
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/version
