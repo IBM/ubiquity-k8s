@@ -32,6 +32,18 @@ spec:
           - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
             value: "scbe"
 
+          - name: FLEX_LOG_DIR    # /var/log default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-DIR
+
+          - name: FLEX_LOG_ROTATE_MAXSIZE # 50MB default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-ROTATE-MAXSIZE
+
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
               configMapKeyRef:
@@ -74,6 +86,9 @@ spec:
         volumeMounts:
         - name: host-k8splugindir
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+
+        - name: flex-log-dir
+          mountPath: FLEX_LOG_DIR_VALUE
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -83,6 +98,10 @@ spec:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
+
+      - name: flex-log-dir
+        hostPath:
+          path: FLEX_LOG_DIR_VALUE  # This directory must exist on the host
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:
