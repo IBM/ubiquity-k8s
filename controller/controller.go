@@ -300,7 +300,7 @@ func (c *Controller) successFlexVolumeResponse(msg string) k8sresources.FlexVolu
 		Status:  "Success",
 		Message: msg,
 	}
-	c.logger.Debug("", logs.Args{{"response", response}})
+	c.logger.Info(fmt.Sprintf("%#v", response))
 	return response
 }
 
@@ -310,7 +310,7 @@ func (c *Controller) failureFlexVolumeResponse(msg string) k8sresources.FlexVolu
 		Status:  "Failure",
 		Message: msg,
 	}
-	c.logger.Error("", logs.Args{{"response", response}})
+	c.logger.Error(fmt.Sprintf("%#v", response))
 	return response
 }
 
@@ -322,6 +322,7 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 	   true,  error : its slink but error during evaluate it or its slink but not to the right place
 	   false, error : its something different then slink
 	*/
+	defer c.logger.Trace(logs.DEBUG)()
 
 	// Identify the PV directory by using Lstat and then handle all idempotent cases (use Lstat to get the dir or slink detail and not the evaluation of it)
 	fileInfo, err := c.exec.Lstat(k8sPVDirectoryPath)
@@ -355,28 +356,36 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 
 }
 
+func (c *Controller) getRealMountpointForPvByBackend(volumeBackend string, volumeConfig map[string]interface{}) (string, error) {
+	// TODO we should create agnostic function based on backend that returns the real mountpoint
+	defer c.logger.Trace(logs.DEBUG)()
+	if volumeBackend == resources.SCBE {
+		return fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, volumeConfig["Wwn"].(string)), nil
+	} else if volumeBackend == resources.SpectrumScale {
+		return "", &BackendNotImplementedGetRealMountpointError{Backend: volumeBackend}
+	} else {
+		return "", &PvBackendNotSupportedError{Backend: volumeBackend}
+	}
+}
 func (c *Controller) doUnmount(k8sPVDirectoryPath string, volumeBackend string, volumeConfig map[string]interface{}, mounter resources.Mounter) error {
 	/*
 		Call to unmount mounter if slink exist and then delete the slink
 		if slink not exist skip unmount (indicate for idempotent flow).
 	*/
+	defer c.logger.Trace(logs.DEBUG)()
 	var realMountedPath string
 	var slinkExist bool
 	var err error
-
-	if volumeBackend == resources.SCBE {
-		// TODO we should create agnostic function based on backend that returns the real mountpoint
-		realMountedPath = fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, volumeConfig["Wwn"].(string))
-	} else {
-		realMountedPath = "TODO for SSc"
+	if realMountedPath, err = c.getRealMountpointForPvByBackend(volumeBackend, volumeConfig); err != nil {
+		return c.logger.ErrorRet(err, "getRealMountpointForPvByBackend failed")
 	}
 
 	// ------------------------------------
 	if slinkExist, err = c.checkSlinkBeforeUmount(k8sPVDirectoryPath, realMountedPath); err != nil {
 		return c.logger.ErrorRet(err, "checkSlinkBeforeUmount failed")
 	}
-
 	if slinkExist {
+
 		ubUnmountRequest := resources.UnmountRequest{VolumeConfig: volumeConfig} // TODO need to add to the request the real mountpoint to umount
 		if err := mounter.Unmount(ubUnmountRequest); err != nil {
 			return c.logger.ErrorRet(err, "mounter.Unmount failed")
@@ -422,20 +431,20 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	getVolumeRequest := resources.GetVolumeRequest{Name: pvName}
 	if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
 		if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
-			warningMsg := fmt.Sprintf(IdempotentUnmountSkipOnVolumeNotExistWarnigMsg+" (backend error=%#v", err)
-			c.logger.Debug(warningMsg) // TODO later change to warning message
+			warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentUnmountSkipOnVolumeNotExistWarnigMsg, err)
+			c.logger.Info(warningMsg) // TODO later change to warning message
 			return c.successFlexVolumeResponse(warningMsg)
 		}
 		return c.failureFlexVolumeResponse(err.Error())
 	}
 
 	if mounter, err = c.getMounterForBackend(volume.Backend); err != nil {
-		return c.failureFlexVolumeResponse("Error determining mounter for volume." + err.Error())
+		return c.failureFlexVolumeResponse("Error determining mounter for volume. " + err.Error())
 	}
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: pvName}
 	if volumeConfig, err = c.Client.GetVolumeConfig(getVolumeConfigRequest); err != nil {
-		return c.failureFlexVolumeResponse("Error unmount for volume." + err.Error())
+		return c.failureFlexVolumeResponse("Error unmount for volume. " + err.Error())
 	}
 
 	if err := c.doUnmount(k8sPVDirectoryPath, volume.Backend, volumeConfig, mounter); err != nil {
