@@ -114,15 +114,9 @@ func (c *Controller) TestUbiquity(config resources.UbiquityPluginConfig) k8sreso
 
 	err := c.doActivate(activateRequest)
 	if err != nil {
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: fmt.Sprintf("Test ubiquity failed %#v ", err),
-		}
+		response = c.failureFlexVolumeResponse(err, "Test ubiquity failed")
 	} else {
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Success",
-			Message: "Test ubiquity successfully",
-		}
+		response = c.successFlexVolumeResponse("Test ubiquity successfully")
 	}
 
 	c.logger.Debug("", logs.Args{{"response", response}})
@@ -137,15 +131,10 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 
 	err := c.doAttach(attachRequest)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to attach volume [%s], Error: %#v", attachRequest.Name, err)
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: msg,
-		}
+		msg := fmt.Sprintf("Failed to attach volume [%s]", attachRequest.Name)
+		response = c.failureFlexVolumeResponse(err, msg)
 	} else {
-		response = k8sresources.FlexVolumeResponse{
-			Status: "Success",
-		}
+		response = c.successFlexVolumeResponse("")
 	}
 
 	c.logger.Debug("", logs.Args{{"response", response}})
@@ -188,11 +177,8 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to check IsAttached volume [%s], Error: %#v", isAttachedRequest.Name, err)
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: msg,
-		}
+		msg := fmt.Sprintf("Failed to check IsAttached volume [%s]", isAttachedRequest.Name)
+		response = c.failureFlexVolumeResponse(err, msg)
 	} else {
 		response = k8sresources.FlexVolumeResponse{
 			Status:   "Success",
@@ -272,17 +258,11 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	// TODO check if volume exist first and what its backend type
 	mountedPath, err := c.doMount(mountRequest)
 	if err != nil {
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: err.Error(),
-		}
+		response = c.failureFlexVolumeResponse(err, "")
 	} else {
 		err = c.doAfterMount(mountRequest, mountedPath)
 		if err != nil {
-			response = k8sresources.FlexVolumeResponse{
-				Status:  "Failure",
-				Message: err.Error(),
-			}
+			response = c.failureFlexVolumeResponse(err, "")
 		} else {
 			response = k8sresources.FlexVolumeResponse{
 				Status: "Success",
@@ -297,18 +277,19 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 func (c *Controller) successFlexVolumeResponse(msg string) k8sresources.FlexVolumeResponse {
 	defer c.logger.Trace(logs.DEBUG)()
 	response := k8sresources.FlexVolumeResponse{
-		Status:  "Success",
+		Status:  FlexSuccessStr,
 		Message: msg,
 	}
 	c.logger.Info(fmt.Sprintf("%#v", response))
 	return response
 }
 
-func (c *Controller) failureFlexVolumeResponse(msg string) k8sresources.FlexVolumeResponse {
+func (c *Controller) failureFlexVolumeResponse(err error, additionalMsg string) k8sresources.FlexVolumeResponse {
 	defer c.logger.Trace(logs.DEBUG)()
+
 	response := k8sresources.FlexVolumeResponse{
-		Status:  "Failure",
-		Message: msg,
+		Status:  FlexFailureStr,
+		Message: additionalMsg + err.Error(),
 	}
 	c.logger.Error(fmt.Sprintf("%#v", response))
 	return response
@@ -435,24 +416,24 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 			c.logger.Info(warningMsg) // TODO later change to warning message
 			return c.successFlexVolumeResponse(warningMsg)
 		}
-		return c.failureFlexVolumeResponse(err.Error())
+		return c.failureFlexVolumeResponse(err, "")
 	}
 
 	if mounter, err = c.getMounterForBackend(volume.Backend); err != nil {
-		return c.failureFlexVolumeResponse("Error determining mounter for volume. " + err.Error())
+		return c.failureFlexVolumeResponse(err, "Error determining mounter for volume. ")
 	}
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: pvName}
 	if volumeConfig, err = c.Client.GetVolumeConfig(getVolumeConfigRequest); err != nil {
-		return c.failureFlexVolumeResponse("Error unmount for volume. " + err.Error())
+		return c.failureFlexVolumeResponse(err, "Error unmount for volume. ")
 	}
 
 	if err := c.doUnmount(k8sPVDirectoryPath, volume.Backend, volumeConfig, mounter); err != nil {
-		return c.failureFlexVolumeResponse(err.Error())
+		return c.failureFlexVolumeResponse(err, "")
 	}
 	// Do legacy detach (means trigger detach as part of the umount from the k8s node)
 	if err := c.doLegacyDetach(unmountRequest); err != nil {
-		return c.failureFlexVolumeResponse(err.Error())
+		return c.failureFlexVolumeResponse(err, "")
 	}
 
 	return c.successFlexVolumeResponse("")
