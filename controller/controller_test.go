@@ -648,7 +648,7 @@ var _ = Describe("Controller", func() {
 			})
 
 		})
-		Context(".Unmount checkSlinkBeforeUmount succeed with slink exist", func() {
+		Context(".Unmount checkSlinkBeforeUmount succeed with slink exist - so check slink removal and mounter.Mount", func() {
 			var (
 				errstrObj error
 				errstr    string
@@ -707,6 +707,68 @@ var _ = Describe("Controller", func() {
 			})
 			//TODO continue from here!!!!!!!!!!!! to add UT for slink not exist at all. and then continue the flow for after mounter.Unmount
 
+		})
+		Context(".Unmount check good path of doUnmount till hit the first error in doLegacyDetach", func() {
+			var (
+				errstrObj error
+				errstr    string
+				wwn       string
+			)
+			BeforeEach(func() {
+				errstr = "fakerror"
+				errstrObj = fmt.Errorf(errstr)
+				fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: resources.SCBE, Mountpoint: "fake"}, nil)
+				wwn = "fake"
+				byt := []byte(`{"Wwn":"fake"}`) // TODO should use the wwn var inside
+
+				var dat map[string]interface{}
+				if err := json.Unmarshal(byt, &dat); err != nil {
+					panic(err)
+				}
+				fakeClient.GetVolumeConfigReturnsOnCall(0, dat, nil)
+				fakeClient.GetVolumeConfigReturnsOnCall(1, dat, errstrObj) // the first fail in doLegacyDetach
+			})
+			AfterEach(func() {
+				fmt.Println("11111111111111111111")
+				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+				Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+				Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(2)) // first in doUnmount and second is in the legacy
+			})
+			It("should succeed doUnmount with slink exist(means doing mounter.Unmount) but fail during doLegacyDetach", func() {
+				fakeExec.EvalSymlinksReturns("/ubiquity/"+wwn, nil)
+				fakeMounter.UnmountReturns(nil)
+				fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+				controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+				fakeExec.IsSlinkReturns(true)
+				fakeExec.LstatReturns(nil, nil)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/pod/pv1"}
+
+				response := controller.Unmount(unmountRequest)
+
+				Expect(fakeExec.LstatCallCount()).To(Equal(1))
+				Expect(fakeExec.EvalSymlinksCallCount()).To(Equal(1))
+				Expect(fakeMounter.UnmountCallCount()).To(Equal(1))
+				Expect(response.Message).To(MatchRegexp(errstr))
+				Expect(response.Status).To(Equal(ctl.FlexFailureStr))
+			})
+			It("should succeed doUnmount because slink not exist (no need to run mounter.Unmount) but then lets fail it during doLegacyDetach", func() {
+				fakeExec.EvalSymlinksReturns("/ubiquity/"+wwn, nil)
+				fakeMounter.UnmountReturns(nil)
+				fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+				controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+				fakeExec.IsSlinkReturns(true)
+				fakeExec.LstatReturns(nil, fmt.Errorf("error because file not exist")) // simulate idempotent with no slink exist
+				fakeExec.IsNotExistReturns(true)                                       // simulate idempotent with no slink exist
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/pod/pv1"}
+
+				response := controller.Unmount(unmountRequest)
+
+				Expect(response.Message).To(MatchRegexp(errstr))
+				Expect(response.Status).To(Equal(ctl.FlexFailureStr))
+			})
+			// So now we actually finish all unit tests of Unmount before calling doLegacyDetach
+			// From now we need to start test the doLegacyDetach aspects.
 		})
 
 	})
