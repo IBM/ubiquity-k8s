@@ -91,8 +91,7 @@ func (a *AttachCommand) Execute(args []string) error {
 	var version string
 	var hostname string
 
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting attach command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 
 	if len(args) < 1 {
 
@@ -144,7 +143,6 @@ func (a *AttachCommand) Execute(args []string) error {
 	attachRequest := k8sresources.FlexVolumeAttachRequest{Name: volumeName, Host: hostname, Opts: attachRequestOpts, Version: version, Context: requestContext}
 
 	attachResponse := controller.Attach(attachRequest)
-	fmt.Sprintf("Finishing attach command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(attachResponse)
 }
 
@@ -155,8 +153,7 @@ type WaitForAttachCommand struct {
 }
 
 func (wfa *WaitForAttachCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting WaitForAttachCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 
 	if len(args) < 2 {
 
@@ -187,7 +184,6 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 	}
 	waitForAttachRequest := k8sresources.FlexVolumeWaitForAttachRequest{Name: args[0], Opts: opts, Context: requestContext}
 	response := controller.WaitForAttach(waitForAttachRequest)
-	fmt.Sprintf("Finished WaitForAttachCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(response)
 }
 
@@ -198,8 +194,7 @@ type IsAttachedCommand struct {
 }
 
 func (d *IsAttachedCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting IsAttachedCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -229,7 +224,6 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 	}
 	isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Opts: opts, Host: args[1], Context: requestContext}
 	response := controller.IsAttached(isAttachedRequest)
-	fmt.Sprintf("Finished IsAttachedCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(response)
 }
 
@@ -241,8 +235,7 @@ type DetachCommand struct {
 }
 
 func (d *DetachCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting DetachCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 	var hostname string
 	var version string
 	if len(args) < 1 {
@@ -278,7 +271,6 @@ func (d *DetachCommand) Execute(args []string) error {
 
 	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice, Host: hostname, Version: version, Context: requestContext}
 	detachResponse := controller.Detach(detachRequest)
-	fmt.Sprintf("Finished DetachCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(detachResponse)
 }
 
@@ -289,8 +281,7 @@ type MountDeviceCommand struct {
 }
 
 func (d *MountDeviceCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting MountDeviceCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 	if len(args) < 3 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -320,7 +311,6 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 	}
 	mountDeviceRequest := k8sresources.FlexVolumeMountDeviceRequest{Path: args[0], Name: args[1], Opts: opts, Context: requestContext}
 	response := controller.MountDevice(mountDeviceRequest)
-	fmt.Sprintf("Finished MountDeviceCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(response)
 }
 
@@ -331,8 +321,7 @@ type UnmountDeviceCommand struct {
 }
 
 func (d *UnmountDeviceCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting UnmountDeviceCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -354,7 +343,6 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 
 	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0], Context: requestContext}
 	response := controller.UnmountDevice(unmountDeviceRequest)
-	fmt.Sprintf("Finished UnmountDeviceCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(response)
 }
 
@@ -372,8 +360,7 @@ func (m *MountCommand) Execute(args []string) error {
 	var ok bool
 	var version string
 
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting MountCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 
 	//should error out when not enough args
 	if len(args) < 2 {
@@ -443,7 +430,6 @@ func (m *MountCommand) Execute(args []string) error {
 	}
 	mountResponse := controller.Mount(mountRequest)
 
-	fmt.Sprintf("Finished MountCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(mountResponse)
 }
 
@@ -454,8 +440,7 @@ type UnmountCommand struct {
 }
 
 func (u *UnmountCommand) Execute(args []string) error {
-	requestContext := k8sutils.GetNewRequestContext()
-	fmt.Sprintf("Starting UnmountCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
+	requestContext := logs.GetNewRequestContext()
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -486,7 +471,6 @@ func (u *UnmountCommand) Execute(args []string) error {
 		Context:   requestContext,
 	}
 	unmountResponse := controller.Unmount(unmountRequest)
-	fmt.Sprintf("Finished UnmountCommand command [%s]", k8sutils.GetContextRequestString(requestContext))
 	return printResponse(unmountResponse)
 }
 
