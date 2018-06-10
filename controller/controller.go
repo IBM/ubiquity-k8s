@@ -310,8 +310,8 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 	if err != nil {
 		if c.exec.IsNotExist(err) {
 			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
-			c.logger.Info("PV directory(k8s-mountpoint) is not exist.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}}) // TODO change it to warning
-			return false, nil                                                                                                                                               // Idempotent flow
+			c.logger.Info("PV directory(k8s-mountpoint) does not exist.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}}) // TODO change it to warning
+			return false, nil                                                                                                                                                 // Idempotent flow
 		} else {
 			// Maybe some permissions issue
 			return false, c.logger.ErrorRet(err, "Controller: failed to identify PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
@@ -670,6 +670,7 @@ func (c *Controller) doAfterDetach(detachRequest k8sresources.FlexVolumeDetachRe
 func (c *Controller) doUnmountSsc(unmountRequest k8sresources.FlexVolumeUnmountRequest, realMountPoint string) error {
 	defer c.logger.Trace(logs.DEBUG)()
 	// TODO : double check why for SScale the function trigger detach instead of umount? in addition its bad practice to get all vols.
+	//        Consider to delete this function since there is no need for special flow for UnMount for SSc.
 	listVolumeRequest := resources.ListVolumesRequest{}
 	volumes, err := c.Client.ListVolumes(listVolumeRequest)
 	if err != nil {

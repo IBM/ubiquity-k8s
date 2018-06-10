@@ -100,7 +100,6 @@ type PvBackendNotSupportedError struct {
 }
 
 func (e *PvBackendNotSupportedError) Error() string {
-	// The error string contains also the fileInfo for debug purpose, in order to identify for example what is the actual FileInfo.Mode().
 	return fmt.Sprintf(PvBackendNotSupportedErrorStr+" backend=[%s]", e.Backend)
 }
 
@@ -111,6 +110,5 @@ type BackendNotImplementedGetRealMountpointError struct {
 }
 
 func (e *BackendNotImplementedGetRealMountpointError) Error() string {
-	// The error string contains also the fileInfo for debug purpose, in order to identify for example what is the actual FileInfo.Mode().
 	return fmt.Sprintf(BackendNotImplementedGetRealMountpointErrorStr+" backend=[%s]", e.Backend)
 }
