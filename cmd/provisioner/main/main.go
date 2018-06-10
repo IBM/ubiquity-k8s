@@ -51,7 +51,7 @@ func main() {
 		panic(fmt.Errorf("Failed to setup log dir"))
 	}
 
-	defer logs.InitStdoutLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel))()
+	defer logs.InitStdoutLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel), logs.LoggerParams{ShowGoid: false, ShowPid : false})()
 	logger := utils.SetupOldLogger(k8sresources.UbiquityProvisionerName)
 
 	logger.Printf("Provisioner %s specified", provisioner)

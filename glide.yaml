@@ -9,7 +9,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: fix/UB-1099_add_request_id_to_all_logs
+  version: fix/UB-1325_change_logger_not_to_show_pid_and_goroutine
   subpackages:
   - remote
   - resources
