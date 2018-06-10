@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
-	"github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"

@@ -30,7 +30,6 @@ import (
 	"strconv"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
-	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
