@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"github.com/IBM/ubiquity/resources"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/IBM/ubiquity/resources"
 )
 
 func LoadConfig() (resources.UbiquityPluginConfig, error) {
