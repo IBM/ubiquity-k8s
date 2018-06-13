@@ -181,7 +181,7 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 	requestContext := logs.GetNewRequestContext()
-	go_id := logs.GetGoID()
+	go_id := logs.GetGoID() 
 	logs.GoIdToRequestIdMap.Store(go_id, requestContext)
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer p.logger.Trace(logs.DEBUG, logs.Args{{"volume name", volume.Name}})()
