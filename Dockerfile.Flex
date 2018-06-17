@@ -1,8 +1,9 @@
 FROM golang:1.9.1
 WORKDIR /go/src/github.com/IBM/ubiquity-k8s/
-ADD ./glide.yaml ./glide.yaml
 RUN go get -v github.com/Masterminds/glide
-RUN glide up
+ADD glide.yaml glide.yaml
+ADD glide.lock glide.lock
+RUN glide install
 COPY . .
 RUN CGO_ENABLED=1 GOOS=linux go build -tags netgo -v -a --ldflags '-w -linkmode external -extldflags "-static"' -installsuffix cgo -o ubiquity-k8s-flex cmd/flex/main/cli.go
 
