@@ -666,7 +666,8 @@ func (c *Controller) doUnmountSsc(unmountRequest k8sresources.FlexVolumeUnmountR
             unmountRequest.MountPath,
             volumes,
             err)
-        return c.logger.ErrorRet(err, "failed")
+        c.logger.Info(err)    	  // TODO : should be worning
+        return nil
     }
 
     detachRequest := resources.DetachRequest{Name: volume.Name, Context: unmountRequest.Context}
