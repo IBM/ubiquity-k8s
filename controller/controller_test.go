@@ -17,14 +17,13 @@
 package controller_test
 
 import (
-//	"fmt"
-	"os"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"encoding/json"
+	"fmt"
 	ctl "github.com/IBM/ubiquity-k8s/controller"
-//	k8sresources "github.com/IBM/ubiquity-k8s/resources"
+	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
 )
@@ -32,17 +31,26 @@ import (
 var _ = Describe("Controller", func() {
 
 	var (
-		fakeClient     *fakes.FakeStorageClient
-		controller     *ctl.Controller
-		fakeExec       *fakes.FakeExecutor
-		ubiquityConfig resources.UbiquityPluginConfig
+		fakeClient         *fakes.FakeStorageClient
+		controller         *ctl.Controller
+		fakeExec           *fakes.FakeExecutor
+		fakeMounterFactory *fakes.FakeMounterFactory
+		fakeMounter        *fakes.FakeMounter
+		ubiquityConfig     resources.UbiquityPluginConfig
+		dat                map[string]interface{}
 	)
 	BeforeEach(func() {
 		fakeExec = new(fakes.FakeExecutor)
 		ubiquityConfig = resources.UbiquityPluginConfig{}
 		fakeClient = new(fakes.FakeStorageClient)
-		controller = ctl.NewControllerWithClient(testLogger, fakeClient, fakeExec)
-		os.MkdirAll("/tmp/test/mnt2", 0777)
+		fakeMounterFactory = new(fakes.FakeMounterFactory)
+		fakeMounter = new(fakes.FakeMounter)
+		controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+		byt := []byte(`{"Wwn":"fake"}`)
+		if err := json.Unmarshal(byt, &dat); err != nil {
+			panic(err)
+		}
+
 	})
 
 	Context(".Init", func() {
@@ -106,164 +114,541 @@ var _ = Describe("Controller", func() {
 		//		Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
 		//	})
 	})
-	/*
 	Context(".Mount", func() {
-		AfterEach(func() {
+		It("should fail if k8s version < 1.6 (doMount)", func() {
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "fake", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_5}
 
-			err := os.RemoveAll("/tmp/test/mnt1")
-			Expect(err).ToNot(HaveOccurred())
-
-		})
-		It("does not error when volume exists and is not currently mounted", func() {
-			fakeClient.AttachReturns("/tmp/test/mnt1", nil)
-
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/test/mnt2", MountDevice: "vol1", Opts: map[string]string{}}
 			mountResponse := controller.Mount(mountRequest)
-			Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/test/mnt1"))
-			Expect(mountResponse.Status).To(Equal("Success"))
+
+			Expect(mountResponse.Message).To(MatchRegexp(ctl.SupportK8sVesion))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+			Expect(mountResponse.Device).To(Equal(""))
+		})
+		It("should fail in GetVolume if volume not in ubiqutiyDB (doMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("error not found in DB"))
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(mountResponse.Message).To(MatchRegexp(".*error not found in DB"))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+			Expect(mountResponse.Device).To(Equal(""))
+		})
+		It("should fail if cannot get mounter for the PV (doMount, GetMounterPerBackend)", func() {
+			errstr := "ERROR backend"
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "XXX", Mountpoint: "fake"}, nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, fmt.Errorf(errstr))
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
 
 			Expect(mountResponse.Device).To(Equal(""))
-			Expect(fakeClient.AttachCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(MatchRegexp(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig failed (doMount)", func() {
+			errstr := "error GetVolumeConfig"
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "aaaa", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"":""}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, fmt.Errorf(errstr))
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
 
-		It("errors when volume exists and client fails to mount it", func() {
-			err := fmt.Errorf("failed to mount volume")
-			fakeClient.AttachReturns("", err)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]string{}}
 			mountResponse := controller.Mount(mountRequest)
-			Expect(mountResponse.Status).To(Equal("Failure"))
-			Expect(mountResponse.Message).To(MatchRegexp(err.Error()))
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(MatchRegexp(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain Wwn key (doMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(ctl.MissingWwnMountRequestErrorStr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
+		It("should fail if mounter.Mount failed (doMount)", func() {
+			errstr := "TODO set error in mounter"
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"Wwn":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("fake device", fmt.Errorf(errstr))
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should fail to Mount if fail to lstat k8s-mountpoint (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
+
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			fakeExec.LstatReturns(nil, errstrObj)
+			fakeExec.IsNotExistReturns(false)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistArgsForCall(0)).To(Equal(errstrObj))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should fail to Mount k8s-mountpoint dir not exist(idempotent) but and failed to slink (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
+
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			fakeExec.LstatReturns(nil, errstrObj)
+			fakeExec.IsNotExistReturns(true)
+			fakeExec.SymlinkReturns(errstrObj)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistArgsForCall(0)).To(Equal(errstrObj))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should succeed to Mount k8s-mountpoint dir not exist(idempotent) and slink succeed (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
+
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountpoint := "/ubiquity/wwn1"
+			fakeMounter.MountReturns(mountpoint, nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			fakeExec.LstatReturns(nil, errstrObj)
+			fakeExec.IsNotExistReturns(true)
+			fakeExec.SymlinkReturns(nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(1))
+			Expect(fakeExec.SymlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(""))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexSuccessStr))
 			Expect(mountResponse.Device).To(Equal(""))
-			Expect(fakeClient.AttachCallCount()).To(Equal(1))
 		})
-	})
-	Context(".Unmount", func() {
-		var volumes []resources.Volume
-		It("succeeds when volume exists and is currently mounted", func() {
-			fakeExec.EvalSymlinksReturns("/path/gpfs/fs/mountpoint", nil)
-			fakeClient.DetachReturns(nil)
-			volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
-			volumes = []resources.Volume{volume}
-			fakeClient.ListVolumesReturns(volumes, nil)
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
-			unmountResponse := controller.Unmount(unmountRequest)
-			Expect(unmountResponse.Status).To(Equal("Success"))
-			Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
-			Expect(unmountResponse.Device).To(Equal(""))
-			Expect(fakeClient.DetachCallCount()).To(Equal(1))
-			Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
-		})
-		It("errors when client fails to get volume related to the mountpoint", func() {
-			err := fmt.Errorf("failed to get fileset")
-			fakeClient.ListVolumesReturns(volumes, err)
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
-			unmountResponse := controller.Unmount(unmountRequest)
+		It("should fail to Mount because fail to Remove the k8s-mountpoint dir (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
 
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-			Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
-			Expect(fakeClient.DetachCallCount()).To(Equal(0))
-		})
-		It("errors when volume does not exist", func() {
-			volumes = []resources.Volume{}
-			fakeClient.ListVolumesReturns(volumes, nil)
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
-			unmountResponse := controller.Unmount(unmountRequest)
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(true)
+			fakeExec.RemoveReturns(errstrObj)
 
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp("Volume not found"))
-			Expect(unmountResponse.Device).To(Equal(""))
-			Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
-			Expect(fakeClient.DetachCallCount()).To(Equal(0))
-		})
-		It("errors when volume exists and client fails to unmount it", func() {
-			err := fmt.Errorf("error detaching the volume")
-			volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
-			volumes = []resources.Volume{volume}
-			fakeClient.ListVolumesReturns(volumes, nil)
-			fakeClient.DetachReturns(err)
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
-			unmountResponse := controller.Unmount(unmountRequest)
+			mountResponse := controller.Mount(mountRequest)
 
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-			Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
-			Expect(fakeClient.DetachCallCount()).To(Equal(1))
-
-		})
-		It("should fail to umount if mountpoint is not slink", func() {
-			errMsg := fmt.Errorf("not a link")
-			fakeExec.EvalSymlinksReturns("", errMsg)
-
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
-			unmountResponse := controller.Unmount(unmountRequest)
-
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-		})
-		It("should fail to umount if detach failed", func() {
-			errMsg := fmt.Errorf("error")
-			realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
-			fakeExec.EvalSymlinksReturns(realMountPoint, nil)
-			fakeClient.DetachReturns(errMsg)
-
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
-			unmountResponse := controller.Unmount(unmountRequest)
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-			detachRequest := fakeClient.DetachArgsForCall(0)
-			Expect(detachRequest.Name).To(Equal("pvname"))
-		})
-		It("should fail to umount if detach failed", func() {
-			errMsg := fmt.Errorf("error")
-			realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
-			fakeExec.EvalSymlinksReturns(realMountPoint, nil)
-			fakeClient.DetachReturns(errMsg)
-
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
-			unmountResponse := controller.Unmount(unmountRequest)
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-			detachRequest := fakeClient.DetachArgsForCall(0)
-			Expect(detachRequest.Name).To(Equal("pvname"))
-		})
-
-		It("should fail to umount if fail to remove the slink", func() {
-			errMsg := fmt.Errorf("error")
-			realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
-			fakeExec.EvalSymlinksReturns(realMountPoint, nil)
-			fakeClient.DetachReturns(nil)
-			fakeExec.RemoveReturns(errMsg)
-
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
-			unmountResponse := controller.Unmount(unmountRequest)
-			Expect(unmountResponse.Status).To(Equal("Failure"))
-			Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
-			Expect(unmountResponse.Device).To(Equal(""))
-			detachRequest := fakeClient.DetachArgsForCall(0)
-			Expect(detachRequest.Name).To(Equal("pvname"))
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
 			Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			Expect(fakeExec.SymlinkCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(MatchRegexp(ctl.FailRemovePVorigDirErrorStr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
-		It("should succeed to umount if the scbe umount flow finished ok", func() {
-			realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
-			fakeExec.EvalSymlinksReturns(realMountPoint, nil)
-			fakeClient.DetachReturns(nil)
+		It("should fail to Mount because fail to create Symlink after Remove the k8s-mountpoint dir (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
+
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(true)
 			fakeExec.RemoveReturns(nil)
+			fakeExec.SymlinkReturns(errstrObj)
 
-			unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
-			unmountResponse := controller.Unmount(unmountRequest)
-			Expect(unmountResponse.Status).To(Equal("Success"))
-			Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
-			Expect(unmountResponse.Device).To(Equal(""))
-			detachRequest := fakeClient.DetachArgsForCall(0)
-			Expect(detachRequest.Name).To(Equal("pvname"))
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
 			Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			Expect(fakeExec.SymlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(MatchRegexp(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
+
+		It("should fail to Mount because fail to create Symlink after Remove the k8s-mountpoint dir (doAfterMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(true)
+			fakeExec.RemoveReturns(nil)
+			fakeExec.SymlinkReturns(nil)
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
+			Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			Expect(fakeExec.SymlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(""))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexSuccessStr))
+		})
+
+		It("should fail to Mount because fail to EvalSymlinks (idempotent) (doAfterMount)", func() {
+			errstr := "fakerror"
+			errstrObj := fmt.Errorf(errstr)
+
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(false)
+			fakeExec.IsSlinkReturns(true)
+			fakeExec.EvalSymlinksReturns("", errstrObj)
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.EvalSymlinksCallCount()).To(Equal(1))
+			Expect(mountResponse.Message).To(Equal(errstr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should succeed to Mount after k8s-mountpoint is already slink(idempotent) and point to the right mountpath (doAfterMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountPath := "/ubiquity/wwn1"
+
+			fakeMounter.MountReturns(mountPath, nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(false)
+			fakeExec.IsSlinkReturns(true)
+			fakeExec.EvalSymlinksReturns(mountPath, nil)
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.EvalSymlinksCallCount()).To(Equal(1))
+			Expect(mountResponse.Message).To(Equal(""))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexSuccessStr))
+			Expect(mountResponse.Device).To(Equal(""))
+		})
+
+		It("should fail to Mount after k8s-mountpoint is already slink(idempotent) but point to wrong mountpath (doAfterMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountPath := "/ubiquity/wwn1"
+
+			fakeMounter.MountReturns(mountPath, nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(false)
+			fakeExec.IsSlinkReturns(true)
+			badMountPointForSlink := mountPath + "/bad"
+			fakeExec.EvalSymlinksReturns(badMountPointForSlink, nil)
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.EvalSymlinksCallCount()).To(Equal(1))
+			Expect(mountResponse.Message).To(MatchRegexp(ctl.WrongSlinkErrorStr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+		It("should fail to Mount when k8s-mountpoint exist but not as dir nor as slink (idempotent) (doAfterMount)", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountPath := "/ubiquity/wwn1"
+
+			fakeMounter.MountReturns(mountPath, nil)
+			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			fakeExec.LstatReturns(nil, nil)
+			fakeExec.IsDirReturns(false)
+			fakeExec.IsSlinkReturns(false)
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(1))
+			Expect(fakeExec.LstatCallCount()).To(Equal(1))
+			Expect(fakeExec.IsNotExistCallCount()).To(Equal(0))
+			Expect(fakeExec.IsDirCallCount()).To(Equal(1))
+			Expect(fakeExec.IsSlinkCallCount()).To(Equal(1))
+			Expect(fakeExec.EvalSymlinksCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(MatchRegexp(ctl.K8sPVDirectoryIsNotDirNorSlinkErrorStr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
 	})
+
+	/*
+		Context(".Mount", func() {
+			AfterEach(func() {
+
+				err := os.RemoveAll("/tmp/test/mnt1")
+				Expect(err).ToNot(HaveOccurred())
+
+			})
+			It("does not error when volume exists and is not currently mounted", func() {
+				fakeClient.AttachReturns("/tmp/test/mnt1", nil)
+
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp/test/mnt2", MountDevice: "vol1", Opts: map[string]string{}}
+				mountResponse := controller.Mount(mountRequest)
+				Expect(mountResponse.Message).To(Equal("Volume mounted successfully to /tmp/test/mnt1"))
+				Expect(mountResponse.Status).To(Equal("Success"))
+
+				Expect(mountResponse.Device).To(Equal(""))
+				Expect(fakeClient.AttachCallCount()).To(Equal(1))
+			})
+
+			It("errors when volume exists and client fails to mount it", func() {
+				err := fmt.Errorf("failed to mount volume")
+				fakeClient.AttachReturns("", err)
+				mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "some-mountpath", MountDevice: "vol1", Opts: map[string]string{}}
+				mountResponse := controller.Mount(mountRequest)
+				Expect(mountResponse.Status).To(Equal("Failure"))
+				Expect(mountResponse.Message).To(MatchRegexp(err.Error()))
+				Expect(mountResponse.Device).To(Equal(""))
+				Expect(fakeClient.AttachCallCount()).To(Equal(1))
+			})
+		})
+		Context(".Unmount", func() {
+			var volumes []resources.Volume
+			It("succeeds when volume exists and is currently mounted", func() {
+				fakeExec.EvalSymlinksReturns("/path/gpfs/fs/mountpoint", nil)
+				fakeClient.DetachReturns(nil)
+				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.Volume{volume}
+				fakeClient.ListVolumesReturns(volumes, nil)
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Success"))
+				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
+				Expect(unmountResponse.Device).To(Equal(""))
+				Expect(fakeClient.DetachCallCount()).To(Equal(1))
+				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
+			})
+			It("errors when client fails to get volume related to the mountpoint", func() {
+				err := fmt.Errorf("failed to get fileset")
+				fakeClient.ListVolumesReturns(volumes, err)
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
+				Expect(fakeClient.DetachCallCount()).To(Equal(0))
+			})
+			It("errors when volume does not exist", func() {
+				volumes = []resources.Volume{}
+				fakeClient.ListVolumesReturns(volumes, nil)
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp("Volume not found"))
+				Expect(unmountResponse.Device).To(Equal(""))
+				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
+				Expect(fakeClient.DetachCallCount()).To(Equal(0))
+			})
+			It("errors when volume exists and client fails to unmount it", func() {
+				err := fmt.Errorf("error detaching the volume")
+				volume := resources.Volume{Name: "vol1", Mountpoint: "some-mountpoint"}
+				volumes = []resources.Volume{volume}
+				fakeClient.ListVolumesReturns(volumes, nil)
+				fakeClient.DetachReturns(err)
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(err.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				Expect(fakeClient.ListVolumesCallCount()).To(Equal(1))
+				Expect(fakeClient.DetachCallCount()).To(Equal(1))
+
+			})
+			It("should fail to umount if mountpoint is not slink", func() {
+				errMsg := fmt.Errorf("not a link")
+				fakeExec.EvalSymlinksReturns("", errMsg)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "some-mountpoint"}
+				unmountResponse := controller.Unmount(unmountRequest)
+
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+			})
+			It("should fail to umount if detach failed", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(errMsg)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+			})
+			It("should fail to umount if detach failed", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(errMsg)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+			})
+
+			It("should fail to umount if fail to remove the slink", func() {
+				errMsg := fmt.Errorf("error")
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(nil)
+				fakeExec.RemoveReturns(errMsg)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Failure"))
+				Expect(unmountResponse.Message).To(MatchRegexp(errMsg.Error()))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+				Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			})
+			It("should succeed to umount if the scbe umount flow finished ok", func() {
+				realMountPoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "fakeWWN")
+				fakeExec.EvalSymlinksReturns(realMountPoint, nil)
+				fakeClient.DetachReturns(nil)
+				fakeExec.RemoveReturns(nil)
+
+				unmountRequest := k8sresources.FlexVolumeUnmountRequest{MountPath: "/k8s/podid/some/pvname"}
+				unmountResponse := controller.Unmount(unmountRequest)
+				Expect(unmountResponse.Status).To(Equal("Success"))
+				Expect(unmountResponse.Message).To(Equal("Volume unmounted successfully"))
+				Expect(unmountResponse.Device).To(Equal(""))
+				detachRequest := fakeClient.DetachArgsForCall(0)
+				Expect(detachRequest.Name).To(Equal("pvname"))
+				Expect(fakeExec.RemoveCallCount()).To(Equal(1))
+			})
+		})
 	*/
 })

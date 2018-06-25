@@ -6,9 +6,7 @@
 # 1. Deploy flex driver & config file & trusted ca file(if exist) from the container into the host path
 #    /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 # 2. Run tail -f on the flex log file, so it will be visible via kubectl logs <flex Pod>
-# 3. Start infinite loop with logrotate every 24 hours on the host flex log file
-#    /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex/ubiquity-k8s-flex.log
-#    The rotation policy is based on /etc/logrotate.d/ubiquity_logrotate
+# 3. Start infinite loop every 24 hours on the host for tailing the flex log file
 ###########################################################################
 
 set -o errexit
@@ -43,6 +41,8 @@ function generate_flex_conf_from_envs_and_install_it()
     [ -z "$UBIQUITY_IP_ADDRESS" ] && missing_env UBIQUITY_IP_ADDRESS || :
 
     # Other environment variable with default values
+    [ -z "$FLEX_LOG_DIR" ] && FLEX_LOG_DIR=/var/log || :
+    [ -z "$FLEX_LOG_ROTATE_MAXSIZE" ] && FLEX_LOG_ROTATE_MAXSIZE=50 || :
     [ -z "$LOG_LEVEL" ] && LOG_LEVEL=info || :
     [ -z "$SKIP_RESCAN_ISCSI" ] && SKIP_RESCAN_ISCSI=false || :
     [ -z "$UBIQUITY_PLUGIN_USE_SSL" ] && UBIQUITY_PLUGIN_USE_SSL=true || :
@@ -53,7 +53,8 @@ function generate_flex_conf_from_envs_and_install_it()
     cat > $FLEX_TMP << EOF
 # This file was generated automatically by the $DRIVER Pod.
 
-logPath = "${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
+logPath = "$FLEX_LOG_DIR"
+logRotateMaxSize = $FLEX_LOG_ROTATE_MAXSIZE
 backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
@@ -82,7 +83,7 @@ function test_flex_driver()
 {
     echo "Test the flex driver by running $> ${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity"
     testubiquity=`${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity 2>&1`
-    flex_log=${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log
+    flex_log=${FLEX_LOG_DIR}/ubiquity-k8s-flex.log
     if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
        echo "$testubiquity"
        echo "Flex test passed Ok"
@@ -143,14 +144,13 @@ echo ""
 test_flex_driver
 
 echo ""
-echo "This Pod will handle log rotation for the <flex log> on the host [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log]"
+echo "This Pod will handle log rotation for the <flex log> on the host [${FLEX_LOG_DIR}/${DRIVER}.log]"
 echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
 echo "[`date`] Start to run in background #>"
-echo "tail -F ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${DRIVER}.log"
+echo "tail -F ${FLEX_LOG_DIR}/${DRIVER}.log"
 echo "-----------------------------------------------"
-tail -F ${MNT_FLEX_DRIVER_DIR}/ubiquity-k8s-flex.log &
+tail -F ${FLEX_LOG_DIR}/${DRIVER}.log &
 
 while : ; do
-  sleep 86400 # every 24 hours
-  /usr/sbin/logrotate /etc/logrotate.d/ubiquity_logrotate
+    sleep 86400 # every 24 hours
 done
