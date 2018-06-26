@@ -1,5 +1,72 @@
 package: github.com/IBM/ubiquity-k8s
 import:
+- package: github.com/davecgh/go-spew
+  version: v1.1.0
+- package: github.com/djherbis/times
+  version: v1.0.1
+- package: github.com/ghodss/yaml
+  version: v1.0.0
+- package: github.com/go-openapi/spec
+- package: github.com/gogo/protobuf
+  version: v1.0.0
+  subpackages:
+  - proto
+  - sortkeys
+- package: github.com/golang/glog
+- package: github.com/golang/groupcache
+  subpackages:
+  - lru
+- package: github.com/google/gofuzz
+- package: github.com/googleapis/gnostic
+  version: v0.2.0
+  subpackages:
+  - OpenAPIv2
+- package: github.com/gorilla/mux
+  version: v1.6.2
+- package: github.com/gregjones/httpcache
+  subpackages:
+  - diskcache
+- package: github.com/hashicorp/golang-lru
+- package: github.com/howeyc/gopass
+- package: github.com/imdario/mergo
+  version: v0.3.5
+- package: github.com/jinzhu/gorm
+  version: v1.9.1
+- package: github.com/json-iterator/go
+  version: 1.1.3
+- package: github.com/juju/ratelimit
+  version: 1.0.1
+- package: github.com/natefinch/lumberjack
+  version: v2.1
+- package: github.com/op/go-logging
+  version: v1
+- package: github.com/pborman/uuid
+  version: v1.1
+- package: github.com/peterbourgon/diskv
+  version: v2.0.1
+- package: github.com/spf13/pflag
+  version: v1.0.1
+- package: github.com/kubernetes/kube-openapi
+- package: golang.org/x/net
+- package: github.com/jinzhu/inflection
+- package: github.com/gorilla/context
+  version: v1.1.1
+- package: github.com/go-openapi/jsonpointer
+- package: github.com/go-openapi/jsonreference
+- package: github.com/go-openapi/swag
+- package: gopkg.in/inf.v0
+- package: github.com/emicklei/go-restful
+  version: v2.7.1
+- package: golang.org/x/crypto
+- package: golang.org/x/sys
+- package: github.com/PuerkitoBio/purell
+  version: v1.1.0
+- package: github.com/mailru/easyjson
+- package: gopkg.in/yaml.v2
+- package: golang.org/x/text
+- package: github.com/google/btree
+- package: github.com/lib/pq
+- package: github.com/PuerkitoBio/urlesc
 - package: github.com/BurntSushi/toml
   version: v0.3.0  
 - package: github.com/jessevdk/go-flags
