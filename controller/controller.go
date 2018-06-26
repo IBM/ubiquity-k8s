@@ -32,6 +32,8 @@ import (
 	"github.com/nightlyone/lockfile"
 	"path/filepath"
 	"time"
+	"regexp"
+	"reflect"
 )
 
 const FlexSuccessStr = "Success"
@@ -197,10 +199,19 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to check IsAttached volume [%s], Error: %#v", isAttachedRequest.Name, err)
-		response = k8sresources.FlexVolumeResponse{
-			Status:  "Failure",
-			Message: msg,
+		c.logger.Info(fmt.Sprintf("err: %s type %s", err, reflect.TypeOf(err)))
+		matched, _ := regexp.MatchString("volume .* not found", err.Error())
+		if matched{
+			response = k8sresources.FlexVolumeResponse{
+				Status:   "Success",
+				Attached: false,
+			}
+		} else{
+			msg := fmt.Sprintf("Failed to check IsAttached volume [%s], Error: %#v", isAttachedRequest.Name, err)
+			response = k8sresources.FlexVolumeResponse{
+				Status:  "Failure",
+				Message: msg,
+			}
 		}
 	} else {
 		response = k8sresources.FlexVolumeResponse{
