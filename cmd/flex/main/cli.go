@@ -34,6 +34,7 @@ import (
 	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
+	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 )
 
 var configFile = flag.String(
@@ -125,7 +126,8 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	//defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -172,7 +174,8 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	//defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[1]), &opts)
@@ -212,7 +215,8 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	//defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName), config.LogRotateMaxSize, logger_params)()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[0]), &opts)
