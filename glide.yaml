@@ -1,14 +1,14 @@
 package: github.com/IBM/ubiquity-k8s
 import:
 - package: github.com/davecgh/go-spew
-  version: v1.1.0
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
 - package: github.com/djherbis/times
   version: v1.0.1
 - package: github.com/ghodss/yaml
-  version: v1.0.0
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/go-openapi/spec
 - package: github.com/gogo/protobuf
-  version: v1.0.0
+  version: c0656edd0d9eab7c66d1eb0c568f9039345796f7
   subpackages:
   - proto
   - sortkeys
@@ -19,34 +19,34 @@ import:
   - lru
 - package: github.com/google/gofuzz
 - package: github.com/googleapis/gnostic
-  version: v0.2.0
+  version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
   - OpenAPIv2
 - package: github.com/gorilla/mux
-  version: v1.6.2
+  version: v1.5.0
 - package: github.com/gregjones/httpcache
   subpackages:
   - diskcache
 - package: github.com/hashicorp/golang-lru
 - package: github.com/howeyc/gopass
 - package: github.com/imdario/mergo
-  version: v0.3.5
+  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - package: github.com/jinzhu/gorm
-  version: v1.9.1
+  version: v1.0
 - package: github.com/json-iterator/go
-  version: 1.1.3
+  version: 36b14963da70d11297d313183d7e6388c8510e1e
 - package: github.com/juju/ratelimit
-  version: 1.0.1
+  version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - package: github.com/natefinch/lumberjack
   version: v2.1
 - package: github.com/op/go-logging
-  version: v1
+  version: 970db520ece77730c7e4724c61121037378659d9
 - package: github.com/pborman/uuid
-  version: v1.1
+  version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - package: github.com/peterbourgon/diskv
-  version: v2.0.1
+  version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - package: github.com/spf13/pflag
-  version: v1.0.1
+  version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - package: k8s.io/kube-openapi
   subpackages:
   - pkg/common
@@ -60,11 +60,11 @@ import:
 - package: github.com/go-openapi/swag
 - package: gopkg.in/inf.v0
 - package: github.com/emicklei/go-restful
-  version: v2.7.1
+  version: ff4f55a206334ef123e4f79bbf348980da81ca46
 - package: golang.org/x/crypto
 - package: golang.org/x/sys
 - package: github.com/PuerkitoBio/purell
-  version: v1.1.0
+  version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - package: github.com/mailru/easyjson
 - package: gopkg.in/yaml.v2
 - package: golang.org/x/text
@@ -76,7 +76,7 @@ import:
 - package: github.com/modern-go/reflect2
   version: 1.0.0
 - package: github.com/golang/protobuf
-  version: v1.1.0
+  version: 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
   subpackages:
   - proto
 - package: github.com/BurntSushi/toml
@@ -95,7 +95,7 @@ import:
   - utils
   - fakes
 - package: k8s.io/apimachinery
-  version: kubernetes-1.9.8
+  version: kubernetes-1.9.2
   subpackages:
   - pkg/api/errors
   - pkg/api/resource
@@ -109,7 +109,7 @@ import:
   - pkg/util/wait
   - pkg/watch
 - package: k8s.io/client-go
-  version: v6.0.0
+  version: kubernetes-1.9.2
   subpackages:
   - kubernetes
   - kubernetes/typed/core/v1
@@ -120,9 +120,9 @@ import:
   - tools/remotecommand
   - tools/reference
 - package: k8s.io/api
-  version: kubernetes-1.9.8
+  version: kubernetes-1.9.2
 - package: k8s.io/kubernetes
-  version: v1.9.8
+  version: v1.9.2
   subpackages:
   - pkg/util/goroutinemap
   - pkg/util/version
