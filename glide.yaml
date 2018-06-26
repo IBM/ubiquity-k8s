@@ -12,6 +12,7 @@ import:
   subpackages:
   - proto
   - sortkeys
+  - ptypes
 - package: github.com/golang/glog
 - package: github.com/golang/groupcache
   subpackages:
@@ -47,6 +48,9 @@ import:
 - package: github.com/spf13/pflag
   version: v1.0.1
 - package: github.com/kubernetes/kube-openapi
+  subpackages:
+  - pkg/common
+  - pkg/util/proto
 - package: golang.org/x/net
 - package: github.com/jinzhu/inflection
 - package: github.com/gorilla/context
@@ -67,6 +71,14 @@ import:
 - package: github.com/google/btree
 - package: github.com/lib/pq
 - package: github.com/PuerkitoBio/urlesc
+- package: github.com/modern-go/concurrent
+  version: 1.0.3
+- package: github.com/modern-go/reflect2
+  version: 1.0.0
+- package: github.com/golang/protobuf
+  version: v1.1.0
+  subpackages:
+  - proto
 - package: github.com/BurntSushi/toml
   version: v0.3.0  
 - package: github.com/jessevdk/go-flags
