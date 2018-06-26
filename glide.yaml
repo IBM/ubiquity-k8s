@@ -9,7 +9,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: fix/idempotent_umount_improvments
+  version: dev
   subpackages:
   - remote
   - resources
