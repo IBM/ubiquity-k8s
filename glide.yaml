@@ -47,7 +47,7 @@ import:
   version: v2.0.1
 - package: github.com/spf13/pflag
   version: v1.0.1
-- package: github.com/kubernetes/kube-openapi
+- package: k8s.io/kube-openapi
   subpackages:
   - pkg/common
   - pkg/util/proto
