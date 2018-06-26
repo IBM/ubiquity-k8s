@@ -24,7 +24,6 @@ import (
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/utils"
-	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
