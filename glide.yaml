@@ -38,7 +38,7 @@ import:
 - package: github.com/juju/ratelimit
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - package: github.com/natefinch/lumberjack
-  version: v2.1
+  version: aee4629129445bbdfb69aa565537dcfa16544311
 - package: github.com/op/go-logging
   version: 970db520ece77730c7e4724c61121037378659d9
 - package: github.com/pborman/uuid
