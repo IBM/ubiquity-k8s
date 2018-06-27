@@ -758,7 +758,7 @@ func (c *Controller) doAttach(attachRequest k8sresources.FlexVolumeAttachRequest
 func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest, checkIfAttached bool) error {
 	defer c.logger.Trace(logs.DEBUG)()
 
-	if checkIfAttached {	
+	if checkIfAttached {
 		opts := make(map[string]string)
 		opts["volumeName"] = detachRequest.Name
 		isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "", Host: detachRequest.Host, Opts: opts, Context: detachRequest.Context}
@@ -771,9 +771,9 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 			return nil
 		}
 	}
-	
+
 	host := detachRequest.Host
-	
+
 	if host == "" {
 		// only when triggered during unmount
 		var err error
@@ -781,14 +781,14 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		if err != nil {
 			return c.logger.ErrorRet(err, "getHostAttached failed")
 		}
+		
+		if host == "" {
+			// this means that the host is not attached to anything so no reason to call detach
+			c.logger.Info(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name)) // TODO: add warning to say there was an idempotent issue
+			return nil
+		}
 	}
-	
-	if host == "" {
-		// this means that the host is not attached to anything so no reason to call detach
-		c.logger.Info(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))  // TODO: add warning to say there was an idempotent issue
-		return nil
-	} 
-	
+
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host, Context: detachRequest.Context}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
