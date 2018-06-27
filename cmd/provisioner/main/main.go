@@ -24,7 +24,6 @@ import (
 	"github.com/IBM/ubiquity-k8s/volume"
 	"github.com/IBM/ubiquity/remote"
 	"github.com/IBM/ubiquity/utils"
-	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -51,7 +50,7 @@ func main() {
 		panic(fmt.Errorf("Failed to setup log dir"))
 	}
 
-	defer logs.InitStdoutLogger(logs.GetLogLevelFromString(ubiquityConfig.LogLevel))()
+	defer k8sutils.InitProvisionerLogger(ubiquityConfig)()
 	logger := utils.SetupOldLogger(k8sresources.UbiquityProvisionerName)
 
 	logger.Printf("Provisioner %s specified", provisioner)
