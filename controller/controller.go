@@ -784,7 +784,7 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		
 		if host == "" {
 			// this means that the host is not attached to anything so no reason to call detach
-			c.logger.Info(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name)) // TODO: add warning to say there was an idempotent issue
+			c.logger.Warning(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))
 			return nil
 		}
 	}
