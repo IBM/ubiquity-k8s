@@ -761,7 +761,7 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 	attachTo, err := c.getHostAttached(volName, isAttachedRequest.Context)
 	if err != nil {
 		c.logger.Info("###########")
-		c.logger.Info(fmt.Sprintf("err: %s type %s", err, reflect.TypeOf(err)))
+		c.logger.Info(fmt.Sprintf("err: %s type %s ;;; error.Error : %s", err, reflect.TypeOf(err), err.Error()))
 		matched, _ := regexp.MatchString("volume .* not found", err.Error())
 		if matched {
 			c.logger.Info("MATCHED!")
