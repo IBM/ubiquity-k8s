@@ -43,8 +43,6 @@ var configFile = flag.String(
 	"Flex Volume configuration file",
 )
 
-var logger_params = logs.LoggerParams{ShowGoid: false, ShowPid : true}
-
 // All the method should printout as response:
 //{
 //"status": "<Success/Failure/Not supported>",
