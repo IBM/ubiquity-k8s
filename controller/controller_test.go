@@ -22,6 +22,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+
 	ctl "github.com/IBM/ubiquity-k8s/controller"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
@@ -489,6 +490,48 @@ var _ = Describe("Controller", func() {
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
 
+	})
+	Context(".IsAttached", func() {
+		It("should succeed if volume does not exist", func() {
+			byt := []byte(`{"":""}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}		
+				
+			fakeClient.GetVolumeConfigReturns(dat, fmt.Errorf("volume vol1 not found"))
+			isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "vol1", Host: "host1",
+				Opts: map[string]string{"volumeName": "vol1"}}
+
+			isAttachResponse := controller.IsAttached(isAttachedRequest)
+			fmt.Println(isAttachResponse)
+			Expect(isAttachResponse).To(Equal(k8sresources.FlexVolumeResponse{Status:"Success", Attached:false}))
+
+		})
+		It("should fail if other error is thrown from GetVolumeConfig", func() {
+			byt := []byte(`{"":""}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}		
+				
+			fakeClient.GetVolumeConfigReturns(dat, fmt.Errorf("Other error"))
+			isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "vol1", Host: "host1",
+				Opts: map[string]string{"volumeName": "vol1"}}
+
+			isAttachResponse := controller.IsAttached(isAttachedRequest)
+			fmt.Println(isAttachResponse)
+			Expect(isAttachResponse.Status).To(Equal("Failure"))
+			Expect(isAttachResponse.Attached).To(Equal(false))
+		})
+		It("should succeed when no errors thrown", func() {
+			isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Name: "vol1", Host: "host1",
+				Opts: map[string]string{"volumeName": "vol1"}}
+
+			isAttachResponse := controller.IsAttached(isAttachedRequest)
+			fmt.Println(isAttachResponse)
+			Expect(isAttachResponse).To(Equal(k8sresources.FlexVolumeResponse{Status:"Success", Attached:false}))
+		})
 	})
 
 	/*

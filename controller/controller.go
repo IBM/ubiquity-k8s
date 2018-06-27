@@ -33,7 +33,6 @@ import (
 	"path/filepath"
 	"time"
 	"regexp"
-	"reflect"
 )
 
 const FlexSuccessStr = "Success"
@@ -760,11 +759,9 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 
 	attachTo, err := c.getHostAttached(volName, isAttachedRequest.Context)
 	if err != nil {
-		c.logger.Info("###########")
-		c.logger.Info(fmt.Sprintf("err: %s type %s ;;; error.Error : %s", err, reflect.TypeOf(err), err.Error()))
-		matched, _ := regexp.MatchString("volume .* not found", err.Error())
+		matched, _ := regexp.MatchString("^volume .* not found$", err.Error())
 		if matched {
-			c.logger.Info("MATCHED!")
+			c.logger.Warning(fmt.Sprintf("Idempotent issue. error captured : %s. returning isAttached=False" , err))
 			return false, nil
 		}
 		return false, c.logger.ErrorRet(err, "getHostAttached failed")
@@ -779,6 +776,7 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 	defer c.logger.Trace(logs.DEBUG)()
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: volName, Context: requestContext}
+	
 	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
