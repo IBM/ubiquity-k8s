@@ -199,20 +199,12 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
-		c.logger.Info(fmt.Sprintf("err: %s type %s", err, reflect.TypeOf(err)))
-		matched, _ := regexp.MatchString("volume .* not found", err.Error())
-		if matched{
-			response = k8sresources.FlexVolumeResponse{
-				Status:   "Success",
-				Attached: false,
-			}
-		} else{
-			msg := fmt.Sprintf("Failed to check IsAttached volume [%s], Error: %#v", isAttachedRequest.Name, err)
-			response = k8sresources.FlexVolumeResponse{
+		msg := fmt.Sprintf("Failed to check IsAttached volume [%s], Error: %#v", isAttachedRequest.Name, err)
+		response = k8sresources.FlexVolumeResponse{
 				Status:  "Failure",
 				Message: msg,
-			}
 		}
+		
 	} else {
 		response = k8sresources.FlexVolumeResponse{
 			Status:   "Success",
@@ -768,6 +760,13 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 
 	attachTo, err := c.getHostAttached(volName, isAttachedRequest.Context)
 	if err != nil {
+		c.logger.Info("###########")
+		c.logger.Info(fmt.Sprintf("err: %s type %s", err, reflect.TypeOf(err)))
+		matched, _ := regexp.MatchString("volume .* not found", err.Error())
+		if matched {
+			c.logger.Info("MATCHED!")
+			return false, nil
+		}
 		return false, c.logger.ErrorRet(err, "getHostAttached failed")
 	}
 
