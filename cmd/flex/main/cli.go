@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/BurntSushi/toml"
 	"github.com/IBM/ubiquity-k8s/controller"
