@@ -42,8 +42,6 @@ var configFile = flag.String(
 	"Flex Volume configuration file",
 )
 
-var logger_params = logs.LoggerParams{ShowGoid: false, ShowPid : true}
-
 // All the method should printout as response:
 //{
 //"status": "<Success/Failure/Not supported>",
@@ -125,7 +123,6 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-
 	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
@@ -212,7 +209,6 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-
 	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
