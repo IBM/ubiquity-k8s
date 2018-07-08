@@ -77,3 +77,38 @@ func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
 	return fmt.Sprintf(K8sPVDirectoryIsNotDirNorSlinkErrorStr+" slink=[%s], fileInfo=[%#v]",
 		e.slink, e.fileInfo)
 }
+
+const IdempotentUnmountSkipOnVolumeNotExistWarnigMsg = "Warning: Unmount operation requested to work on not exist volume. Assume its idempotent issue - so skip Unmount."
+
+const K8sPVDirectoryIsNotSlinkErrorStr = "k8s PV directory, k8s-mountpoint, is not slink."
+
+type k8sPVDirectoryIsNotSlinkError struct {
+	slink    string
+	fileInfo os.FileInfo
+}
+
+func (e *k8sPVDirectoryIsNotSlinkError) Error() string {
+	// The error string contains also the fileInfo for debug purpose, in order to identify for example what is the actual FileInfo.Mode().
+	return fmt.Sprintf(K8sPVDirectoryIsNotSlinkErrorStr+" slink=[%s], fileInfo=[%#v]",
+		e.slink, e.fileInfo)
+}
+
+const PvBackendNotSupportedErrorStr = "Backend type not supported."
+
+type PvBackendNotSupportedError struct {
+	Backend string
+}
+
+func (e *PvBackendNotSupportedError) Error() string {
+	return fmt.Sprintf(PvBackendNotSupportedErrorStr+" backend=[%s]", e.Backend)
+}
+
+const BackendNotImplementedGetRealMountpointErrorStr = "Backend do not support getting the real mountpoint from PV"
+
+type BackendNotImplementedGetRealMountpointError struct {
+	Backend string
+}
+
+func (e *BackendNotImplementedGetRealMountpointError) Error() string {
+	return fmt.Sprintf(BackendNotImplementedGetRealMountpointErrorStr+" backend=[%s]", e.Backend)
+}

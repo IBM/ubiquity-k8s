@@ -59,7 +59,7 @@ function basic_tests_on_one_node()
 	echo "########################### [basic POD test with PVC] ###############"
 	find_multipath_faulty
 	echo "####### ---> ${S}. Creating Storage class for ${profile} service"
-    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    yml_sc_profile=$scripts/deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
@@ -73,7 +73,7 @@ function basic_tests_on_one_node()
     kubectl get storageclass $profile
 
 	echo "####### ---> ${S}. Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
-    yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
+    yml_pvc=$scripts/deploy/scbe_volume_pvc_${PVCName}.yml
     cp -f ${yml_pvc_template} ${yml_pvc}
     sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
     cat ${yml_pvc}
@@ -97,7 +97,7 @@ function basic_tests_on_one_node()
 
 	stepinc
 	echo "####### ---> ${S}. Run POD [$PODName] with container ${CName} with the new volume"
-    yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
+    yml_pod1=$scripts/deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod1}
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
@@ -192,20 +192,20 @@ function basic_tests_on_one_node_sc_pvc_pod_all_in_one()
 	echo "########################### [All in one suite] ###############"
 	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare all in one yaml with SC, PVC, POD yml"
-    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    yml_sc_profile=$scripts/deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
 
-    yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
+    yml_pvc=$scripts/deploy/scbe_volume_pvc_${PVCName}.yml
     cp -f ${yml_pvc_template} ${yml_pvc}
     sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
 
-    yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
+    yml_pod1=$scripts/deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod1}
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
 
-	ymk_sc_and_pvc_and_pod1=$scripts/../deploy/scbe_volume_with_sc_pvc_and_pod1.yml
+	ymk_sc_and_pvc_and_pod1=$scripts/deploy/scbe_volume_with_sc_pvc_and_pod1.yml
 	cat ${yml_sc_profile} > ${ymk_sc_and_pvc_and_pod1}
     add_yaml_delimiter ${ymk_sc_and_pvc_and_pod1}
 	cat ${yml_pvc} >> ${ymk_sc_and_pvc_and_pod1}
@@ -249,23 +249,23 @@ function basic_test_POD_with_2_volumes()
 	echo "########################### [Run 2 vols in the same POD-container] ###############"
     find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
-    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    yml_sc_profile=$scripts/deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
 
-    yml_pvc1=$scripts/../deploy/scbe_volume_pvc_${PVCName}1.yml
+    yml_pvc1=$scripts/deploy/scbe_volume_pvc_${PVCName}1.yml
     cp -f ${yml_pvc_template} ${yml_pvc1}
     sed -i -e "s/PVCNAME/${PVCName}1/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc1}
-    yml_pvc2=$scripts/../deploy/scbe_volume_pvc_${PVCName}2.yml
+    yml_pvc2=$scripts/deploy/scbe_volume_pvc_${PVCName}2.yml
     cp -f ${yml_pvc_template} ${yml_pvc2}
     sed -i -e "s/PVCNAME/${PVCName}2/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc2}
 
-    yml_pod2=$scripts/../deploy/scbe_volume_with_pod2.yml
+    yml_pod2=$scripts/deploy/scbe_volume_with_pod2.yml
     cp -f ${yml_two_vols_pod_template} ${yml_pod2}
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME1/${volPODname}1/g" -e "s|MOUNTPATH1|/data1|g" -e "s/PVCNAME1/${PVCName}1/g"  -e "s/VOLNAME2/${volPODname}2/g" -e "s|MOUNTPATH2|/data2|g" -e "s/PVCNAME2/${PVCName}2/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod2}
 
-	my_yml=$scripts/../deploy/scbe_volume_with_sc_2pvc_and_pod.yml
+	my_yml=$scripts/deploy/scbe_volume_with_sc_2pvc_and_pod.yml
 	cat ${yml_sc_profile} > ${my_yml}
     add_yaml_delimiter ${my_yml}
 	cat ${yml_pvc1} >> ${my_yml}
@@ -329,23 +329,23 @@ function fstype_basic_check()
 	find_multipath_faulty
 	echo "####### ---> ${S}. Prepare yml with all the definition"
 
-  	my_yml=$scripts/../deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
+  	my_yml=$scripts/deploy/scbe_volume_with_2sc_2pvc_and_pod.yml
     cat /dev/null > ${my_yml}
     for fstype in ${FS_SUPPORTED}; do
         echo "Generate yml for SC and PVC and POD according to the $fstype"
-        yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_${profile}_${fstype}.yml
+        yml_sc_profile=$scripts/deploy/scbe_volume_storage_class_${profile}_${fstype}.yml
         cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
         sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/${profile}-${fstype}/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
         add_yaml_delimiter ${yml_sc_profile}
 	    cat ${yml_sc_profile} >> ${my_yml}
 
-        yml_pvc1=$scripts/../deploy/scbe_volume_pvc_${PVCName}_${fstype}.yml
+        yml_pvc1=$scripts/deploy/scbe_volume_pvc_${PVCName}_${fstype}.yml
         cp -f ${yml_pvc_template} ${yml_pvc1}
         sed -i -e "s/PVCNAME/${PVCName}-${fstype}/g" -e "s/SIZE/1Gi/g" -e "s/SCNAME/${profile}-${fstype}/g" ${yml_pvc1}
         add_yaml_delimiter ${yml_pvc1}
 	    cat ${yml_pvc1} >> ${my_yml}
 
-        yml_pod1=$scripts/../deploy/scbe_volume_with_pod_with_pvc_for_each_fstype.yml
+        yml_pod1=$scripts/deploy/scbe_volume_with_pod_with_pvc_for_each_fstype.yml
         cp -f ${yml_pod_template} ${yml_pod1}
         sed -i -e "s/PODNAME/${PODName}-${fstype}/g" -e "s/CONNAME/${CName}-${fstype}/g"  -e "s/VOLNAME/${volPODname}-${fstype}/g" -e "s|MOUNTPATH|/data-${fstype}|g" -e "s/PVCNAME/$PVCName-${fstype}/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
         add_yaml_delimiter ${yml_pod1}
@@ -422,7 +422,7 @@ function tests_with_second_node()
 	echo "####### ---> ${S} Steps on NODE1 $node1"
 
 	echo "## ---> ${S}.1 Creating Storage class for ${profile} service"
-    yml_sc_profile=$scripts/../deploy/scbe_volume_storage_class_$profile.yml
+    yml_sc_profile=$scripts/deploy/scbe_volume_storage_class_$profile.yml
     cp -f ${yml_sc_tmplemt} ${yml_sc_profile}
     fstype=ext4
     sed -i -e "s/PROFILE/$profile/g" -e "s/SCNAME/$profile/g" -e "s/FSTYPE/$fstype/g" ${yml_sc_profile}
@@ -431,7 +431,7 @@ function tests_with_second_node()
     kubectl get storageclass $profile
 
 	echo "## --> ${S}.2 Create PVC (volume) on SCBE ${profile} service (which is on IBM FlashSystem A9000R)"
-    yml_pvc=$scripts/../deploy/scbe_volume_pvc_${PVCName}.yml
+    yml_pvc=$scripts/deploy/scbe_volume_pvc_${PVCName}.yml
     cp -f ${yml_pvc_template} ${yml_pvc}
     sed -i -e "s/PVCNAME/$PVCName/g" -e "s/SIZE/5Gi/g" -e "s/SCNAME/$profile/g" ${yml_pvc}
     cat ${yml_pvc}
@@ -445,7 +445,7 @@ function tests_with_second_node()
     wwn=`kubectl get pv --no-headers -o custom-columns=wwn:spec.flexVolume.options.Wwn $pvname`
 
 	echo "## ---> ${S}.4. Run POD [$PODName] with container ${CName} with the new volume"
-    yml_pod1=$scripts/../deploy/scbe_volume_with_pod1.yml
+    yml_pod1=$scripts/deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod1}
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node1}/g" ${yml_pod1}
     cat $yml_pod1
@@ -482,7 +482,7 @@ function tests_with_second_node()
 	echo "####### ---> ${S} Steps on NODE2 $node2"
 
 	echo "## ---> ${S}.1 Run the POD again BUT now on second node : $node2"
-    yml_pod2=$scripts/../deploy/scbe_volume_with_pod1.yml
+    yml_pod2=$scripts/deploy/scbe_volume_with_pod1.yml
     cp -f ${yml_pod_template} ${yml_pod2}
     sed -i -e "s/PODNAME/$PODName/g" -e "s/CONNAME/$CName/g"  -e "s/VOLNAME/$volPODname/g" -e "s|MOUNTPATH|/data|g" -e "s/PVCNAME/$PVCName/g" -e "s/NODESELECTOR/${node2}/g" ${yml_pod2}
     cat $yml_pod2
@@ -597,10 +597,10 @@ S=0 # steps counter
 [ -n "$ACCEPTANCE_WITH_FIRST_NODE" ] && node1=$ACCEPTANCE_WITH_FIRST_NODE || { echo "env ACCEPTANCE_WITH_FIRST_NODE not provided. exit."; exit 1; }
 
 
-yml_sc_tmplemt=$scripts/../deploy/scbe_volume_storage_class_template.yml
-yml_pvc_template=$scripts/../deploy/scbe_volume_pvc_template.yml
-yml_pod_template=$scripts/../deploy/scbe_volume_with_pod_template.yml
-yml_two_vols_pod_template=$scripts/../deploy/scbe_volume_with_pod_with_2vols_template.yml
+yml_sc_tmplemt=$scripts/deploy/scbe_volume_storage_class_template.yml
+yml_pvc_template=$scripts/deploy/scbe_volume_pvc_template.yml
+yml_pod_template=$scripts/deploy/scbe_volume_with_pod_template.yml
+yml_two_vols_pod_template=$scripts/deploy/scbe_volume_with_pod_with_2vols_template.yml
 
 POSTGRES_PVC="ibm-ubiquity-db"
 FS_SUPPORTED="ext4 xfs"
