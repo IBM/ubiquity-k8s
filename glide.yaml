@@ -1,7 +1,7 @@
 package: github.com/IBM/ubiquity-k8s
 import:
 - package: github.com/davecgh/go-spew
-  version: v1.1.0
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
 - package: github.com/djherbis/times
   version: v1.0.1
 - package: github.com/ghodss/yaml
@@ -30,11 +30,11 @@ import:
 - package: github.com/hashicorp/golang-lru
 - package: github.com/howeyc/gopass
 - package: github.com/imdario/mergo
-  version: 0.1.4
+  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - package: github.com/jinzhu/gorm
   version: v1.0
 - package: github.com/json-iterator/go
-  version: 1.0.0
+  version: 36b14963da70d11297d313183d7e6388c8510e1e
 - package: github.com/juju/ratelimit
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - package: github.com/natefinch/lumberjack
@@ -67,7 +67,7 @@ import:
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - package: github.com/mailru/easyjson
 - package: gopkg.in/yaml.v2
-  version: v2.2.1
+  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - package: golang.org/x/text
 - package: github.com/google/btree
 - package: github.com/lib/pq
