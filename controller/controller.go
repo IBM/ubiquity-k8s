@@ -771,7 +771,9 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 			return nil
 		}
 	}
+
 	host := detachRequest.Host
+
 	if host == "" {
 		// only when triggered during unmount
 		var err error
@@ -779,9 +781,14 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		if err != nil {
 			return c.logger.ErrorRet(err, "getHostAttached failed")
 		}
+		
+		if host == "" {
+			// this means that the host is not attached to anything so no reason to call detach
+			c.logger.Warning(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))
+			return nil
+		}
 	}
 
-	// TODO idempotent, don't trigger Detach if host is empty (even after getHostAttached)
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host, Context: detachRequest.Context}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
