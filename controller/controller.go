@@ -399,7 +399,7 @@ func (c *Controller) doUnmount(k8sPVDirectoryPath string, volumeBackend string, 
 			return c.logger.ErrorRet(err, "fail to remove slink "+k8sPVDirectoryPath)
 		}
 	} else {
-		c.logger.Warning("PV directory(k8s-mountpoint) is not exist. Idempotent - skip unmount flow",
+		c.logger.Warning("PV directory(k8s-mountpoint) does not exist. Idempotent - skip unmount flow",
 			logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}})
 	}
 	return nil // Finish successfully to umount
