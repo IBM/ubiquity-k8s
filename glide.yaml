@@ -30,7 +30,7 @@ import:
 - package: github.com/hashicorp/golang-lru
 - package: github.com/howeyc/gopass
 - package: github.com/imdario/mergo
-  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+  version: 0.1.4
 - package: github.com/jinzhu/gorm
   version: v1.0
 - package: github.com/json-iterator/go
