@@ -82,7 +82,7 @@ import:
 - package: github.com/BurntSushi/toml
   version: v0.3.0  
 - package: github.com/jessevdk/go-flags
-  version: f88afde2fa19a30cf50ba4b05b3d13bc6bae3079
+  version: v1.4.0
 - package: github.com/kubernetes-incubator/external-storage
   version: 92295a30e0ec7da80c41c1f50f9301f3adee4556
   subpackages:
