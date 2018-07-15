@@ -620,7 +620,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	if err != nil {
 		if c.exec.IsNotExist(err) {
 			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
-			c.logger.Info("PV directory(k8s-mountpoint) nor slink are not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", mountedPath}})
+			c.logger.Info("PV directory(k8s-mountpoint) nor slink do not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", mountedPath}})
 			c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
 			err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
 			if err != nil {
