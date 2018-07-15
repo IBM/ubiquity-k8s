@@ -9,7 +9,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: fix/UB-1325_adda_action_name_to_the_logs
+  version: defv
   subpackages:
   - remote
   - resources
