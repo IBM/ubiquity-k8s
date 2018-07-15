@@ -64,7 +64,7 @@ func NewFlexProvisioner(logger *log.Logger, ubiquityClient resources.StorageClie
 func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.StorageClient, config resources.UbiquityPluginConfig) (*flexProvisioner, error) {
 	var identity types.UID
 	identityPath := path.Join(config.LogPath, identityFile)
-	request_context := logs.GetNewRequestContext()
+	request_context := logs.GetNewRequestContext("Activate")
 	if _, err := os.Stat(identityPath); os.IsNotExist(err) {
 		identity = uuid.NewUUID()
 		err := ioutil.WriteFile(identityPath, []byte(identity), 0600)
@@ -118,7 +118,7 @@ type flexProvisioner struct {
 // Provision creates a volume i.e. the storage asset and returns a PV object for
 // the volume.
 func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
-	request_context := logs.GetNewRequestContext()
+	request_context := logs.GetNewRequestContext("Provision")
 	go_id := logs.GetGoID()
 	logs.GoIdToRequestIdMap.Store(go_id, request_context)
 	defer logs.GetDeleteFromMapFunc(go_id)
@@ -180,8 +180,8 @@ func (p *flexProvisioner) Provision(options controller.VolumeOptions) (*v1.Persi
 // Delete removes the directory that was created by Provision backing the given
 // PV.
 func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
-	requestContext := logs.GetNewRequestContext()
-	go_id := logs.GetGoID() 
+	requestContext := logs.GetNewRequestContext("Delete")
+	go_id := logs.GetGoID()
 	logs.GoIdToRequestIdMap.Store(go_id, requestContext)
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer p.logger.Trace(logs.DEBUG, logs.Args{{"volume name", volume.Name}})()

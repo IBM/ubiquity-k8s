@@ -90,7 +90,7 @@ func (a *AttachCommand) Execute(args []string) error {
 	var version string
 	var hostname string
 
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("Attach")
 
 	if len(args) < 1 {
 
@@ -152,8 +152,7 @@ type WaitForAttachCommand struct {
 }
 
 func (wfa *WaitForAttachCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
-
+	requestContext := logs.GetNewRequestContext("WaitForAttach")
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -193,7 +192,7 @@ type IsAttachedCommand struct {
 }
 
 func (d *IsAttachedCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("IsAttached")
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -234,7 +233,7 @@ type DetachCommand struct {
 }
 
 func (d *DetachCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("Detach")
 	var hostname string
 	var version string
 	if len(args) < 1 {
@@ -280,7 +279,7 @@ type MountDeviceCommand struct {
 }
 
 func (d *MountDeviceCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("MountDevice")
 	if len(args) < 3 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -320,7 +319,7 @@ type UnmountDeviceCommand struct {
 }
 
 func (d *UnmountDeviceCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("UnmountDevice")
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -359,7 +358,7 @@ func (m *MountCommand) Execute(args []string) error {
 	var ok bool
 	var version string
 
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("Mount")
 
 	//should error out when not enough args
 	if len(args) < 2 {
@@ -439,7 +438,7 @@ type UnmountCommand struct {
 }
 
 func (u *UnmountCommand) Execute(args []string) error {
-	requestContext := logs.GetNewRequestContext()
+	requestContext := logs.GetNewRequestContext("Unmount")
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
