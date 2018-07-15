@@ -78,7 +78,7 @@ func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
 		e.slink, e.fileInfo)
 }
 
-const IdempotentUnmountSkipOnVolumeNotExistWarnigMsg = "Warning: Unmount operation requested to work on not exist volume. Assume its idempotent issue - so skip Unmount."
+const IdempotentUnmountSkipOnVolumeNotExistWarnigMsg = "Unmount operation requested to work on not exist volume. Assume its idempotent issue - so skip Unmount."
 
 const K8sPVDirectoryIsNotSlinkErrorStr = "k8s PV directory, k8s-mountpoint, is not slink."
 

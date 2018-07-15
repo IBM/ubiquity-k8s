@@ -22,6 +22,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+
 	ctl "github.com/IBM/ubiquity-k8s/controller"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
@@ -933,4 +934,39 @@ var _ = Describe("Controller", func() {
 			})
 		})
 	*/
+	Context(".Detach", func() {
+		BeforeEach(func() {
+
+		})
+		It("calling detach works as expected when volume is attached to the host", func() {
+			dat := make(map[string]interface{})
+			host := "host1"
+			dat[resources.ScbeKeyVolAttachToHost] = host
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			unmountRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+			controller.Detach(unmountRequest)
+			Expect(fakeClient.DetachArgsForCall(0).Host).To(Equal(host))
+
+		})
+		It("should not call detach if volume is not attached to the host", func() {
+			dat := make(map[string]interface{})
+			host := "host1"
+			dat[resources.ScbeKeyVolAttachToHost] = ""
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			unmountRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+			controller.Detach(unmountRequest)
+			Expect(fakeClient.DetachCallCount()).To(Equal(0))
+		})
+		It("should not call detach if volume is empty and not attached", func() {
+			dat := make(map[string]interface{})
+			host := ""
+			dat[resources.ScbeKeyVolAttachToHost] = host
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			unmountRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+			controller.Detach(unmountRequest)
+			Expect(fakeClient.DetachCallCount()).To(Equal(0))
+		})
+
+		//TODO: need to test the path to doDetach with an empty host further via the umount tests (when they are merged)
+	})
 })

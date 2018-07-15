@@ -331,7 +331,7 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 	if err != nil {
 		if c.exec.IsNotExist(err) {
 			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
-			c.logger.Info("PV directory(k8s-mountpoint) does not exist.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}}) // TODO change it to warning
+			c.logger.Warning("PV directory(k8s-mountpoint) does not exist.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}}) 
 			return false, nil                                                                                                                                                 // Idempotent flow
 		} else {
 			// Maybe some permissions issue
@@ -399,8 +399,8 @@ func (c *Controller) doUnmount(k8sPVDirectoryPath string, volumeBackend string, 
 			return c.logger.ErrorRet(err, "fail to remove slink "+k8sPVDirectoryPath)
 		}
 	} else {
-		c.logger.Info("PV directory(k8s-mountpoint) is not exist. Idempotent - skip unmount flow",
-			logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}}) // TODO change it to warning
+		c.logger.Warning("PV directory(k8s-mountpoint) does not exist. Idempotent - skip unmount flow",
+			logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", realMountedPath}})
 	}
 	return nil // Finish successfully to umount
 }
@@ -438,7 +438,7 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
 		if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
 			warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentUnmountSkipOnVolumeNotExistWarnigMsg, err)
-			c.logger.Info(warningMsg) // TODO later change to warning message
+			c.logger.Warning(warningMsg)
 			return c.successFlexVolumeResponse(warningMsg)
 		}
 		return c.failureFlexVolumeResponse(err, "")
@@ -620,7 +620,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	if err != nil {
 		if c.exec.IsNotExist(err) {
 			// The k8s PV directory not exist (its a rare case and indicate on idempotent flow)
-			c.logger.Info("PV directory(k8s-mountpoint) nor slink are not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", mountedPath}})
+			c.logger.Info("PV directory(k8s-mountpoint) nor slink do not exist. Idempotent - skip delete PV directory(k8s-mountpoint).", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"should-point-to-mountpoint", mountedPath}})
 			c.logger.Info("Creating slink(k8s-mountpoint) that point to mountpoint", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", mountedPath}})
 			err = c.exec.Symlink(mountedPath, k8sPVDirectoryPath)
 			if err != nil {
@@ -771,7 +771,9 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 			return nil
 		}
 	}
+
 	host := detachRequest.Host
+
 	if host == "" {
 		// only when triggered during unmount
 		var err error
@@ -779,9 +781,14 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		if err != nil {
 			return c.logger.ErrorRet(err, "getHostAttached failed")
 		}
+		
+		if host == "" {
+			// this means that the host is not attached to anything so no reason to call detach
+			c.logger.Warning(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))
+			return nil
+		}
 	}
 
-	// TODO idempotent, don't trigger Detach if host is empty (even after getHostAttached)
 	ubDetachRequest := resources.DetachRequest{Name: detachRequest.Name, Host: host, Context: detachRequest.Context}
 	err := c.Client.Detach(ubDetachRequest)
 	if err != nil {
