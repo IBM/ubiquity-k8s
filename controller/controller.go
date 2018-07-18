@@ -521,7 +521,7 @@ func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexV
 		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
 	}
 	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
-	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context}
+	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context, K8sMountPath: mountRequest.MountPath}
 	return ubMountRequest, nil
 }
 
