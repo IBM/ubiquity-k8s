@@ -14,7 +14,7 @@ import:
   - sortkeys
   - ptypes
 - package: github.com/golang/glog
-- package: github.com/golang/groupcache
+- package: github.com/golang/groupcach
   subpackages:
   - lru
 - package: github.com/google/gofuzz
@@ -89,7 +89,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: c10c565fb5731c84e9b2a7920f0f6a62478d988e
+  version: 05e9661ce829f9947ae5f28d4f8c9b3b08514988
   subpackages:
   - remote
   - resources
