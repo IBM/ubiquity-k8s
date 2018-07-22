@@ -14,7 +14,7 @@ import:
   - sortkeys
   - ptypes
 - package: github.com/golang/glog
-- package: github.com/golang/groupcach
+- package: github.com/golang/groupcache
   subpackages:
   - lru
 - package: github.com/google/gofuzz
