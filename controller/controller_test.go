@@ -27,6 +27,7 @@ import (
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/fakes"
 	"github.com/IBM/ubiquity/resources"
+	"github.com/IBM/ubiquity/utils/utils_fakes"
 )
 
 var _ = Describe("Controller", func() {
@@ -34,14 +35,14 @@ var _ = Describe("Controller", func() {
 	var (
 		fakeClient         *fakes.FakeStorageClient
 		controller         *ctl.Controller
-		fakeExec           *fakes.FakeExecutor
+		fakeExec           *utils_fakes.FakeExecutor
 		fakeMounterFactory *fakes.FakeMounterFactory
 		fakeMounter        *fakes.FakeMounter
 		ubiquityConfig     resources.UbiquityPluginConfig
 		dat                map[string]interface{}
 	)
 	BeforeEach(func() {
-		fakeExec = new(fakes.FakeExecutor)
+		fakeExec = new(utils_fakes.FakeExecutor)
 		ubiquityConfig = resources.UbiquityPluginConfig{}
 		fakeClient = new(fakes.FakeStorageClient)
 		fakeMounterFactory = new(fakes.FakeMounterFactory)
