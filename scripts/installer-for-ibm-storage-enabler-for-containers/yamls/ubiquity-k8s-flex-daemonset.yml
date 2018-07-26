@@ -17,8 +17,7 @@ spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
-        operator: Equal
-        value: master
+        operator: Exists
         effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
