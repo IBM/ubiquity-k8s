@@ -33,9 +33,13 @@ import (
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
 )
-
-const FlexSuccessStr = "Success"
-const FlexFailureStr = "Failure"
+ 
+const(
+	K8sPodsDirecotryName = "pods"
+	k8sMountPointvolumeDirectoryName = "ibm~ubiquity-k8s-flex"
+	FlexSuccessStr = "Success"
+	FlexFailureStr = "Failure"
+)
 
 //Controller this is a structure that controls volume management
 type Controller struct {
@@ -541,6 +545,82 @@ func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountReq
 	return mounter, nil
 }
 
+func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
+	/*
+		function is going to get from this kind of dir:
+			/var/lib/kubelet/pods/1f94f1d9-8f36-11e8-b227-005056a4d4cb/volumes/ibm~ubiquity-k8s-flex/...
+		to /var/lib/kubelet/pods/
+		note: /var/lib can be changed in configuration so we need to get the base dir at runtime
+	*/ 
+	tempMountPoint := k8sMountPoint
+	for i := 0 ; i < 4 ; i++ {
+		tempMountPoint = filepath.Dir(tempMountPoint)
+	}
+		
+	if filepath.Base(tempMountPoint) != K8sPodsDirecotryName{
+		return "", &WrongK8sDirectoryPathError{k8sMountPoint}
+	}
+	
+	return tempMountPoint, nil
+}
+
+func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
+
+	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}, {"k8sMountPoint", k8sMountPoint}})()
+	
+	k8sBaseDir, err := getK8sPodsBaseDir(k8sMountPoint)	
+	if err != nil{
+		return logger.ErrorRet(err, "Failed to get k8s pods base dir.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
+	}
+		
+	file_pattern := filepath.Join(k8sBaseDir, "*","volumes", k8sMountPointvolumeDirectoryName,"*")
+	files, err := executer.GetGlobFiles(file_pattern)
+	if err != nil{
+		return logger.ErrorRet(err, "Failed to get files that match the pattern.", logs.Args{{"file_pattern", file_pattern}})
+	}
+	
+	slinks := []string{}
+	if len(files) == 0 {
+		logger.Debug("No files that match the given pattern were found.", logs.Args{{"pattern", file_pattern}})
+		return nil
+	}
+	
+	mountStat, err := executer.Stat(mountPoint)
+	if err != nil{
+		return logger.ErrorRet(err, "Failed to get stat for mount point file.", logs.Args{{"file", mountPoint}})
+	}
+	
+	// go over the files and check if any of them is the same as our destinated mountpoint
+	for _, file := range files {
+		fileStat, err := executer.Stat(file)
+		if err != nil{
+			return logger.ErrorRet(err, "Failed to get stat for file.", logs.Args{{"file", file}})
+		}
+		
+		isSameFile := executer.IsSameFile(fileStat, mountStat)
+		if isSameFile{
+			slinks = append(slinks, file)
+		}
+	}
+		
+	if len(slinks) == 0 {
+		logger.Debug("There were no soft links pointing to given mountpoint.", logs.Args{{"mountpoint", mountPoint}})
+		return nil
+	}
+	
+	if len(slinks) > 1 {
+		return logger.ErrorRet(&PVIsAlreadyUsedByAnotherPod{mountPoint, slinks}, "More then 1 soft link was pointing to mountpoint.") 
+	}
+	
+	slink := slinks[0]
+	if slink != k8sMountPoint{
+		return logger.ErrorRet(&PVIsAlreadyUsedByAnotherPod{mountPoint, slinks}, "PV is used by another pod.") 
+	}
+	
+	return nil
+}
+
+
 func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
@@ -557,6 +637,11 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
+	}
+	
+	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, ubMountRequest.K8sMountPath, c.logger, c.exec)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
 	}
 
 	mountpoint, err := mounter.Mount(ubMountRequest)

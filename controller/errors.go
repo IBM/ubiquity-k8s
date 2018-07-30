@@ -112,3 +112,24 @@ type BackendNotImplementedGetRealMountpointError struct {
 func (e *BackendNotImplementedGetRealMountpointError) Error() string {
 	return fmt.Sprintf(BackendNotImplementedGetRealMountpointErrorStr+" backend=[%s]", e.Backend)
 }
+
+const PVIsAlreadyUsedByAnotherPodMessage = "PV is already in use by another pod and has an existing slink to mountpoint."
+
+type PVIsAlreadyUsedByAnotherPod struct {
+	mountpoint string
+	slink      []string
+}
+
+func (e *PVIsAlreadyUsedByAnotherPod) Error() string {
+	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + " mountpoint=[%s], slinks=[%s]", e.mountpoint, e.slink)
+}
+
+var WrongK8sDirectoryPathErrorMessage = fmt.Sprintf("Expected to find \"%s\" directory in k8s mount path.",K8sPodsDirecotryName)
+
+type WrongK8sDirectoryPathError struct {
+	k8smountdir string
+}
+
+func (e *WrongK8sDirectoryPathError) Error() string {
+	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + "k8smountdir=[%s]", e.k8smountdir)
+}
