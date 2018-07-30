@@ -586,7 +586,11 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 	}
 	
 	mountStat, err := executer.Stat(mountPoint)
-	if err != nil{
+	if err != nil {
+		if os.IsNotExist(err){
+			// assuming path to mountPoint does not exist means it was never linked to before
+			return nil
+		}
 		return logger.ErrorRet(err, "Failed to get stat for mount point file.", logs.Args{{"file", mountPoint}})
 	}
 	
