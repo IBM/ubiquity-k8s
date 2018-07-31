@@ -525,7 +525,7 @@ func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexV
 		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
 	}
 	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
-	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context, K8sMountPath: mountRequest.MountPath}
+	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context}
 	return ubMountRequest, nil
 }
 
@@ -643,7 +643,7 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
 	
-	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, ubMountRequest.K8sMountPath, c.logger, c.exec)
+	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
 	}
