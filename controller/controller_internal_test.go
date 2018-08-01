@@ -1,5 +1,10 @@
 package controller
 
+/**
+	These tests are not in controller_test.go because they have to be inside the package of 
+	the module they are testing so that it will be possible to test not exporeted functions.
+**/
+
 import (
 	"fmt"
 	. "github.com/onsi/ginkgo"
@@ -7,6 +12,8 @@ import (
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/IBM/ubiquity/fakes"
 )
+
+
 
 var _ = Describe("controller_internal_tests", func() {
 	Context(".getK8sBaseDir", func() {

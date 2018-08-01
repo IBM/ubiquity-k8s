@@ -491,7 +491,7 @@ var _ = Describe("Controller", func() {
 			Expect(mountResponse.Message).To(MatchRegexp(ctl.K8sPVDirectoryIsNotDirNorSlinkErrorStr))
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
-		FIt("should fail to Mount when there are errors from checking other slinks (idempotent) (doMount)", func() {
+		It("should fail to Mount when there are errors from checking other slinks (idempotent) (doMount)", func() {
 			err :=  fmt.Errorf("an Error has occured")
 			fakeExec.GetGlobFilesReturns(nil, err)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
@@ -500,6 +500,7 @@ var _ = Describe("Controller", func() {
 			mountResponse := controller.Mount(mountRequest)
 			Expect(mountResponse.Message).To(Equal(err.Error()))
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+			Expect(fakeExec.GetGlobFilesCallCount()).To(Equal(1))
 		})
 
 	})
