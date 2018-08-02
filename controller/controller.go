@@ -32,6 +32,7 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
+	"reflect"
 )
 
 const FlexSuccessStr = "Success"
@@ -341,7 +342,14 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 		// Its already slink so check if slink is ok and skip else raise error
 		evalSlink, err := c.exec.EvalSymlinks(k8sPVDirectoryPath)
 		if err != nil {
-			return true, c.logger.ErrorRet(err, "Controller: Idempotent - failed eval the slink of PV directory(k8s-mountpoint)", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
+			//Todo: remove the logging!!
+			c.logger.Debug("##### error tpyes", logs.Args{{"error type" , reflect.TypeOf(err)}, {"is not exist err",os.IsNotExist(err)}})
+			message := "Controller: Idempotent - failed eval the slink of PV directory(k8s-mountpoint)"
+			if strings.Contains(err.Error(), "no such file or directory"){
+				c.logger.Warning(message, logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{"error" , err}})
+				return true, nil
+			}
+			return true, c.logger.ErrorRet(err, message, logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}})
 		}
 		if evalSlink == realMountedPath {
 			c.logger.Info("PV directory(k8s-mountpoint) is slink that point to the right mountpoint.", logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath}, {"mountpoint", realMountedPath}})
