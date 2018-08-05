@@ -124,7 +124,7 @@ func (e *PVIsAlreadyUsedByAnotherPod) Error() string {
 	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + " mountpoint=[%s], slinks=[%s]", e.mountpoint, e.slink)
 }
 
-var WrongK8sDirectoryPathErrorMessage = fmt.Sprintf("Expected to find \"%s\" directory in k8s mount path.",K8sPodsDirecotryName)
+var WrongK8sDirectoryPathErrorMessage = fmt.Sprintf("Expected to find [%s] directory in k8s mount path.",K8sPodsDirecotryName)
 
 type WrongK8sDirectoryPathError struct {
 	k8smountdir string
