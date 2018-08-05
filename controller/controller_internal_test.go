@@ -89,19 +89,19 @@ var _ = Describe("controller_internal_tests", func() {
 			Expect(err).To(Equal(errstrObj))
 
 		})
-		It("should return error if stat function returns an error", func() {
+		It("should return error if stat function on the mountpoint returns an error", func() {
 			errstrObj := fmt.Errorf("An error ooccured")
 			fakeExecutor.GetGlobFilesReturns([]string{"/tmp/file1"}, nil)
 			fakeExecutor.StatReturns(nil, errstrObj)
 			err:= checkSlinkAlreadyExistsOnMountPoint("mountPoint", mountPoint, logs.GetLogger(), fakeExecutor)
 			Expect(err).To(Equal(errstrObj))
 		})
-		It("should return error if stat on mountpoint function returns an error", func() {
+		It("should continue if stat on a link returns an error", func() {
 			errstrObj := fmt.Errorf("An error ooccured")
 			fakeExecutor.GetGlobFilesReturns([]string{"/tmp/file1"}, nil)
 			fakeExecutor.StatReturnsOnCall(1, nil, errstrObj)
 			err := checkSlinkAlreadyExistsOnMountPoint("mountPoint", mountPoint, logs.GetLogger(), fakeExecutor)
-			Expect(err).To(Equal(errstrObj))
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })
