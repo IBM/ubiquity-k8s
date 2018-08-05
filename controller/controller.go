@@ -565,7 +565,10 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 }
 
 func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
-
+	/*
+		the mountpoint parameter is the actual mountpoint we are pointing to: /ubiquity/WWN
+		the k8sMountPoint is the path to the link we want to create from the /var/lib/kubelet directory to the mountpoint
+	*/
 	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}, {"k8sMountPoint", k8sMountPoint}})()
 	
 	k8sBaseDir, err := getK8sPodsBaseDir(k8sMountPoint)	
@@ -581,24 +584,26 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 	
 	slinks := []string{}
 	if len(files) == 0 {
-		logger.Debug("No files that match the given pattern were found.", logs.Args{{"pattern", file_pattern}})
+		logger.Debug("There is no Pod that uses ibm flex PV on this node (No files matched the given pattern were found).", logs.Args{{"pattern", file_pattern}})
 		return nil
 	}
 	
 	mountStat, err := executer.Stat(mountPoint)
 	if err != nil {
 		if os.IsNotExist(err){
-			// assuming path to mountPoint does not exist means it was never linked to before
+			logger.Debug("Mount point path does not exist yet.", logs.Args{{"mountpoint",mountPoint}})
 			return nil
 		}
 		return logger.ErrorRet(err, "Failed to get stat for mount point file.", logs.Args{{"file", mountPoint}})
 	}
 	
 	// go over the files and check if any of them is the same as our destinated mountpoint
+	// this checks if any of the solinks are pointing to the PV we want to mount.
 	for _, file := range files {
 		fileStat, err := executer.Stat(file)
 		if err != nil{
-			return logger.ErrorRet(err, "Failed to get stat for file.", logs.Args{{"file", file}})
+			logger.Warning("Failed to get stat for file.", logs.Args{{"file", file}})
+			continue
 		}
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
