@@ -51,38 +51,30 @@ type Controller struct {
 	mounterPerBackend map[string]resources.Mounter
 	unmountFlock      lockfile.Lockfile
 	mounterFactory    mounter.MounterFactory
+	mountFlock	  *lockfile.Lockfile
 }
 
-//NewController allows to instantiate a controller
-func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
+func newController(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory, extraParams map[string]interface{}) (*Controller, error) {
 	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
 	if err != nil {
 		panic(err)
 	}
 
-	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
-	if err != nil {
-		return nil, err
+	var mountFlock *lockfile.Lockfile
+	mountFlock = nil
+	
+	val, ok := extraParams["pv"]
+	if ok {
+		strVal, ok := val.(string)
+		if ok {
+			lock, err := lockfile.New(filepath.Join(os.TempDir(),strVal ))
+			if err != nil {
+				panic(err)
+			}
+			mountFlock = &lock 
+		}
 	}
-	return &Controller{
-		logger:            logs.GetLogger(),
-		legacyLogger:      logger,
-		Client:            remoteClient,
-		exec:              utils.NewExecutor(),
-		config:            config,
-		mounterPerBackend: make(map[string]resources.Mounter),
-		unmountFlock:      unmountFlock,
-		mounterFactory:    mounter.NewMounterFactory(),
-	}, nil
-}
-
-//NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
-	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
-	if err != nil {
-		panic(err)
-	}
-
+	
 	return &Controller{
 		logger:            logs.GetLogger(),
 		legacyLogger:      logger,
@@ -92,7 +84,24 @@ func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPlugin
 		mounterPerBackend: make(map[string]resources.Mounter),
 		unmountFlock:      unmountFlock,
 		mounterFactory:    mFactory,
+		mountFlock:	   mountFlock,
+	}, nil
+}
+
+//NewController allows to instantiate a controller
+func NewController(logger *log.Logger, config resources.UbiquityPluginConfig, extraParams map[string]interface{}) (*Controller, error) {
+	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
+	if err != nil {
+		return nil, err
 	}
+	
+	return newController(logger, config, remoteClient, utils.NewExecutor(), mounter.NewMounterFactory(), extraParams)
+}
+
+//NewControllerWithClient is made for unit testing purposes where we can pass a fake client
+func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory, extraParams map[string]interface{}) *Controller {
+	controller, _ :=  newController(logger, config, client, exec, mFactory, extraParams)
+	return controller
 }
 
 //Init method is to initialize the k8sresourcesvolume
@@ -280,6 +289,22 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", mountRequest}})
 
+	if c.mountFlock == nil{
+		err := &MountFlockIsNotInitializedError{}
+		c.logger.Error(err.Error())
+		return c.failureFlexVolumeResponse(err, "")
+	}
+	for {
+		err := c.mountFlock.TryLock()
+		if err == nil {
+			break
+		}
+		c.logger.Debug("mountFlock.TryLock failed", logs.Args{{"error", err}})
+		time.Sleep(time.Duration(500 * time.Millisecond))
+	}
+	c.logger.Debug("Got mountFlock for volume.", logs.Args{{"volume", mountRequest.MountDevice}})
+	defer c.mountFlock.Unlock()
+	
 	// TODO check if volume exist first and what its backend type
 	mountedPath, err := c.doMount(mountRequest)
 	if err != nil {
