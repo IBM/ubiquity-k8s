@@ -124,7 +124,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 
 	if err != nil {
 		panic(fmt.Sprintf("backend %s not found", config))
@@ -170,7 +170,7 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[1]), &opts)
 	if err != nil {
@@ -210,7 +210,7 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[0]), &opts)
 	if err != nil {
@@ -261,7 +261,7 @@ func (d *DetachCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -297,7 +297,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[2]), &opts)
 	if err != nil {
@@ -337,7 +337,7 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 
 	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0], Context: requestContext}
 	response := controller.UnmountDevice(unmountDeviceRequest)
@@ -423,7 +423,7 @@ func (m *MountCommand) Execute(args []string) error {
 	defer k8sutils.InitFlexLogger(config)()
 	extraParams := make(map[string]interface{})
 	extraParams["pv"] = volumeName
-	controller, err := createController(config, extraParams)
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -461,7 +461,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 	}
 
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
@@ -490,7 +490,7 @@ func (i *TestUbiquityCommand) Execute(args []string) error {
 	}
 
 	defer k8sutils.InitFlexLogger(config)()
-	controller, err := createController(config, nil)
+	controller, err := createController(config)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
@@ -572,9 +572,9 @@ func main() {
 	}
 }
 
-func createController(config resources.UbiquityPluginConfig, extraParams map[string]interface{}) (*controller.Controller, error) {
+func createController(config resources.UbiquityPluginConfig) (*controller.Controller, error) {
 	logger := utils.SetupOldLogger(k8sresources.UbiquityFlexLogFileName)
-	controller, err := controller.NewController(logger, config, extraParams)
+	controller, err := controller.NewController(logger, config)
 	return controller, err
 }
 
