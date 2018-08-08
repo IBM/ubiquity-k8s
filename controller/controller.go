@@ -341,7 +341,6 @@ func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMount
 		// Its already slink so check if slink is ok and skip else raise error
 		evalSlink, err := c.exec.EvalSymlinks(k8sPVDirectoryPath)
 		if err != nil {
-			//Todo: remove the logging!!
 			message := "Controller: Idempotent - failed to eval the slink of the PV directory(k8s-mountpoint)"
 			if os.IsNotExist(err){
 				c.logger.Warning(message, logs.Args{{"k8s-mountpoint", k8sPVDirectoryPath},{"error" , err}})
