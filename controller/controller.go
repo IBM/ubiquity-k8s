@@ -273,7 +273,8 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", mountRequest}})
 	
-	mountFlock, err := lockfile.New(filepath.Join(os.TempDir(), mountRequest.MountDevice ))
+	flockName := fmt.Sprintf("ubiquity.mount.%s.lock", mountRequest.MountDevice)
+	mountFlock, err := lockfile.New(filepath.Join(os.TempDir(), flockName ))
 	if err != nil {
 		panic(err)
 	}
