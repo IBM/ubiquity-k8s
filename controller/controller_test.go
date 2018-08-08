@@ -39,6 +39,7 @@ var _ = Describe("Controller", func() {
 		fakeMounter        *fakes.FakeMounter
 		ubiquityConfig     resources.UbiquityPluginConfig
 		dat                map[string]interface{}
+		mountPoint         string
 	)
 	BeforeEach(func() {
 		fakeExec = new(fakes.FakeExecutor)
@@ -51,6 +52,7 @@ var _ = Describe("Controller", func() {
 		if err := json.Unmarshal(byt, &dat); err != nil {
 			panic(err)
 		}
+		mountPoint = "/tmp/kubelet/pods/1f94f1d9-8f36-11e8-b227-005056a4d4cb/volumes/ibm~ubiquity-k8s-flex/pvc-123"
 
 	})
 
@@ -116,6 +118,15 @@ var _ = Describe("Controller", func() {
 		//	})
 	})
 	Context(".Mount", func() {
+		var (
+			extraParams		map[string]interface{}
+			controller         *ctl.Controller
+		)
+		BeforeEach(func(){
+			extraParams = make(map[string]interface{})
+			extraParams["pv"] = "volume_name"
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+		})
 		It("should fail if k8s version < 1.6 (doMount)", func() {
 			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "fake", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_5}
 
@@ -127,7 +138,7 @@ var _ = Describe("Controller", func() {
 		})
 		It("should fail in GetVolume if volume not in ubiqutiyDB (doMount)", func() {
 			fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("error not found in DB"))
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{}}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -141,7 +152,7 @@ var _ = Describe("Controller", func() {
 			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "XXX", Mountpoint: "fake"}, nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, fmt.Errorf(errstr))
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{}}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -204,7 +215,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns("fake device", fmt.Errorf(errstr))
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -226,7 +237,7 @@ var _ = Describe("Controller", func() {
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
 			fakeExec.LstatReturns(nil, errstrObj)
 			fakeExec.IsNotExistReturns(false)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -252,7 +263,7 @@ var _ = Describe("Controller", func() {
 			fakeExec.LstatReturns(nil, errstrObj)
 			fakeExec.IsNotExistReturns(true)
 			fakeExec.SymlinkReturns(errstrObj)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -279,7 +290,7 @@ var _ = Describe("Controller", func() {
 			fakeExec.LstatReturns(nil, errstrObj)
 			fakeExec.IsNotExistReturns(true)
 			fakeExec.SymlinkReturns(nil)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
 			mountResponse := controller.Mount(mountRequest)
 
@@ -303,7 +314,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(true)
 			fakeExec.RemoveReturns(errstrObj)
@@ -330,7 +341,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(true)
 			fakeExec.RemoveReturns(nil)
@@ -357,7 +368,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(true)
 			fakeExec.RemoveReturns(nil)
@@ -387,7 +398,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns("/ubiquity/wwn1", nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/tmp", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(false)
 			fakeExec.IsSlinkReturns(true)
@@ -414,7 +425,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns(mountPath, nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(false)
 			fakeExec.IsSlinkReturns(true)
@@ -443,7 +454,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns(mountPath, nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(false)
 			fakeExec.IsSlinkReturns(true)
@@ -471,7 +482,7 @@ var _ = Describe("Controller", func() {
 			fakeMounter.MountReturns(mountPath, nil)
 			fakeMounterFactory.GetMounterPerBackendReturns(fakeMounter, nil)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
-			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 			fakeExec.LstatReturns(nil, nil)
 			fakeExec.IsDirReturns(false)
 			fakeExec.IsSlinkReturns(false)
@@ -489,7 +500,17 @@ var _ = Describe("Controller", func() {
 			Expect(mountResponse.Message).To(MatchRegexp(ctl.K8sPVDirectoryIsNotDirNorSlinkErrorStr))
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
+		It("should fail to Mount when there are errors from checking other slinks (idempotent) (doMount)", func() {
+			err :=  fmt.Errorf("an Error has occured")
+			fakeExec.GetGlobFilesReturns(nil, err)
+			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
+			mountResponse := controller.Mount(mountRequest)
+			Expect(mountResponse.Message).To(Equal(err.Error()))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+			Expect(fakeExec.GetGlobFilesCallCount()).To(Equal(1))
+		})
 	})
 	Context(".Unmount", func() {
 		It("should fail in GetVolume returns error that is not about volume not found in DB (Unmount)", func() {

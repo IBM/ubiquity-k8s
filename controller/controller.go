@@ -33,9 +33,13 @@ import (
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
 )
-
-const FlexSuccessStr = "Success"
-const FlexFailureStr = "Failure"
+ 
+const(
+	K8sPodsDirecotryName = "pods"
+	k8sMountPointvolumeDirectoryName = "ibm~ubiquity-k8s-flex"
+	FlexSuccessStr = "Success"
+	FlexFailureStr = "Failure"
+)
 
 //Controller this is a structure that controls volume management
 type Controller struct {
@@ -49,31 +53,7 @@ type Controller struct {
 	mounterFactory    mounter.MounterFactory
 }
 
-//NewController allows to instantiate a controller
-func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
-	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
-	if err != nil {
-		panic(err)
-	}
-
-	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
-	if err != nil {
-		return nil, err
-	}
-	return &Controller{
-		logger:            logs.GetLogger(),
-		legacyLogger:      logger,
-		Client:            remoteClient,
-		exec:              utils.NewExecutor(),
-		config:            config,
-		mounterPerBackend: make(map[string]resources.Mounter),
-		unmountFlock:      unmountFlock,
-		mounterFactory:    mounter.NewMounterFactory(),
-	}, nil
-}
-
-//NewControllerWithClient is made for unit testing purposes where we can pass a fake client
-func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
+func newController(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) (*Controller, error) {
 	unmountFlock, err := lockfile.New(filepath.Join(os.TempDir(), "ubiquity.unmount.lock"))
 	if err != nil {
 		panic(err)
@@ -88,7 +68,23 @@ func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPlugin
 		mounterPerBackend: make(map[string]resources.Mounter),
 		unmountFlock:      unmountFlock,
 		mounterFactory:    mFactory,
+	}, nil
+}
+
+//NewController allows to instantiate a controller
+func NewController(logger *log.Logger, config resources.UbiquityPluginConfig) (*Controller, error) {
+	remoteClient, err := remote.NewRemoteClientSecure(logger, config)
+	if err != nil {
+		return nil, err
 	}
+	
+	return newController(logger, config, remoteClient, utils.NewExecutor(), mounter.NewMounterFactory())
+}
+
+//NewControllerWithClient is made for unit testing purposes where we can pass a fake client
+func NewControllerWithClient(logger *log.Logger, config resources.UbiquityPluginConfig, client resources.StorageClient, exec utils.Executor, mFactory mounter.MounterFactory) *Controller {
+	controller, _ :=  newController(logger, config, client, exec, mFactory)
+	return controller
 }
 
 //Init method is to initialize the k8sresourcesvolume
@@ -267,6 +263,7 @@ func (c *Controller) UnmountDevice(unmountDeviceRequest k8sresources.FlexVolumeU
 	return response
 }
 
+
 //Mount method allows to mount the volume/fileset to a given location for a pod
 func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8sresources.FlexVolumeResponse {
 	go_id := logs.GetGoID()
@@ -275,7 +272,24 @@ func (c *Controller) Mount(mountRequest k8sresources.FlexVolumeMountRequest) k8s
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", mountRequest}})
+	
+	flockName := fmt.Sprintf("ubiquity.mount.%s.lock", mountRequest.MountDevice)
+	mountFlock, err := lockfile.New(filepath.Join(os.TempDir(), flockName ))
+	if err != nil {
+		panic(err)
+	}
 
+	for {
+		err := mountFlock.TryLock()
+		if err == nil {
+			break
+		}
+		c.logger.Debug("mountFlock.TryLock failed", logs.Args{{"error", err}})
+		time.Sleep(time.Duration(500 * time.Millisecond))
+	}
+	c.logger.Debug("Got mountFlock for volume.", logs.Args{{"volume", mountRequest.MountDevice}})
+	defer mountFlock.Unlock()
+	
 	// TODO check if volume exist first and what its backend type
 	mountedPath, err := c.doMount(mountRequest)
 	if err != nil {
@@ -541,6 +555,91 @@ func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountReq
 	return mounter, nil
 }
 
+func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
+	/*
+		function is going to get from this kind of dir:
+			/var/lib/kubelet/pods/1f94f1d9-8f36-11e8-b227-005056a4d4cb/volumes/ibm~ubiquity-k8s-flex/...
+		to /var/lib/kubelet/pods/
+		note: /var/lib can be changed in configuration so we need to get the base dir at runtime
+	*/ 
+	tempMountPoint := k8sMountPoint
+	for i := 0 ; i < 4 ; i++ {
+		tempMountPoint = filepath.Dir(tempMountPoint)
+	}
+		
+	if filepath.Base(tempMountPoint) != K8sPodsDirecotryName{
+		return "", &WrongK8sDirectoryPathError{k8sMountPoint}
+	}
+	
+	return tempMountPoint, nil
+}
+
+func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
+	/*
+		the mountpoint parameter is the actual mountpoint we are pointing to: /ubiquity/WWN
+		the k8sMountPoint is the path to the link we want to create from the /var/lib/kubelet directory to the mountpoint
+	*/
+	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}, {"k8sMountPoint", k8sMountPoint}})()
+	
+	k8sBaseDir, err := getK8sPodsBaseDir(k8sMountPoint)	
+	if err != nil{
+		return logger.ErrorRet(err, "Failed to get k8s pods base dir.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
+	}
+		
+	file_pattern := filepath.Join(k8sBaseDir, "*","volumes", k8sMountPointvolumeDirectoryName,"*")
+	files, err := executer.GetGlobFiles(file_pattern)
+	if err != nil{
+		return logger.ErrorRet(err, "Failed to get files that match the pattern.", logs.Args{{"file_pattern", file_pattern}})
+	}
+	
+	slinks := []string{}
+	if len(files) == 0 {
+		logger.Debug("There is no Pod that uses ibm flex PV on this node (No files matched the given pattern were found).", logs.Args{{"pattern", file_pattern}})
+		return nil
+	}
+	
+	mountStat, err := executer.Stat(mountPoint)
+	if err != nil {
+		if os.IsNotExist(err){
+			logger.Debug("Mount point path does not exist yet.", logs.Args{{"mountpoint",mountPoint}})
+			return nil
+		}
+		return logger.ErrorRet(err, "Failed to get stat for mount point file.", logs.Args{{"file", mountPoint}})
+	}
+	
+	// go over the files and check if any of them is the same as our destinated mountpoint
+	// this checks if any of the solinks are pointing to the PV we want to mount.
+	for _, file := range files {
+		fileStat, err := executer.Stat(file)
+		if err != nil{
+			logger.Warning("Failed to get stat for file.", logs.Args{{"file", file}})
+			continue
+		}
+		
+		isSameFile := executer.IsSameFile(fileStat, mountStat)
+		if isSameFile{
+			slinks = append(slinks, file)
+		}
+	}
+		
+	if len(slinks) == 0 {
+		logger.Debug("There were no soft links pointing to given mountpoint.", logs.Args{{"mountpoint", mountPoint}})
+		return nil
+	}
+	
+	if len(slinks) > 1 {
+		return logger.ErrorRet(&PVIsAlreadyUsedByAnotherPod{mountPoint, slinks}, "More then 1 soft link was pointing to mountpoint.") 
+	}
+	
+	slink := slinks[0]
+	if slink != k8sMountPoint{
+		return logger.ErrorRet(&PVIsAlreadyUsedByAnotherPod{mountPoint, slinks}, "PV is used by another pod.") 
+	}
+	
+	return nil
+}
+
+
 func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
@@ -557,6 +656,11 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
+	}
+	
+	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
+	if err != nil {
+		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
 	}
 
 	mountpoint, err := mounter.Mount(ubMountRequest)
