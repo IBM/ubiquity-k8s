@@ -134,12 +134,3 @@ func (e *WrongK8sDirectoryPathError) Error() string {
 	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + "k8smountdir=[%s]", e.k8smountdir)
 }
 
-var MountFlockIsNotInitializedErrorMessage = fmt.Sprintf("Mount lock is not initialized.")
-
-type MountFlockIsNotInitializedError struct {
-}
-
-func (e *MountFlockIsNotInitializedError) Error() string {
-	return fmt.Sprintf(MountFlockIsNotInitializedErrorMessage)
-}
-
