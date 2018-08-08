@@ -421,8 +421,6 @@ func (m *MountCommand) Execute(args []string) error {
 	}
 
 	defer k8sutils.InitFlexLogger(config)()
-	extraParams := make(map[string]interface{})
-	extraParams["pv"] = volumeName
 	controller, err := createController(config)
 
 	if err != nil {
