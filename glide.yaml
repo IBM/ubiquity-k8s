@@ -7,6 +7,7 @@ import:
 - package: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/go-openapi/spec
+  version: 384415f06ee238aae1df5caad877de6ceac3a5c4
 - package: github.com/gogo/protobuf
   version: c0656edd0d9eab7c66d1eb0c568f9039345796f7
   subpackages:
@@ -14,10 +15,13 @@ import:
   - sortkeys
   - ptypes
 - package: github.com/golang/glog
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - package: github.com/golang/groupcache
+  version: 24b0969c4cb722950103eed87108c8d291a8df00
   subpackages:
   - lru
 - package: github.com/google/gofuzz
+  version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
 - package: github.com/googleapis/gnostic
   version: 0c5108395e2debce0d731cf0287ddf7242066aba
   subpackages:
@@ -25,10 +29,13 @@ import:
 - package: github.com/gorilla/mux
   version: v1.5.0
 - package: github.com/gregjones/httpcache
+  version: 9cad4c3443a7200dd6400aef47183728de563a38
   subpackages:
   - diskcache
 - package: github.com/hashicorp/golang-lru
+  version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
 - package: github.com/howeyc/gopass
+  version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - package: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - package: github.com/jinzhu/gorm
@@ -48,30 +55,44 @@ import:
 - package: github.com/spf13/pflag
   version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - package: k8s.io/kube-openapi
+  version: e3762e86a74c878ffed47484592986685639c2cd
   subpackages:
   - pkg/common
   - pkg/util/proto
 - package: golang.org/x/net
+  version: f4c29de78a2a91c00474a2e689954305c350adf9
 - package: github.com/jinzhu/inflection
+  version: 04140366298a54a039076d798123ffa108fff46c
 - package: github.com/gorilla/context
   version: v1.1.1
 - package: github.com/go-openapi/jsonpointer
+  version: 0.15.0
 - package: github.com/go-openapi/jsonreference
+  version: 0.15.0
 - package: github.com/go-openapi/swag
+  version: 0.15.0
 - package: gopkg.in/inf.v0
+  version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - package: github.com/emicklei/go-restful
   version: ff4f55a206334ef123e4f79bbf348980da81ca46
 - package: golang.org/x/crypto
+  version: 56440b844dfe139a8ac053f4ecac0b20b79058f4
 - package: golang.org/x/sys
+  version: 34b17bdb430002e9db9ae7ddc8480b9fa05edc22
 - package: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - package: github.com/mailru/easyjson
+  version: 03f2033d19d5860aef995fe360ac7d395cd8ce65
 - package: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - package: golang.org/x/text
+  version: cb6730876b985e110843c1842a7a63a63677cf08
 - package: github.com/google/btree
+  version: e89373fe6b4a7413d7acd6da1725b83ef713e6e4
 - package: github.com/lib/pq
+  version: 90697d60dd844d5ef6ff15135d0203f65d2f53b8
 - package: github.com/PuerkitoBio/urlesc
+  version: de5bf2ad457846296e2031421a34e2568e304e35
 - package: github.com/modern-go/concurrent
   version: 1.0.3
 - package: github.com/modern-go/reflect2
