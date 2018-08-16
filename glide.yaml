@@ -78,7 +78,7 @@ import:
 - package: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
 - package: golang.org/x/sys
-  version: 34b17bdb430002e9db9ae7ddc8480b9fa05edc22
+  version: a2e06a18
 - package: github.com/PuerkitoBio/purell
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - package: github.com/mailru/easyjson
