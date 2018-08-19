@@ -32,6 +32,7 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
+	"regexp"
 )
  
 const(
@@ -182,6 +183,7 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
+
 		msg := fmt.Sprintf("Failed to check IsAttached volume [%s]", isAttachedRequest.Name)
 		response = c.failureFlexVolumeResponse(err, msg)
 	} else {
@@ -918,6 +920,11 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 
 	attachTo, err := c.getHostAttached(volName, isAttachedRequest.Context)
 	if err != nil {
+		matched, _ := regexp.MatchString("^volume .* not found$", err.Error())
+		if matched {
+			c.logger.Warning(fmt.Sprintf("Idempotent issue. error captured : %s. returning isAttached=False" , err))
+			return false, nil
+		}
 		return false, c.logger.ErrorRet(err, "getHostAttached failed")
 	}
 
@@ -930,6 +937,7 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 	defer c.logger.Trace(logs.DEBUG)()
 
 	getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: volName, Context: requestContext}
+	
 	volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
