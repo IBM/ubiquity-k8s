@@ -886,14 +886,23 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 	if host == "" {
 		// only when triggered during unmount
 		var err error
-		host, err = c.getHostAttached(detachRequest.Name, detachRequest.Context)
+		
+		// TODO: using getvolumeconfig outside the getHostAttached because we need the WWN for automation testing. 
+		// if this ever changes need to remove this and go back to using regular getHostAttached.
+		getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name, Context: detachRequest.Context}
+		volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 		if err != nil {
-			return c.logger.ErrorRet(err, "getHostAttached failed")
+			return c.logger.ErrorRet(err, "getVolumeConfig failed.", logs.Args{{"vol", detachRequest.Name}})
+		}
+		
+		host, err = c.getHostAttachUsingConfig(volumeConfig)
+		if err != nil {
+			return c.logger.ErrorRet(err, "getHostAttached failed.")
 		}
 		
 		if host == "" {
 			// this means that the host is not attached to anything so no reason to call detach
-			c.logger.Warning(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))
+			c.logger.Warning(fmt.Sprintf("Idempotent issue encoutered - vol is not attached to any host. so no detach action is called"), logs.Args{{"vol wwn", volumeConfig["Wwn"]}})
 			return nil
 		}
 	}
@@ -926,6 +935,16 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 	return isAttached, nil
 }
 
+func (c *Controller) getHostAttachUsingConfig(volumeConfig map[string]interface{}) (string, error){
+	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
+	if !ok {
+		return "", c.logger.ErrorRet(fmt.Errorf("GetVolumeConfig missing info"), "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+	}
+	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
+
+	return attachTo, nil
+}
+
 func (c *Controller) getHostAttached(volName string, requestContext resources.RequestContext) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
@@ -934,14 +953,8 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
-
-	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
-	if !ok {
-		return "", c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
-	}
-	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
-
-	return attachTo, nil
+	
+	return c.getHostAttachUsingConfig(volumeConfig)
 }
 
 func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (resources.Volume, error) {
