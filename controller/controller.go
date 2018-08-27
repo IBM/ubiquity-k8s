@@ -938,7 +938,7 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 func (c *Controller) getHostAttachUsingConfig(volumeConfig map[string]interface{}) (string, error){
 	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
 	if !ok {
-		return "", c.logger.ErrorRet(fmt.Errorf("GetVolumeConfig missing info"), "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+		return "", c.logger.ErrorRet(fmt.Errorf("GetVolumeConfig is missing info"), "GetVolumeConfig missing info.", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
 	}
 	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
 
