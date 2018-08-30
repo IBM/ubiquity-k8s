@@ -21,18 +21,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/BurntSushi/toml"
 	"github.com/IBM/ubiquity-k8s/controller"
 	flags "github.com/jessevdk/go-flags"
 
+	"strconv"
+
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
-	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/remote"
+	"github.com/IBM/ubiquity/resources"
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
-	"strconv"
+	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 )
 
 var configFile = flag.String(
@@ -88,6 +89,9 @@ type AttachCommand struct {
 func (a *AttachCommand) Execute(args []string) error {
 	var version string
 	var hostname string
+
+	requestContext := logs.GetNewRequestContext("Attach")
+
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -119,7 +123,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -135,7 +139,7 @@ func (a *AttachCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 
-	attachRequest := k8sresources.FlexVolumeAttachRequest{Name: volumeName, Host: hostname, Opts: attachRequestOpts, Version: version}
+	attachRequest := k8sresources.FlexVolumeAttachRequest{Name: volumeName, Host: hostname, Opts: attachRequestOpts, Version: version, Context: requestContext}
 
 	attachResponse := controller.Attach(attachRequest)
 	return printResponse(attachResponse)
@@ -148,6 +152,7 @@ type WaitForAttachCommand struct {
 }
 
 func (wfa *WaitForAttachCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("WaitForAttach")
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -160,11 +165,11 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
 			Status:  "Failure",
-			Message: fmt.Sprintf("Failed to read config in waitForAttach volume %#v", err),
+			Message: fmt.Sprintf("Failed to read config in waitForAttach volume %#v ", err),
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[1]), &opts)
@@ -175,7 +180,7 @@ func (wfa *WaitForAttachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	waitForAttachRequest := k8sresources.FlexVolumeWaitForAttachRequest{Name: args[0], Opts: opts}
+	waitForAttachRequest := k8sresources.FlexVolumeWaitForAttachRequest{Name: args[0], Opts: opts, Context: requestContext}
 	response := controller.WaitForAttach(waitForAttachRequest)
 	return printResponse(response)
 }
@@ -187,6 +192,7 @@ type IsAttachedCommand struct {
 }
 
 func (d *IsAttachedCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("IsAttached")
 	if len(args) < 2 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -203,7 +209,7 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[0]), &opts)
@@ -214,7 +220,7 @@ func (d *IsAttachedCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Opts: opts, Host: args[1]}
+	isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{Opts: opts, Host: args[1], Context: requestContext}
 	response := controller.IsAttached(isAttachedRequest)
 	return printResponse(response)
 }
@@ -227,6 +233,7 @@ type DetachCommand struct {
 }
 
 func (d *DetachCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("Detach")
 	var hostname string
 	var version string
 	if len(args) < 1 {
@@ -253,14 +260,14 @@ func (d *DetachCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
 	}
 
-	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice, Host: hostname, Version: version}
+	detachRequest := k8sresources.FlexVolumeDetachRequest{Name: mountDevice, Host: hostname, Version: version, Context: requestContext}
 	detachResponse := controller.Detach(detachRequest)
 	return printResponse(detachResponse)
 }
@@ -272,6 +279,7 @@ type MountDeviceCommand struct {
 }
 
 func (d *MountDeviceCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("MountDevice")
 	if len(args) < 3 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -288,7 +296,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	opts := make(map[string]string)
 	err = json.Unmarshal([]byte(args[2]), &opts)
@@ -299,7 +307,7 @@ func (d *MountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	mountDeviceRequest := k8sresources.FlexVolumeMountDeviceRequest{Path: args[0], Name: args[1], Opts: opts}
+	mountDeviceRequest := k8sresources.FlexVolumeMountDeviceRequest{Path: args[0], Name: args[1], Opts: opts, Context: requestContext}
 	response := controller.MountDevice(mountDeviceRequest)
 	return printResponse(response)
 }
@@ -311,6 +319,7 @@ type UnmountDeviceCommand struct {
 }
 
 func (d *UnmountDeviceCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("UnmountDevice")
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -327,10 +336,10 @@ func (d *UnmountDeviceCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
-	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0]}
+	unmountDeviceRequest := k8sresources.FlexVolumeUnmountDeviceRequest{Name: args[0], Context: requestContext}
 	response := controller.UnmountDevice(unmountDeviceRequest)
 	return printResponse(response)
 }
@@ -348,6 +357,8 @@ func (m *MountCommand) Execute(args []string) error {
 	var mountOptsIndex int
 	var ok bool
 	var version string
+
+	requestContext := logs.GetNewRequestContext("Mount")
 
 	//should error out when not enough args
 	if len(args) < 2 {
@@ -394,9 +405,10 @@ func (m *MountCommand) Execute(args []string) error {
 
 	mountRequest := k8sresources.FlexVolumeMountRequest{
 		MountPath:   targetMountDir,
-		MountDevice: volumeName,
+		MountDevice: volumeName, // The PV name
 		Opts:        mountOpts,
 		Version:     version,
+		Context:     requestContext,
 	}
 
 	config, err := readConfig(*configFile)
@@ -408,13 +420,14 @@ func (m *MountCommand) Execute(args []string) error {
 		return printResponse(response)
 	}
 
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
 	if err != nil {
 		panic("backend not found")
 	}
 	mountResponse := controller.Mount(mountRequest)
+
 	return printResponse(mountResponse)
 }
 
@@ -425,6 +438,7 @@ type UnmountCommand struct {
 }
 
 func (u *UnmountCommand) Execute(args []string) error {
+	requestContext := logs.GetNewRequestContext("Unmount")
 	if len(args) < 1 {
 
 		response := k8sresources.FlexVolumeResponse{
@@ -443,7 +457,8 @@ func (u *UnmountCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 
 	if err != nil {
@@ -452,6 +467,7 @@ func (u *UnmountCommand) Execute(args []string) error {
 
 	unmountRequest := k8sresources.FlexVolumeUnmountRequest{
 		MountPath: mountDir,
+		Context:   requestContext,
 	}
 	unmountResponse := controller.Unmount(unmountRequest)
 	return printResponse(unmountResponse)
@@ -470,7 +486,8 @@ func (i *TestUbiquityCommand) Execute(args []string) error {
 		}
 		return printResponse(response)
 	}
-	defer logs.InitFileLogger(logs.GetLogLevelFromString(config.LogLevel), path.Join(config.LogPath, k8sresources.UbiquityFlexLogFileName))()
+
+	defer k8sutils.InitFlexLogger(config)()
 	controller, err := createController(config)
 	if err != nil {
 		response := k8sresources.FlexVolumeResponse{
@@ -567,8 +584,8 @@ func readConfig(configFile string) (resources.UbiquityPluginConfig, error) {
 
 	}
 	// Create environment variables for some of the config params
-	os.Setenv(remote.KeyUseSsl,  strconv.FormatBool(config.SslConfig.UseSsl))
-	os.Setenv(resources.KeySslMode,  config.SslConfig.SslMode)
+	os.Setenv(remote.KeyUseSsl, strconv.FormatBool(config.SslConfig.UseSsl))
+	os.Setenv(resources.KeySslMode, config.SslConfig.SslMode)
 	os.Setenv(remote.KeyVerifyCA, config.SslConfig.VerifyCa)
 	return config, nil
 }
@@ -581,3 +598,4 @@ func printResponse(f k8sresources.FlexVolumeResponse) error {
 	fmt.Printf("%s", string(responseBytes[:]))
 	return nil
 }
+

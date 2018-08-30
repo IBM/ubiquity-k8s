@@ -17,8 +17,7 @@ spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
-        operator: Equal
-        value: master
+        operator: Exists
         effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
@@ -31,6 +30,18 @@ spec:
 
           - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
             value: "scbe"
+
+          - name: FLEX_LOG_DIR    # /var/log default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-DIR
+
+          - name: FLEX_LOG_ROTATE_MAXSIZE # 50MB default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-ROTATE-MAXSIZE
 
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
@@ -74,6 +85,9 @@ spec:
         volumeMounts:
         - name: host-k8splugindir
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+
+        - name: flex-log-dir
+          mountPath: FLEX_LOG_DIR_VALUE
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -83,6 +97,10 @@ spec:
       - name: host-k8splugindir
         hostPath:
           path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec  # This directory must exist on the host
+
+      - name: flex-log-dir
+        hostPath:
+          path: FLEX_LOG_DIR_VALUE  # This directory must exist on the host
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:

@@ -33,7 +33,7 @@ var logFile *os.File
 
 func TestController(t *testing.T) {
 	RegisterFailHandler(Fail)
-	defer logs.InitStdoutLogger(logs.DEBUG)()
+	defer logs.InitStdoutLogger(logs.DEBUG, logs.LoggerParams{})()
 
 	RunSpecs(t, "Controller Suite")
 }
