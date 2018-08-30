@@ -519,7 +519,33 @@ func (c *Controller) getMounterForBackend(backend string, requestContext resourc
 	return c.mounterPerBackend[backend], nil
 }
 
-func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest) (resources.MountRequest, error) {
+func (c *Controller) getMountpointForVolume(mountRequest k8sresources.FlexVolumeMountRequest, volumeConfig map[string]interface{}, volumeBackend string) (string, error) {
+
+	defer c.logger.Trace(logs.DEBUG)()
+
+	var volumeMountPoint string
+	var ok bool
+
+	if (volumeBackend == resources.SpectrumScale) {
+		volumeMountPoint, ok = volumeConfig["mountpoint"].(string)
+		if !ok {
+			return "", c.logger.ErrorRet(&MissingMountPointVolumeError{VolumeName: mountRequest.MountDevice}, "failed")
+		}			
+	} else if (volumeBackend == resources.SCBE) {
+		wwn, ok := mountRequest.Opts["Wwn"]
+		if !ok {
+			err := fmt.Errorf(MissingWwnMountRequestErrorStr)
+			return "", c.logger.ErrorRet(err, "failed")
+		}
+		volumeMountPoint = fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn) 
+	} else {
+		return "", c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volumeBackend}, "failed") 
+	}
+
+	return volumeMountPoint, nil
+}
+
+func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest, volumeBackend string) (resources.MountRequest, error) {
 	/*
 		Prepare the mounter.Mount request
 	*/
@@ -532,32 +558,29 @@ func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexV
 		return resources.MountRequest{}, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
-	// Prepare request for mounter - step2 generate the designated mountpoint for this volume.
-	// TODO should be agnostic to the backend, currently its scbe oriented.
-	wwn, ok := mountRequest.Opts["Wwn"]
-	if !ok {
-		err = fmt.Errorf(MissingWwnMountRequestErrorStr)
-		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
+	volumeMountpoint, err := c.getMountpointForVolume(mountRequest, volumeConfig, volumeBackend)
+	if err != nil {
+		return resources.MountRequest{}, err
 	}
-	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
+
 	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context}
 	return ubMountRequest, nil
 }
 
-func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountRequest) (resources.Mounter, error) {
+func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountRequest) (resources.Mounter, string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: mountRequest.MountDevice, Context: mountRequest.Context}
 	volume, err := c.Client.GetVolume(getVolumeRequest)
 	if err != nil {
-		return nil, c.logger.ErrorRet(err, "GetVolume failed")
+		return nil, "", c.logger.ErrorRet(err, "GetVolume failed")
 	}
 	mounter, err := c.getMounterForBackend(volume.Backend, mountRequest.Context)
 	if err != nil {
-		return nil, c.logger.ErrorRet(err, "getMounterForBackend failed")
+		return nil, "", c.logger.ErrorRet(err, "getMounterForBackend failed")
 	}
 
-	return mounter, nil
+	return mounter, volume.Backend,  nil
 }
 
 func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
@@ -653,12 +676,12 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(&k8sVersionNotSupported{mountRequest.Version}, "failed")
 	}
 
-	mounter, err := c.getMounterByPV(mountRequest)
+	mounter, volumeBackend, err := c.getMounterByPV(mountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "getMounterByPV failed")
 	}
 
-	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
+	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest, volumeBackend)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
