@@ -134,3 +134,13 @@ func (e *WrongK8sDirectoryPathError) Error() string {
 	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + "k8smountdir=[%s]", e.k8smountdir)
 }
 
+const MissingMountPointVolumeErrorStr = "MountPoint Missing in Volume Config."
+
+type MissingMountPointVolumeError struct {
+        VolumeName string
+}
+
+func (e *MissingMountPointVolumeError) Error() string {
+        return fmt.Sprintf(MissingMountPointVolumeErrorStr+" volume=[%s]", e.VolumeName)
+}
+
