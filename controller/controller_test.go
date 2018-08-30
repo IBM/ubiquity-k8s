@@ -504,6 +504,7 @@ var _ = Describe("Controller", func() {
 			err :=  fmt.Errorf("an Error has occured")
 			fakeExec.GetGlobFilesReturns(nil, err)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
 			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
 			mountResponse := controller.Mount(mountRequest)

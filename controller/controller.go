@@ -530,16 +530,16 @@ func (c *Controller) getMountpointForVolume(mountRequest k8sresources.FlexVolume
 		volumeMountPoint, ok = volumeConfig["mountpoint"].(string)
 		if !ok {
 			return "", c.logger.ErrorRet(&MissingMountPointVolumeError{VolumeName: mountRequest.MountDevice}, "failed")
-		}			
+		}
 	} else if (volumeBackend == resources.SCBE) {
 		wwn, ok := mountRequest.Opts["Wwn"]
 		if !ok {
 			err := fmt.Errorf(MissingWwnMountRequestErrorStr)
 			return "", c.logger.ErrorRet(err, "failed")
 		}
-		volumeMountPoint = fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn) 
+		volumeMountPoint = fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
 	} else {
-		return "", c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volumeBackend}, "failed") 
+		return "", c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volumeBackend}, "failed")
 	}
 
 	return volumeMountPoint, nil
@@ -580,7 +580,7 @@ func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountReq
 		return nil, "", c.logger.ErrorRet(err, "getMounterForBackend failed")
 	}
 
-	return mounter, volume.Backend,  nil
+	return mounter, volume.Backend, nil
 }
 
 func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
@@ -685,7 +685,7 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
-	
+
 	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
