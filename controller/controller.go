@@ -711,7 +711,8 @@ func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirecto
 	if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
 		lnPath = k8sPVDirectory
 	} else {
-		lnPath, _ = path.Split(k8sPVDirectory) // TODO verify why Scale backend use this split?
+		lnPath = k8sPVDirectory
+		// Keeping this separate condition for scale-nfs support in future.
 	}
 	return lnPath
 }
