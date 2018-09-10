@@ -203,6 +203,47 @@ var _ = Describe("Controller", func() {
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
 
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain mountpoint for spectrumscale backend", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(ctl.SpectrumScaleMissingMntPtVolumeErrorStr+" volume=[pv1]"))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
+
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain valid backend", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "fake", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(ctl.PvBackendNotSupportedErrorStr+" backend=[fake]"))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
 		It("should fail if mounter.Mount failed (doMount)", func() {
 			errstr := "TODO set error in mounter"
 			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
