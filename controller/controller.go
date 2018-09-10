@@ -529,7 +529,7 @@ func (c *Controller) getMountpointForVolume(mountRequest k8sresources.FlexVolume
 	if (volumeBackend == resources.SpectrumScale) {
 		volumeMountPoint, ok = volumeConfig["mountpoint"].(string)
 		if !ok {
-			return "", c.logger.ErrorRet(&MissingMountPointVolumeError{VolumeName: mountRequest.MountDevice}, "failed")
+			return "", c.logger.ErrorRet(&SpectrumScaleMissingMntPtVolumeError{VolumeName: mountRequest.MountDevice}, "failed")
 		}
 	} else if (volumeBackend == resources.SCBE) {
 		wwn, ok := mountRequest.Opts["Wwn"]
