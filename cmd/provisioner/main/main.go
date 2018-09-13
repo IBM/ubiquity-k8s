@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"flag"
 )
 
 var (
@@ -38,6 +39,8 @@ var (
 )
 
 func main() {
+
+	flag.CommandLine.Parse([]string{})
 
 	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
