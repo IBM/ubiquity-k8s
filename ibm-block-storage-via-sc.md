@@ -236,8 +236,8 @@ The creation of a Pod/Deployment causes the FlexVolume to:
 * Attach the volume to the host (This action triggered from the controller-manager on the master node.)
 * Rescan and discover the multipath device of the new volume
 * Create xfs or ext4 filesystem on the device (if filesystem does not exist on the volume)
-* Mount the new multipath device on /ubiquity/[WWN of the volume]
-* Create a symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> /ubiquity/[WWN of the volume]
+* Mount the new multipath device on `/ubiquity/[WWN of the volume]`
+* Create a symbolic link `/var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID]` -> `/ubiquity/[WWN of the volume]`
 
 For example, to create a Pod `pod1` that uses the PVC `pvc1` that was already created:
 ```bash
@@ -309,9 +309,9 @@ lrwxrwxrwx. 1 root root 42 Aug 13 22:41 pvc-254e4b5e-805d-11e7-a42b-005056a46c49
 ```
 
 ### Deleting a Pod
-The Kuberenetes delete Pod command:
-* Removes symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> /ubiquity/[WWN of the volume]
-* Unmounts the new multipath device on /ubiquity/[WWN of the volume]
+The Kubernetes delete Pod command:
+* Removes symbolic link `/var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID]` -> `/ubiquity/[WWN of the volume]`
+* Unmounts the new multipath device on `/ubiquity/[WWN of the volume]`
 * Removes the multipath device of the volume
 * Detaches (unmaps) the volume from the host
 * Rescans with cleanup mode to remove the physical device files of the detached volume
