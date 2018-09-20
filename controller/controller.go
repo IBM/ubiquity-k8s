@@ -972,7 +972,7 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
-	
+
 	return c.getHostAttachUsingConfig(volumeConfig)
 }
 
