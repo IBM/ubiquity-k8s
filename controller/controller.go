@@ -383,7 +383,7 @@ func (c *Controller) getRealMountpointForPvByBackend(volumeBackend string, volum
 	if volumeBackend == resources.SCBE {
 		return fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, volumeConfig["Wwn"].(string)), nil
 	} else if volumeBackend == resources.SpectrumScale {
-		return "", &BackendNotImplementedGetRealMountpointError{Backend: volumeBackend}
+                return volumeConfig["mountpoint"].(string), nil
 	} else {
 		return "", &PvBackendNotSupportedError{Backend: volumeBackend}
 	}
@@ -959,6 +959,16 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
+        getVolumeRequest := resources.GetVolumeRequest{Name: volName}
+        volume, err := c.Client.GetVolume(getVolumeRequest)
+        if err != nil {
+            return "", c.logger.ErrorRet(err, "Client.GetVolumeRequest failed")
+        }
+
+        if ((volume.Backend == resources.SpectrumScale)) {
+            return getHost(""), nil
+        }
+
 	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
 	if !ok {
 		return "", c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
@@ -983,6 +993,7 @@ func getHost(hostRequest string) string {
 	}
 	// Only in k8s 1.5 this os.Hostname will happened,
 	// because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
+	// Spectrum Scale uses this method for 2.0 release.
 	hostname, err := os.Hostname()
 	if err != nil {
 		return ""
