@@ -708,11 +708,8 @@ func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirecto
 	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
 	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
 	var lnPath string
-	if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
-		lnPath = k8sPVDirectory
-	} else {
-		lnPath = k8sPVDirectory
-		// Keeping this separate condition for scale-nfs support in future.
+	lnPath = k8sPVDirectory
+	// TODO: Keeping this function for scale-nfs support in future.
 	}
 	return lnPath
 }
@@ -993,7 +990,8 @@ func getHost(hostRequest string) string {
 	}
 	// Only in k8s 1.5 this os.Hostname will happened,
 	// because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
-	// Spectrum Scale uses this method for 2.0 release.
+	// Spectrum Scale uses this method to get the hostname of current node for detach and IsAttached functionality as Spectrum Scale volume is not attached to any specific node.
+	// TODO: Remove this dependancy while optimizing the Spectrum Scale detach functionality.
 	hostname, err := os.Hostname()
 	if err != nil {
 		return ""
