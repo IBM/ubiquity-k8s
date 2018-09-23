@@ -706,11 +706,9 @@ func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirecto
 	*/
 
 	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
-	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
 	var lnPath string
 	lnPath = k8sPVDirectory
 	// TODO: Keeping this function for scale-nfs support in future.
-	}
 	return lnPath
 }
 
