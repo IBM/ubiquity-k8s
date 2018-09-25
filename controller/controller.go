@@ -887,8 +887,8 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 		// only when triggered during unmount
 		var err error
 		
-		// TODO: using getvolumeconfig outside the getHostAttached because we need the WWN for automation testing. 
-		// if this ever changes need to remove this and go back to using regular getHostAttached.
+		// TODO: if the automation will stop using loggin authenticatin and the WWN here is no longer needed we can
+		// we can go back to using regulat getHostAttached and remove getHostAttachUsingConfig.
 		getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name, Context: detachRequest.Context}
 		volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 		if err != nil {
