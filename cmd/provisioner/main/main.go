@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"flag"
 )
 
 var (
@@ -38,6 +39,11 @@ var (
 )
 
 func main() {
+
+	/* this is fixing an existing issue with glog in kuberenetes in version 1.9
+		if we ever move to a newer code version this can be removed.
+	*/  
+	flag.CommandLine.Parse([]string{})
 
 	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
