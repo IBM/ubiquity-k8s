@@ -126,9 +126,26 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var err error
 	c.logger.Debug("", logs.Args{{"request", attachRequest}})
 
-	err := c.doAttach(attachRequest)
+	getVolumeRequest := resources.GetVolumeRequest{Name:attachRequest.Name}
+	volume, err :=  c.Client.GetVolume(getVolumeRequest)
+
+	if err != nil {
+		errormsg := fmt.Sprintf("Failed to Volume details [%s]", attachRequest.Name)
+		response = c.failureFlexVolumeResponse(err, errormsg)
+		return response
+	}
+
+	if (volume.Backend == resources.SpectrumScale) {
+		 response = k8sresources.FlexVolumeResponse{
+	        Status: "Not supported",
+	    }
+		return response
+	}
+
+	err = c.doAttach(attachRequest)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to attach volume [%s]", attachRequest.Name)
 		response = c.failureFlexVolumeResponse(err, msg)
@@ -180,6 +197,32 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", isAttachedRequest}})
 
+    volName, ok := isAttachedRequest.Opts["volumeName"]
+
+    if !ok {
+        err := fmt.Errorf("volumeName not found in isAttachedRequest")
+        response = c.failureFlexVolumeResponse(err, "")
+        return response
+    }
+
+	getVolumeRequest := resources.GetVolumeRequest{Name: volName}
+	volume, err :=  c.Client.GetVolume(getVolumeRequest)
+    if err != nil {
+        response = k8sresources.FlexVolumeResponse{
+            Status:   "Success",
+            Attached: false,
+        }
+		return response
+    }
+
+    if (volume.Backend == resources.SpectrumScale) {
+         response = k8sresources.FlexVolumeResponse{
+            Status: "Not supported",
+        }
+        return response
+    }
+
+
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to check IsAttached volume [%s]", isAttachedRequest.Name)
@@ -210,7 +253,26 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 			Status: "Success",
 		}
 	} else {
-		err := c.doDetach(detachRequest, true)
+
+		getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
+		volume, err :=  c.Client.GetVolume(getVolumeRequest)
+
+		if err != nil {
+			 response = k8sresources.FlexVolumeResponse{
+							Status:  "Success",
+							Message: "Returning Success since volume does not exists",
+						 }
+			return response
+		}
+
+		if (volume.Backend == resources.SpectrumScale) {
+			response = k8sresources.FlexVolumeResponse{
+				Status: "Not supported",
+			}
+			return response
+		}
+
+		err = c.doDetach(detachRequest, true)
 		if err != nil {
 			msg := fmt.Sprintf(
 				"Failed to detach volume [%s] from host [%s]. Error: %#v",
@@ -475,6 +537,10 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	if err := c.doUnmount(k8sPVDirectoryPath, volume.Backend, volumeConfig, mounter); err != nil {
 		return c.failureFlexVolumeResponse(err, "")
 	}
+
+	if (volume.Backend == resources.SpectrumScale) {
+		return c.successFlexVolumeResponse("")
+	}
 	// Do legacy detach (means trigger detach as part of the umount from the k8s node)
 	if err := c.doLegacyDetach(unmountRequest); err != nil {
 		return c.failureFlexVolumeResponse(err, "")
@@ -706,10 +772,8 @@ func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirecto
 	*/
 
 	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
-	var lnPath string
-	lnPath = k8sPVDirectory
 	// TODO: Keeping this function for scale-nfs support in future.
-	return lnPath
+	return k8sPVDirectory
 }
 
 func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
@@ -991,8 +1055,6 @@ func getHost(hostRequest string) string {
 	}
 	// Only in k8s 1.5 this os.Hostname will happened,
 	// because in k8s 1.5 the flex CLI doesn't get the host to attach with. TODO consider to refactor to remove support for 1.5
-	// Spectrum Scale uses this method to get the hostname of current node for detach and IsAttached functionality as Spectrum Scale volume is not attached to any specific node.
-	// TODO: Remove this dependancy while optimizing the Spectrum Scale detach functionality.
 	hostname, err := os.Hostname()
 	if err != nil {
 		return ""
