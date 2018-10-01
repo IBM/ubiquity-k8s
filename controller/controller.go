@@ -133,7 +133,7 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 	volume, err :=  c.Client.GetVolume(getVolumeRequest)
 
 	if err != nil {
-		errormsg := fmt.Sprintf("Failed to Volume details [%s]", attachRequest.Name)
+		errormsg := fmt.Sprintf("Failed to get Volume details [%s]", attachRequest.Name)
 		response = c.failureFlexVolumeResponse(err, errormsg)
 		return response
 	}
