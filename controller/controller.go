@@ -194,28 +194,35 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var volume resources.Volume
+	var err error
 	c.logger.Debug("", logs.Args{{"request", isAttachedRequest}})
 
 	volName, ok := isAttachedRequest.Opts["volumeName"]
 
-    	if !ok {
-        	err := fmt.Errorf("volumeName not found in isAttachedRequest")
-        	response = c.failureFlexVolumeResponse(err, "")
-        	return response
-    	}
+	if !ok {
+		err := fmt.Errorf("volumeName not found in isAttachedRequest")
+		response = c.failureFlexVolumeResponse(err, "")
+		return response
+	}
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: volName}
-	volume, err :=  c.Client.GetVolume(getVolumeRequest)
-    	if err != nil {
-		response = k8sresources.FlexVolumeResponse{
+	if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
+		if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
+			warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentIsAttachedSkipOnVolumeNotExistWarnigMsg, err)
+			c.logger.Warning(warningMsg)
+			response = k8sresources.FlexVolumeResponse{
             	Status:   "Success",
             	Attached: false,
+				Message: warningMsg,
         	}
-		return response
-    	}
+			return response
+		}
+		return c.failureFlexVolumeResponse(err, "")
+	}
 
 	if (volume.Backend == resources.SpectrumScale) {
-        	response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
+		response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
 		return response
 	}
 
@@ -241,6 +248,8 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var volume resources.Volume
+	var err error
 	c.logger.Debug("", logs.Args{{"request", detachRequest}})
 
 	if detachRequest.Version == k8sresources.KubernetesVersion_1_5 {
@@ -249,19 +258,20 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 			Status: "Success",
 		}
 	} else {
-
 		getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
-		volume, err :=  c.Client.GetVolume(getVolumeRequest)
+		if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
+	        if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
+				warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentDetachSkipOnVolumeNotExistWarnigMsg, err)
+				c.logger.Warning(warningMsg)
+				return c.successFlexVolumeResponse(warningMsg)
+	        }
+	        return c.failureFlexVolumeResponse(err, "")
+	    }
 
-		if err != nil {
-            		response = c.successFlexVolumeResponse("Returning success since volume does not exist")
+		if (volume.Backend == resources.SpectrumScale) {
+			response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
 			return response
 		}
-
-	    	if (volume.Backend == resources.SpectrumScale) {
-            		response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
-			return response
-	    	}
 
 		err = c.doDetach(detachRequest, true)
 		if err != nil {
@@ -541,9 +551,13 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 
 	if (volume.Backend == resources.SpectrumScale) {
 		return c.successFlexVolumeResponse("")
-	}
+	} else if (volume.Backend == resources.SCBE) {
 	// Do legacy detach (means trigger detach as part of the umount from the k8s node)
-	if err := c.doLegacyDetach(unmountRequest); err != nil {
+		if err := c.doLegacyDetach(unmountRequest); err != nil {
+			return c.failureFlexVolumeResponse(err, "")
+		}
+	} else {
+		err = c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volume.Backend}, "failed")
 		return c.failureFlexVolumeResponse(err, "")
 	}
 

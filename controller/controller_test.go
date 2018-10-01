@@ -1028,8 +1028,8 @@ var _ = Describe("Controller", func() {
 			host = "fakehost"
 		})
 
-        It("IsAttached should return success with Attached as false when GetVolume Fails", func() {
-             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+        It("IsAttached should return success with Attached as false when GetVolume Fails with VolumeNotFoundErrorMsg ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, &resources.VolumeNotFoundError{VolName: "pv1"})
 			 opts := make(map[string]string)
 			 opts["volumeName"] = "pv1"
 			 isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts,  resources.RequestContext{}}
@@ -1038,6 +1038,17 @@ var _ = Describe("Controller", func() {
              Expect(isAttachResponse.Attached).To(Equal(false))
              Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
         })
+
+        It("IsAttached should fail when GetVolume Fails with error other then VolumeNotFoundError.", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+			 opts := make(map[string]string)
+			 opts["volumeName"] = "pv1"
+			 isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts,  resources.RequestContext{}}
+             isAttachResponse := controller.IsAttached(isAttachedRequest)
+             Expect(isAttachResponse.Status).To(Equal("Failure"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
 
         It("IsAttached should return Not supported for SpectrumScale backend", func() {
              fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
@@ -1065,12 +1076,21 @@ var _ = Describe("Controller", func() {
 
 		})
 
-        It("Pass when Detach fails to get volume details", func() {
-             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+        It("Detach should return success when GetVolume Fails with VolumeNotFoundError ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, &resources.VolumeNotFoundError{VolName: "vol1"})
              host := "fakehost"
              detachRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
              detachResponse := controller.Detach(detachRequest)
              Expect(detachResponse.Status).To(Equal("Success"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+        It("Detach should fail when GetVolume Fails with error other than VolumeNotFoundError ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+             host := "fakehost"
+             detachRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+             detachResponse := controller.Detach(detachRequest)
+             Expect(detachResponse.Status).To(Equal("Failure"))
              Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
         })
 
