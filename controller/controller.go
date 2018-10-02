@@ -39,6 +39,7 @@ const(
 	k8sMountPointvolumeDirectoryName = "ibm~ubiquity-k8s-flex"
 	FlexSuccessStr = "Success"
 	FlexFailureStr = "Failure"
+	FlexNotSupportedStr = "Not supported"
 )
 
 //Controller this is a structure that controls volume management
@@ -139,9 +140,7 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 	}
 
 	if (volume.Backend == resources.SpectrumScale) {
-		 response = k8sresources.FlexVolumeResponse{
-	        Status: "Not supported",
-	    }
+            	response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
 		return response
 	}
 
@@ -197,31 +196,28 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 	var response k8sresources.FlexVolumeResponse
 	c.logger.Debug("", logs.Args{{"request", isAttachedRequest}})
 
-    volName, ok := isAttachedRequest.Opts["volumeName"]
+	volName, ok := isAttachedRequest.Opts["volumeName"]
 
-    if !ok {
-        err := fmt.Errorf("volumeName not found in isAttachedRequest")
-        response = c.failureFlexVolumeResponse(err, "")
-        return response
-    }
+    	if !ok {
+        	err := fmt.Errorf("volumeName not found in isAttachedRequest")
+        	response = c.failureFlexVolumeResponse(err, "")
+        	return response
+    	}
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: volName}
 	volume, err :=  c.Client.GetVolume(getVolumeRequest)
-    if err != nil {
-        response = k8sresources.FlexVolumeResponse{
-            Status:   "Success",
-            Attached: false,
-        }
+    	if err != nil {
+		response = k8sresources.FlexVolumeResponse{
+            	Status:   "Success",
+            	Attached: false,
+        	}
 		return response
-    }
+    	}
 
-    if (volume.Backend == resources.SpectrumScale) {
-         response = k8sresources.FlexVolumeResponse{
-            Status: "Not supported",
-        }
-        return response
-    }
-
+	if (volume.Backend == resources.SpectrumScale) {
+        	response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
+		return response
+	}
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
@@ -258,19 +254,14 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 		volume, err :=  c.Client.GetVolume(getVolumeRequest)
 
 		if err != nil {
-			 response = k8sresources.FlexVolumeResponse{
-							Status:  "Success",
-							Message: "Returning Success since volume does not exists",
-						 }
+            		response = c.successFlexVolumeResponse("Returning success since volume does not exist")
 			return response
 		}
 
-		if (volume.Backend == resources.SpectrumScale) {
-			response = k8sresources.FlexVolumeResponse{
-				Status: "Not supported",
-			}
+	    	if (volume.Backend == resources.SpectrumScale) {
+            		response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
 			return response
-		}
+	    	}
 
 		err = c.doDetach(detachRequest, true)
 		if err != nil {
@@ -389,6 +380,16 @@ func (c *Controller) failureFlexVolumeResponse(err error, additionalMsg string) 
 		Message: additionalMsg + err.Error(),
 	}
 	c.logger.Error(fmt.Sprintf("%#v", response))
+	return response
+}
+
+func (c *Controller) notSupportedFlexVolumeResponse(msg string) k8sresources.FlexVolumeResponse {
+	defer c.logger.Trace(logs.DEBUG)()
+	response := k8sresources.FlexVolumeResponse{
+		Status:  FlexNotSupportedStr,
+		Message: msg,
+	}
+	c.logger.Info(fmt.Sprintf("%#v", response))
 	return response
 }
 
