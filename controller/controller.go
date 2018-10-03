@@ -139,8 +139,9 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 		return response
 	}
 
+	//TODO: later we should consider to get the volume backend by using the attachRequest.opts instead of calling to ubiquity server
 	if (volume.Backend == resources.SpectrumScale) {
-            	response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
+		response = c.notSupportedFlexVolumeResponse("Flex Attach API is not supported for spectrum-scale backend, because the backend assume that volume is already attached to all nodes")
 		return response
 	}
 
@@ -222,7 +223,7 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 	}
 
 	if (volume.Backend == resources.SpectrumScale) {
-		response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
+		response = c.notSupportedFlexVolumeResponse("Flex IsAttached API is not supported for spectrum-scale backend, because the backend assume that volume is always attached")
 		return response
 	}
 
@@ -269,7 +270,7 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	    }
 
 		if (volume.Backend == resources.SpectrumScale) {
-			response = c.notSupportedFlexVolumeResponse("Not supported for spectrum-scale backend")
+			response = c.notSupportedFlexVolumeResponse("Flex Detach API is not supported for spectrum-scale backend, because the backend assume that volume is always remain attached")
 			return response
 		}
 
@@ -457,6 +458,7 @@ func (c *Controller) getRealMountpointForPvByBackend(volumeBackend string, volum
 		return fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, volumeConfig["Wwn"].(string)), nil
 	} else if volumeBackend == resources.SpectrumScale {
                 return volumeConfig["mountpoint"].(string), nil
+		//TODO: scale should remove the mountpoint
 	} else {
 		return "", &PvBackendNotSupportedError{Backend: volumeBackend}
 	}
@@ -780,17 +782,6 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	return mountpoint, nil
 }
 
-func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirectory string) string {
-	/*
-	   mountedPath is the original device mountpoint (e.g /ubiquity/<WWN>)
-	   The function return the k8sPVDirectory based on the backend.
-	*/
-
-	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
-	// TODO: Keeping this function for scale-nfs support in future.
-	return k8sPVDirectory
-}
-
 func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
 	/*
 		 Create symbolic link instead of the k8s PV directory that will point to the ubiquity mountpoint.
@@ -820,7 +811,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	var k8sPVDirectoryPath string
 	var err error
 
-	k8sPVDirectoryPath = c.getK8sPVDirectoryByBackend(mountedPath, mountRequest.MountPath)
+	k8sPVDirectoryPath = mountRequest.MountPath
 
 	// Identify the PV directory by using Lstat and then handle all idempotent cases (use Lstat to get the dir or slink detail and not the evaluation of it)
 	fileInfo, err := c.exec.Lstat(k8sPVDirectoryPath)
