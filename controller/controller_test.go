@@ -65,6 +65,28 @@ var _ = Describe("Controller", func() {
 			Expect(initResponse.Device).To(Equal(""))
 		})
 
+		Context(".Attach", func() {
+			It("fails when Attach fails to get volume details", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+				opts := map[string]string{}
+				host := "fakehost"
+				AttachRequest := k8sresources.FlexVolumeAttachRequest{"vol1", host, opts, "version", resources.RequestContext{}}
+				attachResponse := controller.Attach(AttachRequest)
+				Expect(attachResponse.Status).To(Equal("Failure"))
+				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			})
+
+			It("Attach should return Not supported for SpectrumScale backend", func() {
+				fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+				opts := map[string]string{}
+				host := "fakehost"
+				AttachRequest := k8sresources.FlexVolumeAttachRequest{"vol1", host, opts, "version", resources.RequestContext{}}
+				attachResponse := controller.Attach(AttachRequest)
+				Expect(attachResponse.Status).To(Equal("Not supported"))
+				Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			})
+		})
+
 		//Context(".Attach", func() {
 		//
 		//	It("fails when attachRequest does not have volumeName", func() {
@@ -200,6 +222,47 @@ var _ = Describe("Controller", func() {
 			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
 			Expect(fakeMounter.MountCallCount()).To(Equal(0))
 			Expect(mountResponse.Message).To(Equal(ctl.MissingWwnMountRequestErrorStr))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain mountpoint for spectrumscale backend", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(ctl.SpectrumScaleMissingMntPtVolumeErrorStr+" volume=[pv1]"))
+			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
+		})
+
+
+		It("should fail to prepareUbiquityMountRequest if GetVolumeConfig does not contain valid backend", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "fake", Mountpoint: "fake"}, nil)
+			byt := []byte(`{"fake":"fake"}`)
+			var dat map[string]interface{}
+			if err := json.Unmarshal(byt, &dat); err != nil {
+				panic(err)
+			}
+			fakeClient.GetVolumeConfigReturns(dat, nil)
+			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: "/pod/pv1", MountDevice: "pv1", Opts: map[string]string{}}
+
+			mountResponse := controller.Mount(mountRequest)
+
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeMounterFactory.GetMounterPerBackendCallCount()).To(Equal(1))
+			Expect(fakeClient.GetVolumeConfigCallCount()).To(Equal(1))
+			Expect(fakeMounter.MountCallCount()).To(Equal(0))
+			Expect(mountResponse.Message).To(Equal(ctl.PvBackendNotSupportedErrorStr+" backend=[fake]"))
 			Expect(mountResponse.Status).To(Equal(ctl.FlexFailureStr))
 		})
 
@@ -504,6 +567,7 @@ var _ = Describe("Controller", func() {
 			err :=  fmt.Errorf("an Error has occured")
 			fakeExec.GetGlobFilesReturns(nil, err)
 			controller = ctl.NewControllerWithClient(testLogger, ubiquityConfig, fakeClient, fakeExec, fakeMounterFactory)
+			fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "scbe", Mountpoint: "fake"}, nil)
 			mountRequest := k8sresources.FlexVolumeMountRequest{MountPath: mountPoint, MountDevice: "pv1", Opts: map[string]string{"Wwn": "fake"}, Version: k8sresources.KubernetesVersion_1_6OrLater}
 
 			mountResponse := controller.Mount(mountRequest)
@@ -955,10 +1019,90 @@ var _ = Describe("Controller", func() {
 			})
 		})
 	*/
+
+	Context(".IsAttached", func() {
+		var (
+			host string 
+		)
+		BeforeEach(func() {
+			host = "fakehost"
+		})
+
+        It("IsAttached should return success with Attached as false when GetVolume Fails with VolumeNotFoundErrorMsg ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, &resources.VolumeNotFoundError{VolName: "pv1"})
+			 opts := make(map[string]string)
+			 opts["volumeName"] = "pv1"
+			 isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts,  resources.RequestContext{}}
+             isAttachResponse := controller.IsAttached(isAttachedRequest)
+             Expect(isAttachResponse.Status).To(Equal("Success"))
+             Expect(isAttachResponse.Attached).To(Equal(false))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+        It("IsAttached should fail when GetVolume Fails with error other then VolumeNotFoundError.", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+			 opts := make(map[string]string)
+			 opts["volumeName"] = "pv1"
+			 isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts,  resources.RequestContext{}}
+             isAttachResponse := controller.IsAttached(isAttachedRequest)
+             Expect(isAttachResponse.Status).To(Equal("Failure"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+
+        It("IsAttached should return Not supported for SpectrumScale backend", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+             opts := make(map[string]string)
+             opts["volumeName"] = "pv1"
+             isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts, resources.RequestContext{}}
+             isAttachResponse := controller.IsAttached(isAttachedRequest)
+             Expect(isAttachResponse.Status).To(Equal("Not supported"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+        It("IsAttached should fail since Request options does not contain volume name", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+             opts := make(map[string]string)
+             isAttachedRequest := k8sresources.FlexVolumeIsAttachedRequest{"", host, opts, resources.RequestContext{}}
+             isAttachResponse := controller.IsAttached(isAttachedRequest)
+             Expect(isAttachResponse.Status).To(Equal("Failure"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(0))
+        })
+
+	})
+
 	Context(".Detach", func() {
 		BeforeEach(func() {
 
 		})
+
+        It("Detach should return success when GetVolume Fails with VolumeNotFoundError ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, &resources.VolumeNotFoundError{VolName: "vol1"})
+             host := "fakehost"
+             detachRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+             detachResponse := controller.Detach(detachRequest)
+             Expect(detachResponse.Status).To(Equal("Success"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+        It("Detach should fail when GetVolume Fails with error other than VolumeNotFoundError ", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{}, fmt.Errorf("GetVolume error"))
+             host := "fakehost"
+             detachRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+             detachResponse := controller.Detach(detachRequest)
+             Expect(detachResponse.Status).To(Equal("Failure"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
+        It("Detach should return Not supported for SpectrumScale backend", func() {
+             fakeClient.GetVolumeReturns(resources.Volume{Name: "pv1", Backend: "spectrum-scale", Mountpoint: "fake"}, nil)
+             host := "fakehost"
+             detachRequest := k8sresources.FlexVolumeDetachRequest{"vol1", host, "version", resources.RequestContext{}}
+             detachResponse := controller.Detach(detachRequest)
+             Expect(detachResponse.Status).To(Equal("Not supported"))
+             Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+        })
+
 		It("calling detach works as expected when volume is attached to the host", func() {
 			dat := make(map[string]interface{})
 			host := "host1"
