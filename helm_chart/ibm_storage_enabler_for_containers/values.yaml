@@ -1,0 +1,62 @@
+# ----------------------------------------------------
+# Helm chart to install IBM storage Enabler for Containers.
+# ----------------------------------------------------
+
+images:
+  ubiquity: ibmcom/ibm-storage-enabler-for-containers:2.0.0
+  ubiquitydb: ibmcom/ibm-storage-enabler-for-containers-db:2.0.0
+  provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
+  flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
+
+spectrumConnect:
+  connectionInfo:
+    # IP\FQDN and port of Spectrum Connect server.
+    fqdn=
+    port=8440
+    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
+    username=
+    password=
+    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+    sslMode=
+
+  backendConfig:
+    # A prefix for any new volume created on the storage system.
+    instanceName=
+    # Allowed values: true or false. Set to true if the nodes have FC connectivity.
+    skipRescanIscsi=false
+    # Default Spectrum Connect storage service to be used, if not specified by the storage class.
+    DefaultStorageService=
+
+    newVolumeDefaults:
+      # The fstype of a new volume if not specified by the user in the storage class.
+      # File system type. Allowed values: ext4 or xfs.
+      fsType=ext4
+      # The default volume size (in GB) if not specified by the user when creating a new volume.
+      size=1
+
+    dbPvConfig:
+      # Ubiquity database PV name. For Spectrum Virtualize and Spectrum Accelerate, use default value "ibm-ubiquity-db".
+      # For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
+      ubiquityDbPvName=ibm-ubiquity-db
+
+      storageClassForDbPv:
+        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+        storageClassName=
+        params:
+          # Storage Class profile parameter should point to the Spectrum Connect storage service name
+          spectrumConnectServiceName=
+          # Storage Class file-system type, Allowed values: ext4 or xfs.
+          fsType=ext4
+
+
+GenericConfig:
+  logging:
+    # Log level. Allowed values: debug, info, error.
+    logLevel=info
+    # Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
+    flexLogDir=/var/log
+
+  ubiquityDbCredentials:
+    # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
+    username=ubiquity
+    password=ubiquity
