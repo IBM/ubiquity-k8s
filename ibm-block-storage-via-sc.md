@@ -411,7 +411,7 @@ Filesystem                Size      Used Available Use% Mounted on
 COOL
 ```
 
-- Delete the POD so Kubernetes will reschedule the POD on a diffrent node (node1)
+- Delete the POD so Kubernetes will reschedule the POD on a different node (node1)
 ```bash
 #> kubectl delete pod $pod
 pod "sanity-deployment-75f959859f-dh979" deleted
