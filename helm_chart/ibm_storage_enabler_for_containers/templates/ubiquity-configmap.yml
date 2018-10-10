@@ -32,13 +32,13 @@ data:
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------
    # Flex log path. Allow to configure it, just make sure the the new path exist on all the minons and update the hostpath in the Flex daemonset
-   FLEX-LOG-DIR: {{ .Values.GenericConfig.logging.flexLogDir | quote  }}
+   FLEX-LOG-DIR: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
 
    # Maxlog size(MB) for rotate
    FLEX-LOG-ROTATE-MAXSIZE: "50"
 
    # Log level. Allowed values: debug, info, error.
-   LOG-LEVEL: {{ .Values.GenericConfig.logging.logLevel  | quote }}
+   LOG-LEVEL: {{ .Values.genericConfig.logging.logLevel  | quote }}
 
    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
    SSL-MODE: {{ .Values.spectrumConnect.connectionInfo.sslMode | quote }}
@@ -48,7 +48,7 @@ data:
    # --------------------------------------------------------------
    # The IP address of the ubiquity service object. The ubiquity_installer.sh automatically updates this field during the initial installation.
    # The user must update this key manually if the ubiqutiy service object IP was changed.
-   UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
+   UBIQUITY-IP-ADDRESS: {{ .Values.genericConfig.ubiquityIpAddress | quote }}
 
    # Allowed values: true or false. Set to true if the nodes have FC connectivity.
    SKIP-RESCAN-ISCSI: {{ .Values.spectrumConnect.backendConfig.skipRescanIscsi | quote }}

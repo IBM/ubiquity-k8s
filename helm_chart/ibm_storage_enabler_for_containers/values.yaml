@@ -48,8 +48,11 @@ spectrumConnect:
           # Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType=ext4
 
+genericConfig:
+  # The IP address of the ubiquity service object.
+  # The user must update this key manually if the ubiqutiy service object IP was changed.
+  ubiquityIpAddress=
 
-GenericConfig:
   logging:
     # Log level. Allowed values: debug, info, error.
     logLevel=info
@@ -60,3 +63,8 @@ GenericConfig:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username=ubiquity
     password=ubiquity
+
+  k8sApiServerAccess:
+    # The provisioner will use it to access API server in order to create\delete\view PVCs
+    server=
+    token=

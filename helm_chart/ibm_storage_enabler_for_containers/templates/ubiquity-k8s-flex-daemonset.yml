@@ -87,7 +87,7 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: {{ .Values.GenericConfig.logging.flexLogDir | quote  }}
+          mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          mountPath: /var/lib/ubiquity/ssl/public
@@ -100,7 +100,7 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: {{ .Values.GenericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
+          path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
 # Certificate Set : use the below volumes only if predefine certificate given
 # Cert #      - name: ubiquity-public-certificates
 # Cert #        configMap:
