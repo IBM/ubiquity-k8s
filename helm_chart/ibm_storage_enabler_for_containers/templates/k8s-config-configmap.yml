@@ -5,23 +5,6 @@ metadata:
   labels:
     product: ibm-storage-enabler-for-containers
 data:
+  # TODO later on we will replace this with service account and RBAC, but for phase1 its good enough
   config: |
-    apiVersion: v1
-    clusters:
-    - cluster:
-        insecure-skip-tls-verify: true
-        server: {{ .Values.genericConfig.k8sApiServerAccess.server }}
-      name: cluster.local
-    contexts:
-    - context:
-        cluster: cluster.local
-        namespace: default
-        user: admin
-      name: cluster.local-context
-    current-context: cluster.local-context
-    kind: Config
-    preferences: {}
-    users:
-    - name: admin
-      user:
-        token: {{ .Values.genericConfig.k8sApiServerAccess.token }}
+{{ .Files.Get "config" | indent 4 }}
