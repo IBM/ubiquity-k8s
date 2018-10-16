@@ -88,11 +88,11 @@ spec:
 
         - name: flex-log-dir
           mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-# Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #        - name: ubiquity-public-certificates
-# Cert #          mountPath: /var/lib/ubiquity/ssl/public
-# Cert #          readOnly: true
-
+{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+        - name: ubiquity-public-certificates
+          mountPath: /var/lib/ubiquity/ssl/public
+          readOnly: true
+{{ end }}
       volumes:
       - name: host-k8splugindir
         hostPath:
@@ -101,12 +101,13 @@ spec:
       - name: flex-log-dir
         hostPath:
           path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-# Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      - name: ubiquity-public-certificates
-# Cert #        configMap:
-# Cert #          name: ubiquity-public-certificates
-# Cert #          items:
-# Cert #            - key: ubiquity-trusted-ca.crt
-# Cert #              path: ubiquity-trusted-ca.crt
+{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+      - name: ubiquity-public-certificates
+        configMap:
+          name: ubiquity-public-certificates
+          items:
+            - key: ubiquity-trusted-ca.crt
+              path: ubiquity-trusted-ca.crt
+{{ end }}
 
 #      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
