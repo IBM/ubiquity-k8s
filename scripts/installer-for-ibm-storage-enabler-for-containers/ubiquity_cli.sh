@@ -154,6 +154,11 @@ function status()
     rc=0
     flags="$1"
 
+    cmd="kubectl get $nsf $flags serviceaccount/ubiquity clusterroles/ubiquity clusterrolebindings/ubiquity"
+    echo $cmd
+    echo '---------------------------------------------------------------------'
+    $cmd  || rc=$?
+
     cmd="kubectl get $flags storageclass | egrep \"ubiquity|^NAME\""
     echo $cmd
     echo '---------------------------------------------------------------------'

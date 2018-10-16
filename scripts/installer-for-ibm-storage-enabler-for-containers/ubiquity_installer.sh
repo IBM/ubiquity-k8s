@@ -378,6 +378,8 @@ function create_only_namespace_and_services()
         fi
     fi
 
+    create_serviceaccount_and_clusterroles
+
     # Creating ubiquity service
     if ! kubectl get $nsf service ${UBIQUITY_SERVICE_NAME} >/dev/null 2>&1; then
         kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
@@ -390,6 +392,30 @@ function create_only_namespace_and_services()
         kubectl create $nsf -f ${YML_DIR}/ubiquity-db-service.yml
     else
        echo "$UBIQUITY_DB_SERVICE_NAME service already exists, skipping service creation"
+    fi
+}
+
+function create_serviceaccount_and_clusterroles()
+{
+    # Creating ubiquity service account
+    if ! kubectl get $nsf serviceaccount ${UBIQUITY_SERVICEACCOUNT_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-serviceaccount.yml
+    else
+       echo "${UBIQUITY_SERVICEACCOUNT_NAME} serviceaccount already exists,skipping serviceaccount creation"
+    fi
+
+    # Creating ubiquity clusterRoles
+    if ! kubectl get $nsf clusterroles ${UBIQUITY_CLUSTERROLES_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-clusterroles.yml
+    else
+       echo "${UBIQUITY_CLUSTERROLES_NAME} clusterRoles already exists,skipping clusterRoles creation"
+    fi
+
+    # Creating ubiquity clusterRolesBindings
+    if ! kubectl get $nsf clusterrolebindings ${UBIQUITY_CLUSTERROLESBINDING_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-clusterrolebindings-k8s.yml
+    else
+       echo "${UBIQUITY_CLUSTERROLESBINDING_NAME} clusterrolebindings already exists,skipping clusterrolebindings creation"
     fi
 }
 
