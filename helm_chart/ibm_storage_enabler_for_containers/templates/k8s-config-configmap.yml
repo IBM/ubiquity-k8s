@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-config
+  labels:
+    product: ibm-storage-enabler-for-containers
+data:
+  # TODO later on we will replace this with service account and RBAC, but for phase1 its good enough
+  config: |
+{{ .Files.Get "config" | indent 4 }}
