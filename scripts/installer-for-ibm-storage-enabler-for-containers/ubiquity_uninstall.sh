@@ -130,7 +130,6 @@ $kubectl_delete -f ${YML_DIR}/../${SCBE_CRED_YML}
 $kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
-$kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 $kubectl_delete -f $YML_DIR/ubiquity-clusterrolebindings-k8s.yml
 $kubectl_delete -f $YML_DIR/ubiquity-clusterroles.yml
 $kubectl_delete -f $YML_DIR/ubiquity-serviceaccount.yml
