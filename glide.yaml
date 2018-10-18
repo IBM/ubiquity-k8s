@@ -110,7 +110,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: spectrumscale_epic2
+  version: 1a9cae43fc45e57019989c11737eb34d8a38db0d
   subpackages:
   - remote
   - resources
