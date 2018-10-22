@@ -38,13 +38,13 @@ spec:
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: username
 
           - name: UBIQUITY_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
