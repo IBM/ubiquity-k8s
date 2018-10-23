@@ -18,58 +18,64 @@ spectrumConnect:
     username:
     password:
 
-    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+    ## name-of-existing-secret
+    # existingSecret:
+
+    ## SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
     sslMode: require
 
   backendConfig:
-    # A prefix for any new volume created on the storage system.
+    ## A prefix for any new volume created on the storage system.
     instanceName:
-    # Allowed values: true or false. Set to true if the nodes have FC connectivity.
+    ## Allowed values: true or false. Set to true if the nodes have FC connectivity.
     skipRescanIscsi: false
-    # Default Spectrum Connect storage service to be used, if not specified by the storage class.
+    ## Default Spectrum Connect storage service to be used, if not specified by the storage class.
     DefaultStorageService:
 
     newVolumeDefaults:
-      # The fstype of a new volume if not specified by the user in the storage class.
-      # File system type. Allowed values: ext4 or xfs.
+      ## The fstype of a new volume if not specified by the user in the storage class.
+      ## File system type. Allowed values: ext4 or xfs.
       fsType: ext4
-      # The default volume size (in GB) if not specified by the user when creating a new volume.
+      ## The default volume size (in GB) if not specified by the user when creating a new volume.
       size: 1
 
     dbPvConfig:
-      # Ubiquity database PV name. For Spectrum Virtualize and Spectrum Accelerate, use default value "ibm-ubiquity-db".
-      # For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
+      ## Ubiquity database PV name. For Spectrum Virtualize and Spectrum Accelerate, use default value "ibm-ubiquity-db".
+      ## For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
       ubiquityDbPvName: ibm-ubiquity-db
 
       storageClassForDbPv:
-        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+        ## Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
         storageClassName:
         params:
-          # Storage Class profile parameter should point to the Spectrum Connect storage service name
+          ## Storage Class profile parameter should point to the Spectrum Connect storage service name
           spectrumConnectServiceName:
-          # Storage Class file-system type, Allowed values: ext4 or xfs.
+          ## Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType: ext4
 
 genericConfig:
-  # The IP address of the ubiquity service object.
-  # The user must update this key manually if the ubiqutiy service object IP was changed.
+  ## The IP address of the ubiquity service object.
+  ## The user must update this key manually if the ubiqutiy service object IP was changed.
   ubiquityIpAddress:
 
   logging:
-    # Log level. Allowed values: debug, info, error.
+    ## Log level. Allowed values: debug, info, error.
     logLevel: info
-    # Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
+    ## Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
     flexLogDir: /var/log
 
   ubiquityDbCredentials:
-    # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
+    ## Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
 
+    ## name-of-existing-secret
+    # existingSecret:
+
 #  k8sApiServerAccess:
-#    # The provisioner will use it to access API server in order to create\delete\view PVCs
+#    ## The provisioner will use it to access API server in order to create\delete\view PVCs
 #
-#    # server from the .kube/config
+#    ## server from the .kube/config
 #    server:
-#    # token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
+#    ## token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
 #    token:
