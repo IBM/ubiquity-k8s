@@ -21,17 +21,17 @@ spec:
         env:
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
-          - name: SCBE_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: scbe-credentials
-                key: username
+# SCBE Credentials #          - name: SCBE_USERNAME
+# SCBE Credentials #            valueFrom:
+# SCBE Credentials #              secretKeyRef:
+# SCBE Credentials #                name: scbe-credentials
+# SCBE Credentials #                key: username
 
-          - name: SCBE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: scbe-credentials
-                key: password
+# SCBE Credentials #          - name: SCBE_PASSWORD
+# SCBE Credentials #            valueFrom:
+# SCBE Credentials #              secretKeyRef:
+# SCBE Credentials #                name: scbe-credentials
+# SCBE Credentials #                key: password
 
           - name: SCBE_SSL_MODE            # Values : require/verify-full
             valueFrom:
@@ -86,6 +86,44 @@ spec:
                 key: IBM-UBIQUITY-DB-PV-NAME
 
 
+# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_USER
+# SPECTRUMSCALE Credentials #            valueFrom:
+# SPECTRUMSCALE Credentials #              secretKeyRef:
+# SPECTRUMSCALE Credentials #                name: scale-credentials
+# SPECTRUMSCALE Credentials #                key: username
+
+# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_PASSWORD
+# SPECTRUMSCALE Credentials #            valueFrom:
+# SPECTRUMSCALE Credentials #              secretKeyRef:
+# SPECTRUMSCALE Credentials #                name: scale-credentials
+# SPECTRUMSCALE Credentials #                key: password
+
+          - name: SPECTRUMSCALE_MANAGEMENT_IP
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-MANAGEMENT-IP
+
+          - name: SPECTRUMSCALE_MANAGEMENT_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-MANAGEMENT-PORT
+
+          - name: SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME
+
+          - name: SPECTRUMSCALE_FORCE_DELETE
+            value: "true"
+
+          - name: SPECTRUMSCALE_SSL_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-SSL-MODE
 
           ### Ubiquity generic parameters:
           ################################
@@ -164,6 +202,7 @@ spec:
 # Cert #          items:
 # Cert #          - key: ubiquity-db-trusted-ca.crt
 # Cert #            path: ubiquity-db-trusted-ca.crt
-# Cert #          - key: scbe-trusted-ca.crt
-# Cert #            path: scbe-trusted-ca.crt
-
+# SCBE Cert #          - key: scbe-trusted-ca.crt
+# SCBE Cert #            path: scbe-trusted-ca.crt
+# SPECTRUMSCALE Cert #          - key: scbe-trusted-ca.crt
+# SPECTRUMSCALE Cert #            path: scbe-trusted-ca.crt
