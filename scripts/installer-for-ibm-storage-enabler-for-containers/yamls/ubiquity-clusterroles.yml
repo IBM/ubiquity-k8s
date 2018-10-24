@@ -6,31 +6,19 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "delete"]
-    # Needed for ubiqutiy provisioner in order to manage PVs.
+    # Needed for ubiquity provisioner in order to manage PVs.
 
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch", "create", "delete"]
-    # Needed for the installer\Helm in order to create the first ubiqutiy-db PVC.
+    verbs: ["get", "list", "watch", "update"]
+    # Needed for ubiquity provisioner in order to manage PVCs.
 
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses"]
     verbs: ["get", "list", "watch"]
-    # Needed for ubiqutiy provisioner in order to create PVCs.
-
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch", "create", "delete"]
-    # Needed for the installer\Helm in order to manage its secrets.
-    # Note: we can tune that only for ubiquity namespace (as Role instead inside ClusterRole)
-
-  - apiGroups: ["extensions", "apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list", "watch", "update"]
-    # Needed for the installer\Helm in order to manage uninstall ordering ubiqutiy-db before provisioner and flex.
-    # Note: we can tune that only for ubiquity namespace (as Role instead inside ClusterRole)
+    # Needed for ubiquity provisioner as part of the provisioning of PVCs.
 
   - apiGroups: [""]
     resources: ["events"]
-    verbs: ["watch", "create", "update", "patch"]
-    # Potentially needed for k8s events.
+    verbs: ["watch", "create", "list", "update", "patch"]
+    # Needed for ubiquity provisioner in order to manage PVC events.
