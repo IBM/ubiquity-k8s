@@ -12,6 +12,7 @@ spec:
         app: ubiquity-k8s-provisioner
         product: ibm-storage-enabler-for-containers
     spec:
+      serviceAccount: ubiquity      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
         image: UBIQUITY_K8S_PROVISIONER_IMAGE
@@ -20,8 +21,8 @@ spec:
             value: "ubiquity"
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
-          - name: KUBECONFIG
-            value: "/tmp/k8sconfig/config"
+          - name: KUBECONFIG        # A file path to k8s config file that will be used by the provisioner to access API server for PVC managment. If empty the provisioner will use the pod spec service account token instead of dedicated file.
+            value: ""               # No need to use ubiquity-configmap because its a deprecated option. We moved to service account.
           - name: RETRIES          # number of retries on failure
             value: "1"
           - name: LOG_PATH         # provisioner log file directory
