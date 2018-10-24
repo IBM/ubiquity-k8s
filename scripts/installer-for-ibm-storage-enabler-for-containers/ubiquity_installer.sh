@@ -270,15 +270,17 @@ function update-ymls()
       exit 2
    fi
 
-   # Default backend handling
-   if [[ $(find_backend_from_configmap) == *"scbe"* ]]
+   # Handling DEFAULT_BACKEND and Updating the MANAGEMENT_IP_VALUE with empty string
+   if [[ $(find_backend_from_configfile) == *"scbe"* ]]
    then
        sed -i "s|DEFAULT_BACKEND_VALUE|scbe|g" ${YML_DIR}/../ubiquity-configmap.yml
+       sed -i "s|SPECTRUMSCALE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
    fi
 
-   if [[ $(find_backend_from_configmap) == *"spectrumscale"* ]]
+   if [[ $(find_backend_from_configfile) == *"spectrumscale"* ]]
    then
        sed -i "s|DEFAULT_BACKEND_VALUE|spectrum-scale|g" ${YML_DIR}/../ubiquity-configmap.yml
+       sed -i "s|SCBE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
    fi
 
    if [ "$ssl_mode" = "verify-full" ]; then
@@ -291,11 +293,11 @@ function update-ymls()
        # this sed removes the comments from all the certificate lines in the yml files
        sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
        # Removed the commentes on ca-cert based on backend
-       if [[ $(find_backend_from_configmap) == *"spectrumscale"* ]]
+       if [[ $(find_backend_from_configfile) == *"spectrumscale"* ]]
        then
 	    sed -i 's/^# SPECTRUMSCALE Cert #\(.*\)/\1  # SPECTRUMSCALE Cert #/g' ${ymls_to_updates} 
        fi
-       [[ $(find_backend_from_configmap) == *"scbe"* ]] && sed -i 's/^# SCBE Cert #\(.*\)/\1  # SCBE Cert #/g' ${ymls_to_updates} 
+       [[ $(find_backend_from_configfile) == *"scbe"* ]] && sed -i 's/^# SCBE Cert #\(.*\)/\1  # SCBE Cert #/g' ${ymls_to_updates} 
        echo "  Certificate updates are completed."
    fi
 
@@ -472,12 +474,12 @@ function find_backend_from_configmap()
      unset isitscale
      unset isitscbe
      unset backendtobeinstalled
-     isitscale=`kubectl get $nsf configmap ubiquity-configmap kn get -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}"`
+     isitscale=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}"`
 #     isitscale=`cat ${YML_DIR}/../ubiquity-configmap.yml | grep -v "^\s*#" | grep SPECTRUMSCALE-MANAGEMENT-IP | awk -F: '{print $2}' | awk '{$1=$1;print}' | tr -d '"'`
      [[ ! -z $isitscale ]] && backendtobeinstalled="spectrumscale"
 
 #     isitscbe=`cat ${YML_DIR}/../ubiquity-configmap.yml | grep -v "^\s*#" | grep SCBE-MANAGEMENT-IP | awk -F: '{print $2}' | awk '{$1=$1;print}' | tr -d '"'`
-     isitscbe=`kubectl get $nsf configmap ubiquity-configmap kn get -o jsonpath="{.data.SCBE-MANAGEMENT-IP}"`
+     isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}"`
      [[ ! -z $isitscbe ]] && [[ -z $backendtobeinstalled ]] && backendtobeinstalled="scbe"
      [[ ! -z $isitscbe ]] && [[ $backendtobeinstalled == "spectrumscale" ]] && backendtobeinstalled+=";scbe"
      echo "$backendtobeinstalled"
@@ -488,10 +490,10 @@ function find_backend_from_configfile()
      unset isitscale
      unset isitscbe
      unset backendtobeinstalled
-     isitscale=`awk -F= '/^SPECTRUMSCALE_MANAGEMENT_IP_VALUE/ {print $2}' $config_file`
+     isitscale=`awk -F= '/^SPECTRUMSCALE_MANAGEMENT_IP_VALUE/ {print $2}' $CONFIG_SED_FILE`
      [[ ! -z $isitscale ]] && [[ $isitscale != "VALUE" ]] && backendtobeinstalled="spectrumscale"
 
-     isitscbe=`cat $config_file | grep ^SCBE_MANAGEMENT_IP_VALUE | awk -F= '{print $2}'`
+     isitscbe=`awk -F= '/^SCBE_MANAGEMENT_IP_VALUE/ {print $2}' $CONFIG_SED_FILE`
      [[ ! -z $isitscbe ]] && [[ $isitscbe != "VALUE" ]] && [[ -z $backendtobeinstalled ]] && backendtobeinstalled="scbe"
      [[ ! -z $isitscbe ]] && [[ $isitscbe != "VALUE" ]] && [[ $backendtobeinstalled == "spectrumscale" ]] && backendtobeinstalled+=";scbe"
      echo "$backendtobeinstalled"

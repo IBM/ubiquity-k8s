@@ -9,7 +9,7 @@ data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
-   SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
+   SCBE-MANAGEMENT-IP: "SCBE_MANAGEMENT_IP_VALUE"
 
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
    SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"

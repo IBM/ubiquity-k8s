@@ -89,13 +89,13 @@ spec:
           - name: SPECTRUMSCALE_REST_USER
             valueFrom:
               secretKeyRef:
-                name: scale-credentials
+                name: spectrumscale-credentials
                 key: username
 
           - name: SPECTRUMSCALE_REST_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scale-credentials
+                name: spectrumscale-credentials
                 key: password
 
           - name: SPECTRUMSCALE_MANAGEMENT_IP
