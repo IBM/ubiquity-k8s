@@ -1,7 +1,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
-  name: "STORAGE_CLASS_NAME_VALUE"
+  name: "spectrum-scale-fileset"
   labels:
     product: ibm-storage-enabler-for-containers
 #  annotations:
@@ -9,7 +9,7 @@ metadata:
 provisioner: "ubiquity/flex"
 parameters:
   backend: "spectrum-scale"
-  filesystem: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"   
+  filesystem: "gpfs0fs"   
   fileset-type: "dependent" # Valid values - dependent, independent
   type: fileset             # Valid values - fileset
 #  uid: <uid number>

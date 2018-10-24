@@ -39,7 +39,7 @@ data:
    SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"
   
    # SSL verification mode for communication between Ubiquity and Spectrum Scale GUI. Allowed values: require    (no validation is required) and verify-full (user-provided certificates).
-   SPECTRUMSCALE-SSL-MODE-VALUE: "SPECTRUMSCALE_SSL_MODE_VALUE"
+   SPECTRUMSCALE-SSL-MODE: "SPECTRUMSCALE_SSL_MODE_VALUE"
 
    # Default Ubiquity Backend
    DEFAULT-BACKEND: "DEFAULT_BACKEND_VALUE"
