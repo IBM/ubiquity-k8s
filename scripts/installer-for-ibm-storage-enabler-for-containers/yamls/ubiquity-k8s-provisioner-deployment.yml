@@ -54,19 +54,14 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-        volumeMounts:
-          - name: k8s-config
-            mountPath: /tmp/k8sconfig
 # Certificate Set : use the below volumeMounts only if predefine certificate given
+# Cert #        volumeMounts:
 # Cert #          - name: ubiquity-public-certificates
 # Cert #            mountPath: /var/lib/ubiquity/ssl/public
 # Cert #            readOnly: true
 
-      volumes:
-        - name: k8s-config
-          configMap:
-            name: k8s-config
 # Certificate Set : use the below volumes only if predefine certificate given
+# Cert #      volumes:
 # Cert #        - name: ubiquity-public-certificates
 # Cert #          configMap:
 # Cert #            name: ubiquity-public-certificates
