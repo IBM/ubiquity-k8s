@@ -7,8 +7,8 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded
   namespace: ubiquity
   labels:
-    app: {{ template "ubiquity.name" . }}
-    chart: {{ template "ubiquity.chart" . }}
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
@@ -41,7 +41,7 @@ spec:
         - name: UBIQUITY_IP
           value: "echo $GET_RESPONSE | awk -F 'clusterIP\": ' '{print $2}' | awk -F ',' '{print $1}'"
         - name: PATCH_BODY
-          value: '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"normal\"}],\"containers\":[{\"env\":[{\"name\":\"UBIQUITY_IP_ADDRESS\"}],\"env\":[{\"name\":\"UBIQUITY_IP_ADDRESS\",\"value\":$UBIQUITY_IP_ADDRESS,\"valueFrom\":null}],\"name\":\"normal\"}]}}}}'
+          value: '{\"spec\":{\"template\":{\"spec\":{\"$setElementOrder/containers\":[{\"name\":\"ubiquity-k8s-flex\"}],\"containers\":[{\"$setElementOrder/env\":[{\"name\":\"UBIQUITY_PORT\"},{\"name\":\"UBIQUITY_BACKEND\"},{\"name\":\"FLEX_LOG_DIR\"},{\"name\":\"FLEX_LOG_ROTATE_MAXSIZE\"},{\"name\":\"LOG_LEVEL\"},{\"name\":\"UBIQUITY_USERNAME\"},{\"name\":\"UBIQUITY_PASSWORD\"},{\"name\":\"UBIQUITY_PLUGIN_SSL_MODE\"},{\"name\":\"UBIQUITY_IP_ADDRESS\"},{\"name\":\"SKIP_RESCAN_ISCSI\"}],\"env\":[{\"name\":\"UBIQUITY_IP_ADDRESS\",\"value\":$UBIQUITY_IP_ADDRESS,\"valueFrom\":null}],\"name\":\"ubiquity-k8s-flex\"}]}}}}'
         - name: PATCH_DAEMONSET_IP
           value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" -H \"$(ACCEPT)\" -H \"$(CONTENT_TYPE)\" -X PATCH --data $(PATCH_BODY) $(DAEMONSET_URL)"
         - name: TITLE
@@ -49,7 +49,7 @@ spec:
         - name: DELIMITER
           value: "--------------------------------------------------------"
         command: ["/bin/sh"]
-        args: ["-c", "echo -e '$(DELIMITER)\n$(TITLE)\n$(DELIMITER)'; TOKEN_VALUE=`$(TOKEN)`; echo $(GET_SERVICE_IP); GET_RESPONSE=`$(GET_SERVICE_IP)`; UBIQUITY_IP_ADDRESS=`$(UBIQUITY_IP)`; echo 'UbiquityIP: '$UBIQUITY_IP_ADDRESS; echo $(PATCH_DAEMONSET_IP); PATCH=`$(PATCH_DAEMONSET_IP)`; echo 'Patch successfully!'"]
+        args: ["-c", "echo -e '$(DELIMITER)\n$(TITLE)\n$(DELIMITER)'; TOKEN_VALUE=`$(TOKEN)`; echo $(GET_SERVICE_IP); GET_RESPONSE=`$(GET_SERVICE_IP)`; UBIQUITY_IP_ADDRESS=`$(UBIQUITY_IP)`; echo 'UbiquityIP: '$UBIQUITY_IP_ADDRESS; echo $(PATCH_DAEMONSET_IP); PATCH=`$(PATCH_DAEMONSET_IP)`; echo $PATCH; echo 'Patch successfully!';"]
       restartPolicy: Never
       serviceAccount: ubiquity
   backoffLimit: 2

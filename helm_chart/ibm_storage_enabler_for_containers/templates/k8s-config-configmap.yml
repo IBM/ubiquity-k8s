@@ -2,8 +2,13 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: k8s-config
+  namespace: ubiquity
   labels:
     product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 data:
   # TODO later on we will replace this with service account and RBAC, but for phase1 its good enough
   config: |

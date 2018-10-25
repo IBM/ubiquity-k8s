@@ -1,18 +1,10 @@
 apiVersion: v1
-kind: Service
+kind: Namespace
 metadata:
   name: ubiquity
-  namespace: ubiquity
   labels:
-    app: ubiquity
     product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
     chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-spec:
-  ports:
-    - port: 9999
-      protocol: TCP
-      targetPort: 9999
-  selector:
-    app: ubiquity

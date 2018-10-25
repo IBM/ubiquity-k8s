@@ -2,9 +2,13 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: ubiquity-k8s-flex
+  namespace: ubiquity
   labels:
     app: ubiquity-k8s-flex
     product: ibm-storage-enabler-for-containers
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 spec:
   updateStrategy:
     type: RollingUpdate

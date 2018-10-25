@@ -2,11 +2,16 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "ibm-ubiquity-db"
+  namespace: ubiquity
   annotations:
     volume.beta.kubernetes.io/storage-class: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName  | quote }}
   labels:
     pv-name: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}   # Ubiquity provisioner will create a PV with dedicated name (by default its ibm-ubiquity-db)
     product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 
 spec:
   accessModes:

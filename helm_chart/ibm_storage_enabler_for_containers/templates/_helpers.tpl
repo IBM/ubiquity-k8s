@@ -46,9 +46,9 @@ Create the name for the scbe secret
 Create the name for ubiquity-db secret                                                                                                                                                 
 */}}                                                                                                                                                                         
 {{- define "ibm_storage_enabler_for_containers.ubiquityDbCredentials" -}}                  
-    {{- if .Values.GenericConfig.ubiquityDbCredentials.existingSecret -}}
-        {{- .Vaules.GenericConfig.ubiquityDbCredentials.existingSecret -}}
+    {{- if .Values.genericConfig.ubiquityDbCredentials.existingSecret -}}
+        {{- .Vaules.genericConfig.ubiquityDbCredentials.existingSecret -}}
     {{- else -}}
-        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquityDB 
+        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquitydb 
     {{- end -}}                                                                                                        
 {{- end -}}
