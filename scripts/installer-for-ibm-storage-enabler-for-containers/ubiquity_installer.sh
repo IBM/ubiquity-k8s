@@ -350,11 +350,11 @@ function create-services()
     echo "   Prerequisite:"
     echo "     (1) Generate dedicated certificates for 'ubiquity', 'ubiquity-db' and SCBE, using specific file names"
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
-    echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
+    echo "          $> ./$0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
-    echo "     (1)  $> $0 -s install -k <file> -n $NS"
+    echo "     (1)  $> ./$0 -s install -k <file> -n $NS"
     echo "     (2)  Manually restart kubelet service on all kubernetes nodes to reload the new FlexVolume driver"
-    echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
+    echo "     (3)  $> ./$0 -s create-ubiquity-db -n $NS"
     echo ""
 }
 
@@ -377,7 +377,9 @@ function create-secrets-for-certificates()
     echo "Creating secrets [ubiquity-private-certificate and ubiquity-db-private-certificate] and ConfigMap [ubiquity-public-certificates] based on files in directory $CERT_DIR"
 
     # Validating all certificate files in the $CERT_DIR directory
-    expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt scbe-trusted-ca.crt "
+    expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt"
+    [[ $(find_backend_from_configmap) == *"spectrumscale"* ]] && expected_cert_files+=" spectrumscale-trusted-ca.crt"
+    [[ $(find_backend_from_configmap) == *"scbe"* ]] && expected_cert_files+=" scbe-trusted-ca.crt"
     for certfile in $expected_cert_files; do
         if [ ! -f $CERT_DIR/$certfile ]; then
             echo "Error: Missing certificate file $CERT_DIR/$certfile in directory $CERT_DIR."
@@ -395,7 +397,11 @@ function create-secrets-for-certificates()
     cd $CERT_DIR
     kubectl create secret $nsf generic ubiquity-db-private-certificate --from-file=ubiquity-db.key --from-file=ubiquity-db.crt
     kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
-    kubectl create configmap $nsf ubiquity-public-certificates --from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt
+
+    ca_cert_files="--from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt"
+    [[ $(find_backend_from_configmap) == *"spectrumscale"* ]] && ca_cert_files=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
+    [[ $(find_backend_from_configmap) == *"scbe"* ]] && ca_cert_files=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
+    kubectl create configmap $nsf ubiquity-public-certificates $ca_cert_files
     cd -
 
     kubectl get $nsf secrets/ubiquity-db-private-certificate secrets/ubiquity-private-certificate cm/ubiquity-public-certificates
