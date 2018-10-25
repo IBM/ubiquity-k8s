@@ -35,15 +35,10 @@
 #     $> ./ubiquity_installer.sh -s update-ymls -c ubiquity_installer.conf.
 #
 # Installation
-#  1. Install IBM Storage Enabler for Containers without its database by running this command: 
+#  1. Install IBM Storage Enabler for Containers by running this command: 
 #     $> ./ubiquity_installer.sh -s install -k < Kubernetes configuration file >.
 #     Note: ubiqutiy-k8s-provisioner uses the Kubernetes configuration file(given by -k flag) to access the Kubernetes API server. 
 #           Usually, Kubernetes configuration file is located either in the ~/.kube/config or /etc/kubernetes directory.
-#
-#  2. Manually restart the kubelet on all the Kubernetes nodes.
-#
-#  3. Install the IBM Storage Enabler for Containers database(ubiquity-db) by running this command: 
-#     $> ./ubiquity_installer.sh -s create-ubiquity-db.
 #
 # -------------------------------------------------------------------------
 
@@ -57,13 +52,10 @@ USAGE   $cmd -s <STEP> <FLAGS>
         Replace the placeholders from -c <file> in the relevant yml files.
         Flag -c <ubiquity-config-file> is mandatory for this step
     -s install -k <k8s config file> [-n <namespace>]
-        Installs all $PRODUCT_NAME components in orderly fashion (except for ubiquity-db).
+        Installs all $PRODUCT_NAME components in orderly fashion.
         Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner.
         Usually, this file is stored in the ~/.kube/config or in /etc/kubernetes directory.
         Flag -n <namespace>. By default, it is \"ubiquity\" namespace.
-    -s create-ubiquity-db [-n <namespace>]
-        Creates the ubiquity-db deployment, waiting for its creation.
-        Use this option after finishing the installation and manually restarting the kubelets on the nodes.
 
     Steps required for SSL_MODE=verify-full:
     -s create-services [-n <namespace>]
@@ -151,20 +143,7 @@ function install()
         flex_missing=true
     fi
 
-
-
-    if [ "${to_deploy_ubiquity_db}" == "true" ]; then
-        create-ubiquity-db
-    else
-        echo ""
-        echo "\"$PRODUCT_NAME\" Installation finished, but the deployment is not ready yet."
-        echo "  Perform the following: "
-        [ "$flex_missing" = "true" ] && echo "     (0) Verify that ubiquity-k8s-flex daemonset pod runs on all nodes including all masters. If not, check why."
-        echo "     (1) Manually restart the kubelet service on all Kubernetes nodes to reload the new FlexVolume driver."
-        echo "     (2) Deploy ubiquity-db by $> $0 -s create-ubiquity-db -n $NS"
-        echo "     Note : View status by $> ./ubiquity_cli.sh -a status -n $NS"
-        echo ""
-    fi
+    create-ubiquity-db
 }
 
 # STEP function
@@ -279,7 +258,7 @@ function create-ubiquity-db()
    ##  Creates deployment for ubiquity-db
    ########################################
 
-    echo "Creating ubiquity-db deployment... (Assuming that the IBM Storage Kubernetes FlexVolume(ubiquity-k8s-flex) plugin is already loaded on all the nodes)"
+    echo "Creating ubiquity-db deployment..."
     kubectl create --namespace $NS -f ${YML_DIR}/${UBIQUITY_DB_DEPLOY_YML}
     echo "Waiting for deployment [ubiquity-db] to be created..."
     wait_for_deployment ubiquity-db 50 5 $NS
@@ -311,8 +290,6 @@ function create-services()
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
     echo "     (1)  $> $0 -s install -k <file> -n $NS"
-    echo "     (2)  Manually restart kubelet service on all kubernetes nodes to reload the new FlexVolume driver"
-    echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
     echo ""
 }
 
@@ -433,23 +410,19 @@ SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
-steps="update-ymls install create-ubiquity-db create-services create-secrets-for-certificates"
+steps="update-ymls install create-services create-secrets-for-certificates"
 
 [ ! -f $UTILS ] && { echo "Error: $UTILS file is not found"; exit 3; }
 . $UTILS # include utils for wait function and status
 
 # Handle flags
 NS="$UBIQUITY_DEFAULT_NAMESPACE" # Set as the default namespace
-to_deploy_ubiquity_db="false"
 KUBECONF="" #~/.kube/config
 CONFIG_SED_FILE=""
 STEP=""
 CERT_DIR=""
 while getopts ":dc:k:s:n:t:h" opt; do
   case $opt in
-    d)
-      to_deploy_ubiquity_db="true"
-      ;;
     c)
       CONFIG_SED_FILE=$OPTARG
       ;;
