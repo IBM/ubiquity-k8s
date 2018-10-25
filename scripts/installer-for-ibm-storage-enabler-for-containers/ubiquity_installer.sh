@@ -386,21 +386,21 @@ function create_serviceaccount_and_clusterroles()
 {
     # Creating ubiquity service account
     if ! kubectl get $nsf serviceaccount ${UBIQUITY_SERVICEACCOUNT_NAME} >/dev/null 2>&1; then
-        kubectl create $nsf -f ${YML_DIR}/ubiquity-serviceaccount.yml
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-serviceaccount.yml
     else
        echo "${UBIQUITY_SERVICEACCOUNT_NAME} serviceaccount already exists,skipping serviceaccount creation"
     fi
 
     # Creating ubiquity clusterRoles
     if ! kubectl get $nsf clusterroles ${UBIQUITY_CLUSTERROLES_NAME} >/dev/null 2>&1; then
-        kubectl create $nsf -f ${YML_DIR}/ubiquity-clusterroles.yml
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-clusterroles.yml
     else
        echo "${UBIQUITY_CLUSTERROLES_NAME} clusterRoles already exists,skipping clusterRoles creation"
     fi
 
     # Creating ubiquity clusterRolesBindings
     if ! kubectl get $nsf clusterrolebindings ${UBIQUITY_CLUSTERROLESBINDING_NAME} >/dev/null 2>&1; then
-        kubectl create $nsf -f ${YML_DIR}/ubiquity-clusterrolebindings-k8s.yml
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-clusterrolebindings.yml
     else
        echo "${UBIQUITY_CLUSTERROLESBINDING_NAME} clusterrolebindings already exists,skipping clusterrolebindings creation"
     fi

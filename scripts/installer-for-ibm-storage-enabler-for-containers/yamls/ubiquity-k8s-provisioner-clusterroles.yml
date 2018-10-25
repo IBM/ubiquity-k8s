@@ -1,7 +1,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ubiquity
+  name: ubiquity-k8s-provisioner
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]

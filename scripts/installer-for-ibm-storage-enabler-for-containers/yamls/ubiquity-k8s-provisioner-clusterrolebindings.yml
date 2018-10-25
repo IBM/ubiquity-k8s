@@ -1,12 +1,12 @@
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ubiquity
+  name: ubiquity-k8s-provisioner
 subjects:
   - kind: ServiceAccount
-    name: ubiquity
+    name: ubiquity-k8s-provisioner
     namespace: ubiquity   # Note: its the only hardcoded ubiquity namespace (consider to use Values)
 roleRef:
   kind: ClusterRole
-  name: ubiquity
+  name: ubiquity-k8s-provisioner
   apiGroup: rbac.authorization.k8s.io

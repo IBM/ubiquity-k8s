@@ -12,7 +12,7 @@ spec:
         app: ubiquity-k8s-provisioner
         product: ibm-storage-enabler-for-containers
     spec:
-      serviceAccount: ubiquity      # In order to get the server API token from the service account.
+      serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
         image: UBIQUITY_K8S_PROVISIONER_IMAGE
