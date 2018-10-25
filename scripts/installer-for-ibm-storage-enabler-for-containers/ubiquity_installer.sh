@@ -174,7 +174,7 @@ function install()
         echo "  Perform the following: "
         [ "$flex_missing" = "true" ] && echo "     (0) Verify that ubiquity-k8s-flex daemonset pod runs on all nodes including all masters. If not, check why."
         echo "     (1) Manually restart the kubelet service on all Kubernetes nodes to reload the new FlexVolume driver."
-        echo "     (2) Deploy ubiquity-db by $> $0 -s create-ubiquity-db -n $NS"
+        echo "     (2) Deploy ubiquity-db by $> ./$0 -s create-ubiquity-db -n $NS"
         echo "     Note : View status by $> ./ubiquity_cli.sh -a status -n $NS"
         echo ""
     fi
@@ -276,17 +276,21 @@ function update-ymls()
       exit 2
    fi
 
-   # Handling DEFAULT_BACKEND and Updating the MANAGEMENT_IP_VALUE with empty string
+   # Handling DEFAULT_BACKEND, Uncommenting Credentials based on backend, Handling backend initilization 
+   ymls_to_updates="${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML} ${YML_DIR}/${UBIQUITY_DEPLOY_YML}"
    if [[ $(find_backend_from_configfile) == *"scbe"* ]]
    then
        sed -i "s|DEFAULT_BACKEND_VALUE|scbe|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SPECTRUMSCALE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
+       sed -i 's/^# SCBE Credentials #\(.*\)/\1  # SCBE Credentials #/g' ${ymls_to_updates}
    fi
 
    if [[ $(find_backend_from_configfile) == *"spectrumscale"* ]]
    then
        sed -i "s|DEFAULT_BACKEND_VALUE|spectrum-scale|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SCBE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
+       sed -i "s|SKIP_RESCAN_ISCSI_VALUE|false|g" ${YML_DIR}/../ubiquity-configmap.yml
+       sed -i 's/^# SPECTRUMSCALE Credentials #\(.*\)/\1  # SPECTRUMSCALE Credentials #/g' ${ymls_to_updates}
    fi
 
    if [ "$ssl_mode" = "verify-full" ]; then

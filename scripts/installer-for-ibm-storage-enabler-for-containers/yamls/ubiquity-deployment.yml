@@ -86,17 +86,17 @@ spec:
                 key: IBM-UBIQUITY-DB-PV-NAME
 
 
-          - name: SPECTRUMSCALE_REST_USER
-            valueFrom:
-              secretKeyRef:
-                name: spectrumscale-credentials
-                key: username
+# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_USER
+# SPECTRUMSCALE Credentials #            valueFrom:
+# SPECTRUMSCALE Credentials #              secretKeyRef:
+# SPECTRUMSCALE Credentials #                name: spectrumscale-credentials
+# SPECTRUMSCALE Credentials #                key: username
 
-          - name: SPECTRUMSCALE_REST_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: spectrumscale-credentials
-                key: password
+# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_PASSWORD
+# SPECTRUMSCALE Credentials #            valueFrom:
+# SPECTRUMSCALE Credentials #              secretKeyRef:
+# SPECTRUMSCALE Credentials #                name: spectrumscale-credentials
+# SPECTRUMSCALE Credentials #                key: password
 
           - name: SPECTRUMSCALE_MANAGEMENT_IP
             valueFrom:
