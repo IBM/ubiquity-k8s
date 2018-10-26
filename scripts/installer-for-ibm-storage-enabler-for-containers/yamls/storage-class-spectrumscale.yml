@@ -10,8 +10,5 @@ provisioner: "ubiquity/flex"
 parameters:
   backend: "spectrum-scale"
   filesystem: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"
-  fileset-type: "dependent" # Valid values - dependent, independent
-  type: fileset             # Valid values - fileset
-#  uid: <uid number>
-#  gid: <gid number>
-#  inode-limit: <number of inode to be preallocated> 
+  fileset-type: "dependent"
+  type: fileset

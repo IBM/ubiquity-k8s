@@ -105,6 +105,10 @@ function install()
     [ -z "$KUBECONF" ] && { echo "Error: Missing -k <file> flag for STEP [$STEP]"; exit 4; } || :
     [ ! -f "$KUBECONF" ] && { echo "Error : $KUBECONF not found."; exit 3; } || :
 
+
+    # Check for backend to be installed and restrict more than one backend installation
+    backend_from_configmap=$(find_backend_from_configmap)
+
     echo "Starting installation  \"$PRODUCT_NAME\"..."
     echo "Installing on the namespace  [$NS]."
 
@@ -124,8 +128,7 @@ function install()
     wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
     # Create storage class and PVC, then wait for PVC and PV creation
-    if [[ $(find_backend_from_configmap) == *"scbe"* ]]
-    then
+    if [ "$backend_from_configmap" == "scbe" ]; then
     	if ! kubectl get $nsf -f ${YML_DIR}/storage-class.yml > /dev/null 2>&1; then
         	kubectl create $nsf -f ${YML_DIR}/storage-class.yml
     	else
@@ -133,8 +136,7 @@ function install()
     	fi
     fi
 
-    if [[ $(find_backend_from_configmap) == *"spectrumscale"* ]]
-    then
+    if [ "$backend_from_configmap" == "spectrumscale" ]; then
     	if ! kubectl get $nsf -f ${YML_DIR}/storage-class-spectrumscale.yml > /dev/null 2>&1; then
         	kubectl create $nsf -f ${YML_DIR}/storage-class-spectrumscale.yml
     	else
@@ -236,10 +238,10 @@ function update-ymls()
    base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE SPECTRUMSCALE_USERNAME_VALUE SPECTRUMSCALE_PASSWORD_VALUE"
    was_updated="false" # if there is nothing to update, exit with error
 
+   # Check for backend to be installed and restrict more than one backend installation
    backend_from_configfile=$(find_backend_from_configfile)
-   if [ "$backend_from_configfile" = "none" ]; then
-      echo "ERROR: Not able to determine the backend from [${CONFIG_SED_FILE}]"
-      echo "       Consider using correct config file "
+   if [ -z "$backend_from_configfile" ]; then
+      echo "ERROR: Either SCBE_MANAGEMENT_IP_VALUE or SPECTRUMSCALE_MANAGEMENT_IP_VALUE need to be populated with correct value to proceed further."
       exit 2
    fi
 
@@ -285,15 +287,13 @@ function update-ymls()
 
    # Handling DEFAULT_BACKEND, Uncommenting Credentials based on backend, Handling backend initilization 
    ymls_to_updates="${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML} ${YML_DIR}/${UBIQUITY_DEPLOY_YML}"
-   if [[ $backend_from_configfile == *"scbe"* ]]
-   then
+   if [ "$backend_from_configfile" == "scbe" ]; then
        sed -i "s|DEFAULT_BACKEND_VALUE|scbe|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SPECTRUMSCALE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i 's/^# SCBE Credentials #\(.*\)/\1  # SCBE Credentials #/g' ${ymls_to_updates}
    fi
 
-   if [[ $backend_from_configfile == *"spectrumscale"* ]]
-   then
+   if [ "$backend_from_configfile" == "spectrumscale" ]; then
        sed -i "s|DEFAULT_BACKEND_VALUE|spectrum-scale|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SCBE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SKIP_RESCAN_ISCSI_VALUE|false|g" ${YML_DIR}/../ubiquity-configmap.yml
@@ -310,11 +310,13 @@ function update-ymls()
        # this sed removes the comments from all the certificate lines in the yml files
        sed -i 's/^# Cert #\(.*\)/\1  # Cert #/g' ${ymls_to_updates}
        # Removed the commentes on ca-cert based on backend
-       if [[ $backend_from_configfile == *"spectrumscale"* ]]
-       then
-	    sed -i 's/^# SPECTRUMSCALE Cert #\(.*\)/\1  # SPECTRUMSCALE Cert #/g' ${ymls_to_updates} 
+       if [ "$backend_from_configfile" == "spectrumscale" ]; then
+            sed -i 's/^# SPECTRUMSCALE Cert #\(.*\)/\1  # SPECTRUMSCALE Cert #/g' ${ymls_to_updates}
        fi
-       [[ $backend_from_configfile == *"scbe"* ]] && sed -i 's/^# SCBE Cert #\(.*\)/\1  # SCBE Cert #/g' ${ymls_to_updates}
+
+       if [ $backend_from_configfile == "scbe" ]; then
+            sed -i 's/^# SCBE Cert #\(.*\)/\1  # SCBE Cert #/g' ${ymls_to_updates}
+       fi
        echo "  Certificate updates are completed."
    fi
 
@@ -387,21 +389,31 @@ function create-secrets-for-certificates()
     expected_cert_files="ubiquity.key ubiquity.crt ubiquity-db.key ubiquity-db.crt ubiquity-trusted-ca.crt ubiquity-db-trusted-ca.crt"
     backend_from_configmap=$(find_backend_from_configmap)
     backend_cacert_file=""
-    if [[ "$backend_from_configmap" == "none" ]]
-    then
-        # Assuming configmap does not exist, so no possibility of checking for backend.
-        [[ -f $CERT_DIR/spectrumscale-trusted-ca.crt ]] && backend_cacert_file="spectrumscale-trusted-ca.crt"
-        [[ -f $CERT_DIR/scbe-trusted-ca.crt ]] && backend_cacert_file="scbe-trusted-ca.crt"
-        if [[ -z "$backend_cacert_file" ]]
-        then
+    if [ -z "$backend_from_configmap" ]; then
+        # Assuming configmap does not exist, so no possibility of finding for backend from configmap.
+        # check is ca-cert for spectrumscale exist in $CERT_DIR
+        if [ "-f $CERT_DIR/spectrumscale-trusted-ca.crt" ]; then
+            backend_cacert_file="spectrumscale-trusted-ca.crt"
+        fi
+        # check is ca-cert for scbe exist in $CERT_DIR
+        if [ "-f $CERT_DIR/scbe-trusted-ca.crt" ]; then
+            backend_cacert_file="scbe-trusted-ca.crt"
+        fi
+
+        if [ -z "$backend_cacert_file" ]; then
             echo "Error: Missing certificate file scbe-trusted-ca.crt or spectrumscale-trusted-ca.crt in directory $CERT_DIR."
             echo "       scbe-trusted-ca.crt is mandatory for enabling Ubiquity with SCBE backend."
             echo "       spectrumscale-trusted-ca.crt is mandatory for enabling Ubiquity with Spectrum Scale backend."
             exit 2
         fi
     else
-        [[ "$backend_from_configmap" == *"spectrumscale"* ]] && backend_cacert_file=" spectrumscale-trusted-ca.crt"
-        [[ "$backend_from_configmap" == *"scbe"* ]] && backend_cacert_file=" scbe-trusted-ca.crt"
+        if [ "$backend_from_configmap" == "spectrumscale" ]; then
+            backend_cacert_file=" spectrumscale-trusted-ca.crt"
+        fi
+
+        if [ "$backend_from_configmap" == "scbe" ]; then
+            backend_cacert_file=" scbe-trusted-ca.crt"
+        fi
     fi
     expected_cert_files+=" $backend_cacert_file"
 
@@ -422,19 +434,21 @@ function create-secrets-for-certificates()
     cd $CERT_DIR
     kubectl create secret $nsf generic ubiquity-db-private-certificate --from-file=ubiquity-db.key --from-file=ubiquity-db.crt
     kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
-
     ca_cert_files="--from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt"
-    [[ $backend_cacert_file == *"spectrumscale"* ]] && ca_cert_files+=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
-    [[ $backend_cacert_file == *"scbe"* ]] && ca_cert_files+=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
+
+    if [ $backend_cacert_file == "spectrumscale" ]; then
+        ca_cert_files+=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
+    fi
+
+    if [ $backend_cacert_file == "scbe" ]; then
+        ca_cert_files+=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
+    fi
     kubectl create configmap $nsf ubiquity-public-certificates $ca_cert_files
     cd -
-
     kubectl get $nsf secrets/ubiquity-db-private-certificate secrets/ubiquity-private-certificate cm/ubiquity-public-certificates
     echo ""
     echo "Finished creating secrets and ConfigMap for $PRODUCT_NAME certificates."
 }
-
-
 
 function already_exist() { echo "Error: Secret $1 already exists. Delete it first."; exit 2; }
 
@@ -484,21 +498,20 @@ function create_configmap_and_credentials_secrets()
        echo "ubiquity-configmap ConfigMap already exists,skipping ConfigMap creation"
     fi
 
-    if [[ $(find_backend_from_configmap) == *"scbe"* ]]
-    then 
+    backend_from_configmap=$(find_backend_from_configmap)
+    if [ "$backend_from_configmap" == "scbe" ]; then
     	if ! kubectl get $nsf secret scbe-credentials >/dev/null 2>&1; then
     	    kubectl create $nsf -f ${YML_DIR}/../${SCBE_CRED_YML}
     	else
-    	   echo "scbe-credentials secret already exists,skipping secret creation"
+            echo "scbe-credentials secret already exists, skipping secret creation"
     	fi
     fi
 
-    if [[ $(find_backend_from_configmap) == *"spectrumscale"* ]]
-    then 
+    if [ "$backend_from_configmap" == "spectrumscale" ]; then
     	if ! kubectl get $nsf secret spectrumscale-credentials >/dev/null 2>&1; then
     	    kubectl create $nsf -f ${YML_DIR}/../${SPECTRUMSCALE_CRED_YML}
     	else
-    	   echo "spectrumscale-credentials secret already exists,skipping secret creation"
+            echo "spectrumscale-credentials secret already exists, skipping secret creation"
     	fi
     fi
 
@@ -514,15 +527,21 @@ function find_backend_from_configmap()
 {
      unset isitscale
      unset isitscbe
-     backendtobeinstalled="none"
-     isitscale=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}" 2>/dev/null`
-#     isitscale=`cat ${YML_DIR}/../ubiquity-configmap.yml | grep -v "^\s*#" | grep SPECTRUMSCALE-MANAGEMENT-IP | awk -F: '{print $2}' | awk '{$1=$1;print}' | tr -d '"'`
-     [[ ! -z $isitscale ]] && backendtobeinstalled="spectrumscale"
+     backendtobeinstalled=""
 
-#     isitscbe=`cat ${YML_DIR}/../ubiquity-configmap.yml | grep -v "^\s*#" | grep SCBE-MANAGEMENT-IP | awk -F: '{print $2}' | awk '{$1=$1;print}' | tr -d '"'`
+     isitscale=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}" 2>/dev/null`
+     if [ ! -z "$isitscale" ]; then
+         backendtobeinstalled="spectrumscale"
+     fi
+
      isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}" 2>/dev/nul l`
-     [[ ! -z $isitscbe ]] && [[ -z $backendtobeinstalled ]] && backendtobeinstalled="scbe"
-     [[ ! -z $isitscbe ]] && [[ $backendtobeinstalled == "spectrumscale" ]] && backendtobeinstalled+=";scbe"
+     if [ ! -z "$isitscbe" ] && [ -z "$backendtobeinstalled" ]; then
+         backendtobeinstalled="scbe"
+     elif [ ! -z "$isitscbe" ] && [ "$backendtobeinstalled" == "spectrumscale"]; then
+        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
+        exit 2
+     fi
+
      echo "$backendtobeinstalled"
 }
 
@@ -530,13 +549,21 @@ function find_backend_from_configfile()
 {
      unset isitscale
      unset isitscbe
-     backendtobeinstalled="none"
+     backendtobeinstalled=""
+
      isitscale=`awk -F= '/^SPECTRUMSCALE_MANAGEMENT_IP_VALUE/ {print $2}' $CONFIG_SED_FILE`
-     [[ ! -z $isitscale ]] && [[ $isitscale != "VALUE" ]] && backendtobeinstalled="spectrumscale"
+     if [ ! -z "$isitscale" ] && [ "$isitscale" != "VALUE" ]; then
+         backendtobeinstalled="spectrumscale"
+     fi
 
      isitscbe=`awk -F= '/^SCBE_MANAGEMENT_IP_VALUE/ {print $2}' $CONFIG_SED_FILE`
-     [[ ! -z $isitscbe ]] && [[ $isitscbe != "VALUE" ]] && [[ -z $backendtobeinstalled ]] && backendtobeinstalled="scbe"
-     [[ ! -z $isitscbe ]] && [[ $isitscbe != "VALUE" ]] && [[ $backendtobeinstalled == "spectrumscale" ]] && backendtobeinstalled+=";scbe"
+     if [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ -z "$backendtobeinstalled" ]; then
+         backendtobeinstalled="scbe"
+     elif [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ "$backendtobeinstalled" == "spectrumscale" ]; then
+        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
+        exit 2
+     fi
+
      echo "$backendtobeinstalled"
 }
 

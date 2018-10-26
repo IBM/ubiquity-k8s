@@ -85,7 +85,8 @@ spec:
                 name: ubiquity-configmap
                 key: IBM-UBIQUITY-DB-PV-NAME
 
-
+          ### Ubiquity Spectrum Scale backend parameters:
+          #####################################
 # SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_USER
 # SPECTRUMSCALE Credentials #            valueFrom:
 # SPECTRUMSCALE Credentials #              secretKeyRef:
@@ -137,7 +138,8 @@ spec:
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-          - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (Spectrum Connect) as its backend.
+
+          - name: DEFAULT_BACKEND
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap

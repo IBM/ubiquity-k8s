@@ -168,14 +168,12 @@ function status()
     $cmd  || rc=$?
 
     isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}"`
-    if [[ ! -z $isitscbe ]]
-    then
+    if [ ! -z "$isitscbe" ]; then
        kubectl get $nsf $flags secret/scbe-credentials || rc=$?
     fi
 
     isitscale=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}"`
-    if [[ ! -z $isitscale ]]
-    then
+    if [ ! -z "$isitscale" ]; then
         kubectl get $nsf $flags secret/spectrumscale-credentials || rc=$?
     fi
 
