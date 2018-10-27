@@ -108,6 +108,10 @@ function install()
 
     # Check for backend to be installed and restrict more than one backend installation
     backend_from_configmap=$(find_backend_from_configmap)
+    if [ "$backend_from_configmap" == "spectrumscale;scbe" ]; then
+        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
+        exit 2
+    fi
 
     echo "Starting installation  \"$PRODUCT_NAME\"..."
     echo "Installing on the namespace  [$NS]."
@@ -243,6 +247,10 @@ function update-ymls()
    if [ -z "$backend_from_configfile" ]; then
       echo "ERROR: Either SCBE_MANAGEMENT_IP_VALUE or SPECTRUMSCALE_MANAGEMENT_IP_VALUE need to be populated with correct value to proceed further."
       exit 2
+   fi
+   if [ "$backend_from_configfile" == "spectrumscale;scbe" ]; then
+       echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
+       exit 2
    fi
 
    read -p "Updating yml files with placeholders from ${CONFIG_SED_FILE} file. Are you sure (y/n): " yn
@@ -538,8 +546,7 @@ function find_backend_from_configmap()
      if [ ! -z "$isitscbe" ] && [ -z "$backendtobeinstalled" ]; then
          backendtobeinstalled="scbe"
      elif [ ! -z "$isitscbe" ] && [ "$backendtobeinstalled" == "spectrumscale"]; then
-        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
-        exit 2
+         backendtobeinstalled+=";scbe"
      fi
 
      echo "$backendtobeinstalled"
@@ -560,8 +567,7 @@ function find_backend_from_configfile()
      if [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ -z "$backendtobeinstalled" ]; then
          backendtobeinstalled="scbe"
      elif [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ "$backendtobeinstalled" == "spectrumscale" ]; then
-        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
-        exit 2
+         backendtobeinstalled+=";scbe"
      fi
 
      echo "$backendtobeinstalled"
