@@ -2,6 +2,8 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: ubiquity-k8s-provisioner
+  labels:
+    product: ibm-storage-enabler-for-containers
 subjects:
   - kind: ServiceAccount
     name: ubiquity-k8s-provisioner

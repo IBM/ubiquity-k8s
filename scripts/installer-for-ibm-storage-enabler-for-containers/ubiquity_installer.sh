@@ -456,6 +456,7 @@ to_deploy_ubiquity_db="false"
 CONFIG_SED_FILE=""
 STEP=""
 CERT_DIR=""
+# TODO need to remove -k flag when automation is ready to drop it.
 while getopts ":dc:k:s:n:t:h" opt; do
   case $opt in
     d)

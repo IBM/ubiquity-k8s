@@ -128,15 +128,19 @@ function collect_logs()
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
 
-    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
+    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc,ds,serviceaccount  -l product=${UBIQUITY_LABEL}"
     echo "$describe_label_cmd"
     $describe_label_cmd > $describe_all_per_label 2>&1 || :
+
+    describe_clusterroles="kubectl describe clusterroles/ubiquity-k8s-provisioner clusterrolebindings/ubiquity-k8s-provisioner"
+    echo "$describe_clusterroles"
+    $describe_clusterroles >> $describe_all_per_label 2>&1 || :
 
     describe_pv_cmd="kubectl describe $nsf pv $UBIQUITY_DB_PVC_NAME"
     echo "$describe_pv_cmd"
     $describe_pv_cmd >> $describe_all_per_label 2>&1 || :
 
-    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
+    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc,ds,serviceaccount  -l product=${UBIQUITY_LABEL}"
     echo "$get_label_cmd"
     $get_label_cmd > $get_all_per_label 2>&1 || :
 
@@ -154,7 +158,7 @@ function status()
     rc=0
     flags="$1"
 
-    cmd="kubectl get $nsf $flags serviceaccount/ubiquity clusterroles/ubiquity clusterrolebindings/ubiquity"
+    cmd="kubectl get $nsf $flags serviceaccount/ubiquity-k8s-provisioner clusterroles/ubiquity-k8s-provisioner clusterrolebindings/ubiquity-k8s-provisioner"
     echo $cmd
     echo '---------------------------------------------------------------------'
     $cmd  || rc=$?
