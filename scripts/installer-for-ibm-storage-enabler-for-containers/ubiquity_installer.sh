@@ -108,7 +108,7 @@ function install()
 
     # Check for backend to be installed and restrict more than one backend installation
     backend_from_configmap=$(find_backend_from_configmap)
-    if [ "$backend_from_configmap" == "spectrumscale;scbe" ]; then
+    if [ "$backend_from_configmap" == "spectrumscale;spectrumconnect" ]; then
         echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
         exit 2
     fi
@@ -132,7 +132,7 @@ function install()
     wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
     # Create storage class and PVC, then wait for PVC and PV creation
-    if [ "$backend_from_configmap" == "scbe" ]; then
+    if [ "$backend_from_configmap" == "spectrumconnect" ]; then
     	if ! kubectl get $nsf -f ${YML_DIR}/storage-class.yml > /dev/null 2>&1; then
         	kubectl create $nsf -f ${YML_DIR}/storage-class.yml
     	else
@@ -248,7 +248,7 @@ function update-ymls()
       echo "ERROR: Either SCBE_MANAGEMENT_IP_VALUE or SPECTRUMSCALE_MANAGEMENT_IP_VALUE need to be populated with correct value to proceed further."
       exit 2
    fi
-   if [ "$backend_from_configfile" == "spectrumscale;scbe" ]; then
+   if [ "$backend_from_configfile" == "spectrumscale;spectrumconnect" ]; then
        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
        exit 2
    fi
@@ -295,7 +295,7 @@ function update-ymls()
 
    # Handling DEFAULT_BACKEND, Uncommenting Credentials based on backend, Handling backend initilization 
    ymls_to_updates="${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML} ${YML_DIR}/${UBIQUITY_FLEX_DAEMONSET_YML} ${YML_DIR}/${UBIQUITY_DEPLOY_YML}"
-   if [ "$backend_from_configfile" == "scbe" ]; then
+   if [ "$backend_from_configfile" == "spectrumconnect" ]; then
        sed -i "s|DEFAULT_BACKEND_VALUE|scbe|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SPECTRUMSCALE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i 's/^# SCBE Credentials #\(.*\)/\1  # SCBE Credentials #/g' ${ymls_to_updates}
@@ -322,7 +322,7 @@ function update-ymls()
             sed -i 's/^# SPECTRUMSCALE Cert #\(.*\)/\1  # SPECTRUMSCALE Cert #/g' ${ymls_to_updates}
        fi
 
-       if [ $backend_from_configfile == "scbe" ]; then
+       if [ $backend_from_configfile == "spectrumconnect" ]; then
             sed -i 's/^# SCBE Cert #\(.*\)/\1  # SCBE Cert #/g' ${ymls_to_updates}
        fi
        echo "  Certificate updates are completed."
@@ -419,7 +419,7 @@ function create-secrets-for-certificates()
             backend_cacert_file=" spectrumscale-trusted-ca.crt"
         fi
 
-        if [ "$backend_from_configmap" == "scbe" ]; then
+        if [ "$backend_from_configmap" == "spectrumconnect" ]; then
             backend_cacert_file=" scbe-trusted-ca.crt"
         fi
     fi
@@ -448,7 +448,7 @@ function create-secrets-for-certificates()
         ca_cert_files+=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
     fi
 
-    if [ $backend_cacert_file == "scbe" ]; then
+    if [ $backend_cacert_file == "spectrumconnect" ]; then
         ca_cert_files+=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
     fi
     kubectl create configmap $nsf ubiquity-public-certificates $ca_cert_files
@@ -507,7 +507,7 @@ function create_configmap_and_credentials_secrets()
     fi
 
     backend_from_configmap=$(find_backend_from_configmap)
-    if [ "$backend_from_configmap" == "scbe" ]; then
+    if [ "$backend_from_configmap" == "spectrumconnect" ]; then
     	if ! kubectl get $nsf secret scbe-credentials >/dev/null 2>&1; then
     	    kubectl create $nsf -f ${YML_DIR}/../${SCBE_CRED_YML}
     	else
@@ -544,9 +544,9 @@ function find_backend_from_configmap()
 
      isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}" 2>/dev/nul l`
      if [ ! -z "$isitscbe" ] && [ -z "$backendtobeinstalled" ]; then
-         backendtobeinstalled="scbe"
+         backendtobeinstalled="spectrumconnect"
      elif [ ! -z "$isitscbe" ] && [ "$backendtobeinstalled" == "spectrumscale"]; then
-         backendtobeinstalled+=";scbe"
+         backendtobeinstalled+=";spectrumconnect"
      fi
 
      echo "$backendtobeinstalled"
@@ -565,9 +565,9 @@ function find_backend_from_configfile()
 
      isitscbe=`awk -F= '/^SCBE_MANAGEMENT_IP_VALUE/ {print $2}' $CONFIG_SED_FILE`
      if [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ -z "$backendtobeinstalled" ]; then
-         backendtobeinstalled="scbe"
+         backendtobeinstalled="spectrumconnect"
      elif [ ! -z "$isitscbe" ] && [ "$isitscbe" != "VALUE" ] && [ "$backendtobeinstalled" == "spectrumscale" ]; then
-         backendtobeinstalled+=";scbe"
+         backendtobeinstalled+=";spectrumconnect"
      fi
 
      echo "$backendtobeinstalled"
