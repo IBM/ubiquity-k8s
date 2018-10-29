@@ -6,6 +6,11 @@ metadata:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded
   namespace: ubiquity
+  labels:
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 spec:
   template:
     spec:

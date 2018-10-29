@@ -7,8 +7,8 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded
   namespace: ubiquity
   labels:
-    app: {{ template "ubiquity.name" . }}
-    chart: {{ template "ubiquity.chart" . }}
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
