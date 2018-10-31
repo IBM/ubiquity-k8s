@@ -542,7 +542,7 @@ function find_backend_from_configmap()
          backendtobeinstalled="spectrumscale"
      fi
 
-     isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}" 2>/dev/nul l`
+     isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}" 2>/dev/null`
      if [ ! -z "$isitscbe" ] && [ -z "$backendtobeinstalled" ]; then
          backendtobeinstalled="spectrumconnect"
      elif [ ! -z "$isitscbe" ] && [ "$backendtobeinstalled" == "spectrumscale"]; then
