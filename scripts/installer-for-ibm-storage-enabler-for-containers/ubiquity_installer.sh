@@ -51,10 +51,8 @@ USAGE   $cmd -s <STEP> <FLAGS>
     -s update-ymls -c <file>
         Replace the placeholders from -c <file> in the relevant yml files.
         Flag -c <ubiquity-config-file> is mandatory for this step
-    -s install -k <k8s config file> [-n <namespace>]
-        Installs all $PRODUCT_NAME components in orderly fashion.
-        Flag -k <k8s-config-file-path> for ubiquity-k8s-provisioner.
-        Usually, this file is stored in the ~/.kube/config or in /etc/kubernetes directory.
+    -s install [-n <namespace>]
+        Installs all $PRODUCT_NAME components in orderly fashion (except for ubiquity-db).
         Flag -n <namespace>. By default, it is \"ubiquity\" namespace.
 
     Steps required for SSL_MODE=verify-full:
@@ -81,29 +79,18 @@ function install()
     # 
     # The install step creates the following components::
     #   1. Namespace    "ubiquity"                (skip, if already exists)
+    #      ServiceAccount, ClusterRoles and ClusterRolesBinding   (skip, if already exists)
     #   2. Service(clusterIP type) "ubiquity"     (skip, if already exists)
     #   3. Service(clusterIP type) "ubiquity-db"  (skip, if already exists)
     #   4. ConfigMap    "ubiquity-configmap"      (skip, if already exists)
     #   5. Secret       "scbe-credentials"        (skip, if already exists)
     #   6. Secret       "ubiquity-db-credentials" (skip, if already exists)
-    #   3. Deployment   "ubiquity"
-    #   4. ConfigMap    "k8s-config"              (skip, if already exists)
-    #   5. Deployment   "ubiquity-k8s-provisioner"
-    #   6. StorageClass <name given by user>      (skip, if already exists)
-    #   7. PVC          "ibm-ubiquity-db"
-    #   8. DaemonSet    "ubiquity-k8s-flex"
+    #   7. Deployment   "ubiquity"
+    #   8. Deployment   "ubiquity-k8s-provisioner"
+    #   9. StorageClass <name given by user>      (skip, if already exists)
+    #   10. PVC          "ibm-ubiquity-db"
+    #   11. DaemonSet    "ubiquity-k8s-flex"
     ########################################################################
-
-    [ -z "$KUBECONF" ] && { echo "Error: Missing -k <file> flag for STEP [$STEP]"; exit 4; } || :
-    [ ! -f "$KUBECONF" ] && { echo "Error : $KUBECONF not found."; exit 3; } || :
-
-
-    # Check for backend to be installed and restrict more than one backend installation
-    backend_from_configmap=$(find_backend_from_configmap)
-    if [ "$backend_from_configmap" == "spectrumscale;spectrumconnect" ]; then
-        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
-        exit 2
-    fi
 
     echo "Starting installation  \"$PRODUCT_NAME\"..."
     echo "Installing on the namespace  [$NS]."
@@ -114,12 +101,6 @@ function install()
     kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_DEPLOY_YML}
     wait_for_deployment ubiquity 20 5 $NS
 
-    echo "Creating ${K8S_CONFIGMAP_FOR_PROVISIONER} for ubiquity-k8s-provisioner from file [$KUBECONF]."
-    if ! kubectl get $nsf cm/${K8S_CONFIGMAP_FOR_PROVISIONER} > /dev/null 2>&1; then
-        kubectl create $nsf configmap ${K8S_CONFIGMAP_FOR_PROVISIONER} --from-file $KUBECONF
-    else
-        echo "Skipping the creation of ${K8S_CONFIGMAP_FOR_PROVISIONER} ConfigMap, because it already exists"
-    fi
     kubectl create $nsf -f ${YML_DIR}/${UBIQUITY_PROVISIONER_DEPLOY_YML}
     wait_for_deployment ubiquity-k8s-provisioner 20 5 $NS
 
@@ -348,7 +329,9 @@ function create-services()
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
-    echo "     (1)  $> $0 -s install -k <file> -n $NS"
+    echo "     (1)  $> $0 -s install -n $NS"
+    echo "     (2)  Manually restart kubelet service on all kubernetes nodes to reload the new FlexVolume driver"
+    echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
     echo ""
 }
 
@@ -450,6 +433,8 @@ function create_only_namespace_and_services()
         fi
     fi
 
+    create_serviceaccount_and_clusterroles
+
     # Creating ubiquity service
     if ! kubectl get $nsf service ${UBIQUITY_SERVICE_NAME} >/dev/null 2>&1; then
         kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
@@ -462,6 +447,30 @@ function create_only_namespace_and_services()
         kubectl create $nsf -f ${YML_DIR}/ubiquity-db-service.yml
     else
        echo "$UBIQUITY_DB_SERVICE_NAME service already exists, skipping service creation"
+    fi
+}
+
+function create_serviceaccount_and_clusterroles()
+{
+    # Creating ubiquity service account
+    if ! kubectl get $nsf serviceaccount ${UBIQUITY_SERVICEACCOUNT_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-serviceaccount.yml
+    else
+       echo "${UBIQUITY_SERVICEACCOUNT_NAME} serviceaccount already exists,skipping serviceaccount creation"
+    fi
+
+    # Creating ubiquity clusterRoles
+    if ! kubectl get $nsf clusterroles ${UBIQUITY_CLUSTERROLES_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-clusterroles.yml
+    else
+       echo "${UBIQUITY_CLUSTERROLES_NAME} clusterRoles already exists,skipping clusterRoles creation"
+    fi
+
+    # Creating ubiquity clusterRolesBindings
+    if ! kubectl get $nsf clusterrolebindings ${UBIQUITY_CLUSTERROLESBINDING_NAME} >/dev/null 2>&1; then
+        kubectl create $nsf -f ${YML_DIR}/ubiquity-k8s-provisioner-clusterrolebindings.yml
+    else
+       echo "${UBIQUITY_CLUSTERROLESBINDING_NAME} clusterrolebindings already exists,skipping clusterrolebindings creation"
     fi
 }
 
@@ -567,17 +576,14 @@ steps="update-ymls install create-services create-secrets-for-certificates"
 
 # Handle flags
 NS="$UBIQUITY_DEFAULT_NAMESPACE" # Set as the default namespace
-KUBECONF="" #~/.kube/config
 CONFIG_SED_FILE=""
 STEP=""
 CERT_DIR=""
+# TODO need to remove -k flag when automation is ready to drop it.
 while getopts ":dc:k:s:n:t:h" opt; do
   case $opt in
     c)
       CONFIG_SED_FILE=$OPTARG
-      ;;
-    k)
-      KUBECONF=$OPTARG
       ;;
     s)
       STEP=$OPTARG

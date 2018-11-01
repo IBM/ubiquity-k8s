@@ -29,10 +29,10 @@
 #   2. PVC for the ibm-ubiquity-db. Wait until the deletion  of PVC and PV is complete.
 #   3. Storage class that match for the UbiquityDB PVC
 #   4. ubiquity-k8s-provisioner deployment
-#   5. k8s-config configmap
 #   6. ubiquity-k8s-flex daemonset
 #   7. ubiquity deployment
 #   8. ubiquity service
+#      ServiceAccount, ClusterRoles and ClusterRolesBinding
 #   9. ubiquity-db service
 #
 # Note: The script deletes the ubiquity-k8s-flex daemonset, but it does not delete the Flex driver from the nodes.
@@ -59,7 +59,6 @@ scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 UTILS=$scripts/ubiquity_lib.sh
-K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 
 # Handle flags
@@ -120,7 +119,6 @@ wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
 # Second phase: Delete all the stateless components
 $kubectl_delete -f ${YML_DIR}/storage-class.yml
 $kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
-$kubectl_delete configmap ${K8S_CONFIGMAP_FOR_PROVISIONER}
 
 $kubectl_delete -f $YML_DIR/${UBIQUITY_FLEX_DAEMONSET_YML}
 
@@ -131,6 +129,9 @@ $kubectl_delete -f ${YML_DIR}/../${SPECTRUMSCALE_CRED_YML}
 $kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 
 echo ""
