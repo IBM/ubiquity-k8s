@@ -9,7 +9,7 @@ data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
-   SCBE-MANAGEMENT-IP: SCBE_MANAGEMENT_IP_VALUE
+   SCBE-MANAGEMENT-IP: "SCBE_MANAGEMENT_IP_VALUE"
 
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
    SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
@@ -29,6 +29,20 @@ data:
    # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: IBM_UBIQUITY_DB_PV_NAME_VALUE
 
+   # IP or FQDN of Spectrum Scale Management API server(GUI).
+   SPECTRUMSCALE-MANAGEMENT-IP: "SPECTRUMSCALE_MANAGEMENT_IP_VALUE"
+  
+   # Communication port of Spectrum Scale Management API server(GUI).
+   SPECTRUMSCALE-MANAGEMENT-PORT: "SPECTRUMSCALE_MANAGEMENT_PORT_VALUE"
+  
+   # Default Filesystem for creating pvc
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"
+  
+   # SSL verification mode for communication between Ubiquity and Spectrum Scale GUI. Allowed values: require    (no validation is required) and verify-full (user-provided certificates).
+   SPECTRUMSCALE-SSL-MODE: "SPECTRUMSCALE_SSL_MODE_VALUE"
+
+   # Default Ubiquity Backend
+   DEFAULT-BACKEND: "DEFAULT_BACKEND_VALUE"
 
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------

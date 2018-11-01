@@ -127,6 +127,7 @@ $kubectl_delete -f $YML_DIR/${UBIQUITY_FLEX_DAEMONSET_YML}
 $kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
 $kubectl_delete -f ${YML_DIR}/../ubiquity-configmap.yml
 $kubectl_delete -f ${YML_DIR}/../${SCBE_CRED_YML}
+$kubectl_delete -f ${YML_DIR}/../${SPECTRUMSCALE_CRED_YML}
 $kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml

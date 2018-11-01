@@ -1,0 +1,14 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: "STORAGE_CLASS_NAME_VALUE"
+  labels:
+    product: ibm-storage-enabler-for-containers
+#  annotations:
+#   storageclass.beta.kubernetes.io/is-default-class: "true"
+provisioner: "ubiquity/flex"
+parameters:
+  backend: "spectrum-scale"
+  filesystem: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"
+  fileset-type: "dependent"
+  type: fileset

@@ -35,17 +35,17 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-          - name: UBIQUITY_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: scbe-credentials
-                key: username
+# SCBE Credentials #          - name: UBIQUITY_USERNAME
+# SCBE Credentials #            valueFrom:
+# SCBE Credentials #              secretKeyRef:
+# SCBE Credentials #                name: scbe-credentials
+# SCBE Credentials #                key: username
 
-          - name: UBIQUITY_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: scbe-credentials
-                key: password
+# SCBE Credentials #          - name: UBIQUITY_PASSWORD
+# SCBE Credentials #            valueFrom:
+# SCBE Credentials #              secretKeyRef:
+# SCBE Credentials #                name: scbe-credentials
+# SCBE Credentials #                key: password
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
