@@ -36,9 +36,8 @@ function generate_flex_conf_from_envs_and_install_it()
     function missing_env() { echo "Error: missing environment variable $1"; exit 1; }
 
     # Mandatory environment variable
-    # UBIQUITY_USERNAME and UBIQUITY_PASSWORD are not mandatory for Spectrum Scale hence commented 
-    #[ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
-    #[ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
+    [ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
+    [ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
     [ -z "$UBIQUITY_IP_ADDRESS" ] && missing_env UBIQUITY_IP_ADDRESS || :
 
     # Other environment variable with default values
