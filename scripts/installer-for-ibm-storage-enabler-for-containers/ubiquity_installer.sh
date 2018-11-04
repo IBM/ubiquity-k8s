@@ -36,10 +36,7 @@
 #
 # Installation
 #  1. Install IBM Storage Enabler for Containers by running this command: 
-#     $> ./ubiquity_installer.sh -s install -k < Kubernetes configuration file >.
-#     Note: ubiqutiy-k8s-provisioner uses the Kubernetes configuration file(given by -k flag) to access the Kubernetes API server. 
-#           Usually, Kubernetes configuration file is located either in the ~/.kube/config or /etc/kubernetes directory.
-#
+#     $> ./ubiquity_installer.sh -s install
 # -------------------------------------------------------------------------
 
 function usage()
@@ -52,7 +49,7 @@ USAGE   $cmd -s <STEP> <FLAGS>
         Replace the placeholders from -c <file> in the relevant yml files.
         Flag -c <ubiquity-config-file> is mandatory for this step
     -s install [-n <namespace>]
-        Installs all $PRODUCT_NAME components in orderly fashion (except for ubiquity-db).
+        Installs all $PRODUCT_NAME components in orderly fashion
         Flag -n <namespace>. By default, it is \"ubiquity\" namespace.
 
     Steps required for SSL_MODE=verify-full:
@@ -94,6 +91,13 @@ function install()
 
     echo "Starting installation  \"$PRODUCT_NAME\"..."
     echo "Installing on the namespace  [$NS]."
+
+    # Check for backend to be installed and restrict more than one backend installation
+    backend_from_configmap=$(find_backend_from_configmap)
+    if [ "$backend_from_configmap" == "spectrumscale;spectrumconnect" ]; then
+        echo "ERROR: Both backends(scbe and spectrumscale) cannot be installed on same cluster at the same time."
+        exit 2
+    fi
 
     create_only_namespace_and_services
     create_configmap_and_credentials_secrets
@@ -330,8 +334,6 @@ function create-services()
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
     echo "     (1)  $> $0 -s install -n $NS"
-    echo "     (2)  Manually restart kubelet service on all kubernetes nodes to reload the new FlexVolume driver"
-    echo "     (3)  $> $0 -s create-ubiquity-db -n $NS"
     echo ""
 }
 
@@ -568,7 +570,6 @@ YML_DIR="$scripts/yamls"
 SANITY_YML_DIR="$scripts/yamls/sanity_yamls"
 UTILS=$scripts/ubiquity_lib.sh
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
-K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 steps="update-ymls install create-services create-secrets-for-certificates"
 
 [ ! -f $UTILS ] && { echo "Error: $UTILS file is not found"; exit 3; }
