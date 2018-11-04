@@ -23,7 +23,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: ubiquity-k8s-flex
-        image: UBIQUITY_K8S_FLEX_IMAGE
+        image: {{ .Values.images.flex }}
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
@@ -49,17 +49,17 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-# SCBE Credentials #          - name: UBIQUITY_USERNAME
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: username
+          - name: UBIQUITY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: username
 
-# SCBE Credentials #          - name: UBIQUITY_PASSWORD
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: password
+          - name: UBIQUITY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -87,12 +87,12 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: FLEX_LOG_DIR_VALUE
-# Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #        - name: ubiquity-public-certificates
-# Cert #          mountPath: /var/lib/ubiquity/ssl/public
-# Cert #          readOnly: true
-
+          mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
+{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+        - name: ubiquity-public-certificates
+          mountPath: /var/lib/ubiquity/ssl/public
+          readOnly: true
+{{ end }}
       volumes:
       - name: host-k8splugindir
         hostPath:
@@ -100,13 +100,14 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: FLEX_LOG_DIR_VALUE  # This directory must exist on the host
-# Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      - name: ubiquity-public-certificates
-# Cert #        configMap:
-# Cert #          name: ubiquity-public-certificates
-# Cert #          items:
-# Cert #            - key: ubiquity-trusted-ca.crt
-# Cert #              path: ubiquity-trusted-ca.crt
+          path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
+{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+      - name: ubiquity-public-certificates
+        configMap:
+          name: ubiquity-public-certificates
+          items:
+            - key: ubiquity-trusted-ca.crt
+              path: ubiquity-trusted-ca.crt
+{{ end }}
 
 #      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation

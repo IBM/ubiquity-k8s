@@ -32,6 +32,7 @@ UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
 PRODUCT_NAME="IBM Storage Enabler for Containers"
 EXIT_WAIT_TIMEOUT_MESSAGE="Error: Script exits due to wait timeout."
 SCBE_CRED_YML=scbe-credentials-secret.yml
+SPECTRUMSCALE_CRED_YML=spectrumscale-credentials-secret.yml
 UBIQUITY_DB_CRED_YML=ubiquity-db-credentials-secret.yml
 UBIQUITY_DEPLOY_YML=ubiquity-deployment.yml
 UBIQUITY_DB_DEPLOY_YML=ubiquity-db-deployment.yml
