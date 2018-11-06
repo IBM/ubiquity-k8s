@@ -75,15 +75,15 @@ genericConfig:
 #    token:
   ubiquityDbDeployment:
     name: ubiquity-db
-	url: apis/extensions/v1beta1/namespaces/ubiquity/deployments
+    url: apis/extensions/v1beta1/namespaces/ubiquity/deployments
  
   ubiquityPvc:
     name: ibm-ubiquity-db
-	url: api/v1/namespaces/ubiquity/persistentvolumeclaims
+    url: api/v1/namespaces/ubiquity/persistentvolumeclaims
 	
   ubiquityPv:
     name: ibm-ubiquity-db
-	url: api/v1/persistentvolumes
+    url: api/v1/persistentvolumes
 
 kubernetes:
   dns: kubernetes.default

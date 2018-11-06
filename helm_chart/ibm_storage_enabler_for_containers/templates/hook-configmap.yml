@@ -20,10 +20,9 @@ data:
     contentType="application/strategic-merge-patch+json"
     cert="/var/run/secrets/kubernetes.io/serviceaccout/ca.crt"
     NOTFOUND_CODE="404"
-	
-	depoymentEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityDbDeployment.url }}/{{ .Values.genericConfig.ubiquityDbDeployment.name }}"
+    depoymentEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityDbDeployment.url }}/{{ .Values.genericConfig.ubiquityDbDeployment.name }}"
 	pvcEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPvc.url }}/{{ .Values.genericConfig.ubiquityPvc.name }}"
-	pvEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPv.url }}/{{ .Values.genericConfig.ubiquityPv.name }}"
+    pvEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPv.url }}/{{ .Values.genericConfig.ubiquityPv.name }}"
 
     function wait_for_item_to_delete()
     {
@@ -45,11 +44,11 @@ data:
           statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
         fi
         if [ -n "$statusCode" ] && [ $statusCode = $NOTFOUND_CODE ]; then
-		  if [ -n "$labelSeletor" ]; then
-		    echo "The pod created by ${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
-		  else
-            echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
-		  if
+          if [ -n "$labelSeletor" ]; then
+            echo "The pod created by ${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+          else
+		    echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+          fi
           return
         else
           if [ $retries -eq 0 ]; then
