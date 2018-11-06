@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hook-config
+  namespace: ubiquity
+  labels:
+    product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  pre-delete: |
+
+    echo "Delete PersistentVolumes";
+    echo "------------------------";
+
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    accept="application/json"
+    contentType="application/strategic-merge-patch+json"
+    cert="/var/run/secrets/kubernetes.io/serviceaccout/ca.crt"
+    NOTFOUND_CODE="404"
+	
+	depoymentEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityDbDeployment.url }}/{{ .Values.genericConfig.ubiquityDbDeployment.name }}"
+	pvcEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPvc.url }}/{{ .Values.genericConfig.ubiquityPvc.name }}"
+	pvEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPv.url }}/{{ .Values.genericConfig.ubiquityPv.name }}"
+
+    function wait_for_item_to_delete()
+    {
+      item_type=$1
+      item_name=$2
+      retires=$3
+      max_retries=$3
+      delay=$4
+      labelSelector=$5
+
+      podWithLabelSelectorEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityDbPod.url }}/pods?labelSelector=app%3D{{ .Values.genericConfig.ubiquitydbDeployment.name }}"
+
+      while true; do
+        if [ -n "$labelSeletor" ]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $podWithLabelSelectorEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        elif [ "$item_type" = "PVC" ]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvcEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        elif [ "$item_type" = "PV"]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        fi
+        if [ -n "$statusCode" ] && [ $statusCode = $NOTFOUND_CODE ]; then
+		  if [ -n "$labelSeletor" ]; then
+		    echo "The pod created by ${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+		  else
+            echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+		  if
+          return
+        else
+          if [ $retries -eq 0 ]; then
+            echo "Error: ${item_type} [${item_name}] still exists after all ${max_retries} retries. Exiting."
+            exit 2
+          else
+            echo "${item_type} [${item_name}] still exists. sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
+            retries=$(($retries - 1))
+            sleep $delay;
+          fi
+        fi
+      done
+    }
+
+    ## Delete Deployment ubiquity-db and wait for deleted.
+    setReplicZero='{\"spec\":{\"replicas\":0}}'
+    patchDeployment=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -H "Accept: $accept" -H "Content-Type: $contentType" -X PATCH --data $setReplicZero $depoymentEndpoint)
+    wait_for_item_to_delete deployment ubiquity-db 10 4 ubiquity-db
+
+    ## Delete PVCs and wait for deleted.
+    deletePvc=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -X DELETE $pvcEndpoint)
+    wait_for_item_to_delete PVC ibm-ubiquity-db 10 3 ""
+    wait_for_item_to_delete PV ibm-ubiquity-db 10 3 ""
