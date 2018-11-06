@@ -47,7 +47,7 @@ data:
           if [ -n "$labelSeletor" ]; then
             echo "The pod created by ${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
           else
-		    echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+            echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
           fi
           return
         else
