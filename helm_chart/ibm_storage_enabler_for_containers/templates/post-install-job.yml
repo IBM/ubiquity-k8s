@@ -20,16 +20,20 @@ spec:
         env:
         - name: KUBERNETES_DNS_RECORD
           value: "kubernetes.default"
-        - name: TOKEN
+        - name: GET_TOKEN
           value: "cat /var/run/secrets/kubernetes.io/serviceaccount/token"
         - name: SERVICE_NAME
           value: "ubiquity"
         - name: SERVICE_URL
           value: "https://$(KUBERNETES_DNS_RECORD)/api/v1/namespaces/ubiquity/services/$(SERVICE_NAME)"
+        - name: SERVICE_ENDPOINT
+          value: "https://$(KUBERNETES_DNS_RECORD)/{{ .Values.genericConfig.ubiquityService.url }}/{{ .Values.genericConfig.ubiquityService.name }}"
         - name: DAEMONSET_NAME
           value: "ubiquity-k8s-flex"
         - name: DAEMONSET_URL
           value: "https://$(KUBERNETES_DNS_RECORD)/apis/extensions/v1beta1/namespaces/ubiquity/daemonsets/$(DAEMONSET_NAME)"
+		- name: DAEMONSET_ENDPOINT
+          value: "https://$(KUBERNETES_DNS_RECORD)/{{ .Values.genericConfig.ubiquityDaemonset.url }}/{{ .Values.genericConfig.ubiquityDaemonset.name }}"
         - name: AUTH
           value: "Authorization: Bearer $TOKEN_VALUE"
         - name: ACCEPT
@@ -37,19 +41,23 @@ spec:
         - name: CONTENT_TYPE
           value: "Content-Type: application/strategic-merge-patch+json"
         - name: GET_SERVICE_IP
-          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" $(SERVICE_URL)"
+          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" $(SERVICE_ENDPOINT)"
         - name: UBIQUITY_IP
           value: "echo $GET_RESPONSE | awk -F 'clusterIP\": ' '{print $2}' | awk -F ',' '{print $1}'"
-        - name: PATCH_BODY
-          value: '{\"spec\":{\"template\":{\"spec\":{\"$setElementOrder/containers\":[{\"name\":\"ubiquity-k8s-flex\"}],\"containers\":[{\"$setElementOrder/env\":[{\"name\":\"UBIQUITY_PORT\"},{\"name\":\"UBIQUITY_BACKEND\"},{\"name\":\"FLEX_LOG_DIR\"},{\"name\":\"FLEX_LOG_ROTATE_MAXSIZE\"},{\"name\":\"LOG_LEVEL\"},{\"name\":\"UBIQUITY_USERNAME\"},{\"name\":\"UBIQUITY_PASSWORD\"},{\"name\":\"UBIQUITY_PLUGIN_SSL_MODE\"},{\"name\":\"UBIQUITY_IP_ADDRESS\"},{\"name\":\"SKIP_RESCAN_ISCSI\"}],\"env\":[{\"name\":\"UBIQUITY_IP_ADDRESS\",\"value\":$UBIQUITY_IP_ADDRESS,\"valueFrom\":null}],\"name\":\"ubiquity-k8s-flex\"}]}}}}'
+        - name: GET_DAEMONSET                                                                                                                                                
+          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" $(DAEMONSET_ENDPOINT) > daemonset_tmp.json"                                 
+        - name: MODIFY_JSON                                                                                                                                                  
+          value: 'sed -i "s/\"value\": \"0.0.0.0\"/\"value\": $UBIQUITY_IP_ADDRESS/g" daemonset_tmp.json'                                                                    
+        - name: GET_JSON_BODY                                                                                                                                                    
+          value: "cat daemonset_tmp.json"
         - name: PATCH_DAEMONSET_IP
-          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" -H \"$(ACCEPT)\" -H \"$(CONTENT_TYPE)\" -X PATCH --data $(PATCH_BODY) $(DAEMONSET_URL)"
+          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" -H \"$(ACCEPT)\" -H \"$(CONTENT_TYPE)\" -X PATCH --data \"$PATCH_BODY\" $(DAEMONSET_ENDPOINT)"      
         - name: TITLE
           value: "Patch UBIQUITY_IP_ADDRESS in daemonset ubiquity-k8s-flex"
         - name: DELIMITER
           value: "--------------------------------------------------------"
         command: ["/bin/sh"]
-        args: ["-c", "echo -e '$(DELIMITER)\n$(TITLE)\n$(DELIMITER)'; TOKEN_VALUE=`$(TOKEN)`; echo $(GET_SERVICE_IP); GET_RESPONSE=`$(GET_SERVICE_IP)`; UBIQUITY_IP_ADDRESS=`$(UBIQUITY_IP)`; echo 'UbiquityIP: '$UBIQUITY_IP_ADDRESS; echo $(PATCH_DAEMONSET_IP); PATCH=`$(PATCH_DAEMONSET_IP)`; echo $PATCH; echo 'Patch successfully!';"]
+        args: ["-c", "echo -e '$(DELIMITER)\n$(TITLE)\n$(DELIMITER)'; TOKEN_VALUE=`$(GET_TOKEN)`; echo $(GET_SERVICE_IP); GET_RESPONSE=`$(GET_SERVICE_IP)`; UBIQUITY_IP_ADDRESS=`$(UBIQUITY_IP)`; echo 'UbiquityIP: '$UBIQUITY_IP_ADDRESS; `$(GET_DAEMONSET)`; echo '*******************'; `$(MODIFY_JSON)`; echo '^^^^^^^^^^^'; echo '============='; PATCH_BODY=`$(GET_JSON_BODY)`; echo $PATCH_BODY; PATCH=`$(PATCH_DAEMONSET_IP)`; echo $(PATCH_DAEMONSET_IP); echo 'Patch successfully!'"]
       restartPolicy: Never
       serviceAccount: ubiquity
-  backoffLimit: 2
+  backoffLimit: 1

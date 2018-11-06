@@ -8,6 +8,9 @@ images:
   provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
   flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
 
+Kubernetes:
+  dNS: kubernetes.default
+
 spectrumConnect:
   connectionInfo:
     ## IP\FQDN and port of Spectrum Connect server.
@@ -79,3 +82,12 @@ genericConfig:
 #    server:
 #    ## token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
 #    token:
+  
+   ubiquityService:
+     name: ubiquity
+	 url: api/v1/namespaces/ubiquity/services
+
+   ubiquityDaemonset:	
+	 name: ubiquity-k8s-flex
+	 url: apis/extensions/v1beta1/namespaces/ubiquity/daemonsets
+	  
