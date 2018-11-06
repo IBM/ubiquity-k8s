@@ -73,17 +73,3 @@ genericConfig:
 #    server:
 #    # token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
 #    token:
-  ubiquityDbDeployment:
-    name: ubiquity-db
-    url: apis/extensions/v1beta1/namespaces/ubiquity/deployments
- 
-  ubiquityPvc:
-    name: ibm-ubiquity-db
-    url: api/v1/namespaces/ubiquity/persistentvolumeclaims
-
-  ubiquityPv:
-    name: ibm-ubiquity-db
-    url: api/v1/persistentvolumes
-
-kubernetes:
-  dns: kubernetes.default

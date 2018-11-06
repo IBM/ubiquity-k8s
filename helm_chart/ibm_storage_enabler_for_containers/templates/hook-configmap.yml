@@ -14,7 +14,7 @@ data:
 
     #!/bin/bash
 
-	set -e
+    set -e
 
     echo "Delete PersistentVolumes";
     echo "------------------------";
