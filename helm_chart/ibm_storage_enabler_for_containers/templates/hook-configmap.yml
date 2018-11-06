@@ -21,7 +21,7 @@ data:
     cert="/var/run/secrets/kubernetes.io/serviceaccout/ca.crt"
     NOTFOUND_CODE="404"
     depoymentEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityDbDeployment.url }}/{{ .Values.genericConfig.ubiquityDbDeployment.name }}"
-	pvcEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPvc.url }}/{{ .Values.genericConfig.ubiquityPvc.name }}"
+    pvcEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPvc.url }}/{{ .Values.genericConfig.ubiquityPvc.name }}"
     pvEndpoint="https://{{ .Values.kubernetes.dns }}/{{ .Values.genericConfig.ubiquityPv.url }}/{{ .Values.genericConfig.ubiquityPv.name }}"
 
     function wait_for_item_to_delete()
@@ -72,3 +72,4 @@ data:
     deletePvc=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -X DELETE $pvcEndpoint)
     wait_for_item_to_delete PVC ibm-ubiquity-db 10 3 ""
     wait_for_item_to_delete PV ibm-ubiquity-db 10 3 ""
+

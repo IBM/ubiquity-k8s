@@ -79,7 +79,7 @@ genericConfig:
  
   ubiquityPvc:
     name: ibm-ubiquity-db
-    url: api/v1/namespaces/ubiquity/persistentvolumeclaims	
+    url: api/v1/namespaces/ubiquity/persistentvolumeclaims
 
   ubiquityPv:
     name: ibm-ubiquity-db
