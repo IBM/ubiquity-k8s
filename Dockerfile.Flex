@@ -9,8 +9,9 @@ RUN CGO_ENABLED=1 GOOS=linux go build -tags netgo -v -a --ldflags '-w -linkmode 
 
 FROM alpine:3.8
 RUN apk --no-cache add ca-certificates=20171114-r3
+RUN addgroup -S ubiquity && adduser -S ubiquity -G ubiquity
+USER ubiquity
 ENV UBIQUITY_PLUGIN_VERIFY_CA=/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt
-WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/setup_flex.sh .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/LICENSE .
