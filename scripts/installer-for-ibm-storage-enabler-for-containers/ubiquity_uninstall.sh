@@ -111,7 +111,7 @@ fi
 $kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
 echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
 wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
-pvname=`kubectl get -n ubiquity cm/ubiquity-configmap  -o yaml | grep IBM-UBIQUITY-DB-PV-NAME | cut -d ":" -f2`
+pvname=`kubectl get -n ubiquity cm/ubiquity-configmap -o jsonpath="{.data['IBM-UBIQUITY-DB-PV-NAME']}"`
 echo "Waiting for PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
 [ -n "$pvname" ] && wait_for_item_to_delete pv $pvname 10 3 "" $NS
 
