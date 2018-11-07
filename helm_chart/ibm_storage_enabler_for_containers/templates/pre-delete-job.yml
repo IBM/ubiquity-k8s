@@ -5,7 +5,6 @@ metadata:
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded
-  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}
     chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
@@ -15,8 +14,8 @@ spec:
   template:                                                                              
     spec:                                                                                
       containers:                                                                        
-        - name: hook                                                                     
-          image: byrnedo/alpine-curl                                                     
+        - name: hook
+          image: byrnedo/alpine-curl
           volumeMounts:                                                                  
             - name: hook-config                                                          
               mountPath: /var/tmp/config                                                 
@@ -29,7 +28,7 @@ spec:
             defaultMode: 0777                                                            
             items:                                                                       
               - key: pre-delete                                                              
-                path: pre-delete.sh                                                    
+                path: pre-delete.sh
       restartPolicy: Never                                                               
-      serviceAccount: ubiquity                                                           
+      serviceAccount: ubiquity-helm-hook
   backoffLimit: 1

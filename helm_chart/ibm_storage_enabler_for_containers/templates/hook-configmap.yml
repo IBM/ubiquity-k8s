@@ -2,7 +2,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: hook-config
-  namespace: {{ .Release.Namespace }}
   labels:
     product: ibm-storage-enabler-for-containers
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}
@@ -32,27 +31,27 @@ data:
     {
       item_type=$1
       item_name=$2
-      retires=$3
+      retries=$3
       max_retries=$3
       delay=$4
       labelSelector=$5
 
+      # use label selector to select the relevant pods which created by deployment ubiquity-db
       podWithLabelSelectorEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPodUrl" . }}?labelSelector=app%3D{{ template "ibm_storage_enabler_for_containers.ubiquityDbDeploymentName" . }}"
 
       while true; do
-        if [ -n "$labelSeletor" ]; then
-          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $podWithLabelSelectorEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        if [ -n "$labelSelector" ]; then
+          podName=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $podWithLabelSelectorEndpoint | awk -F 'name\": ' '{print $2}' | awk -F ' ' '{print $1}')
         elif [ "$item_type" = "PVC" ]; then
           statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvcEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
-        elif [ "$item_type" = "PV"]; then
+        elif [ "$item_type" = "PV" ]; then
           statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
         fi
-        if [ -n "$statusCode" ] && [ $statusCode = $NOTFOUND_CODE ]; then
-          if [ -n "$labelSeletor" ]; then
-            echo "The pod created by deployment [${labelSelector}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
-          else
-            echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
-          fi
+        if [ -n "$labelSelector" ] && [ -z "$podName" ]; then
+          echo "The pod created by deployment [${labelSelector}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+          return
+        elif [ -n "$statusCode" ] && [ $statusCode = $NOTFOUND_CODE ]; then
+          echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
           return
         else
           if [ $retries -eq 0 ]; then
@@ -68,11 +67,11 @@ data:
     }
 
     ## Set replicas of ubiquity-db deployment to 0 and wait for all the relevant pods to be deleted.
-    setReplicZero='{\"spec\":{\"replicas\":0}}'
+    setReplicZero='{"spec":{"replicas":0}}'
     patchDeployment=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -H "Accept: $accept" -H "Content-Type: $contentType" -X PATCH --data $setReplicZero $depoymentEndpoint)
-    wait_for_item_to_delete pod "" 10 4 ubiquity-db
+    wait_for_item_to_delete pod "" 10 4 ubiquity-db;
 
     ## Delete PVCs and wait for deleted.
     deletePvc=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -X DELETE $pvcEndpoint)
-    wait_for_item_to_delete PVC ibm-ubiquity-db 10 3 ""
-    wait_for_item_to_delete PV ibm-ubiquity-db 10 3 ""
+    wait_for_item_to_delete PVC ibm-ubiquity-db 10 3 "";
+    wait_for_item_to_delete PV ibm-ubiquity-db 10 3 "";
