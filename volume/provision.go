@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"k8s.io/api/core/v1"
+	"reflect"
 )
 
 const (
@@ -193,6 +194,7 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 	if volume.Spec.PersistentVolumeReclaimPolicy != v1.PersistentVolumeReclaimRetain {
 		getVolumeRequest := resources.GetVolumeRequest{Name: volume.Name, Context: requestContext}
 		volume, err := p.ubiquityClient.GetVolume(getVolumeRequest)
+		p.logger.Info(fmt.Sprintf("###Errr : [%s]. error type : [%s]", err, reflect.TypeOf(err)))
 		if err != nil {
 			switch err.(type) {
 			case *resources.VolumeNotFoundError:
