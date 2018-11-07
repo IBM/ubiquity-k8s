@@ -5,7 +5,6 @@ metadata:
   annotations:
     "helm.sh/hook": post-install
     "helm.sh/hook-delete-policy": hook-succeeded
-  namespace: ubiquity
   labels:
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}
     chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
@@ -15,41 +14,21 @@ spec:
   template:
     spec:
       containers:
-      - name: hook
-        image: byrnedo/alpine-curl
-        env:
-        - name: KUBERNETES_DNS_RECORD
-          value: "kubernetes.default"
-        - name: TOKEN
-          value: "cat /var/run/secrets/kubernetes.io/serviceaccount/token"
-        - name: SERVICE_NAME
-          value: "ubiquity"
-        - name: SERVICE_URL
-          value: "https://$(KUBERNETES_DNS_RECORD)/api/v1/namespaces/ubiquity/services/$(SERVICE_NAME)"
-        - name: DAEMONSET_NAME
-          value: "ubiquity-k8s-flex"
-        - name: DAEMONSET_URL
-          value: "https://$(KUBERNETES_DNS_RECORD)/apis/extensions/v1beta1/namespaces/ubiquity/daemonsets/$(DAEMONSET_NAME)"
-        - name: AUTH
-          value: "Authorization: Bearer $TOKEN_VALUE"
-        - name: ACCEPT
-          value: "Accept: application/json"
-        - name: CONTENT_TYPE
-          value: "Content-Type: application/strategic-merge-patch+json"
-        - name: GET_SERVICE_IP
-          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" $(SERVICE_URL)"
-        - name: UBIQUITY_IP
-          value: "echo $GET_RESPONSE | awk -F 'clusterIP\": ' '{print $2}' | awk -F ',' '{print $1}'"
-        - name: PATCH_BODY
-          value: '{\"spec\":{\"template\":{\"spec\":{\"$setElementOrder/containers\":[{\"name\":\"ubiquity-k8s-flex\"}],\"containers\":[{\"$setElementOrder/env\":[{\"name\":\"UBIQUITY_PORT\"},{\"name\":\"UBIQUITY_BACKEND\"},{\"name\":\"FLEX_LOG_DIR\"},{\"name\":\"FLEX_LOG_ROTATE_MAXSIZE\"},{\"name\":\"LOG_LEVEL\"},{\"name\":\"UBIQUITY_USERNAME\"},{\"name\":\"UBIQUITY_PASSWORD\"},{\"name\":\"UBIQUITY_PLUGIN_SSL_MODE\"},{\"name\":\"UBIQUITY_IP_ADDRESS\"},{\"name\":\"SKIP_RESCAN_ISCSI\"}],\"env\":[{\"name\":\"UBIQUITY_IP_ADDRESS\",\"value\":$UBIQUITY_IP_ADDRESS,\"valueFrom\":null}],\"name\":\"ubiquity-k8s-flex\"}]}}}}'
-        - name: PATCH_DAEMONSET_IP
-          value: "curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H \"$(AUTH)\" -H \"$(ACCEPT)\" -H \"$(CONTENT_TYPE)\" -X PATCH --data $(PATCH_BODY) $(DAEMONSET_URL)"
-        - name: TITLE
-          value: "Patch UBIQUITY_IP_ADDRESS in daemonset ubiquity-k8s-flex"
-        - name: DELIMITER
-          value: "--------------------------------------------------------"
-        command: ["/bin/sh"]
-        args: ["-c", "echo -e '$(DELIMITER)\n$(TITLE)\n$(DELIMITER)'; TOKEN_VALUE=`$(TOKEN)`; echo $(GET_SERVICE_IP); GET_RESPONSE=`$(GET_SERVICE_IP)`; UBIQUITY_IP_ADDRESS=`$(UBIQUITY_IP)`; echo 'UbiquityIP: '$UBIQUITY_IP_ADDRESS; echo $(PATCH_DAEMONSET_IP); PATCH=`$(PATCH_DAEMONSET_IP)`; echo $PATCH; echo 'Patch successfully!';"]
+        - name: hook
+          image: byrnedo/alpine-curl
+          volumeMounts:
+            - name: hook-config
+              mountPath: /var/tmp/config
+          command: ["/bin/sh"]
+          args: ["-c", "/var/tmp/config/post-install.sh"]
+      volumes:
+        - name: hook-config
+          configMap:
+            name: hook-config
+            defaultMode: 0777
+            items:
+              - key: post-install
+                path: post-install.sh
       restartPolicy: Never
-      serviceAccount: ubiquity
-  backoffLimit: 2
+      serviceAccount: ubiquity-helm-hook
+  backoffLimit: 1

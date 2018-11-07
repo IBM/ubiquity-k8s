@@ -52,3 +52,51 @@ Create the name for ubiquity-db secret
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquitydb 
     {{- end -}}                                                                                                        
 {{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityServiceName" -}}
+ubiquity
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityServiceUrl" -}}
+api/v1/namespaces/{{ .Release.Namespace }}/services
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDaemonsetName" -}}
+ubiquity-k8s-flex
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDaemonsetUrl" -}}
+apis/extensions/v1beta1/namespaces/{{ .Release.Namespace }}/daemonsets
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbDeploymentName" -}}
+ubiquity-db
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbDeploymentUrl" -}}
+apis/extensions/v1beta1/namespaces/{{ .Release.Namespace }}/deployments
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbPodUrl" -}}
+api/v1/namespaces/{{ .Release.Namespace }}/pods
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbPvcName" -}}
+ibm-ubiquity-db
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbPvcUrl" -}}
+api/v1/namespaces/{{ .Release.Namespace }}/persistentvolumeclaims
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbPvName" -}}
+ibm-ubiquity-db
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbPvUrl" -}}
+api/v1/persistentvolumes
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.kubernetesDns" -}}
+kubernetes.default
+{{- end -}}

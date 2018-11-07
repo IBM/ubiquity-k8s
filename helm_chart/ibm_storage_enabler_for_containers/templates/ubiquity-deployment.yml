@@ -2,7 +2,6 @@ apiVersion: "extensions/v1beta1"
 kind: Deployment
 metadata:
   name: ubiquity
-  namespace: ubiquity
   labels:
     product: ibm-storage-enabler-for-containers
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}

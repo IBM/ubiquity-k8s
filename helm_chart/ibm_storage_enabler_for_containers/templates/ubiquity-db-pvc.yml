@@ -2,7 +2,6 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "ibm-ubiquity-db"
-  namespace: ubiquity
   annotations:
     volume.beta.kubernetes.io/storage-class: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName  | quote }}
   labels:
