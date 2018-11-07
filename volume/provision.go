@@ -194,7 +194,6 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 	if volume.Spec.PersistentVolumeReclaimPolicy != v1.PersistentVolumeReclaimRetain {
 		getVolumeRequest := resources.GetVolumeRequest{Name: volume.Name, Context: requestContext}
 		volume, err := p.ubiquityClient.GetVolume(getVolumeRequest)
-		p.logger.Info(fmt.Sprintf("###Errr : [%s]. error type : [%s]", err, reflect.TypeOf(err)))
 		if err != nil {
 			if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg){
 				p.logger.Warning("Idempotent issue while deleting volume : volume was not found in ubiquity DB", logs.Args{{"volume name", volume.Name}})
