@@ -49,10 +49,11 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
+{{ if .Values.spectrumConnect.connectionInfo.fqdn }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: scbe-credentials  # TODO if we want scbe-credentials not to be hardcoded then we should put here a template.
                 key: username
 
           - name: UBIQUITY_PASSWORD
@@ -60,6 +61,7 @@ spec:
               secretKeyRef:
                 name: scbe-credentials
                 key: password
+{{ end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:

@@ -8,11 +8,15 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
+{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
    SCBE-MANAGEMENT-IP: {{ .Values.spectrumConnect.connectionInfo.fqdn | quote }}
 
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
    SCBE-MANAGEMENT-PORT: {{ .Values.spectrumConnect.connectionInfo.port | quote }}
+
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+   SSL-MODE: {{ .Values.spectrumConnect.connectionInfo.sslMode | quote }}
 
    # Default Spectrum Connect storage service to be used, if not specified by the plugin.
    SCBE-DEFAULT-SERVICE: {{ .Values.spectrumConnect.backendConfig.DefaultStorageService | quote }}
@@ -26,8 +30,33 @@ data:
    # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
    DEFAULT-FSTYPE: {{ .Values.spectrumConnect.backendConfig.newVolumeDefaults.fsType | quote }}
 
+   # Allowed values: true or false. Set to true if the nodes have FC connectivity.
+   SKIP-RESCAN-ISCSI: {{ .Values.spectrumConnect.backendConfig.skipRescanIscsi | quote }}
+{{ end }}
+
+
+
+{{ if .Values.spectrumScale.connectionInfo.fqdn }}
+   # IP or FQDN of Spectrum Scale Management API server(GUI).
+   SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.spectrumScale.connectionInfo.fqdn | quote }}
+  
+   # Communication port of Spectrum Scale Management API server(GUI).
+   SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.spectrumScale.connectionInfo.port | quote }}
+  
+   # Default Filesystem for creating pvc
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumConnect.backendConfig.defaultFilesystemName | quote }}
+  
+   # SSL verification mode for communication between Ubiquity and Spectrum Scale GUI. Allowed values: require    (no validation is required) and verify-full (user-provided certificates).
+   SPECTRUMSCALE-SSL-MODE: {{ .Values.spectrumScale.connectionInfo.sslMode | quote }}
+{{ end }}
+
+
+
    # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
+
+   # Default Ubiquity Backend
+   DEFAULT-BACKEND: {{ if .Values.spectrumConnect.connectionInfo.fqdn }} scbe {{ if .Values.spectrumScale.connectionInfo.fqdn }} spectrumscale {{ end }}
 
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------
@@ -40,9 +69,6 @@ data:
    # Log level. Allowed values: debug, info, error.
    LOG-LEVEL: {{ .Values.genericConfig.logging.logLevel  | quote }}
 
-   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
-   SSL-MODE: {{ .Values.spectrumConnect.connectionInfo.sslMode | quote }}
-
 
    # The following keys are used by the ubiquity-k8s-flex daemonset
    # --------------------------------------------------------------
@@ -50,5 +76,3 @@ data:
    # The user must update this key manually if the ubiqutiy service object IP was changed.
    UBIQUITY-IP-ADDRESS: {{ .Values.genericConfig.ubiquityIpAddress | quote }}
 
-   # Allowed values: true or false. Set to true if the nodes have FC connectivity.
-   SKIP-RESCAN-ISCSI: {{ .Values.spectrumConnect.backendConfig.skipRescanIscsi | quote }}

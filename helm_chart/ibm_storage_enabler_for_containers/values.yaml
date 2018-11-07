@@ -43,12 +43,41 @@ spectrumConnect:
 
       storageClassForDbPv:
         # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
         storageClassName:
         params:
           # Storage Class profile parameter should point to the Spectrum Connect storage service name
           spectrumConnectServiceName:
           # Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType: ext4
+
+# spectrumConnect or spectrumScale is supported. Please delete the relevant backend.
+#spectrumScale:
+#  connectionInfo:
+#    # IP\FQDN and port of Spectrum Scale Rest Management API server.
+#    fqdn:
+#    port:
+#
+#    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
+#    username:
+#    password:
+#
+#    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+#    sslMode: require
+#
+#  backendConfig:
+#    # Default Spectrum Scale Filesystem to be Used
+#    defaultFilesystemName:
+#
+#    dbPvConfig:
+#      ubiquityDbPvName: ibm-ubiquity-db
+#
+#      storageClassForDbPv:
+#        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+#        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
+#        storageClassName:
+
+
 
 genericConfig:
   # The IP address of the ubiquity service object.
@@ -65,3 +94,11 @@ genericConfig:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
+
+#  k8sApiServerAccess:
+#    # The provisioner will use it to access API server in order to create\delete\view PVCs
+#
+#    # server from the .kube/config
+#    server:
+#    # token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
+#    token:

@@ -33,7 +33,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-          # TODO : For Scale support we should choose the right credential
+{{ if .Values.spectrumConnect.connectionInfo.fqdn }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -45,6 +45,7 @@ spec:
               secretKeyRef:
                 name: scbe-credentials
                 key: password
+{{ end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
