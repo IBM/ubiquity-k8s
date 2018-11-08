@@ -4,7 +4,7 @@ metadata:
   name: pre-delete-deployment-job
   annotations:
     "helm.sh/hook": pre-delete
-    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
   labels:
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}
     chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
