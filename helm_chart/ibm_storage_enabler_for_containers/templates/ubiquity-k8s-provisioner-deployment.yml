@@ -13,6 +13,7 @@ spec:
         app: ubiquity-k8s-provisioner
         product: ibm-storage-enabler-for-containers
     spec:
+      serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
         image: {{ .Values.images.provisioner }}
@@ -21,21 +22,19 @@ spec:
             value: "ubiquity"
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
-          - name: KUBECONFIG
-            value: "/tmp/k8sconfig/config"
           - name: RETRIES          # number of retries on failure
             value: "1"
           - name: LOG_PATH         # provisioner log file directory
             value: "/tmp"
           - name: BACKENDS         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
             value: "scbe"
-
           - name: LOG_LEVEL       # debug / info / error
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
+          # TODO : For Scale support we should choose the right credential
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -54,20 +53,12 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-        volumeMounts:
-          - name: k8s-config
-            mountPath: /tmp/k8sconfig
 {{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+        volumeMounts:
           - name: ubiquity-public-certificates
             mountPath: /var/lib/ubiquity/ssl/public
             readOnly: true
-{{ end }}
-
       volumes:
-        - name: k8s-config
-          configMap:
-            name: k8s-config
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
         - name: ubiquity-public-certificates
           configMap:
             name: ubiquity-public-certificates

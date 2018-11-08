@@ -128,15 +128,19 @@ function collect_logs()
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
 
-    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
+    describe_label_cmd="kubectl describe $nsf ns,all,cm,secret,storageclass,pvc,ds,serviceaccount  -l product=${UBIQUITY_LABEL}"
     echo "$describe_label_cmd"
     $describe_label_cmd > $describe_all_per_label 2>&1 || :
+
+    describe_clusterroles="kubectl describe clusterroles/ubiquity-k8s-provisioner clusterrolebindings/ubiquity-k8s-provisioner"
+    echo "$describe_clusterroles"
+    $describe_clusterroles >> $describe_all_per_label 2>&1 || :
 
     describe_pv_cmd="kubectl describe $nsf pv $UBIQUITY_DB_PVC_NAME"
     echo "$describe_pv_cmd"
     $describe_pv_cmd >> $describe_all_per_label 2>&1 || :
 
-    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc,ds  -l product=${UBIQUITY_LABEL}"
+    get_label_cmd="kubectl get $nsf ns,all,cm,secret,storageclass,pvc,ds,serviceaccount  -l product=${UBIQUITY_LABEL}"
     echo "$get_label_cmd"
     $get_label_cmd > $get_all_per_label 2>&1 || :
 
@@ -154,6 +158,11 @@ function status()
     rc=0
     flags="$1"
 
+    cmd="kubectl get $nsf $flags serviceaccount/ubiquity-k8s-provisioner clusterroles/ubiquity-k8s-provisioner clusterrolebindings/ubiquity-k8s-provisioner"
+    echo $cmd
+    echo '---------------------------------------------------------------------'
+    $cmd  || rc=$?
+
     cmd="kubectl get $flags storageclass | egrep \"ubiquity|^NAME\""
     echo $cmd
     echo '---------------------------------------------------------------------'
@@ -162,10 +171,21 @@ function status()
 
     pvname=`kubectl get $nsf pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 
-    cmd="kubectl get $nsf $flags secret/ubiquity-db-credentials secret/scbe-credentials cm/k8s-config cm/ubiquity-configmap pv/$pvname pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
+    cmd="kubectl get $nsf $flags secret/ubiquity-db-credentials cm/ubiquity-configmap pv/$pvname pvc/ibm-ubiquity-db svc/ubiquity svc/ubiquity-db  daemonset/ubiquity-k8s-flex deploy/ubiquity deploy/ubiquity-db deploy/ubiquity-k8s-provisioner"
+
     echo $cmd
     echo '---------------------------------------------------------------------'
     $cmd  || rc=$?
+
+    isitscbe=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SCBE-MANAGEMENT-IP}"`
+    if [ ! -z "$isitscbe" ]; then
+       kubectl get $nsf $flags secret/scbe-credentials || rc=$?
+    fi
+
+    isitscale=`kubectl get $nsf configmap ubiquity-configmap -o jsonpath="{.data.SPECTRUMSCALE-MANAGEMENT-IP}"`
+    if [ ! -z "$isitscale" ]; then
+        kubectl get $nsf $flags secret/spectrumscale-credentials || rc=$?
+    fi
 
     echo ""
     cmd="kubectl get $nsf $flags  pod | egrep \"^ubiquity|^NAME\""

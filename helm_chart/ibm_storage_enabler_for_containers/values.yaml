@@ -74,20 +74,3 @@ genericConfig:
 
     ## Set this param with and existing spectrum connect secret object if one exist.
     # existingSecret:
-
-#  k8sApiServerAccess:
-#    ## The provisioner will use it to access API server in order to create\delete\view PVCs
-#
-#    ## server from the .kube/config
-#    server:
-#    ## token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
-#    token:
-  
-   ubiquityService:
-     name: ubiquity
-	 url: api/v1/namespaces/ubiquity/services
-
-   ubiquityDaemonset:	
-	 name: ubiquity-k8s-flex
-	 url: apis/extensions/v1beta1/namespaces/ubiquity/daemonsets
-	  
