@@ -21,7 +21,7 @@ spectrumConnect:
     username:
     password:
 
-    ## Set this param with and existing spectrum connect secret object if one exist.
+    ## Set this param with an existing spectrum connect secret object if one exist.
     # existingSecret:
 
     ## SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
@@ -50,6 +50,10 @@ spectrumConnect:
       storageClassForDbPv:
         ## Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
         storageClassName:
+		
+		## Set this param with an existing storageclass object if one exist.
+        # existingStorageClass:
+		
         params:
           ## Storage Class profile parameter should point to the Spectrum Connect storage service name
           spectrumConnectServiceName:
@@ -72,5 +76,5 @@ genericConfig:
     username:
     password:
 
-    ## Set this param with and existing spectrum connect secret object if one exist.
+    ## Set this param with an existing spectrum connect secret object if one exist.
     # existingSecret:
