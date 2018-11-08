@@ -2,10 +2,9 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: ubiquity-k8s-flex
-  namespace: ubiquity
   labels:
-    app: ubiquity-k8s-flex
     product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
     chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -72,10 +71,7 @@ spec:
                 key: SSL-MODE
 
           - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: UBIQUITY-IP-ADDRESS
+            value: 0.0.0.0
 
           - name: SKIP_RESCAN_ISCSI       # boolean
             valueFrom:

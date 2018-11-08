@@ -3,7 +3,6 @@ kind: ConfigMap
 metadata:
 # IBM Storage Enabler for Containers Kubernetes daemonset and deployments settings.
   name: ubiquity-configmap
-  namespace: ubiquity
   labels:
     product: ibm-storage-enabler-for-containers
     app: {{ template "ibm_storage_enabler_for_containers.name" . }}
