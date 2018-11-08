@@ -3,30 +3,11 @@ kind: ClusterRole
 metadata:
   name: ubiquity-helm-hook
   labels:
-    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
-    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - services
-  - persistentvolumeclaims
   - persistentvolumes
   verbs:
   - get
-  - list
-  - create
-  - delete
-- apiGroups:
-  - extensions
-  resources:
-  - daemonsets
-  - deployments
-  verbs:
-  - get
-  - list
-  - create
-  - patch

@@ -21,7 +21,7 @@ spectrumConnect:
     username:
     password:
 
-    ## name-of-existing-secret
+    ## Set this param with and existing spectrum connect secret object if one exist.
     # existingSecret:
 
     ## SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
@@ -72,7 +72,7 @@ genericConfig:
     username:
     password:
 
-    ## name-of-existing-secret
+    ## Set this param with and existing spectrum connect secret object if one exist.
     # existingSecret:
 
 #  k8sApiServerAccess:

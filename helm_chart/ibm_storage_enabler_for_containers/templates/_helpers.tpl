@@ -53,6 +53,13 @@ Create the name for ubiquity-db secret
     {{- end -}}                                                                                                        
 {{- end -}}
 
+{{- define "ibm_storage_enabler_for_containers.helmLabels" -}}
+app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+release: {{ .Release.Name }}
+heritage: {{ .Release.Service }}
+{{- end -}}
+
 {{- define "ibm_storage_enabler_for_containers.ubiquityServiceName" -}}
 ubiquity
 {{- end -}}

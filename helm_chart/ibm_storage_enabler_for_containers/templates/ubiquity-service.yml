@@ -3,11 +3,8 @@ kind: Service
 metadata:
   name: ubiquity
   labels:
-    app: ubiquity
     product: ibm-storage-enabler-for-containers
-    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   ports:
     - port: 9999

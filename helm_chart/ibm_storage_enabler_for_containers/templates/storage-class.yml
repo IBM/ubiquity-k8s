@@ -5,10 +5,7 @@ metadata:
   name: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName  | quote }}
   labels:
     product: ibm-storage-enabler-for-containers
-    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
-    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 #  annotations:
 #   storageclass.beta.kubernetes.io/is-default-class: "true"
 provisioner: "ubiquity/flex"

@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: ubiquity-helm-hook
   labels:
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: ubiquity-helm-hook
 subjects:
 - kind: ServiceAccount
