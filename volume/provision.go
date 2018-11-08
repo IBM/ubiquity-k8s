@@ -33,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"k8s.io/api/core/v1"
-	"reflect"
 )
 
 const (
