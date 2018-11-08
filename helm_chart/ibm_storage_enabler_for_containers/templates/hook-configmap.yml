@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hook-config
+  labels:
+    product: ibm-storage-enabler-for-containers
+    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
+    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  post-install: |
+
+    #!/bin/sh
+
+    set -e
+
+    echo "Patch UBIQUITY_IP_ADDRESS in daemonset ubiquity-k8s-flex";
+    echo "--------------------------------------------------------";
+
+    ## Get ubiquity Cluster IP
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    serviceEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityServiceUrl" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityServiceName" . }}"
+    echo $serviceEndpoint
+    serviceInfo=$(curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H "Authorization: Bearer $token" $serviceEndpoint)
+    ubiquityClusterIp=$(echo $serviceInfo | awk -F 'clusterIP\": ' '{print $2}' | awk -F ',' '{print $1}')
+    echo $ubiquityClusterIp
+
+    ## Patch Daemonset
+    daemonsetEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDaemonsetUrl" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDaemonsetName" . }}"
+    daemonsetJsonFile=$(curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H "Authorization: Bearer $token" $daemonsetEndpoint > /var/tmp/daemonset_tmp.json)
+    patchJsonFile=$(sed -i "s/\"value\": \"0.0.0.0\"/\"value\": $ubiquityClusterIp/g" /var/tmp/daemonset_tmp.json)
+    patchDaemonset=$(curl -k --cacert /var/run/secrets/kubernetes.io/serviceaccout/ca.crt -H "Authorization: Bearer $token" -H "Accept: application/json" -H "Content-Type: application/strategic-merge-patch+json" -X PATCH --data "$(cat /var/tmp/daemonset_tmp.json)" $daemonsetEndpoint)
+
+  pre-delete: |
+
+    #!/bin/bash
+
+    set -e
+
+    echo "Delete PersistentVolumes";
+    echo "------------------------";
+
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    accept="application/json"
+    contentType="application/strategic-merge-patch+json"
+    cert="/var/run/secrets/kubernetes.io/serviceaccout/ca.crt"
+    NOTFOUND_CODE="404"
+    depoymentEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbDeploymentUrl" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbDeploymentName" . }}"
+    pvcEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPvcUrl" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPvcName" . }}"
+    pvEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPvUrl" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPvName" . }}"
+
+    function wait_for_item_to_delete()
+    {
+      item_type=$1
+      item_name=$2
+      retires=$3
+      max_retries=$3
+      delay=$4
+      labelSelector=$5
+
+      podWithLabelSelectorEndpoint="https://{{ template "ibm_storage_enabler_for_containers.kubernetesDns" . }}/{{ template "ibm_storage_enabler_for_containers.ubiquityDbPodUrl" . }}?labelSelector=app%3D{{ template "ibm_storage_enabler_for_containers.ubiquityDbDeploymentName" . }}"
+
+      while true; do
+        if [ -n "$labelSeletor" ]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $podWithLabelSelectorEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        elif [ "$item_type" = "PVC" ]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvcEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        elif [ "$item_type" = "PV"]; then
+          statusCode=$(curl -k --cacert $cert -H "Authorization: Bearer $token" $pvEndpoint | awk -F 'code\": ' '{print $2}' | awk -F ' ' '{print $1}')
+        fi
+        if [ -n "$statusCode" ] && [ $statusCode = $NOTFOUND_CODE ]; then
+          if [ -n "$labelSeletor" ]; then
+            echo "The pod created by deployment [${labelSelector}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+          else
+            echo "${item_type} [${item_name}] was deleted (after $(($max_retries - $retries))/${max_retries} tries)"
+          fi
+          return
+        else
+          if [ $retries -eq 0 ]; then
+            echo "Error: ${item_type} [${item_name}] still exists after all ${max_retries} retries. Exiting."
+            exit 2
+          else
+            echo "${item_type} [${item_name}] still exists. sleeping [${delay} sec] before retrying to check [$(($max_retries - $retries))/${max_retries}]"
+            retries=$(($retries - 1))
+            sleep $delay;
+          fi
+        fi
+      done
+    }
+
+    ## Set replicas of ubiquity-db deployment to 0 and wait for all the relevant pods to be deleted.
+    setReplicZero='{\"spec\":{\"replicas\":0}}'
+    patchDeployment=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -H "Accept: $accept" -H "Content-Type: $contentType" -X PATCH --data $setReplicZero $depoymentEndpoint)
+    wait_for_item_to_delete pod "" 10 4 ubiquity-db
+
+    ## Delete PVCs and wait for deleted.
+    deletePvc=$(curl -k --cacert $cert -H "Authorization: Bearer $token" -X DELETE $pvcEndpoint)
+    wait_for_item_to_delete PVC ibm-ubiquity-db 10 3 ""
+    wait_for_item_to_delete PV ibm-ubiquity-db 10 3 ""
