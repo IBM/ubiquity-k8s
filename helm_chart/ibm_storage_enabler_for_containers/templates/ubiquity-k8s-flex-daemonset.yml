@@ -61,13 +61,19 @@ spec:
               secretKeyRef:
                 name: scbe-credentials
                 key: password
-{{ end }}
+
+          - name: SKIP_RESCAN_ISCSI       # boolean
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SKIP-RESCAN-ISCSI
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
+{{ end }}
 
           - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
             valueFrom:
@@ -75,11 +81,6 @@ spec:
                 name: ubiquity-configmap
                 key: UBIQUITY-IP-ADDRESS
 
-          - name: SKIP_RESCAN_ISCSI       # boolean
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SKIP-RESCAN-ISCSI
 
 
 
@@ -112,4 +113,3 @@ spec:
               path: ubiquity-trusted-ca.crt
 {{ end }}
 
-#      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
