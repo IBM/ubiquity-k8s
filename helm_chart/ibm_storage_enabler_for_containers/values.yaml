@@ -8,9 +8,6 @@ images:
   provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
   flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
 
-Kubernetes:
-  dNS: kubernetes.default
-
 spectrumConnect:
   connectionInfo:
     ## IP\FQDN and port of Spectrum Connect server.
