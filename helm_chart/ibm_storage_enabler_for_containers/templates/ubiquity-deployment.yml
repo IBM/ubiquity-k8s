@@ -123,7 +123,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
-                key: SSL-MODE
+                key: SPECTRUMSCALE-SSL-MODE
 {{ end }}
 
           ### Ubiquity generic parameters:
@@ -187,8 +187,7 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
-        # TODO also or scale
+{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
         volumeMounts:
         - name: ubiquity-private-certificate
           mountPath: /var/lib/ubiquity/ssl/private

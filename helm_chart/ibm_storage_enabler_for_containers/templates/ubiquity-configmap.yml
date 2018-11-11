@@ -42,12 +42,15 @@ data:
   
    # Communication port of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.spectrumScale.connectionInfo.port | quote }}
-  
-   # Default Filesystem for creating pvc
-   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumConnect.backendConfig.defaultFilesystemName | quote }}
-  
+
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+   SSL-MODE: {{ .Values.spectrumScale.connectionInfo.sslMode | quote }}
+
    # SSL verification mode for communication between Ubiquity and Spectrum Scale GUI. Allowed values: require    (no validation is required) and verify-full (user-provided certificates).
    SPECTRUMSCALE-SSL-MODE: {{ .Values.spectrumScale.connectionInfo.sslMode | quote }}
+
+   # Default Filesystem for creating pvc
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumConnect.backendConfig.defaultFilesystemName | quote }}
 {{ end }}
 
 

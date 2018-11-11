@@ -72,21 +72,19 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SKIP-RESCAN-ISCSI
+{{ end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
-{{ end }}
 
           - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: UBIQUITY-IP-ADDRESS
-
-
 
 
         command: ["./setup_flex.sh"]
@@ -96,7 +94,7 @@ spec:
 
         - name: flex-log-dir
           mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
         - name: ubiquity-public-certificates
           mountPath: /var/lib/ubiquity/ssl/public
           readOnly: true
@@ -109,7 +107,7 @@ spec:
       - name: flex-log-dir
         hostPath:
           path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
       - name: ubiquity-public-certificates
         configMap:
           name: ubiquity-public-certificates
