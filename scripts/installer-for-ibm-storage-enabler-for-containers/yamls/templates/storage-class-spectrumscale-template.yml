@@ -1,0 +1,19 @@
+# This is an IBM Storage Enabler for Containers Storage Class template.
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: "<NAME>"
+  labels:
+    product: ibm-storage-enabler-for-containers
+#  annotations:
+#   storageclass.beta.kubernetes.io/is-default-class: "true"
+#reclaimPolicy: "Retain"                            # Optional, Values: Delete[default] or Retain
+provisioner: "ubiquity/flex"
+parameters:
+  backend: "spectrum-scale"
+  filesystem: "<filesystem name>"
+  type: "fileset"
+#  fileset-type: "<fileset type>"                   # Optional, Values: Independent[default] or dependent
+#  uid: "<uid number>"                              # Optional
+#  gid: "<gid number>"                              # Optional
+#  inode-limit: "<no of inodes to be preallocated>" # Optional
