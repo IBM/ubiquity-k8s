@@ -51,7 +51,7 @@ spectrumConnect:
           # Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType: ext4
 
-# spectrumConnect or spectrumScale is supported. Please delete the relevant backend.
+## spectrumConnect or spectrumScale is supported. Please delete the relevant backend.
 #spectrumScale:
 #  connectionInfo:
 #    # IP\FQDN and port of Spectrum Scale Rest Management API server.
@@ -95,10 +95,3 @@ genericConfig:
     username:
     password:
 
-#  k8sApiServerAccess:
-#    # The provisioner will use it to access API server in order to create\delete\view PVCs
-#
-#    # server from the .kube/config
-#    server:
-#    # token from kubectl -n default get secret $(kubectl -n default get secret | grep service-account | awk '{print $1}') -o yaml | grep token: | awk '{print $2}' | base64 -d
-#    token:
