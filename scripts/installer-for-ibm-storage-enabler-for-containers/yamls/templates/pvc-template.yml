@@ -11,13 +11,14 @@ metadata:
   # NOTE : User label only if you want to set the PV name (the default is PV=PVC-ID)
   # ------
   #labels:
-  #  pv-name: "ibm-ubiquity-db"   # Ubiquity provisioner will create a PV with ibm-ubiquity-db instead of PVC-ID.
+  #  pv-name: "<PV name>"   # Ubiquity provisioner will create a PV with <PV name> instead of PVC-ID.
 spec:
   # NOTE : Use storageClassName only in k8s version 1.6+. For lower versions uses volume.beta.kubernetes.io/storage-class
   storageClassName: <Storage Class Name>
 
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteOnce     # Currently Ubiquity scbe backend supports only ReadWriteOnce mode.
+                        # Ubiquity Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
     requests:
       storage: <Number>Gi

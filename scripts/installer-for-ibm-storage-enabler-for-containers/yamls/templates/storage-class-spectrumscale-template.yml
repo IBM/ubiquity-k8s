@@ -7,11 +7,11 @@ metadata:
     product: ibm-storage-enabler-for-containers
 #  annotations:
 #   storageclass.beta.kubernetes.io/is-default-class: "true"
-#reclaimPolicy: "Retain"                            # Optional, Values: Delete[default] or Retain 
+#reclaimPolicy: "Retain"                            # Optional, Values: Delete[default] or Retain
 provisioner: "ubiquity/flex"
 parameters:
   backend: "spectrum-scale"
-  filesystem: "<filesystem name>"        
+  filesystem: "<filesystem name>"
   type: "fileset"
 #  fileset-type: "<fileset type>"                   # Optional, Values: Independent[default] or dependent
 #  uid: "<uid number>"                              # Optional
