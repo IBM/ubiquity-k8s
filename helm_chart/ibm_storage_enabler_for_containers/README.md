@@ -4,14 +4,18 @@
 * Don't include versions of charts or products
 
 ## Introduction
-This chart bootstraps all Ubiquity components deployment on a Kubernetes cluster using the Helm package manager.
+IBM Storage Enabler for Containers allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
+Thus, the containers can be used with stateful microservices, such as database applications (MongoDB, PostgreSQL etc).
+IBM Storage Enabler for Containers uses Kubernetes dynamic provisioning for creating and deleting volumes on IBM storage systems.
+In addition, IBM Storage Enabler for Containers utilizes the full set of Kubernetes FlexVolume APIs for volume operations on a host.
+The operations include initiation, attachment/detachment, mounting/unmounting etc..
 
 ## Chart Details
 This chart includes:
-* A Ubiquity server Deployment used as the server of Kubernetes Dynamic Provisioner and FlexVolume
-* A Ubiquity database Deployment used to store the persistent data of Ubiquity server
-* A Kubernetes Dynamic Provisioner Deployment allows storage volumes to be created on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
-* A Kubernetes FlexVolume DaemonSet enables the users to attach and mount storage volumes into a pod within a Kubernetes node.
+* A Ubiquity server Deployment used as the server of Kubernetes Dynamic Provisioner and FlexVolume.
+* A Ubiquity database Deployment used to store the persistent data of Ubiquity server.
+* A Kubernetes Dynamic Provisioner Deployment for creation  storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
+* A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
 * Kubernetes Level - indicate if specific APIs must be enabled (i.e. Kubernetes 1.6 with Beta APIs enabled)
@@ -28,7 +32,7 @@ This chart includes:
 To install the chart with the release name `my-release`:
 
 ```bash
-$ helm install --name my-release --namespace ubiquity stable/ubiquity
+$ helm install --name my-release --namespace ubiquity stable/ibm_storage_enabler_for_containers
 ```
 
 The command deploys <Chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
@@ -37,19 +41,19 @@ The command deploys <Chart name> on the Kubernetes cluster in the default config
 > **Tip**: List all releases using `helm list`
 
 ### Verifying the Chart
-You can check the status by run:
+You can check the status by running:
 ```bash
 $ helm status my-release
 ```
 
-When all the status are fine, you can run sanity test by:
+If all statuses are free of errors, you can run sanity test by:
 ```bash
 $ helm test my-release
 ```
 
 ### Uninstalling the Chart
 
-To uninstall/delete the `my-release` deployment:
+To uninstall/delete the `my-release` release:
 
 ```bash
 $ helm delete my-release --purge

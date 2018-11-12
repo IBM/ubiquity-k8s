@@ -9,5 +9,7 @@ keywords:
   - ICP
   - amd64
   - Storage
+sources:
+  - https: https://github.com/ibm/ubiquity-k8s
 appVersion: 2.0
 tillerVersion: ">=2.6.0"
