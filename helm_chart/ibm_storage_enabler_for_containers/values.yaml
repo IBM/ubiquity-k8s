@@ -86,6 +86,7 @@ genericConfig:
   # The IP address of the ubiquity service object.
   # The user must update this key manually if the ubiqutiy service object IP was changed.
   ubiquityIpAddress:
+
   logging:
     # Log level. Allowed values: debug, info, error.
     logLevel: info
@@ -96,4 +97,7 @@ genericConfig:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
+
+  ## Optional: to set the node selector of the ubiqutiy-db deployment
+  #ubiquityDbNodeSelector:
 

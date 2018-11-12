@@ -145,9 +145,6 @@ spec:
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
           - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (Spectrum Connect) as its backend.
-            value: "scbe"
-
-          - name: DEFAULT_BACKEND
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap

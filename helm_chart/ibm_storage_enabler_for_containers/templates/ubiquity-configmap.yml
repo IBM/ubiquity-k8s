@@ -52,14 +52,11 @@ data:
    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). (relevant for both SCBE and Scale backends)
    SSL-MODE: {{ .Values.spectrumScale.connectionInfo.sslMode | quote }}
 
-   # SSL verification mode for communication between Ubiquity and Spectrum Scale GUI. Allowed values: require    (no validation is required) and verify-full (user-provided certificates).
-   SPECTRUMSCALE-SSL-MODE: {{ .Values.spectrumScale.connectionInfo.sslMode | quote }}
-
    # Default Filesystem for creating pvc
    SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumConnect.backendConfig.defaultFilesystemName | quote }}
 
    # Default Ubiquity Backend (relevant for both SCBE and Scale backends)
-   DEFAULT-BACKEND: spectrumscale
+   DEFAULT-BACKEND: spectrum-scale
 
    # DB pv name. (relevant for both SCBE and Scale backends)
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumScale.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
