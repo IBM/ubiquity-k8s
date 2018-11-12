@@ -1,6 +1,6 @@
 # This is an IBM Storage Enabler for Containers Storage Class template.
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: "<NAME>"
   labels:
@@ -17,3 +17,4 @@ parameters:
 #  uid: "<uid number>"                              # Optional
 #  gid: "<gid number>"                              # Optional
 #  inode-limit: "<no of inodes to be preallocated>" # Optional
+#  fileset: "<Name of existing fileset>"            # Optional
