@@ -5,6 +5,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: sanity-pod
+  namespace: default
 spec:
   containers:
   - name: container1
@@ -26,6 +27,7 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: sanity-pvc
+  namespace: default
   annotations:
     volume.beta.kubernetes.io/storage-class: ""
 spec:
