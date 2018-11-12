@@ -6,7 +6,8 @@ metadata:
     volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
 spec:
   accessModes:
-    - ReadWriteOnce # Currently Ubiquity scbe backend supports only ReadWriteOnce mode
+    - ReadWriteOnce # Currently Ubiquity scbe backend supports only ReadWriteOnce mode.
+                    # Ubiquity Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
     requests:
       storage: 1Gi  # Size in Gi unit only
