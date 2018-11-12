@@ -54,7 +54,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
+{{ if .Values.spectrumConnect }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:

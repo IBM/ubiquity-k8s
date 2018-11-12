@@ -19,7 +19,7 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
-{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
+{{ if .Values.spectrumConnect }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
           - name: SCBE_USERNAME
@@ -82,7 +82,7 @@ spec:
 {{ end }}
 
 
-{{ if .Values.spectrumScale.connectionInfo.fqdn }}
+{{ if .Values.spectrumScale }}
 
           ### Ubiquity Spectrum Scale backend parameters:
           #####################################
@@ -213,11 +213,11 @@ spec:
           items:
           - key: ubiquity-db-trusted-ca.crt
             path: ubiquity-db-trusted-ca.crt
-  {{ if .Values.spectrumConnect.connectionInfo.fqdn) }}
+  {{ if .Values.spectrumConnect }}
           - key: scbe-trusted-ca.crt
             path: scbe-trusted-ca.crt
   {{ end }}
-  {{ if .Values.spectrumScale.connectionInfo.fqdn) }}
+  {{ if .Values.spectrumScale }}
           - key: spectrumscale-trusted-ca.crt
             path: spectrumscale-trusted-ca.crt
   {{ end }}

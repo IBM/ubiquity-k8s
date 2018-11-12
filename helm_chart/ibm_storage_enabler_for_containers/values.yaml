@@ -8,6 +8,8 @@ images:
   provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
   flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
 
+## IBM storage Enabler for Containers supports two backend types: spectrumConnect OR spectrumScale.
+## Please choose below only one backend and comment-out the other backend section.
 spectrumConnect:
   connectionInfo:
     ## IP\FQDN and port of Spectrum Connect server.
@@ -51,7 +53,8 @@ spectrumConnect:
           # Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType: ext4
 
-## spectrumConnect or spectrumScale is supported. Please delete the relevant backend.
+## IBM storage Enabler for Containers supports two backend types: spectrumConnect OR spectrumScale.
+## Please choose below only one backend and comment-out the other backend section.
 #spectrumScale:
 #  connectionInfo:
 #    # IP\FQDN and port of Spectrum Scale Rest Management API server.
@@ -83,7 +86,6 @@ genericConfig:
   # The IP address of the ubiquity service object.
   # The user must update this key manually if the ubiqutiy service object IP was changed.
   ubiquityIpAddress:
-
   logging:
     # Log level. Allowed values: debug, info, error.
     logLevel: info

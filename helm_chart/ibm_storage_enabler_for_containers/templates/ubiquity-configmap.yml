@@ -8,7 +8,7 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
-{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
+{{ if .Values.spectrumConnect }}
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
    SCBE-MANAGEMENT-IP: {{ .Values.spectrumConnect.connectionInfo.fqdn | quote }}
 
@@ -42,7 +42,7 @@ data:
 
 
 
-{{ if .Values.spectrumScale.connectionInfo.fqdn }}
+{{ if .Values.spectrumScale }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.spectrumScale.connectionInfo.fqdn | quote }}
   

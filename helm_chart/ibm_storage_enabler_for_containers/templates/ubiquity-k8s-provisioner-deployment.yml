@@ -33,7 +33,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{ if .Values.spectrumConnect.connectionInfo.fqdn }} # TODO consider to check if the secret exist instead
+{{ if .Values.spectrumConnect }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:

@@ -1,4 +1,4 @@
-{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
+{{ if .Values.spectrumConnect }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
