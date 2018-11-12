@@ -181,7 +181,7 @@ spec:
                 name: ubiquity-db-credentials
                 key: dbname
 
-          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
+          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap

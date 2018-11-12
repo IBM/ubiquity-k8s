@@ -1,3 +1,4 @@
+{{ if .Values.spectrumConnect.connectionInfo.fqdn }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
@@ -11,3 +12,4 @@ parameters:
   profile: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.spectrumConnectServiceName  | quote }}
   fstype: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.fsType  | quote }}        # xfs or ext4
   backend: "scbe"
+{{ end }}

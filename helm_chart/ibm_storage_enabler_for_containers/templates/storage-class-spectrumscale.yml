@@ -1,3 +1,4 @@
+{{ if .Values.spectrumScale.connectionInfo.fqdn }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
@@ -12,3 +13,4 @@ parameters:
   filesystem: {{ .Values.spectrumScale.backendConfig.defaultFilesystemName | quote }}
   fileset-type: "dependent"
   type: fileset
+{{ end }}
