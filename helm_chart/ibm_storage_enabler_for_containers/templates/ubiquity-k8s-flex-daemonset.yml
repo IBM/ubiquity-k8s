@@ -94,7 +94,7 @@ spec:
 
         - name: flex-log-dir
           mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
+{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         - name: ubiquity-public-certificates
           mountPath: /var/lib/ubiquity/ssl/public
           readOnly: true
@@ -107,7 +107,7 @@ spec:
       - name: flex-log-dir
         hostPath:
           path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
+{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
       - name: ubiquity-public-certificates
         configMap:
           name: ubiquity-public-certificates

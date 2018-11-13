@@ -184,7 +184,7 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
+{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         volumeMounts:
         - name: ubiquity-private-certificate
           mountPath: /var/lib/ubiquity/ssl/private

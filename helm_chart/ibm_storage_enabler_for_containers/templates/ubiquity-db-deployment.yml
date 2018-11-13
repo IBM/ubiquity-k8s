@@ -14,7 +14,7 @@ spec:
     spec:
       {{ if .Values.genericConfig.ubiquityDbNodeSelector }}
       nodeSelector:
-{{ toYaml .Values.ubiquityDbNodeSelector | ident 8}}
+{{ toYaml .Values.ubiquityDbNodeSelector | indent 8}}
       {{ end }}
       containers:
       - name: ubiquity-db
@@ -45,16 +45,16 @@ spec:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
-{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
+{{- if eq .Values.genericConfig.connectionInfo.sslMode "verify-full" }}
           - name: ubiquity-db-private-certificate
             mountPath: /var/lib/postgresql/ssl/private/
-{{ end }}
+{{- end }}
 
       volumes:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
           claimName: ibm-ubiquity-db
-{{ if or ( and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full")) ( and (.Values.spectrumScale.connectionInfo.sslMode) (eq .Values.spectrumScale.connectionInfo.sslMode "verify-full"))}}
+{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
       - name: ubiquity-db-private-certificate
         secret:
           secretName: ubiquity-db-private-certificate
