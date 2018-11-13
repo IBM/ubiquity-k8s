@@ -63,7 +63,6 @@ var _ = Describe("Utils", func() {
 				{"BACKENDS", ubiquityConfig.Backends[0]},
 				{"UBIQUITY_PORT", strconv.Itoa(ubiquityConfig.UbiquityServer.Port)},
 				{"UBIQUITY_ADDRESS", ubiquityConfig.UbiquityServer.Address},
-				{"SCBE_SKIP_RESCAN_ISCSI", strconv.FormatBool(ubiquityConfig.ScbeRemoteConfig.SkipRescanISCSI)},
 				{"UBIQUITY_USERNAME", ubiquityConfig.CredentialInfo.UserName},
 				{"UBIQUITY_PASSWORD", ubiquityConfig.CredentialInfo.Password},
 			}
@@ -98,7 +97,6 @@ var _ = Describe("Utils", func() {
 				{"BACKENDS", ubiquityConfig.Backends[0]},
 				{"UBIQUITY_PORT", strconv.Itoa(ubiquityConfig.UbiquityServer.Port)},
 				{"UBIQUITY_ADDRESS", ubiquityConfig.UbiquityServer.Address},
-				{"SCBE_SKIP_RESCAN_ISCSI", strconv.FormatBool(ubiquityConfig.ScbeRemoteConfig.SkipRescanISCSI)},
 				{"UBIQUITY_USERNAME", ubiquityConfig.CredentialInfo.UserName},
 				{"UBIQUITY_PASSWORD", ubiquityConfig.CredentialInfo.Password},
 			}
