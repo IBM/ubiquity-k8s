@@ -4,9 +4,9 @@ name: ibm-storage-enalber-for-containers
 version: 1.0.0
 appVersion: 2.0.0
 sources:
-- https: https://github.com/ibm/ubiquity-k8s
+  - https://github.com/ibm/ubiquity-k8s
 maintainers:
-- name: Shay Berman
-  email: bshay@il.ibm.com
-- name: Guang Jiong GJ Lou
-  email:  luogj@cn.ibm.com
+  - name: Shay Berman
+    email: bshay@il.ibm.com
+  - name: Guang Jiong GJ Lou
+    email:  luogj@cn.ibm.com
