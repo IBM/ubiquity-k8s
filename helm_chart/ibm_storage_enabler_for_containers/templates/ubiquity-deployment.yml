@@ -123,7 +123,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
-                key: SPECTRUMSCALE-SSL-MODE
+                key: SSL-MODE
 {{ end }}
 
           ### Ubiquity generic parameters:
