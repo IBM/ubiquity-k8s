@@ -158,7 +158,7 @@ outerLoop:
 				break outerLoop
 			}
 		case <-timer.C:
-			err = fmt.Errorf("Timed out waiting for new job changes")
+			err = fmt.Errorf("Timed out waiting for new resource changes")
 			logger.Error(err.Error())
 			break outerLoop
 		}

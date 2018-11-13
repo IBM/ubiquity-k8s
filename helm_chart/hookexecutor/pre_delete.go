@@ -123,7 +123,7 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPvc() error {
 	for _, w := range []watch.Interface{pvcWatcher, pvWatcher} {
 		wg.Add(1)
 		go func() {
-			_, err := Watch(w, nil)
+			_, err := Watch(w, nil, 1*time.Minute)
 			if err != nil {
 				if watcherErr == nil {
 					watcherErr = err
@@ -141,7 +141,7 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPvc() error {
 	wg.Wait()
 
 	if watcherErr != nil {
-		return logger.ErrorRet(err, "Failed waiting Pod to be deleted")
+		return logger.ErrorRet(watcherErr, "Failed waiting PVC/PV to be deleted")
 	} else {
 		logger.Info(fmt.Sprintf("Successfully Deleted PVC %s", ubiquityDBPvcName))
 		return nil
