@@ -15,9 +15,6 @@ data:
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
    SCBE-MANAGEMENT-PORT: {{ .Values.spectrumConnect.connectionInfo.port | quote }}
 
-   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). (relevant for both SCBE and Scale backends)
-   SSL-MODE: {{ .Values.genericConfig.connectionInfo.sslMode | quote }}
-
    # Default Spectrum Connect storage service to be used, if not specified by the plugin.
    SCBE-DEFAULT-SERVICE: {{ .Values.spectrumConnect.backendConfig.DefaultStorageService | quote }}
 
@@ -49,9 +46,6 @@ data:
    # Communication port of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.spectrumScale.connectionInfo.port | quote }}
 
-   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). (relevant for both SCBE and Scale backends)
-   SSL-MODE: {{ .Values.genericConfig.connectionInfo.sslMode | quote }}
-
    # Default Filesystem for creating pvc
    SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumScale.backendConfig.defaultFilesystemName | quote }}
 
@@ -82,3 +76,5 @@ data:
    # The user must update this key manually if the ubiqutiy service object IP was changed.
    UBIQUITY-IP-ADDRESS: {{ .Values.genericConfig.ubiquityIpAddress | quote }}  # TODO this should be automatically set by post hook script(different PR)
 
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). (relevant for both SCBE and Scale backends)
+   SSL-MODE: {{ .Values.genericConfig.connectionInfo.sslMode | quote }}
