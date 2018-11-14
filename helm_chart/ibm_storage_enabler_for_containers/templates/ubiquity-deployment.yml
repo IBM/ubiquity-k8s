@@ -219,4 +219,3 @@ spec:
             path: spectrumscale-trusted-ca.crt
   {{ end }}
 {{ end }}
-

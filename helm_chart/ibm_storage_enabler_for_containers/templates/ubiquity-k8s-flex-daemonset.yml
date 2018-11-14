@@ -115,4 +115,3 @@ spec:
             - key: ubiquity-trusted-ca.crt
               path: ubiquity-trusted-ca.crt
 {{ end }}
-

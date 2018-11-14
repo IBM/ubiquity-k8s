@@ -98,4 +98,3 @@ genericConfig:
 
   ## Optional: to set the node selector of the ubiqutiy-db deployment
   #ubiquityDbNodeSelector:
-
