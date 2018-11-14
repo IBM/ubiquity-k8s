@@ -53,7 +53,7 @@ data:
    SSL-MODE: {{ .Values.genericConfig.connectionInfo.sslMode | quote }}
 
    # Default Filesystem for creating pvc
-   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumConnect.backendConfig.defaultFilesystemName | quote }}
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumScale.backendConfig.defaultFilesystemName | quote }}
 
    # Default Ubiquity Backend (relevant for both SCBE and Scale backends)
    DEFAULT-BACKEND: spectrum-scale
