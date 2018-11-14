@@ -30,10 +30,10 @@ data:
    # Allowed values: true or false. Set to true if the nodes have FC connectivity.
    SKIP-RESCAN-ISCSI: {{ .Values.spectrumConnect.backendConfig.skipRescanIscsi | quote }}
 
-   # Default Ubiquity Backend (relevant for both SCBE and Scale backends)
+   # Default Ubiquity Backend
    DEFAULT-BACKEND: scbe
 
-   # DB pv name. (relevant for both SCBE and Scale backends)
+   # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
 {{ end }}
 
@@ -49,10 +49,10 @@ data:
    # Default Filesystem for creating pvc
    SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumScale.backendConfig.defaultFilesystemName | quote }}
 
-   # Default Ubiquity Backend (relevant for both SCBE and Scale backends)
+   # Default Ubiquity Backend
    DEFAULT-BACKEND: spectrum-scale
 
-   # DB pv name. (relevant for both SCBE and Scale backends)
+   # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumScale.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
 {{ end }}
 
@@ -76,5 +76,5 @@ data:
    # The user must update this key manually if the ubiqutiy service object IP was changed.
    UBIQUITY-IP-ADDRESS: {{ .Values.genericConfig.ubiquityIpAddress | quote }}  # TODO this should be automatically set by post hook script(different PR)
 
-   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). (relevant for both SCBE and Scale backends)
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
    SSL-MODE: {{ .Values.genericConfig.connectionInfo.sslMode | quote }}
