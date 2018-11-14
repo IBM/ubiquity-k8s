@@ -5,8 +5,10 @@ metadata:
   name: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName  | quote }}
   labels:
     product: ibm-storage-enabler-for-containers
-#  annotations:
-#   storageclass.beta.kubernetes.io/is-default-class: "true"
+{{- if .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.defaultClass }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+{{- end }}
 provisioner: "ubiquity/flex"
 parameters:
   profile: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.spectrumConnectServiceName  | quote }}

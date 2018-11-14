@@ -44,6 +44,10 @@ spectrumConnect:
         # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
         # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
         storageClassName:
+
+        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
+        defaultClass: false
+
         params:
           # Storage Class profile parameter should point to the Spectrum Connect storage service name
           spectrumConnectServiceName:
@@ -73,6 +77,9 @@ spectrumConnect:
 #        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
 #        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
 #        storageClassName:
+#
+#        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
+#        defaultClass: false
 
 
 
