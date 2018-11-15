@@ -8,7 +8,7 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
-{{ if .Values.spectrumConnect }}
+{{- if .Values.spectrumConnect }}
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
    SCBE-MANAGEMENT-IP: {{ .Values.spectrumConnect.connectionInfo.fqdn | quote }}
 
@@ -35,11 +35,11 @@ data:
 
    # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
-{{ end }}
+{{- end }}
 
 
 
-{{ if .Values.spectrumScale }}
+{{- if .Values.spectrumScale }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.spectrumScale.connectionInfo.fqdn | quote }}
   
@@ -54,7 +54,7 @@ data:
 
    # DB pv name.
    IBM-UBIQUITY-DB-PV-NAME: {{ .Values.spectrumScale.backendConfig.dbPvConfig.ubiquityDbPvName | quote }}
-{{ end }}
+{{- end }}
 
 
 

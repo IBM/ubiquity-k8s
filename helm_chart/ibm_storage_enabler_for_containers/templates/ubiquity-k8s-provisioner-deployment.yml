@@ -33,7 +33,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{ if .Values.spectrumConnect }} # TODO consider to check if the secret exist instead
+{{- if .Values.spectrumConnect }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -45,7 +45,7 @@ spec:
               secretKeyRef:
                 name: scbe-credentials
                 key: password
-{{ end }}
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -54,7 +54,7 @@ spec:
                 key: SSL-MODE
 
 
-{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         volumeMounts:
           - name: ubiquity-public-certificates
             mountPath: /var/lib/ubiquity/ssl/public
@@ -66,4 +66,4 @@ spec:
             items:
               - key: ubiquity-trusted-ca.crt
                 path: ubiquity-trusted-ca.crt
-{{ end }}
+{{- end }}

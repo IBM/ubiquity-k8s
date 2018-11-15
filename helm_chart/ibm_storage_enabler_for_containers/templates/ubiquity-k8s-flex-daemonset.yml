@@ -15,16 +15,16 @@ spec:
         product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
-      {{ if .Values.genericConfig.flexTolerations }}
+      {{- if .Values.genericConfig.flexTolerations }}
 {{ toYaml .Values.flexTolerations | indent 6}}
-      {{ else }}
+      {{- else }}
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
         operator: Exists
         effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
-      {{ end }}
+      {{- end }}
 
       containers:
       - name: ubiquity-k8s-flex
@@ -54,7 +54,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{ if .Values.spectrumConnect }}
+{{- if .Values.spectrumConnect }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -72,7 +72,7 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SKIP-RESCAN-ISCSI
-{{ end }}
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -94,11 +94,11 @@ spec:
 
         - name: flex-log-dir
           mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         - name: ubiquity-public-certificates
           mountPath: /var/lib/ubiquity/ssl/public
           readOnly: true
-{{ end }}
+{{- end }}
       volumes:
       - name: host-k8splugindir
         hostPath:
@@ -107,11 +107,11 @@ spec:
       - name: flex-log-dir
         hostPath:
           path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-{{ if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
       - name: ubiquity-public-certificates
         configMap:
           name: ubiquity-public-certificates
           items:
             - key: ubiquity-trusted-ca.crt
               path: ubiquity-trusted-ca.crt
-{{ end }}
+{{- end }}
