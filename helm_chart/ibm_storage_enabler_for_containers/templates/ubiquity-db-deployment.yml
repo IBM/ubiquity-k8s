@@ -12,6 +12,10 @@ spec:
         app: ubiquity-db
         product: ibm-storage-enabler-for-containers
     spec:
+      {{- if .Values.genericConfig.ubiquityDbNodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.ubiquityDbNodeSelector | indent 8}}
+      {{- end }}
       containers:
       - name: ubiquity-db
         image: {{ .Values.images.ubiquitydb }}
@@ -41,16 +45,16 @@ spec:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{- if eq .Values.genericConfig.connectionInfo.sslMode "verify-full" }}
           - name: ubiquity-db-private-certificate
             mountPath: /var/lib/postgresql/ssl/private/
-{{ end }}
+{{- end }}
 
       volumes:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
           claimName: ibm-ubiquity-db
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
       - name: ubiquity-db-private-certificate
         secret:
           secretName: ubiquity-db-private-certificate
@@ -61,4 +65,4 @@ spec:
           - key: ubiquity-db.crt
             path: ubiquity-db.crt
             mode: 0600
-{{ end }}
+{{- end }}
