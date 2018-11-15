@@ -23,8 +23,6 @@ spectrumConnect:
   backendConfig:
     # A prefix for any new volume created on the storage system.
     instanceName:
-    # Allowed values: true or false. Set to true if the nodes have FC connectivity.
-    skipRescanIscsi: false
     # Default Spectrum Connect storage service to be used, if not specified by the storage class.
     DefaultStorageService:
 

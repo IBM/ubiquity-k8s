@@ -45,7 +45,6 @@ function generate_flex_conf_from_envs_and_install_it()
     [ -z "$FLEX_LOG_DIR" ] && FLEX_LOG_DIR=/var/log || :
     [ -z "$FLEX_LOG_ROTATE_MAXSIZE" ] && FLEX_LOG_ROTATE_MAXSIZE=50 || :
     [ -z "$LOG_LEVEL" ] && LOG_LEVEL=info || :
-    [ -z "$SKIP_RESCAN_ISCSI" ] && SKIP_RESCAN_ISCSI=false || :
     [ -z "$UBIQUITY_PLUGIN_USE_SSL" ] && UBIQUITY_PLUGIN_USE_SSL=true || :
     [ -z "$UBIQUITY_PLUGIN_SSL_MODE" ] && UBIQUITY_PLUGIN_SSL_MODE="verify-full" || :
     [ -z "$UBIQUITY_PORT" ] && UBIQUITY_PORT=9999 || :
@@ -66,9 +65,6 @@ port = $UBIQUITY_PORT
 [CredentialInfo]
 username = "$UBIQUITY_USERNAME"
 password = "$UBIQUITY_PASSWORD"
-
-[ScbeRemoteConfig]
-SkipRescanISCSI = $SKIP_RESCAN_ISCSI
 
 [SslConfig]
 UseSsl = $UBIQUITY_PLUGIN_USE_SSL

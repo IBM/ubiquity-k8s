@@ -21,7 +21,6 @@ var _ = Describe("Utils", func() {
 			{"BACKENDS", "SCBE", "SCBE"},
 			{"UBIQUITY_PORT", "9999", "9999"},
 			{"UBIQUITY_ADDRESS", "9.9.9.9", "9.9.9.9"},
-			{"SCBE_SKIP_RESCAN_ISCSI", "true", "true"},
 			{"UBIQUITY_USERNAME", "ubiquity", "ubiquity"},
 			{"UBIQUITY_PASSWORD", "ubiquity", "ubiquity"},
 		}
@@ -37,7 +36,6 @@ var _ = Describe("Utils", func() {
 			{"BACKENDS", "SCBE", "SCBE"},
 			{"UBIQUITY_PORT", "9999", "9999"},
 			{"UBIQUITY_ADDRESS", "9.9.9.9", "9.9.9.9"},
-			{"SCBE_SKIP_RESCAN_ISCSI", "", "false"},
 			{"UBIQUITY_USERNAME", "ubiquity", "ubiquity"},
 			{"UBIQUITY_PASSWORD", "ubiquity", "ubiquity"},
 		}
@@ -77,7 +75,7 @@ var _ = Describe("Utils", func() {
 
 	})
 
-	Context("Without set FLEX_LOG_ROTATE_MAXSIZE and SCBE_SKIP_RESCAN_ISCSI", func() {
+	Context("Without set FLEX_LOG_ROTATE_MAXSIZE", func() {
 		BeforeEach(func() {
 			for _, data := range tests2 {
 				os.Setenv(data.envVar, data.in)
