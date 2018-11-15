@@ -2,22 +2,21 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "ibm-ubiquity-db"
-  annotations:
-    volume.beta.kubernetes.io/storage-class: {{ if (.Values.spectrumConnect) }}
- {{- .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
-{{- else }}
- {{- .Values.spectrumScale.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
-{{- end }}
   labels:
     # Ubiquity provisioner will create a PV with dedicated name (by default its ibm-ubiquity-db)
     pv-name: {{ if (.Values.spectrumConnect) }}
  {{- .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote -}}
-{{- else }}
+{{- else if (.Values.spectrumScale) }}
  {{- .Values.spectrumScale.backendConfig.dbPvConfig.ubiquityDbPvName -}}
 {{- end }}
     product: ibm-storage-enabler-for-containers
 
 spec:
+  storageClassName: {{ if (.Values.spectrumConnect) }}
+ {{- .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
+{{- else if (.Values.spectrumScale) }}
+ {{- .Values.spectrumScale.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
+{{- end }}
   accessModes:
     - ReadWriteOnce
   resources:
