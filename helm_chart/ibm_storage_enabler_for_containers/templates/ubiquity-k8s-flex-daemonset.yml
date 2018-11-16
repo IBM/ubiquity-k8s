@@ -68,6 +68,9 @@ spec:
                 key: SSL-MODE
 
           - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
+            # The default value 0.0.0.0 is just a placeholder, it will be updated
+            # during installation, if it is chagned after installation, you should
+            # update it accordingly.
             value: 0.0.0.0
 
           - name: SKIP_RESCAN_ISCSI       # boolean
