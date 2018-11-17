@@ -103,6 +103,7 @@ func (e *sanityExecutor) deleteSanityResources() error {
 
 	succeeded := make(chan bool)
 
+	// watch sanity Pods and Pvcs to be deleted
 	go func() {
 		defer close(succeeded)
 

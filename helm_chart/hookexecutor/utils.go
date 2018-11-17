@@ -131,7 +131,6 @@ outerLoop:
 		select {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Modified {
-				//var metadata metav1.Object
 				metadata, err := meta.Accessor(event.Object)
 				if err != nil {
 					logger.Error("Can not get resource metadata")
@@ -140,6 +139,7 @@ outerLoop:
 						logger.Info("The resource is terminating")
 						if desiredStateChecker != nil {
 							// the resource is terminating, it can not reach the desired state any more.
+							err = fmt.Errorf("The resource is terminating")
 							break outerLoop
 						}
 					}

@@ -29,12 +29,12 @@ func (e *preDeleteExecutor) Execute() error {
 	logger.Info("Performing actions in pre-delete")
 	var err error
 
-	err = e.DeleteUbiquityDBPods()
+	err = e.deleteUbiquityDBPods()
 	if err != nil {
 		return logger.ErrorRet(err, "Failed performing actions in pre-delete")
 	}
 
-	err = e.DeleteUbiquityDBPvc()
+	err = e.deleteUbiquityDBPvc()
 	if err != nil {
 		return logger.ErrorRet(err, "Failed performing actions in pre-delete")
 	}
@@ -43,9 +43,9 @@ func (e *preDeleteExecutor) Execute() error {
 	return nil
 }
 
-// DeleteUbiquityDBPods sets replicas of ubiquity-db deployment to 0 and
+// deleteUbiquityDBPods sets replicas of ubiquity-db deployment to 0 and
 // wait for all the relevant pods to be deleted.
-func (e *preDeleteExecutor) DeleteUbiquityDBPods() error {
+func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 	ns := getCurrentNamespace()
 	logger.Info(fmt.Sprintf("Deleting Pods under Ubiquity DB Deployment %s in namespace %s", ubiquityDBDeploymentName, ns))
 
@@ -58,12 +58,6 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPods() error {
 		return logger.ErrorRet(err, "Failed deleting Ubiquity DB Pods")
 	}
 
-	var zero = int32(0)
-	deploy.Spec.Replicas = &zero
-	_, err = e.kubeClient.AppsV1().Deployments(ns).Update(deploy)
-	if err != nil {
-		return logger.ErrorRet(err, "Failed deleting Ubiquity DB Pods")
-	}
 	if watchers, err := generatePodsWatchersInDeployment(deploy, e.kubeClient.CoreV1()); err != nil {
 		return logger.ErrorRet(err, "Failed generating Pod watcher")
 	} else {
@@ -72,15 +66,23 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPods() error {
 
 		for _, w := range watchers {
 			wg.Add(1)
-			go func() {
-				_, err := Watch(w, nil, 40*time.Second)
+			go func(watcher watch.Interface) {
+				_, err := Watch(watcher, nil, 40*time.Second)
 				if err != nil {
 					if watcherErr == nil {
 						watcherErr = err
 					}
 				}
 				wg.Done()
-			}()
+			}(w)
+		}
+
+		// start the watcher first and then update the replicas.
+		var zero = int32(0)
+		deploy.Spec.Replicas = &zero
+		_, err = e.kubeClient.AppsV1().Deployments(ns).Update(deploy)
+		if err != nil {
+			return logger.ErrorRet(err, "Failed deleting Ubiquity DB Pods")
 		}
 
 		wg.Wait()
@@ -94,8 +96,8 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPods() error {
 	}
 }
 
-// DeleteUbiquityDBPvc deletes the ubiquity-db pvc and wait for pvc/pv to be deleted.
-func (e *preDeleteExecutor) DeleteUbiquityDBPvc() error {
+// deleteUbiquityDBPvc deletes the ubiquity-db pvc and wait for pvc/pv to be deleted.
+func (e *preDeleteExecutor) deleteUbiquityDBPvc() error {
 	ns := getCurrentNamespace()
 	logger.Info(fmt.Sprintf("Deleting PVC %s in namespace %s", ubiquityDBPvcName, ns))
 
@@ -122,15 +124,15 @@ func (e *preDeleteExecutor) DeleteUbiquityDBPvc() error {
 
 	for _, w := range []watch.Interface{pvcWatcher, pvWatcher} {
 		wg.Add(1)
-		go func() {
-			_, err := Watch(w, nil, 1*time.Minute)
+		go func(watcher watch.Interface) {
+			_, err := Watch(watcher, nil, 1*time.Minute)
 			if err != nil {
 				if watcherErr == nil {
 					watcherErr = err
 				}
 			}
 			wg.Done()
-		}()
+		}(w)
 	}
 
 	// start the watcher first and then delete the resource

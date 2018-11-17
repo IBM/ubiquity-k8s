@@ -34,6 +34,7 @@ func (e *postInstallExecutor) Execute() error {
 	}
 }
 
+// updateFlexDaemonSet get the clusterIP of ubiquity Service and apply it to the flex DaemonSet
 func (e *postInstallExecutor) updateFlexDaemonSet() error {
 	ns := getCurrentNamespace()
 	clusterIP, err := e.getUbiquityServiceIP()
@@ -49,10 +50,11 @@ func (e *postInstallExecutor) updateFlexDaemonSet() error {
 
 	flex, err := e.kubeClient.AppsV1().DaemonSets(ns).Get(ubiquityK8sFlexDaemonSetName, metav1.GetOptions{})
 	if err != nil {
-		return logger.ErrorRet(err, fmt.Sprintf("Failed updating DaemonSet %s", ubiquityK8sFlexDaemonSetName))
+		return logger.ErrorRet(err, fmt.Sprintf("Failed getting DaemonSet %s", ubiquityK8sFlexDaemonSetName))
 	}
 	containers := flex.Spec.Template.Spec.Containers
 	found := false
+	// find the flex container and update the ubiquityIPAddress
 	for i, container := range containers {
 		if container.Name == ubiquityK8sFlexContainerName {
 			envs := containers[i].Env
