@@ -3,4 +3,4 @@ appVersion: "1.0"
 description: A Helm chart for IBM Storage Enabler for Containers
 name: ibm-storage-enalber-for-containers
 version: 2.0.0
-icon: https://github.com/IBM/ubiquity-k8s/blob/master/helm_chart/IBM Spectrum Connect_icon.png
+icon: https://github.com/IBM/ubiquity-k8s/blob/master/helm_chart/IBM_Spectrum_Connect_icon.png
