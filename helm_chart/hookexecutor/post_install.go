@@ -94,7 +94,12 @@ func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
 	if err != nil {
 		return "", logger.ErrorRet(err, "Failed getting ubiquity serviceIP")
 	}
-	return service.Spec.ClusterIP, nil
+	ip := service.Spec.ClusterIP
+	if ip == "" {
+		err := fmt.Errorf("Failed getting ubiquity serviceIP, it is empty")
+		return "", logger.ErrorRet(err, err.Error())
+	}
+	return ip, nil
 }
 
 func getCurrentNamespace() string {

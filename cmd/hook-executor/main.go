@@ -94,6 +94,7 @@ func getClientset() kubernetes.Interface {
 
 // config returns a *rest.Config, using either the kubeconfig (if specified)
 // or an in-cluster configuration.
+// Note that we only need the in-cluster way in production env, others are for test perpose only.
 func Config(kubeconfig, kubecontext, baseName string) (*rest.Config, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	rules.ExplicitPath = kubeconfig
