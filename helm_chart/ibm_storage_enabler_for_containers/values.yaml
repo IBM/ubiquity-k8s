@@ -8,6 +8,8 @@ images:
   provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
   flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
 
+## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
+## Select a backend that you intend to use and comment out the other backend section.
 spectrumConnect:
   connectionInfo:
     ## IP\FQDN and port of Spectrum Connect server.
@@ -17,9 +19,6 @@ spectrumConnect:
     ## Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
     username:
     password:
-
-    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
-    sslMode: require
 
   backendConfig:
     # A prefix for any new volume created on the storage system.
@@ -43,14 +42,52 @@ spectrumConnect:
 
       storageClassForDbPv:
         # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
         storageClassName:
+
+        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
+        defaultClass: false
+
         params:
           # Storage Class profile parameter should point to the Spectrum Connect storage service name
           spectrumConnectServiceName:
           # Storage Class file-system type, Allowed values: ext4 or xfs.
           fsType: ext4
 
+## IBM storage Enabler for Containers supports two backend types: spectrumConnect OR spectrumScale.
+## Please choose below only one backend and comment-out the other backend section.
+#spectrumScale:
+#  connectionInfo:
+#    # IP\FQDN and port of Spectrum Scale Rest Management API server.
+#    fqdn:
+#    port:
+#
+#    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
+#    username:
+#    password:
+#
+#  backendConfig:
+#    # Default Spectrum Scale Filesystem to be Used
+#    defaultFilesystemName:
+#
+#    dbPvConfig:
+#      ubiquityDbPvName: ibm-ubiquity-db
+#
+#      storageClassForDbPv:
+#        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+#        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
+#        storageClassName:
+#
+#        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
+#        defaultClass: false
+
+
+
 genericConfig:
+  connectionInfo:
+    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). SSL mode is for all communications between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
+    sslMode: require
+
   # The IP address of the ubiquity service object.
   # The user must update this key manually if the ubiqutiy service object IP was changed.
   ubiquityIpAddress:
@@ -65,3 +102,6 @@ genericConfig:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
+
+  ## Optional: to set the node selector of the ubiqutiy-db deployment
+  #ubiquityDbNodeSelector:

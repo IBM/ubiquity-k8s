@@ -1,13 +1,17 @@
+{{- if .Values.spectrumConnect }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
   name: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName  | quote }}
   labels:
     product: ibm-storage-enabler-for-containers
-#  annotations:
-#   storageclass.beta.kubernetes.io/is-default-class: "true"
+{{- if .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.defaultClass }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+{{- end }}
 provisioner: "ubiquity/flex"
 parameters:
   profile: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.spectrumConnectServiceName  | quote }}
   fstype: {{ .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.fsType  | quote }}        # xfs or ext4
   backend: "scbe"
+{{- end }}
