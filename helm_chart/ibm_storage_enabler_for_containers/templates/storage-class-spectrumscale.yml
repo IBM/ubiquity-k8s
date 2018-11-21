@@ -5,6 +5,7 @@ metadata:
   name: {{ .Values.spectrumScale.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote }}
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 {{- if .Values.spectrumScale.backendConfig.dbPvConfig.storageClassForDbPv.defaultClass }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"

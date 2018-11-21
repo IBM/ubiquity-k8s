@@ -1,4 +1,4 @@
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "require") }}
+{{ if and (.Values.genericConfig.connectionInfo.sslMode) (eq .Values.genericConfig.connectionInfo.sslMode "require") }}
 apiVersion: v1
 kind: Service
 metadata:

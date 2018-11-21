@@ -1,4 +1,4 @@
-{{- if (.Values.spectrumConnect) and not .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.existingStorageClass }}
+{{- if and (.Values.spectrumConnect) (not .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.existingStorageClass) }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
