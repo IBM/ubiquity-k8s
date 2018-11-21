@@ -20,6 +20,7 @@ spec:
         - containerPort: 9999
           name: ubiquity-port
         env:
+{{- if .Values.spectrumConnect }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
           - name: SCBE_USERNAME
@@ -79,17 +80,61 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: DEFAULT-FSTYPE
+{{- end }}
 
+
+{{- if .Values.spectrumScale }}
+
+          ### Ubiquity Spectrum Scale backend parameters:
+          #####################################
+          - name: SPECTRUMSCALE_REST_USER
+            valueFrom:
+              secretKeyRef:
+                name: spectrumscale-credentials
+                key: username
+
+          - name: SPECTRUMSCALE_REST_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: spectrumscale-credentials
+                key: password
+
+          - name: SPECTRUMSCALE_MANAGEMENT_IP
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-MANAGEMENT-IP
+
+          - name: SPECTRUMSCALE_MANAGEMENT_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-MANAGEMENT-PORT
+
+          - name: SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME
+
+          - name: SPECTRUMSCALE_FORCE_DELETE
+            value: "true"
+
+          - name: SPECTRUMSCALE_SSL_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: SSL-MODE
+{{- end }}
+
+          ### Ubiquity generic parameters:
+          ################################
           - name: IBM_UBIQUITY_DB_PV_NAME
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: IBM-UBIQUITY-DB-PV-NAME
 
-
-
-          ### Ubiquity generic parameters:
-          ################################
           - name: LOG_LEVEL         # debug / info / error
             valueFrom:
               configMapKeyRef:
@@ -101,8 +146,10 @@ spec:
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
           - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (Spectrum Connect) as its backend.
-            value: "scbe"
-
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: DEFAULT-BACKEND
 
 
           ### Ubiquity DB parameters:
@@ -132,13 +179,13 @@ spec:
                 name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: dbname
 
-          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
+          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         volumeMounts:
         - name: ubiquity-private-certificate
           mountPath: /var/lib/ubiquity/ssl/private
@@ -164,7 +211,12 @@ spec:
           items:
           - key: ubiquity-db-trusted-ca.crt
             path: ubiquity-db-trusted-ca.crt
+  {{- if .Values.spectrumConnect }}
           - key: scbe-trusted-ca.crt
             path: scbe-trusted-ca.crt
-{{ end }}
-
+  {{- end }}
+  {{- if .Values.spectrumScale }}
+          - key: spectrumscale-trusted-ca.crt
+            path: spectrumscale-trusted-ca.crt
+  {{- end }}
+{{- end }}

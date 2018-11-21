@@ -34,7 +34,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-          # TODO : For Scale support we should choose the right credential
+{{- if .Values.spectrumConnect }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -46,6 +46,7 @@ spec:
               secretKeyRef:
                 name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -53,7 +54,8 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+
+{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
         volumeMounts:
           - name: ubiquity-public-certificates
             mountPath: /var/lib/ubiquity/ssl/public
@@ -65,5 +67,4 @@ spec:
             items:
               - key: ubiquity-trusted-ca.crt
                 path: ubiquity-trusted-ca.crt
-{{ end }}
-
+{{- end }}
