@@ -27,9 +27,6 @@ data:
    # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
    DEFAULT-FSTYPE: {{ .Values.spectrumConnect.backendConfig.newVolumeDefaults.fsType | quote }}
 
-   # Allowed values: true or false. Set to true if the nodes have FC connectivity.
-   SKIP-RESCAN-ISCSI: {{ .Values.spectrumConnect.backendConfig.skipRescanIscsi | quote }}
-
    # Default Ubiquity Backend
    DEFAULT-BACKEND: scbe
 

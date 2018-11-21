@@ -67,11 +67,6 @@ spec:
                 name: scbe-credentials
                 key: password
 
-          - name: SKIP_RESCAN_ISCSI       # boolean
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SKIP-RESCAN-ISCSI
 {{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full

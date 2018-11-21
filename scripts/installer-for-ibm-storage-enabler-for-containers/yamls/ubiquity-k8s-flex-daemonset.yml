@@ -73,13 +73,6 @@ spec:
                 name: ubiquity-configmap
                 key: UBIQUITY-IP-ADDRESS
 
-          - name: SKIP_RESCAN_ISCSI       # boolean
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SKIP-RESCAN-ISCSI
-
-
 
         command: ["./setup_flex.sh"]
         volumeMounts:
