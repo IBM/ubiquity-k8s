@@ -10,3 +10,4 @@ maintainers:
     email: bshay@il.ibm.com
   - name: Guang Jiong GJ Lou
     email:  luogj@cn.ibm.com
+icon: https://github.com/IBM/ubiquity-k8s/blob/master/helm_chart/IBM_Spectrum_Connect_icon.png?sanitize=true

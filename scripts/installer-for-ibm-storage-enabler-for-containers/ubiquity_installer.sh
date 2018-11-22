@@ -186,7 +186,6 @@ function update-ymls()
     KEY_FILE_DICT['FLEX_LOG_DIR_VALUE']="${UBIQUITY_CONFIGMAP_YML} ${UBIQUITY_FLEX_DAEMONSET_YML}"
     KEY_FILE_DICT['LOG_LEVEL_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
-    KEY_FILE_DICT['SKIP_RESCAN_ISCSI_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['DEFAULT_VOLUME_SIZE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_USERNAME_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['SCBE_PASSWORD_VALUE']="${SCBE_CRED_YML}"
@@ -267,7 +266,6 @@ function update-ymls()
    if [ "$backend_from_configfile" == "spectrumscale" ]; then
        sed -i "s|DEFAULT_BACKEND_VALUE|spectrum-scale|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SCBE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
-       sed -i "s|SKIP_RESCAN_ISCSI_VALUE|false|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i 's/^# SPECTRUMSCALE Credentials #\(.*\)/\1  # SPECTRUMSCALE Credentials #/g' ${ymls_to_updates}
    fi
 
