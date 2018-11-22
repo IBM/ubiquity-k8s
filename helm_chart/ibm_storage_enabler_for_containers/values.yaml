@@ -7,6 +7,7 @@ images:
   ubiquitydb: ibmcom/ibm-storage-enabler-for-containers-db:2.0.0
   provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
   flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
+  hookexecutor: ibmcom/ibm-storage-hook-executor-for-helm-charts:2.0.0
 
 ## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
 ## Select a backend that you intend to use and comment out the other backend section.
