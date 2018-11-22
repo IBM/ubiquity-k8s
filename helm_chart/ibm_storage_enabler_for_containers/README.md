@@ -18,10 +18,21 @@ This chart includes:
 * A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
-* Kubernetes Level - indicate if specific APIs must be enabled (i.e. Kubernetes 1.6 with Beta APIs enabled)
-* PersistentVolume requirements (if persistence.enabled) - PV provisioner support, StorageClass defined, etc. (i.e. PersistentVolume provisioner support in underlying infrastructure with ibmc-file-gold StorageClass defined if persistance.enabled=true)
-* Simple bullet list of CPU, MEM, Storage requirements
-* Even if the chart only exposes a few resource settings, this section needs to inclusive of all / total resources of all charts and subcharts.
+Before installing the helm chart, verify following:
+1. Install and configure IBM Spectrum Connect, according to the application requirements.
+2. Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
+3. For each worker node:
+   1. Install relevant Linux packages to ensure Fibre Channel and iSCSI connectivity.
+   2. Configure Linux multipath devices on the host.
+   3. Configure storage system connectivity.
+   4. Make sure that the node kubelet service has the attach/detach capability enabled.
+4. For each master node:
+   1. Enable the attach/detach capability for the kubelet service.
+   2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers.
+6. When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
+
+These configuration steps are mandatory and cannot be skipped. See the IBM Storage Enabler for Containers user guide for their detailed description.
 
 
 ## Resources Required
