@@ -1,34 +1,23 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: pre-delete-deployment-job
+  name: pre-delete
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
   labels:
-    app: {{ template "ibm_storage_enabler_for_containers.name" . }}
-    chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-spec:                                                                                    
-  template:                                                                              
-    spec:                                                                                
-      containers:                                                                        
-        - name: hook
-          image: byrnedo/alpine-curl
-          volumeMounts:                                                                  
-            - name: hook-config                                                          
-              mountPath: /var/tmp/config                                                 
-          command: ["/bin/sh"]                                                           
-          args: ["-c", "/var/tmp/config/pre-delete.sh"]                  
-      volumes:                                                                           
-        - name: hook-config                                                              
-          configMap:                                                                     
-            name: hook-config                                                            
-            defaultMode: 0777                                                            
-            items:                                                                       
-              - key: pre-delete                                                              
-                path: pre-delete.sh
-      restartPolicy: Never                                                               
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
+spec:
+  template:
+    spec:
+      containers:
+        - name: pre-delete-hook
+          image: {{ .Values.images.hookexecutor }}
+          command: ["/usr/bin/hook-executor"]
+          args: ["predelete"]
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+      restartPolicy: Never
       serviceAccount: ubiquity-helm-hook
   backoffLimit: 1
