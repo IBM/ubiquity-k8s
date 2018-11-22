@@ -89,7 +89,7 @@ func main() {
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error starting provisioner: %v", err)
-		panic("Error starting ubiquity client")
+		panic("Error starting ubiquity provisioner")
 	}
 
 	// Start the provision controller which will dynamically provision Ubiquity PVs
