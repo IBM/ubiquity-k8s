@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 )
@@ -54,6 +55,11 @@ func (e *sanityExecutor) createSanityResources() error {
 		return logger.ErrorRet(err, "Failed to create sanity resources")
 	}
 
+	err = updateNamespace([]runtime.Object{pvc, pod})
+	if err != nil {
+		return logger.ErrorRet(err, "Failed to move the sanity resources to the specified namespace")
+	}
+
 	logger.Info("Creating sanity PVCs")
 	_, err = e.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(pvc)
 	if err != nil {
@@ -100,6 +106,7 @@ func (e *sanityExecutor) deleteSanityResources() error {
 
 	var err error
 	pvc, pod := getSanityPvcAndPod()
+	updateNamespace([]runtime.Object{pvc, pod})
 
 	succeeded := make(chan bool)
 
@@ -161,7 +168,7 @@ func getSanityPvcAndPod() (*corev1.PersistentVolumeClaim, *corev1.Pod) {
 func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 	sc := os.Getenv("STORAGE_CLASS")
 	if sc == "" {
-		fmt.Errorf("ENV STORAGE_CLASS is not set")
+		return fmt.Errorf("ENV STORAGE_CLASS is not set")
 	}
 
 	annos := pvc.GetAnnotations()
@@ -170,5 +177,18 @@ func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 	}
 	annos["volume.beta.kubernetes.io/storage-class"] = sc
 	pvc.SetAnnotations(annos)
+	return nil
+}
+
+func updateNamespace(objs []runtime.Object) error {
+	ns := getCurrentNamespace()
+	for _, obj := range objs {
+		metadata, err := meta.Accessor(obj)
+		if err != nil {
+			return logger.ErrorRet(err, "Failed to get metadata from resource")
+		}
+		logger.Info(fmt.Sprintf("Moving resource %s to namespace %s", metadata.GetName(), ns))
+		metadata.SetNamespace(ns)
+	}
 	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	fakekubeclientset "k8s.io/client-go/kubernetes/fake"
 	testcore "k8s.io/client-go/testing"
@@ -22,6 +23,7 @@ var _ = Describe("Sanity", func() {
 	var kubeClient *fakekubeclientset.Clientset
 	var pvc *v1.PersistentVolumeClaim
 	var pod *v1.Pod
+	var testNamespace = "test"
 	var stopped chan bool
 
 	BeforeEach(func() {
@@ -29,6 +31,7 @@ var _ = Describe("Sanity", func() {
 		stopped = make(chan bool)
 
 		os.Setenv("STORAGE_CLASS", "gold")
+		os.Setenv("NAMESPACE", testNamespace)
 
 		pvc, pod = getSanityPvcAndPod()
 
@@ -39,14 +42,37 @@ var _ = Describe("Sanity", func() {
 
 	AfterEach(func() {
 		os.Setenv("STORAGE_CLASS", "")
+		os.Setenv("NAMESPACE", "")
 		close(stopped)
 	})
 
 	Describe("test Execute", func() {
 
+		Context("update namespace", func() {
+
+			BeforeEach(func() {
+				os.Setenv("NAMESPACE", testNamespace)
+
+				Expect(pvc.Namespace).NotTo(Equal(testNamespace))
+				Expect(pod.Namespace).NotTo(Equal(testNamespace))
+
+				err := updateNamespace([]runtime.Object{pvc, pod})
+				Ω(err).ShouldNot(HaveOccurred())
+
+			})
+
+			It("should update the namespace to the specified one", func() {
+				Expect(pvc.Namespace).To(Equal(testNamespace))
+				Expect(pod.Namespace).To(Equal(testNamespace))
+			})
+		})
+
 		Context("create sanity resources", func() {
 
 			BeforeEach(func() {
+				pvc.SetNamespace(testNamespace)
+				pod.SetNamespace(testNamespace)
+
 				// pvc and pod are not existing on API Server at first.
 				_, err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
@@ -99,6 +125,9 @@ var _ = Describe("Sanity", func() {
 		Context("delete sanity resources", func() {
 
 			BeforeEach(func() {
+				pvc.SetNamespace(testNamespace)
+				pod.SetNamespace(testNamespace)
+
 				// create the pod and pvc
 				_, err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(pvc)
 				Ω(err).ShouldNot(HaveOccurred())
