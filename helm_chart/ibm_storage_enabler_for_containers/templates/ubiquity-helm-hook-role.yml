@@ -12,6 +12,9 @@ rules:
   verbs:
   - get
   - list
+  - create
+  - delete
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -25,16 +28,19 @@ rules:
   verbs:
   - get
   - delete
+  - create
+  - watch
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - daemonsets
   verbs:
   - get
-  - patch
+  - update
 - apiGroups:
-  - extensions
+  - apps
   resources:
   - deployments
   verbs:
-  - patch
+  - get
+  - update
