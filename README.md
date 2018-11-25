@@ -7,14 +7,16 @@ This project includes components for managing [Kubernetes persistent storage](ht
 - Ubiquity Dynamic Provisioner for creating and deleting persistent volumes
 - Ubiquity FlexVolume Driver CLI for attaching and detaching persistent volumes
 
+The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation from [IBM Fix Central TODO get the new location](https://www.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all).
+
 Currently, the following storage systems use Ubiquity:
 * IBM block storage.
 
-   The IBM block storage is supported for Kubernetes via IBM Spectrum Connect (3.4.0), previously known as IBM Spectrum Control Base Edition. Ubiquity communicates with the IBM storage systems through Spectrum Connect. Spectrum Connect creates a storage profile (for example, gold, silver or bronze) and makes it available for Kubernetes. For details about supported storage systems, refer to the latest Spectrum Connect release notes.
+    The IBM block storage is supported for Kubernetes via IBM Spectrum Connect. Ubiquity communicates with the IBM storage systems through Spectrum Connect. Spectrum Connect creates a storage profile (for example, gold, silver or bronze) and makes it available for Kubernetes.
    
-   The IBM official solution for Kubernetes, based on the Ubiquity project, is referred to as IBM Storage Enabler for Containers. You can download the installation package and its documentation from [IBM Fix Central](https://www.ibm.com/support/fixcentral/swg/selectFixes?parent=Software%2Bdefined%2Bstorage&product=ibm/StorageSoftware/IBM+Spectrum+Connect&release=All&platform=Linux&function=all). For details on the IBM Storage Enabler for Containers, see the relevant sections in the Spectrum Connect user guide.
+* IBM Spectrum Scale
 
-* IBM Spectrum Scale, for testing only.
+   The IBM Spectrum Scale file storage is supported for Kubernetes. Ubiquity communicates with Spectrum Scale system directly via Spectrum Scale REST API v2.
 
 The code is provided as is, without warranty. Any issue will be handled on a best-effort basis.
 
@@ -22,7 +24,7 @@ The code is provided as is, without warranty. Any issue will be handled on a bes
 
 ![Ubiquity Overview](images/ubiquity_architecture_draft_for_github.jpg)
 
-Deployment description:
+Main deployment description:
    *   Ubiquity Kubernetes Dynamic Provisioner (ubiquity-k8s-provisioner) runs as a Kubernetes deployment with replica=1.
    *   Ubiquity Kubernetes FlexVolume (ubiquity-k8s-flex) runs as a Kubernetes daemonset on all the worker and master nodes.
    *   Ubiquity (ubiquity) runs as a Kubernetes deployment with replica=1.
