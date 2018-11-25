@@ -110,7 +110,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: 43a0b37371ec33c623c60baf0609b479ebf5bba0
+  version: 3d592efc4630e77fc708676692897f735dc26103
   subpackages:
   - remote
   - resources
