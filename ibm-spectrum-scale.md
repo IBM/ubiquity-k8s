@@ -12,12 +12,12 @@ Usage examples index:
 
 ## Example 1 : Basic flow for running a stateful container with Ubiquity volume
 Flow overview:
-1. Create a StorageClass `spectrumscale-primaryfs` that refers to Spectrum Scale filesysten `primaryfs`.
+1. Create a StorageClass `spectrumscale-primaryfs` that refers to IBM Spectrum Scale filesystem `primaryfs`.
 2. Create a PVC `pvc1` that uses the StorageClass `spectrumscale-primaryfs`.
 3. Create a Pod `pod1` with container `container1` that uses PVC `pvc1`.
-3. Start I/Os into `/data/myDATA` in `pod1\container1`.
+3. Write some data into file `/data/myDATA` in `pod1\container1`.
 4. Delete the `pod1` and then create a new `pod1` with the same PVC and verify that the file `/data/myDATA` still exists.
-5. Delete the `pod1` `pvc1`, `pv` and storage class `spectrumscale-primaryfs`.
+5. Delete the `pod1` `pvc1`, `pv` and `spectrumscale-primaryfs`.
 
 Relevant yml files (`storage-class-primaryfs.yml`, `pvc1.yml` and `pod1.yml`):
 ```bash
@@ -43,7 +43,7 @@ metadata:
     volume.beta.kubernetes.io/storage-class: "spectrumscale-primaryfs"
 spec:
   accessModes:
-    - ReadWriteOnce # Ubiquity Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
+    - ReadWriteOnce # Ubiquity spectrum-scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
     requests:
       storage: 1Gi  # Size in Gi unit only
@@ -121,7 +121,7 @@ pod1      1/1       Running   0          46s
 #> kubectl exec pod1  -c container1 -- sh -c "ls -l /data/myDATA"
 -rw-r--r--    1 root     root      10485760 Nov 25 14:24 /data/myDATA
 
-### Delete pod1, pvc1, pv and the gold storage class
+### Delete pod1, pvc1, pv and the spectrumscale-primaryfs
 #> kubectl delete -f pod1.yml -f pvc1.yml -f storage-class-primaryfs.yml
 pod "pod1" deleted
 persistentvolumeclaim "pvc1" deleted
@@ -133,8 +133,8 @@ storageclass "spectrumscale-primaryfs" deleted
 This section describes separate steps of the generic flow in greater detail.
 
 
-### Creating a Storage Class
-For example, to create a Storage Class named `spectrumscale-primaryfs` that refers to a Spectrum Scale filesystem `primaryfs` with fileset quota enabled. As a result, every volume from this storage class will be provisioned on the Spectrum  Scale and each volume is a fileset in a Spectrum Scale filesystem.
+### Creating a StorageClass
+Create a StorageClass named `spectrumscale-primaryfs` that refers to a IBM Spectrum Scale filesystem `primaryfs` with fileset quota enabled. As a result, every volume from this StorageClass will be provisioned on the IBM Spectrum Scale and each volume is a fileset in a IBM Spectrum Scale filesystem.
 ```bash
 #> cat storage-class-primaryfs.yml
 kind: StorageClass
@@ -153,7 +153,7 @@ parameters:
 storageclass "spectrumscale-primaryfs" created
 ```
 
-List the newly created Storage Class:
+List the newly created StorageClass:
 ```bash
 #> kubectl get storageclass spectrumscale-primaryfs
 NAME                      PROVISIONER     AGE
@@ -161,7 +161,7 @@ spectrumscale-primaryfs   ubiquity/flex   1m
 ```
 
 ### Creating a PersistentVolumeClaim
-To create a PVC `pvc1` with size `1Gi` that uses the `spectrumscale-primaryfs` Storage Class:
+Create a PVC `pvc1` with size `1Gi` that uses the `spectrumscale-primaryfs` StorageClass:
 ```bash
 #> cat pvc1.yml
 kind: PersistentVolumeClaim
@@ -172,7 +172,7 @@ metadata:
     volume.beta.kubernetes.io/storage-class: "spectrumscale-primaryfs"
 spec:
   accessModes:
-    - ReadWriteOnce # Ubiquity Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
+    - ReadWriteOnce # Ubiquity IBM Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
     requests:
       storage: 1Gi  # Size in Gi unit only
@@ -195,8 +195,7 @@ pvc-2073e8fd-f0bd-11e8-a8f1-000c29e45a24   1Gi        RWO            Delete     
 ```
 
 ### Create a Pod with an Ubiquity volume
-The creation of a Pod/Deployment causes the FlexVolume to:
-* Create a symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> [fileset linkpath]
+The creation of a Pod/Deployment causes the FlexVolume to create a symbolic link /var/lib/kubelet/pods/[POD-ID]/volumes/ibm~ubiquity-k8s-flex/[PVC-ID] -> [fileset linkpath]
 
 For example, to create a Pod `pod1` that uses the PVC `pvc1` that was already created:
 ```bash
@@ -224,7 +223,7 @@ spec:
 pod "pod1" created
 ```
 
-To display the newly created `pod1` and write data to the persistent volume of `pod1`:
+Display the newly created `pod1` and write data to the persistent volume of `pod1`:
 ```bash
 #> kubectl get pod pod1
 NAME      READY     STATUS    RESTARTS   AGE
@@ -259,7 +258,7 @@ For example:
 persistentvolumeclaim "pvc1" deleted
 ```
 
-### Removing a Storage Class
+### Removing a StorageClass
 For example:
 ```bash
 #> kubectl delete -f storage-class-primaryfs.yml
@@ -268,22 +267,21 @@ storageclass "spectrumscale-primaryfs" deleted
 
 
 ## Example 3 : Deployment fail over example
-This section describes how to run stateful Pod with k8s Deployment object, and then delete the Pod and see how kubernetes schedule the pod on different node and the PV follows.
+This section describes how to run stateful Pod with k8s Deployment object and how the kubernetes schedule the pod on different node when the pod is deleted.
 
 
-- Prerequisits
-1. Create the same storage class (as previous example)
+### Create the StorageClass (same as previous example).
 ```bash
 #> kubectl create -f storage-class-primaryfs.yml
 storageclass "spectrumscale-primaryfs" created
 ```
-2. Create the PVC (as previous example)
+### Create the PVC (same as previous example)
 ```bash
 #> kubectl create -f pvc1.yml
 persistentvolumeclaim "pvc1" created
 ```
 
-- Create Kubernetes Deployment with stateful POD (on node6) and write some data inside
+### Create Kubernetes Deployment with stateful POD (on node6) and write some data inside.
 ```bash
 #> cat deployment1.yml
 apiVersion: "extensions/v1beta1"
@@ -329,7 +327,7 @@ deployment1-df6dd77d4-6kb7k
 COOL
 ```
 
-- Delete the POD so Kubernetes will reschedule the POD on a diffrent node (node5)
+### Delete the POD so Kubernetes will reschedule the POD on a diffrent node(node5).
 ```bash
 #> kubectl delete pod $pod
 pod "deployment1-df6dd77d4-6kb7k" deleted
@@ -363,7 +361,7 @@ COOL
 
 ```
 
-- Tier down the Deployment, PVC, PV and Storage Class
+### Tier down the Deployment, PVC, PV and StorageClass.
 ```bash
 #> kubectl delete -f deployment1.yml -f pvc1.yml -f storage-class-primaryfs.yml
 deployment "deployment1" deleted
