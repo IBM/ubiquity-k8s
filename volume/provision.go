@@ -97,18 +97,26 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 	err := provisioner.ubiquityClient.Activate(activateRequest)
 
 	if err != nil {
-		if urlError, ok := err.(*url.Error); ok {
-			if opError, ok := urlError.Err.(*net.OpError); ok {
-				if sysErr, ok := opError.Err.(*os.SyscallError); ok {
-					if errno, ok := sysErr.Err.(syscall.Errno); ok && errno == syscall.ETIMEDOUT {
-						logger.Printf("Failed to start ubiqutiy-k8s-provisioner due to network connection issue to ubiqutiy pod")
-					}
-				}
-			}
+		if isTimeOutError(err) {
+			// The log is here to advise the user on where to look for further information
+			logger.Printf("Failed to start ubiqutiy-k8s-provisioner due to connectivity issue to ubiqutiy pod")
 		}
 	}
 
 	return provisioner, err
+}
+
+func isTimeOutError(err error) bool {
+	if urlError, ok := err.(*url.Error); ok {
+		if opError, ok := urlError.Err.(*net.OpError); ok {
+			if sysErr, ok := opError.Err.(*os.SyscallError); ok {
+				if errno, ok := sysErr.Err.(syscall.Errno); ok && errno == syscall.ETIMEDOUT {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 type flexProvisioner struct {
