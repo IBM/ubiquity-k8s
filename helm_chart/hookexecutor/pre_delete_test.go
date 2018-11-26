@@ -183,7 +183,7 @@ var _ = Describe("PreDelete", func() {
 				}()
 			})
 
-			It("should be deleted successfully", func(done Done) {
+			It("should be deleted successfully by setting replicas to 0", func(done Done) {
 				Expect(<-stopped).To(BeTrue())
 				deploy, err := kubeClient.AppsV1().Deployments(deploy.Namespace).Get(deploy.Name, metav1.GetOptions{})
 				Ω(err).ShouldNot(HaveOccurred())
@@ -191,6 +191,20 @@ var _ = Describe("PreDelete", func() {
 				// we only check if the replicas is updated since the fake server won't trigger any pod changes.
 				Expect(deploy.Spec.Replicas).To(Equal(&test_zero))
 
+				close(done)
+			})
+		})
+
+		Context("delete UbiquityDB Pods when Deployment is gone", func() {
+
+			BeforeEach(func() {
+				err := kubeClient.AppsV1().Deployments(deploy.Namespace).Delete(deploy.Name, nil)
+				Ω(err).ShouldNot(HaveOccurred())
+			})
+
+			It("should return without error", func(done Done) {
+				err := e.(*preDeleteExecutor).deleteUbiquityDBPods()
+				Ω(err).ShouldNot(HaveOccurred())
 				close(done)
 			})
 		})

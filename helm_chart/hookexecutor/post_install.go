@@ -36,6 +36,7 @@ func (e *postInstallExecutor) Execute() error {
 
 // updateFlexDaemonSet get the clusterIP of ubiquity Service and apply it to the flex DaemonSet
 func (e *postInstallExecutor) updateFlexDaemonSet() error {
+	logger.Info(fmt.Sprintf("Updating %s DaemonSet", ubiquityK8sFlexDaemonSetName))
 	ns := getCurrentNamespace()
 	clusterIP, err := e.getUbiquityServiceIP()
 	if err != nil {
@@ -65,6 +66,7 @@ func (e *postInstallExecutor) updateFlexDaemonSet() error {
 				}
 			}
 			if !found {
+				logger.Warning(fmt.Sprintf("ENV %s is not found, creating it", ubiquityIPAddressKey))
 				ipEnv := corev1.EnvVar{
 					Name:  ubiquityIPAddressKey,
 					Value: clusterIP,
@@ -96,7 +98,7 @@ func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
 	}
 	ip := service.Spec.ClusterIP
 	if ip == "" {
-		err := fmt.Errorf("Failed getting ubiquity serviceIP, it is empty")
+		err := fmt.Errorf(UbiquityServiceIPEmptyErrorStr)
 		return "", logger.ErrorRet(err, err.Error())
 	}
 	return ip, nil

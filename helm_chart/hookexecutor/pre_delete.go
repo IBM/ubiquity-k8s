@@ -47,7 +47,7 @@ func (e *preDeleteExecutor) Execute() error {
 // wait for all the relevant pods to be deleted.
 func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 	ns := getCurrentNamespace()
-	logger.Info(fmt.Sprintf("Deleting Pods under Ubiquity DB Deployment %s in namespace %s", ubiquityDBDeploymentName, ns))
+	logger.Info(fmt.Sprintf("Setting replicas to zero to stop the %s pod in namespace %s", ubiquityDBDeploymentName, ns))
 
 	deploy, err := e.kubeClient.AppsV1().Deployments(ns).Get(ubiquityDBDeploymentName, metav1.GetOptions{})
 	if err != nil {
@@ -55,7 +55,7 @@ func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 			logger.Info("The Ubiquity DB Deployment is already deleted")
 			return nil
 		}
-		return logger.ErrorRet(err, "Failed deleting Ubiquity DB Pods")
+		return logger.ErrorRet(err, fmt.Sprintf("Failed to get Deployment %s from API Server", ubiquityDBDeploymentName))
 	}
 
 	if watchers, err := generatePodsWatchersInDeployment(deploy, e.kubeClient.CoreV1()); err != nil {
@@ -64,10 +64,11 @@ func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 		var wg sync.WaitGroup
 		var watcherErr error
 
+		// Watch and wait for pods to be deleted.
 		for _, w := range watchers {
 			wg.Add(1)
 			go func(watcher watch.Interface) {
-				_, err := Watch(watcher, nil, 40*time.Second)
+				_, err := Watch(watcher, nil, ubiquityDBPodDeletionTimeoutSecond*time.Second)
 				if err != nil {
 					if watcherErr == nil {
 						watcherErr = err
@@ -125,7 +126,7 @@ func (e *preDeleteExecutor) deleteUbiquityDBPvc() error {
 	for _, w := range []watch.Interface{pvcWatcher, pvWatcher} {
 		wg.Add(1)
 		go func(watcher watch.Interface) {
-			_, err := Watch(watcher, nil, 1*time.Minute)
+			_, err := Watch(watcher, nil, ubiquityDBPvcAndPvDeletionTimeoutSecond*time.Second)
 			if err != nil {
 				if watcherErr == nil {
 					watcherErr = err

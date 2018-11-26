@@ -94,6 +94,8 @@ func getClientset() kubernetes.Interface {
 
 // config returns a *rest.Config, using either the kubeconfig (if specified)
 // or an in-cluster configuration.
+// baseName is used to build the user agent to tell the API Server who is calling it.
+// set to "ubiquity" if we, the ubiquity hook executor, is calling the APIs.
 // Note that we only need the in-cluster way in production env, others are for test perpose only.
 func Config(kubeconfig, kubecontext, baseName string) (*rest.Config, error) {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()

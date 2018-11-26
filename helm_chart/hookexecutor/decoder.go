@@ -6,6 +6,10 @@ import (
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 )
 
+/**
+ * decoder is a tool to convert a yaml/json manifest to a k8s object.
+ */
+
 type Decode func(data []byte, defaults *schema.GroupVersionKind, into runtime.Object) (runtime.Object, *schema.GroupVersionKind, error)
 
 type decoder struct {

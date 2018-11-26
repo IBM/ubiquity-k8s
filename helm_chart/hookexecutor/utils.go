@@ -19,13 +19,19 @@ import (
 )
 
 const (
-	defaultNamespace             = "ubiquity"
-	ubiquityServiceName          = "ubiquity"
-	ubiquityK8sFlexDaemonSetName = "ubiquity-k8s-flex"
-	ubiquityDBDeploymentName     = "ubiquity-db"
-	ubiquityDBPvcName            = "ibm-ubiquity-db"
-	ubiquityK8sFlexContainerName = ubiquityK8sFlexDaemonSetName
-	ubiquityIPAddressKey         = "UBIQUITY_IP_ADDRESS"
+	defaultNamespace                        = "ubiquity"
+	ubiquityServiceName                     = "ubiquity"
+	ubiquityK8sFlexDaemonSetName            = "ubiquity-k8s-flex"
+	ubiquityDBDeploymentName                = "ubiquity-db"
+	ubiquityDBPvcName                       = "ibm-ubiquity-db"
+	ubiquityK8sFlexContainerName            = ubiquityK8sFlexDaemonSetName
+	ubiquityIPAddressKey                    = "UBIQUITY_IP_ADDRESS"
+	ubiquityDBPodDeletionTimeoutSecond      = 40
+	ubiquityDBPvcAndPvDeletionTimeoutSecond = 60
+	sanityPodRunningTimeoutSecond           = 300
+	sanityPodDeletionTimeoutSecond          = 300
+	sanityPvcDeletionTimeoutSecond          = 20
+	defaultTimeoutSecond                    = 30
 )
 
 var logger = logs.GetLogger()
@@ -118,7 +124,7 @@ func generatePvWatcher(name string, client v1client.PersistentVolumesGetter) (wa
 func Watch(watcher watch.Interface, desiredStateChecker func(runtime.Object) bool, timeout ...time.Duration) (bool, error) {
 	var err error
 
-	t := 30 * time.Second
+	t := defaultTimeoutSecond * time.Second
 	if len(timeout) > 0 {
 		t = timeout[0]
 	}

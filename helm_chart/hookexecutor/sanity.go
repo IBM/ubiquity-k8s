@@ -91,7 +91,7 @@ func (e *sanityExecutor) createSanityResources() error {
 	_, err = Watch(podWatcher, func(obj runtime.Object) bool {
 		pod := obj.(*corev1.Pod)
 		return pod.Status.Phase == corev1.PodRunning
-	}, 300*time.Second)
+	}, sanityPodRunningTimeoutSecond*time.Second)
 	if err != nil {
 		return logger.ErrorRet(err, "Failed waiting for Pod to be running")
 	}
@@ -115,7 +115,7 @@ func (e *sanityExecutor) deleteSanityResources() error {
 		defer close(succeeded)
 
 		podWatcher, _ := generatePodWatcher(pod.Name, pod.Namespace, e.kubeClient.CoreV1())
-		_, err := Watch(podWatcher, nil, 300*time.Second)
+		_, err := Watch(podWatcher, nil, sanityPodDeletionTimeoutSecond*time.Second)
 		if err != nil {
 			logger.Error("Failed waiting for Pod to be deleted")
 			succeeded <- false
@@ -123,7 +123,7 @@ func (e *sanityExecutor) deleteSanityResources() error {
 		succeeded <- true
 
 		pvcWatcher, _ := generatePvcWatcher(pvc.Name, pvc.Namespace, e.kubeClient.CoreV1())
-		_, err = Watch(pvcWatcher, nil, 20*time.Second)
+		_, err = Watch(pvcWatcher, nil, sanityPvcDeletionTimeoutSecond*time.Second)
 		if err != nil {
 			logger.Error("Failed waiting for PVC to be deleted")
 			succeeded <- false

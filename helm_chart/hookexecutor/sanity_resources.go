@@ -9,7 +9,7 @@ metadata:
 spec:
   containers:
   - name: container1
-    image: alpine:latest
+    image: alpine:3.8
     command: [ "/bin/sh", "-c", "--" ]
     args: [ "while true; do sleep 30; done;" ]
     volumeMounts:

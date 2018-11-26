@@ -18,7 +18,7 @@ metadata:
   name: ubiquity
   namespace: ubiquity
 spec:
-  clusterIP: 10.100.225.204
+  clusterIP: 6.6.6.6
   ports:
   - port: 5432
     protocol: TCP
