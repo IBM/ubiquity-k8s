@@ -33,6 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"k8s.io/api/core/v1"
+	"net"
+	"net/url"
+	"syscall"
 )
 
 const (
@@ -98,7 +101,7 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 			if opError, ok := urlError.Err.(*net.OpError); ok {
 				if sysErr, ok := opError.Err.(*os.SyscallError); ok {
 					if errno, ok := sysErr.Err.(syscall.Errno); ok && errno == syscall.ETIMEDOUT {
-						logger.Error("Failed to start ubiqutiy-k8s-provisioner due to network connection issue to ubiqutiy pod")
+						logger.Printf("Failed to start ubiqutiy-k8s-provisioner due to network connection issue to ubiqutiy pod")
 					}
 				}
 			}
