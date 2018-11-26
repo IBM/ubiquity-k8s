@@ -72,6 +72,9 @@ $ helm delete my-release --purge
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
+This command fails if any of the following resources do not exist: serviceAccount, role, clusterRole, roleBinding, clusterRoleBingding with name ubiquity-helm-hook. To continue the deletion, first create these entities.
+> **Tip**: You can generate the yamls of these resources by running the "helm install --debug –dry-run" command with same release name, namespace and other values.
+
 ## Configuration
 
 The following table lists the configurable parameters of the <Ubiquity> chart and their default values.
