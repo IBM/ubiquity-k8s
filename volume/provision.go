@@ -93,6 +93,18 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 	logger.Printf("activating backend %s\n", config.Backends)
 	err := provisioner.ubiquityClient.Activate(activateRequest)
 
+	if err != nil {
+		if urlError, ok := err.(*url.Error); ok {
+			if opError, ok := urlError.Err.(*net.OpError); ok {
+				if sysErr, ok := opError.Err.(*os.SyscallError); ok {
+					if errno, ok := sysErr.Err.(syscall.Errno); ok && errno == syscall.ETIMEDOUT {
+						logger.Error("Failed to start ubiqutiy-k8s-provisioner due to network connection issue to ubiqutiy pod")
+					}
+				}
+			}
+		}
+	}
+
 	return provisioner, err
 }
 
@@ -194,10 +206,10 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 		getVolumeRequest := resources.GetVolumeRequest{Name: volume.Name, Context: requestContext}
 		volume, err := p.ubiquityClient.GetVolume(getVolumeRequest)
 		if err != nil {
-			if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg){
+			if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
 				p.logger.Warning("Idempotent issue while deleting volume : volume was not found in ubiquity DB", logs.Args{{"volume name", volume.Name}})
 				return nil
-			} else{
+			} else {
 				return p.logger.ErrorRet(err, "error retreiving volume  information.", logs.Args{{"volume name", volume.Name}})
 			}
 		}
