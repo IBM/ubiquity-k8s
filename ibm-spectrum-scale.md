@@ -23,7 +23,7 @@ Relevant yml files (`storage-class-primaryfs.yml`, `pvc1.yml` and `pod1.yml`):
 ```bash
 #> cat storage-class-primaryfs.yml pvc1.yml pod1.yml
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: "spectrumscale-primaryfs"
   labels:
@@ -39,9 +39,8 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "pvc1"
-  annotations:
-    volume.beta.kubernetes.io/storage-class: "spectrumscale-primaryfs"
 spec:
+  storageClassName: "spectrumscale-primaryfs"
   accessModes:
     - ReadWriteOnce # Ubiquity spectrum-scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
@@ -138,7 +137,7 @@ Create a StorageClass named `spectrumscale-primaryfs` that refers to a IBM Spect
 ```bash
 #> cat storage-class-primaryfs.yml
 kind: StorageClass
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 metadata:
   name: "spectrumscale-primaryfs"
   labels:
@@ -168,9 +167,8 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "pvc1"
-  annotations:
-    volume.beta.kubernetes.io/storage-class: "spectrumscale-primaryfs"
 spec:
+  storageClassName: "spectrumscale-primaryfs"
   accessModes:
     - ReadWriteOnce # Ubiquity IBM Spectrum Scale backend supports ReadWriteOnce and ReadWriteMany mode.
   resources:
@@ -284,7 +282,7 @@ persistentvolumeclaim "pvc1" created
 ### Create Kubernetes Deployment with stateful POD (on node6) and write some data inside.
 ```bash
 #> cat deployment1.yml
-apiVersion: "extensions/v1beta1"
+apiVersion: "extensions/v1"
 kind: Deployment
 metadata:
   name: deployment1
