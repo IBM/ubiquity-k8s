@@ -1,105 +1,113 @@
-# ----------------------------------------------------
-# Helm chart to install IBM storage Enabler for Containers.
-# ----------------------------------------------------
+# ---------------------------------------------------------
+# Helm chart to install IBM Storage Enabler for Containers.
+# ---------------------------------------------------------
 
-images:
-  ubiquity: ibmcom/ibm-storage-enabler-for-containers:2.0.0
-  ubiquitydb: ibmcom/ibm-storage-enabler-for-containers-db:2.0.0
-  provisioner: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
-  flex: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
+ubiquity:
+  image: ibmcom/ibm-storage-enabler-for-containers
+  imageTag: "2.0.0"
+  resources: {}
 
-## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
-## Select a backend that you intend to use and comment out the other backend section.
-spectrumConnect:
-  connectionInfo:
-    ## IP\FQDN and port of Spectrum Connect server.
-    fqdn:
-    port:
+  ## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
+  ## Select a backend that you intend to use and comment out the other backend section.
+  spectrumConnect:
+    connectionInfo:
+      ## IP\FQDN and port of Spectrum Connect server.
+      fqdn:
+      port:
 
-    ## Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
-    username:
-    password:
+      ## Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
+      username:
+      password:
 
-  backendConfig:
-    # A prefix for any new volume created on the storage system.
-    instanceName:
-    # Default Spectrum Connect storage service to be used, if not specified by the storage class.
-    DefaultStorageService:
+    backendConfig:
+      # A prefix for any new volume created on the storage system.
+      instanceName:
+      # Default Spectrum Connect storage service to be used, if not specified by the storage class.
+      DefaultStorageService:
 
-    newVolumeDefaults:
-      # The fstype of a new volume if not specified by the user in the storage class.
-      # File system type. Allowed values: ext4 or xfs.
-      fsType: ext4
-      # The default volume size (in GB) if not specified by the user when creating a new volume.
-      size: 1
+      newVolumeDefaults:
+        # The fstype of a new volume if not specified by the user in the storage class.
+        # File system type. Allowed values: ext4 or xfs.
+        fsType: ext4
+        # The default volume size (in GB) if not specified by the user when creating a new volume.
+        size: 1
 
-    dbPvConfig:
-      # Ubiquity database PV name. For Spectrum Virtualize and Spectrum Accelerate, use default value "ibm-ubiquity-db".
-      # For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
-      ubiquityDbPvName: ibm-ubiquity-db
-
-      storageClassForDbPv:
-        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
-        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
-        storageClassName:
-
-        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
-        defaultClass: false
-
-        params:
-          # Storage Class profile parameter should point to the Spectrum Connect storage service name
-          spectrumConnectServiceName:
-          # Storage Class file-system type, Allowed values: ext4 or xfs.
-          fsType: ext4
-
-## IBM storage Enabler for Containers supports two backend types: spectrumConnect OR spectrumScale.
-## Please choose below only one backend and comment-out the other backend section.
-#spectrumScale:
-#  connectionInfo:
-#    # IP\FQDN and port of Spectrum Scale Rest Management API server.
-#    fqdn:
-#    port:
-#
-#    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
-#    username:
-#    password:
-#
-#  backendConfig:
-#    # Default Spectrum Scale Filesystem to be Used
-#    defaultFilesystemName:
-#
-#    dbPvConfig:
-#      ubiquityDbPvName: ibm-ubiquity-db
-#
-#      storageClassForDbPv:
-#        # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
-#        # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
-#        storageClassName:
-#
-#        ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
-#        defaultClass: false
+  ## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
+  ## Select a backend that you intend to use and comment out the other backend section.
+  #spectrumScale:
+  #  connectionInfo:
+  #    # IP\FQDN and port of Spectrum Scale Rest Management API server.
+  #    fqdn:
+  #    port:
+  #
+  #    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
+  #    username:
+  #    password:
+  #
+  #  backendConfig:
+  #    # Default Spectrum Scale Filesystem to be Used
+  #    defaultFilesystemName:
+  #
 
 
 
-genericConfig:
-  connectionInfo:
-    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates). SSL mode is for all communications between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
-    sslMode: require
-
-  # The IP address of the ubiquity service object.
-  # The user must update this key manually if the ubiqutiy service object IP was changed.
-  ubiquityIpAddress:
-
-  logging:
-    # Log level. Allowed values: debug, info, error.
-    logLevel: info
-    # Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
-    flexLogDir: /var/log
-
+ubiquity-db:
+  image: ibmcom/ibm-storage-enabler-for-containers-db
+  imageTag: "2.0.0"
+  resources: {}
+  NodeSelector: {} # ubiquity-db has presistency, so set the nodeSelector only if needed to control specific nodes with the relevant storageclass connectivity
   ubiquityDbCredentials:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
 
-  ## Optional: to set the node selector of the ubiqutiy-db deployment
-  #ubiquityDbNodeSelector:
+  persistency:
+    # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
+    # For using DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
+    PvName: ibm-ubiquity-db
+
+    storageClass:
+      # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
+      # Note: The reclaimPolicy by default is Delete. One can change it manually if needed.
+      storageClassName:
+
+      ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
+      defaultClass: false
+
+      ## If ubiquity.SpectrumConnect was set then the following param must set. For spectrum Scale there is no additional param to set.
+      SpectrumConnect:
+        # Storage Class profile parameter should point to the Spectrum Connect storage service name
+        spectrumConnectServiceName:
+        # Storage Class file-system type, Allowed values: ext4 or xfs.
+        fsType: ext4
+
+
+
+ubiquity-k8s-flex:
+  image: ibmcom/ibm-storage-flex-volume-for-kubernetes
+  imageTag: "2.0.0"
+  resources: {}
+  Tolerations: {}
+  # Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
+  flexLogDir: /var/log
+  # The IP address of the ubiquity service object.
+  # The user must update this key manually if the ubiqutiy service object IP was changed.
+  ubiquityIpAddress:
+
+
+ubiquity-k8s-provisioner:
+  image: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
+  imageTag: "2.0.0"
+  resources: {}
+  ## RBAC is set automatically for the provisioner.
+
+
+genericConfig:
+  # Log level. Allowed values: debug, info, error.
+  logLevel: info
+
+  # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+  # SSL mode is for all communications between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
+  sslMode: require
+
+
