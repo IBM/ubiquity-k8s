@@ -99,7 +99,7 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 	if err != nil {
 		if isTimeOutError(err) {
 			// The log is here to advise the user on where to look for further information
-			logger.Printf("Failed to start ubiqutiy-k8s-provisioner due to connectivity issue to ubiqutiy pod")
+			logger.Printf("Cannot start ubiqutiy-k8s-provisioner due to failure of connectivity to Ubiquity pod.")
 		}
 	}
 
