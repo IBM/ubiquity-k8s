@@ -122,6 +122,46 @@ var _ = Describe("Sanity", func() {
 			})
 		})
 
+		Context("revert changes if creating sanity resources is failed", func() {
+
+			BeforeEach(func() {
+				pvc.SetNamespace(testNamespace)
+				pod.SetNamespace(testNamespace)
+
+				go func() {
+					pvcWatcher := watch.NewFake()
+					kubeClient.PrependWatchReactor("persistentvolumeclaims", testcore.DefaultWatchReactor(pvcWatcher, nil))
+
+					// sleep and set the phase of the pvc to "Bound"
+					time.Sleep(50 * time.Millisecond)
+					newPvc := pvc.DeepCopy()
+					newPvc.Status.Phase = v1.ClaimBound
+					pvcWatcher.Modify(newPvc)
+				}()
+				// create the pod in advance to generate a "pod already exists" error
+				kubeClient.CoreV1().Pods(pod.Namespace).Create(pod)
+
+				go func() {
+					err := e.(*sanityExecutor).createSanityResources()
+					Ω(err).Should(HaveOccurred())
+					Expect(apierrors.IsAlreadyExists(err)).To(BeTrue())
+					stopped <- true
+				}()
+			})
+
+			It("should delete the pvc and pod before exit", func(done Done) {
+				Expect(<-stopped).To(BeTrue())
+
+				_, err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+				_, err = kubeClient.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+				close(done)
+			})
+		})
+
 		Context("delete sanity resources", func() {
 
 			BeforeEach(func() {
