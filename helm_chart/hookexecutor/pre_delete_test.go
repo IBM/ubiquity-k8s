@@ -1,6 +1,7 @@
 package hookexecutor
 
 import (
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -150,6 +151,8 @@ var _ = Describe("PreDelete", func() {
 		podObj, _ := FromYaml([]byte(test_podYaml))
 		pod = podObj.(*v1.Pod)
 
+		os.Setenv("UBIQUITY_DB_PV_NAME", pv.Name)
+
 		kubeClient = fakekubeclientset.NewSimpleClientset(pvc, pv, deploy, pod)
 
 		e = PreDeleteExecutor(kubeClient)
@@ -157,6 +160,7 @@ var _ = Describe("PreDelete", func() {
 
 	AfterEach(func() {
 		close(stopped)
+		os.Setenv("UBIQUITY_DB_PV_NAME", "")
 	})
 
 	Describe("test Execute", func() {
@@ -252,6 +256,69 @@ var _ = Describe("PreDelete", func() {
 				_, err = kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
+				close(done)
+			})
+		})
+
+		Context("wait for UbiquityDB pv to be deleted when pvc is already deleted", func() {
+
+			BeforeEach(func() {
+
+				// delete pvc first
+				err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Delete(pvc.Name, nil)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				// pv exists on API Server before action
+				_, err = kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+				Ω(err).ShouldNot(HaveOccurred())
+
+				go func() {
+					pvWatcher := watch.NewFake()
+					kubeClient.PrependWatchReactor("persistentvolumes", testcore.DefaultWatchReactor(pvWatcher, nil))
+
+					time.Sleep(50 * time.Millisecond)
+					pvWatcher.Delete(pv)
+				}()
+
+				go func() {
+					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+					Ω(err).ShouldNot(HaveOccurred())
+					// The fake server won't delete pv in cascade.
+					kubeClient.CoreV1().PersistentVolumes().Delete(pv.Name, nil)
+					stopped <- true
+				}()
+			})
+
+			It("should return after pv is deleted", func(done Done) {
+				Expect(<-stopped).To(BeTrue())
+
+				_, err := kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+				close(done)
+			})
+		})
+
+		Context("retry after pvc and pv are already deleted", func() {
+
+			BeforeEach(func() {
+
+				// delete pvc and pv first
+				err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Delete(pvc.Name, nil)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				err = kubeClient.CoreV1().PersistentVolumes().Delete(pv.Name, nil)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				go func() {
+					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+					Ω(err).ShouldNot(HaveOccurred())
+					stopped <- true
+				}()
+			})
+
+			It("should return without error", func(done Done) {
+				Expect(<-stopped).To(BeTrue())
 				close(done)
 			})
 		})

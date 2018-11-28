@@ -6,6 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -64,6 +65,10 @@ func generatePodsWatchersInDeployment(deploy *appsv1.Deployment, client v1client
 		}
 		watcher, err := client.Pods(deploy.Namespace).Watch(listOptions)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Info(fmt.Sprintf("The Pod %s is already deleted", pod.Name))
+				continue
+			}
 			logger.Error(fmt.Sprintf("Can't generate watcher for Pod %s", pod.Name))
 			return nil, err
 		} else {

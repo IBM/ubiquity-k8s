@@ -168,7 +168,7 @@ func getSanityPvcAndPod() (*corev1.PersistentVolumeClaim, *corev1.Pod) {
 func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 	sc := os.Getenv("STORAGE_CLASS")
 	if sc == "" {
-		return fmt.Errorf("ENV STORAGE_CLASS is not set")
+		return fmt.Errorf(ENVStorageClassNotSet)
 	}
 
 	annos := pvc.GetAnnotations()
