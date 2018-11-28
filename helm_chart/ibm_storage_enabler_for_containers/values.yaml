@@ -1,10 +1,20 @@
 # ---------------------------------------------------------
 # Helm chart to install IBM Storage Enabler for Containers.
+# Enables IBM Storage with Kubernetes by implementing Kubernetes Dynamic Provisioner and FlexVolume.
+#
+# IBM Storage Enabler for Containers includes the following main images:
+#   - deployment/ubiquity
+#   - deployment/ubiquity-db
+#   - deamonset/ubiquity-k8s-flex
+#   - deployment/ubiquity-k8s-provisioner
 # ---------------------------------------------------------
 
+
 ubiquity:
-  image: ibmcom/ibm-storage-enabler-for-containers
-  imageTag: "2.0.0"
+  image:
+    repository: ibmcom/ibm-storage-enabler-for-containers
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
   resources: {}
 
   ## IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
@@ -14,7 +24,6 @@ ubiquity:
       ## IP\FQDN and port of Spectrum Connect server.
       fqdn:
       port:
-
       ## Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
       username:
       password:
@@ -24,7 +33,6 @@ ubiquity:
       instanceName:
       # Default Spectrum Connect storage service to be used, if not specified by the storage class.
       DefaultStorageService:
-
       newVolumeDefaults:
         # The fstype of a new volume if not specified by the user in the storage class.
         # File system type. Allowed values: ext4 or xfs.
@@ -39,7 +47,6 @@ ubiquity:
   #    # IP\FQDN and port of Spectrum Scale Rest Management API server.
   #    fqdn:
   #    port:
-  #
   #    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
   #    username:
   #    password:
@@ -47,20 +54,22 @@ ubiquity:
   #  backendConfig:
   #    # Default Spectrum Scale Filesystem to be Used
   #    defaultFilesystemName:
-  #
-
 
 
 ubiquity-db:
-  image: ibmcom/ibm-storage-enabler-for-containers-db
-  imageTag: "2.0.0"
+  image:
+    repository: ibmcom/ibm-storage-enabler-for-containers-db
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
   resources: {}
-  NodeSelector: {} # ubiquity-db has presistency, so set the nodeSelector only if needed to control specific nodes with the relevant storageclass connectivity
+  NodeSelector: {}
   ubiquityDbCredentials:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
     password:
 
+  # The Helm installation has automatic boot strap of the ubiqutiy-db volume (PVC named ibm-ubiquity-db).
+  # The boot strap creates a storage class(details below) and the PVC.
   persistency:
     # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
     # For using DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
@@ -74,32 +83,41 @@ ubiquity-db:
       ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
       defaultClass: false
 
-      ## If ubiquity.SpectrumConnect was set then the following param must set. For spectrum Scale there is no additional param to set.
-      SpectrumConnect:
+      ## If ubiquity.spectrumConnect was set then the following param must set.
+      spectrumConnect:
         # Storage Class profile parameter should point to the Spectrum Connect storage service name
         spectrumConnectServiceName:
         # Storage Class file-system type, Allowed values: ext4 or xfs.
         fsType: ext4
 
+      ## If ubiquity.spectrumScale was set then the following param must set.
+      #spectrumScale:
+      #  fileset-type: "dependent"
 
 
 ubiquity-k8s-flex:
-  image: ibmcom/ibm-storage-flex-volume-for-kubernetes
-  imageTag: "2.0.0"
+  image:
+    repository: ibmcom/ibm-storage-flex-volume-for-kubernetes
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
   resources: {}
-  Tolerations: {}
-  # Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
+
+  ## By default the toleration set to run the flex Deamonset on all worker and master nodes. To define a different toleration uncomment and apply the relevant toleration.
+  #Tolerations: {}
+
+  ## Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
   flexLogDir: /var/log
-  # The IP address of the ubiquity service object.
-  # The user must update this key manually if the ubiqutiy service object IP was changed.
+  ## The IP address of the ubiquity service object.
+  ## The user must update this key manually if the ubiqutiy service object IP was changed.
   ubiquityIpAddress:
 
 
 ubiquity-k8s-provisioner:
-  image: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
-  imageTag: "2.0.0"
+  ## RBAC and service account is set automatically for the provisioner.
+  image:
+    repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
+    tag: "2.0.0"
   resources: {}
-  ## RBAC is set automatically for the provisioner.
 
 
 genericConfig:
