@@ -47,7 +47,10 @@ func (e *preDeleteExecutor) Execute() error {
 // deleteUbiquityDBPods sets replicas of ubiquity-db deployment to 0 and
 // wait for all the relevant pods to be deleted.
 func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
-	ns := getCurrentNamespace()
+	ns, err := getCurrentNamespace()
+	if err != nil {
+		return err
+	}
 	logger.Info(fmt.Sprintf("Setting replicas to zero to stop the %s pod in namespace %s", ubiquityDBDeploymentName, ns))
 
 	deploy, err := e.kubeClient.AppsV1().Deployments(ns).Get(ubiquityDBDeploymentName, metav1.GetOptions{})
@@ -100,7 +103,10 @@ func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 
 // deleteUbiquityDBPvc deletes the ubiquity-db pvc and wait for pvc/pv to be deleted.
 func (e *preDeleteExecutor) deleteUbiquityDBPvc() error {
-	ns := getCurrentNamespace()
+	ns, err := getCurrentNamespace()
+	if err != nil {
+		return err
+	}
 	logger.Info(fmt.Sprintf("Deleting PVC %s in namespace %s", ubiquityDBPvcName, ns))
 
 	pvc, err := e.kubeClient.CoreV1().PersistentVolumeClaims(ns).Get(ubiquityDBPvcName, metav1.GetOptions{})

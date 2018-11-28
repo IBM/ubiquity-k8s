@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	defaultNamespace                        = "ubiquity"
 	ubiquityServiceName                     = "ubiquity"
 	ubiquityK8sFlexDaemonSetName            = "ubiquity-k8s-flex"
 	ubiquityDBDeploymentName                = "ubiquity-db"

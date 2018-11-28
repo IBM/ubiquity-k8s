@@ -1,6 +1,8 @@
 package hookexecutor
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -83,6 +85,8 @@ var _ = Describe("PostInstall", func() {
 
 	BeforeEach(func() {
 
+		os.Setenv("NAMESPACE", "ubiquity")
+
 		svcObj, _ := FromYaml([]byte(test_svcYaml))
 		svc = svcObj.(*v1.Service)
 
@@ -94,12 +98,44 @@ var _ = Describe("PostInstall", func() {
 		e = PostInstallExecutor(kubeClient)
 	})
 
+	AfterEach(func() {
+		os.Setenv("NAMESPACE", "")
+	})
+
 	Describe("test Execute", func() {
 
 		Context("get Ubiquity serviceIP", func() {
 
 			It("should return svc clusterIP", func() {
 				Expect(e.(*postInstallExecutor).getUbiquityServiceIP()).To(Equal(svc.Spec.ClusterIP))
+			})
+		})
+
+		Context("raise error if namespace not set", func() {
+
+			BeforeEach(func() {
+				os.Setenv("NAMESPACE", "")
+			})
+
+			It("should raise an error", func() {
+				err := e.Execute()
+				Ω(err).Should(HaveOccurred())
+				Expect(err.Error()).To(Equal(ENVNamespaceNotSet))
+			})
+		})
+
+		Context("raise error if Ubiquity serviceIP is empty", func() {
+
+			BeforeEach(func() {
+				newSvc := svc.DeepCopy()
+				newSvc.Spec.ClusterIP = ""
+				kubeClient.CoreV1().Services(newSvc.Namespace).Update(newSvc)
+			})
+
+			It("should raise an error", func() {
+				err := e.Execute()
+				Ω(err).Should(HaveOccurred())
+				Expect(err.Error()).To(Equal(UbiquityServiceIPEmptyErrorStr))
 			})
 		})
 

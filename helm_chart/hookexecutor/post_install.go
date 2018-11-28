@@ -37,7 +37,10 @@ func (e *postInstallExecutor) Execute() error {
 // updateFlexDaemonSet get the clusterIP of ubiquity Service and apply it to the flex DaemonSet
 func (e *postInstallExecutor) updateFlexDaemonSet() error {
 	logger.Info(fmt.Sprintf("Updating %s DaemonSet", ubiquityK8sFlexDaemonSetName))
-	ns := getCurrentNamespace()
+	ns, err := getCurrentNamespace()
+	if err != nil {
+		return err
+	}
 	clusterIP, err := e.getUbiquityServiceIP()
 	if err != nil {
 		return logger.ErrorRet(err, fmt.Sprintf("Failed updating DaemonSet %s", ubiquityK8sFlexDaemonSetName))
@@ -86,7 +89,10 @@ func (e *postInstallExecutor) updateFlexDaemonSet() error {
 }
 
 func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
-	ns := getCurrentNamespace()
+	ns, err := getCurrentNamespace()
+	if err != nil {
+		return "", err
+	}
 
 	logger.Info(
 		fmt.Sprintf("Getting ubiquity serviceIP from Service %s in namespace %s",
@@ -104,11 +110,10 @@ func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
 	return ip, nil
 }
 
-func getCurrentNamespace() string {
+func getCurrentNamespace() (string, error) {
 	ns := os.Getenv("NAMESPACE")
 	if ns == "" {
-		return defaultNamespace
+		return "", fmt.Errorf(ENVNamespaceNotSet)
 	}
-
-	return ns
+	return ns, nil
 }

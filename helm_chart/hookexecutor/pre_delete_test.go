@@ -152,6 +152,7 @@ var _ = Describe("PreDelete", func() {
 		pod = podObj.(*v1.Pod)
 
 		os.Setenv("UBIQUITY_DB_PV_NAME", pv.Name)
+		os.Setenv("NAMESPACE", "ubiquity")
 
 		kubeClient = fakekubeclientset.NewSimpleClientset(pvc, pv, deploy, pod)
 
@@ -161,6 +162,7 @@ var _ = Describe("PreDelete", func() {
 	AfterEach(func() {
 		close(stopped)
 		os.Setenv("UBIQUITY_DB_PV_NAME", "")
+		os.Setenv("NAMESPACE", "")
 	})
 
 	Describe("test Execute", func() {
@@ -320,6 +322,19 @@ var _ = Describe("PreDelete", func() {
 			It("should return without error", func(done Done) {
 				Expect(<-stopped).To(BeTrue())
 				close(done)
+			})
+		})
+
+		Context("raise error if pv name not set", func() {
+
+			BeforeEach(func() {
+				os.Setenv("UBIQUITY_DB_PV_NAME", "")
+			})
+
+			It("should raise an error", func() {
+				_, err := getUbiquityDbPvName()
+				Ω(err).Should(HaveOccurred())
+				Expect(err.Error()).To(Equal(ENVUbiquityDbPvNameNotSet))
 			})
 		})
 	})

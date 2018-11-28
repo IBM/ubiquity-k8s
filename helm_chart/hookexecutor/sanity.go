@@ -181,7 +181,10 @@ func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 }
 
 func updateNamespace(objs []runtime.Object) error {
-	ns := getCurrentNamespace()
+	ns, err := getCurrentNamespace()
+	if err != nil {
+		return err
+	}
 	for _, obj := range objs {
 		metadata, err := meta.Accessor(obj)
 		if err != nil {
