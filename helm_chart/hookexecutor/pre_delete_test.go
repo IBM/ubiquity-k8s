@@ -132,11 +132,8 @@ var _ = Describe("PreDelete", func() {
 	var pv *v1.PersistentVolume
 	var deploy *appsv1.Deployment
 	var pod *v1.Pod
-	var stopped chan bool
 
 	BeforeEach(func() {
-
-		stopped = make(chan bool)
 
 		pvcObj, _ := FromYaml([]byte(test_pvcYaml))
 		pvc = pvcObj.(*v1.PersistentVolumeClaim)
@@ -159,7 +156,6 @@ var _ = Describe("PreDelete", func() {
 	})
 
 	AfterEach(func() {
-		close(stopped)
 		os.Setenv("UBIQUITY_DB_PV_NAME", "")
 		os.Setenv("NAMESPACE", "")
 	})
@@ -180,16 +176,12 @@ var _ = Describe("PreDelete", func() {
 					time.Sleep(40 * time.Millisecond)
 					podWatcher.Delete(pod)
 				}()
-
-				go func() {
-					err := e.(*preDeleteExecutor).deleteUbiquityDBPods()
-					Ω(err).ShouldNot(HaveOccurred())
-					stopped <- true
-				}()
 			})
 
 			It("should be deleted successfully by setting replicas to 0", func(done Done) {
-				Expect(<-stopped).To(BeTrue())
+				err := e.(*preDeleteExecutor).deleteUbiquityDBPods()
+				Ω(err).ShouldNot(HaveOccurred())
+
 				deploy, err := kubeClient.AppsV1().Deployments(deploy.Namespace).Get(deploy.Name, metav1.GetOptions{})
 				Ω(err).ShouldNot(HaveOccurred())
 
@@ -240,22 +232,17 @@ var _ = Describe("PreDelete", func() {
 					time.Sleep(50 * time.Millisecond)
 					pvWatcher.Delete(pv)
 				}()
-
-				go func() {
-					e.(*preDeleteExecutor).deleteUbiquityDBPvc()
-					// The fake server won't delete pv in cascade.
-					kubeClient.CoreV1().PersistentVolumes().Delete(pv.Name, nil)
-					stopped <- true
-				}()
 			})
 
 			It("should delete pvc and pv", func(done Done) {
-				Expect(<-stopped).To(BeTrue())
-				_, err := kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
+				err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+				Ω(err).ShouldNot(HaveOccurred())
+				_, err = kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
-				_, err = kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
-				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				// The fake server won't delete pv in cascade.
+				// _, err = kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+				// Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 				close(done)
 			})
@@ -280,21 +267,15 @@ var _ = Describe("PreDelete", func() {
 					time.Sleep(50 * time.Millisecond)
 					pvWatcher.Delete(pv)
 				}()
-
-				go func() {
-					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
-					Ω(err).ShouldNot(HaveOccurred())
-					// The fake server won't delete pv in cascade.
-					kubeClient.CoreV1().PersistentVolumes().Delete(pv.Name, nil)
-					stopped <- true
-				}()
 			})
 
 			It("should return after pv is deleted", func(done Done) {
-				Expect(<-stopped).To(BeTrue())
+				err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+				Ω(err).ShouldNot(HaveOccurred())
 
-				_, err := kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
-				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				// The fake server won't delete pv in cascade.
+				// _, err := kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+				// Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 				close(done)
 			})
@@ -310,16 +291,11 @@ var _ = Describe("PreDelete", func() {
 
 				err = kubeClient.CoreV1().PersistentVolumes().Delete(pv.Name, nil)
 				Ω(err).ShouldNot(HaveOccurred())
-
-				go func() {
-					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
-					Ω(err).ShouldNot(HaveOccurred())
-					stopped <- true
-				}()
 			})
 
 			It("should return without error", func(done Done) {
-				Expect(<-stopped).To(BeTrue())
+				err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+				Ω(err).ShouldNot(HaveOccurred())
 				close(done)
 			})
 		})
