@@ -120,7 +120,7 @@ ubiquity-k8s-provisioner:
   resources: {}
 
 
-genericConfig:
+globalConfig:
   # Log level. Allowed values: debug, info, error.
   logLevel: info
 
