@@ -23,7 +23,7 @@ ubiquity:
     connectionInfo:
       ## IP\FQDN and port of Spectrum Connect server.
       fqdn:
-      port:
+      port: 8440
       ## Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
       username:
       password:
@@ -32,7 +32,7 @@ ubiquity:
       # A prefix for any new volume created on the storage system.
       instanceName:
       # Default Spectrum Connect storage service to be used, if not specified by the storage class.
-      DefaultStorageService:
+      defaultStorageService:
       newVolumeDefaults:
         # The fstype of a new volume if not specified by the user in the storage class.
         # File system type. Allowed values: ext4 or xfs.
@@ -46,7 +46,7 @@ ubiquity:
   #  connectionInfo:
   #    # IP\FQDN and port of Spectrum Scale Rest Management API server.
   #    fqdn:
-  #    port:
+  #    port: 443
   #    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
   #    username:
   #    password:
@@ -62,7 +62,7 @@ ubiquity-db:
     tag: "2.0.0"
     pullPolicy: IfNotPresent
   resources: {}
-  NodeSelector: {}
+  nodeSelector: {}
   ubiquityDbCredentials:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username:
@@ -73,7 +73,7 @@ ubiquity-db:
   persistency:
     # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
     # For using DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
-    PvName: ibm-ubiquity-db
+    pvName: ibm-ubiquity-db
 
     storageClass:
       # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
@@ -103,7 +103,7 @@ ubiquity-k8s-flex:
   resources: {}
 
   ## By default the toleration set to run the flex Deamonset on all worker and master nodes. To define a different toleration uncomment and apply the relevant toleration.
-  #Tolerations: {}
+  #tolerations: {}
 
   ## Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according.
   flexLogDir: /var/log
