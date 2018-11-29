@@ -65,8 +65,8 @@ ubiquity-db:
   nodeSelector: {}
   ubiquityDbCredentials:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
-    username:
-    password:
+    username: ubiquity
+    password: ubiquity
 
   # The Helm installation has automatic boot strap of the ubiqutiy-db volume (PVC named ibm-ubiquity-db).
   # The boot strap creates a storage class(details below) and the PVC.
@@ -83,14 +83,14 @@ ubiquity-db:
       ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false
       defaultClass: false
 
-      ## If ubiquity.spectrumConnect was set then the following param must set.
+      ## If ubiquity.spectrumConnect is set then the following param must set.
       spectrumConnect:
         # Storage Class profile parameter should point to the Spectrum Connect storage service name
         spectrumConnectServiceName:
         # Storage Class file-system type, Allowed values: ext4 or xfs.
         fsType: ext4
 
-      ## If ubiquity.spectrumScale was set then the following param must set.
+      ## If ubiquity.spectrumScale is set then the following param must set.
       #spectrumScale:
       #  fileset-type: "dependent"
 
