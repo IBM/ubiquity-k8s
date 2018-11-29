@@ -2,6 +2,7 @@ package hookexecutor
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,10 +17,16 @@ import (
 	v1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	api "k8s.io/kubernetes/pkg/apis/core"
 
+	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 )
 
+func init() {
+	initLogger()
+}
+
 const (
+	defaultlogLevel                         = "info"
 	ubiquityServiceName                     = "ubiquity"
 	ubiquityK8sFlexDaemonSetName            = "ubiquity-k8s-flex"
 	ubiquityDBDeploymentName                = "ubiquity-db"
@@ -34,7 +41,16 @@ const (
 	defaultTimeoutSecond                    = 30
 )
 
-var logger = logs.GetLogger()
+var logger logs.Logger
+
+func initLogger() {
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = defaultlogLevel
+	}
+	k8sutils.InitGenericLogger(logLevel)
+	logger = logs.GetLogger()
+}
 
 func match(ls *metav1.LabelSelector, pod *v1.Pod) bool {
 	selector, err := metav1.LabelSelectorAsSelector(ls)

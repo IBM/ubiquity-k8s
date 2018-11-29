@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 
-	_ "github.com/IBM/ubiquity-k8s/cmd/hook-executor/logger"
 	"github.com/IBM/ubiquity-k8s/helm_chart/hookexecutor"
 
 	flags "github.com/jessevdk/go-flags"
