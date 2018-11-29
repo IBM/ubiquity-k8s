@@ -117,6 +117,7 @@ ubiquity-k8s-provisioner:
   image:
     repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
     tag: "2.0.0"
+    pullPolicy: IfNotPresent
   resources: {}
 
 
