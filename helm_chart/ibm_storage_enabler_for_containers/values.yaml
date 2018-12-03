@@ -3,12 +3,11 @@
 # Enables IBM Storage with Kubernetes by implementing Kubernetes Dynamic Provisioner and FlexVolume.
 #
 # IBM Storage Enabler for Containers includes the following main images:
-#   - deployment/ubiquity
-#   - deployment/ubiquity-db
-#   - deamonset/ubiquity-k8s-flex
-#   - deployment/ubiquity-k8s-provisioner
+#   - deployment/ubiquity                 : A mediator between IBM Storage and k8s FlexVolume \ Dynamic Provisioner.
+#   - deployment/ubiquity-db              : Stores meta-data for the dynamic provisioned volumes.
+#   - deamonset/ubiquity-k8s-flex         : Implements k8s FlexVolume driver.
+#   - deployment/ubiquity-k8s-provisioner : Implements k8s Dynamic Provisioner
 # ---------------------------------------------------------
-
 
 ubiquity:
   image:
@@ -56,24 +55,25 @@ ubiquity:
   #    defaultFilesystemName:
 
 
-ubiquity-db:
+ubiquityDb:
   image:
     repository: ibmcom/ibm-storage-enabler-for-containers-db
     tag: "2.0.0"
     pullPolicy: IfNotPresent
   resources: {}
   nodeSelector: {}
-  ubiquityDbCredentials:
+  dbCredentials:
     # Username and password for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists.
     username: ubiquity
     password: ubiquity
 
   # The Helm installation has automatic boot strap of the ubiqutiy-db volume (PVC named ibm-ubiquity-db).
   # The boot strap creates a storage class(details below) and the PVC.
-  persistency:
+  persistence:
     # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
     # For using DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
     pvName: ibm-ubiquity-db
+    pvSize: 20Gi
 
     storageClass:
       # Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC.
@@ -95,7 +95,7 @@ ubiquity-db:
       #  fileset-type: "dependent"
 
 
-ubiquity-k8s-flex:
+ubiquityK8sFlex:
   image:
     repository: ibmcom/ibm-storage-flex-volume-for-kubernetes
     tag: "2.0.0"
@@ -112,7 +112,7 @@ ubiquity-k8s-flex:
   ubiquityIpAddress:
 
 
-ubiquity-k8s-provisioner:
+ubiquityK8sProvisioner:
   ## RBAC and service account is set automatically for the provisioner.
   image:
     repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
