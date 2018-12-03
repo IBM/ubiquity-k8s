@@ -32,7 +32,6 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
-	"k8s.io/kubernetes/pkg/util/mount"
 )
  
 const(
