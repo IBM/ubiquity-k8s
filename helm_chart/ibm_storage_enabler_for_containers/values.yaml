@@ -92,7 +92,7 @@ ubiquityDb:
 
       ## If ubiquity.spectrumScale is set then the following param must set.
       #spectrumScale:
-      #  fileset-type: "dependent"
+      #  fileset-type: "dependent"  #The value of 'fileset-type' parameter must be set to 'dependent'.
 
 
 ubiquityK8sFlex:
