@@ -5,6 +5,10 @@ metadata:
   labels:
     product: ibm-storage-enabler-for-containers
   namespace: ubiquity
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts:ubiquity
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
