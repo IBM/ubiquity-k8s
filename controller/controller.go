@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"syscall"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
@@ -693,7 +694,7 @@ func checkSlinkIsActuallyInUse(k8sMountPoint string, logger logs.Logger, execute
 	
 	rootDirStat, err := executer.Lstat(k8sMountPoint + "/..")
 	if err != nil{
-		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", /..}})
+		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", k8sMountPoint}})
 	}
 	
 	if slinkStat.Sys().(*syscall.Stat_t).Dev != rootDirStat.Sys().(*syscall.Stat_t).Dev {
@@ -748,7 +749,7 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			isInUse, err := checkSlinkIsActuallyInUse(k8sMountPoint)
+			isInUse, err := checkSlinkIsActuallyInUse(k8sMountPoint, logger, executer)
 			if err != nil {
 				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
 				continue
