@@ -32,6 +32,7 @@ import (
 	"github.com/IBM/ubiquity/utils"
 	"github.com/IBM/ubiquity/utils/logs"
 	"github.com/nightlyone/lockfile"
+	"k8s.io/kubernetes/pkg/util/mount"
 )
  
 const(
@@ -685,6 +686,25 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 	return tempMountPoint, nil
 }
 
+func checkSlinkIsActuallyInUse(k8sMountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
+	slinkStat, err := executer.Stat(k8sMountPoint)  // TODO: Lstat?
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
+	}
+	
+	rootDirStat, err := executer.Lstat(k8sMountPoint + "/..")
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", /..}})
+	}
+	
+	if slinkStat.Sys().(*syscall.Stat_t).Dev != rootDirStat.Sys().(*syscall.Stat_t).Dev {
+		return true, nil
+	}	 
+	
+	return false, nil
+}
+
+
 func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
 	/*
 		the mountpoint parameter is the actual mountpoint we are pointing to: /ubiquity/WWN
@@ -729,7 +749,17 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			slinks = append(slinks, file)
+			isInUse, err := checkSlinkIsActuallyInUse(k8sMountPoint)
+			if err != nil {
+				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
+				continue
+			}
+			if isInUse{
+				slinks = append(slinks, file)
+			} else {
+				logger.Warning("found un mounted slink to current mount point", logs.Args{{"file", file}})
+			}
+			
 		}
 	}
 		
