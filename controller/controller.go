@@ -696,6 +696,10 @@ func checkSlinkIsActuallyInUse(k8sMountPoint string, logger logs.Logger, execute
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", k8sMountPoint}})
 	}
+	logger.Info(fmt.Sprintf("slinkStat.Sys() : %s , rootDirStat.Sys() : %s , slinkStat.Sys().(*syscall.Stat_t) : %s , rootDirStat.Sys().(*syscall.Stat_t) : %s ",
+	slinkStat.Sys(), rootDirStat.Sys(), slinkStat.Sys().(*syscall.Stat_t), rootDirStat.Sys().(*syscall.Stat_t) ))
+	logger.Info(fmt.Sprintf("slinkStat.Sys().(*syscall.Stat_t).Dev : %s  ,    rootDirStat.Sys().(*syscall.Stat_t).Dev : %s", slinkStat.Sys().(*syscall.Stat_t).Dev,rootDirStat.Sys().(*syscall.Stat_t).Dev ))
+	
 	
 	if slinkStat.Sys().(*syscall.Stat_t).Dev != rootDirStat.Sys().(*syscall.Stat_t).Dev {
 		return true, nil
@@ -757,7 +761,7 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 			if isInUse{
 				slinks = append(slinks, file)
 			} else {
-				logger.Warning("found un mounted slink to current mount point", logs.Args{{"file", file}})
+				logger.Warning("found a mounted slink to current mount point - which is not in use.", logs.Args{{"file", file}})
 			}
 			
 		}
