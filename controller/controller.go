@@ -686,28 +686,20 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 	return tempMountPoint, nil
 }
 
-func checkSlinkIsActuallyInUse(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
-	logger.Info(fmt.Sprintf("k8sMountPoint : %s", mountPoint))
-//	evaledSimlink, err := executer.EvalSymlinks(k8sMountPoint)
-//	logger.Info(fmt.Sprintf("evaed simlink : %s", evaledSimlink))
-//	if err != nil {
-//		return false, logger.ErrorRet(err, "Failed toedval the symlink.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
-//	}
+func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
+	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}})()
+
 	slinkStat, err := executer.Stat(mountPoint)
-	logger.Info(fmt.Sprintf("slinkStat : %s", slinkStat))
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
 	}
 	
 	rootDirStat, err := executer.Lstat(mountPoint + "/..")
-	logger.Info(fmt.Sprintf("rootDirStat : %s", rootDirStat))
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
 	}
-	//logger.Info(fmt.Sprintf("slinkStat.Sys() : %s , rootDirStat.Sys() : %s , slinkStat.Sys().(*syscall.Stat_t) : %s , rootDirStat.Sys().(*syscall.Stat_t) : %s ",
-	//slinkStat.Sys(), rootDirStat.Sys(), slinkStat.Sys().(*syscall.Stat_t), rootDirStat.Sys().(*syscall.Stat_t) ))
-	logger.Info(fmt.Sprintf("slinkStat.Sys().(*syscall.Stat_t).Dev : %s  ,    rootDirStat.Sys().(*syscall.Stat_t).Dev : %s", slinkStat.Sys().(*syscall.Stat_t).Dev,rootDirStat.Sys().(*syscall.Stat_t).Dev ))
 	
+	// syscal.Stat_t returns the output of a "stat" linux command on the file.
 	if slinkStat.Sys().(*syscall.Stat_t).Dev != rootDirStat.Sys().(*syscall.Stat_t).Dev {
 		return true, nil
 	}	 
@@ -760,7 +752,7 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			isInUse, err := checkSlinkIsActuallyInUse(mountPoint, logger, executer)
+			isInUse, err := checkMountPointIsMounted(mountPoint, logger, executer)
 			if err != nil {
 				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
 				continue
