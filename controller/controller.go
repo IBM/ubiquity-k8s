@@ -686,20 +686,20 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 	return tempMountPoint, nil
 }
 
-func checkSlinkIsActuallyInUse(k8sMountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
-	logger.Info(fmt.Sprintf("k8sMountPoint : %s", k8sMountPoint))
-	evaledSimlink, err := executer.EvalSymlinks(k8sMountPoint)
-	logger.Info(fmt.Sprintf("evaed simlink : %s", evaledSimlink))
-	if err != nil {
-		return false, logger.ErrorRet(err, "Failed toedval the symlink.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
-	}
-	slinkStat, err := executer.Stat(evaledSimlink)
+func checkSlinkIsActuallyInUse(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
+	logger.Info(fmt.Sprintf("k8sMountPoint : %s", mountPoint))
+//	evaledSimlink, err := executer.EvalSymlinks(k8sMountPoint)
+//	logger.Info(fmt.Sprintf("evaed simlink : %s", evaledSimlink))
+//	if err != nil {
+//		return false, logger.ErrorRet(err, "Failed toedval the symlink.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
+//	}
+	slinkStat, err := executer.Stat(mountPoint)
 	logger.Info(fmt.Sprintf("slinkStat : %s", slinkStat))
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
 	}
 	
-	rootDirStat, err := executer.Lstat(evaledSimlink + "/..")
+	rootDirStat, err := executer.Lstat(mountPoint + "/..")
 	logger.Info(fmt.Sprintf("rootDirStat : %s", rootDirStat))
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", k8sMountPoint}})
@@ -760,7 +760,7 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			isInUse, err := checkSlinkIsActuallyInUse(k8sMountPoint, logger, executer)
+			isInUse, err := checkSlinkIsActuallyInUse(mountPoint, logger, executer)
 			if err != nil {
 				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
 				continue
