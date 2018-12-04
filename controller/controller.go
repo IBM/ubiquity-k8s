@@ -687,12 +687,13 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 }
 
 func checkSlinkIsActuallyInUse(k8sMountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
-	slinkStat, err := executer.Stat(k8sMountPoint)  // TODO: Lstat?
+	evaledSimlink := executer.EvalSymlinks((k8sMountPoint)
+	slinkStat, err := executer.Stat(evaledSimlink)
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
 	}
 	
-	rootDirStat, err := executer.Lstat(k8sMountPoint + "/..")
+	rootDirStat, err := executer.Lstat(evaledSimlink + "/..")
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", k8sMountPoint}})
 	}
