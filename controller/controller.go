@@ -696,13 +696,13 @@ func checkSlinkIsActuallyInUse(mountPoint string, logger logs.Logger, executer u
 	slinkStat, err := executer.Stat(mountPoint)
 	logger.Info(fmt.Sprintf("slinkStat : %s", slinkStat))
 	if err != nil{
-		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", k8sMountPoint}})
+		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
 	}
 	
 	rootDirStat, err := executer.Lstat(mountPoint + "/..")
 	logger.Info(fmt.Sprintf("rootDirStat : %s", rootDirStat))
 	if err != nil{
-		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", k8sMountPoint}})
+		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
 	}
 	//logger.Info(fmt.Sprintf("slinkStat.Sys() : %s , rootDirStat.Sys() : %s , slinkStat.Sys().(*syscall.Stat_t) : %s , rootDirStat.Sys().(*syscall.Stat_t) : %s ",
 	//slinkStat.Sys(), rootDirStat.Sys(), slinkStat.Sys().(*syscall.Stat_t), rootDirStat.Sys().(*syscall.Stat_t) ))
