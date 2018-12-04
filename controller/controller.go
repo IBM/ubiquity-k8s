@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"syscall"
 
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	"github.com/IBM/ubiquity/remote"
@@ -699,8 +698,7 @@ func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer ut
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
 	}
 	
-	// syscal.Stat_t returns the output of a "stat" linux command on the file.
-	if slinkStat.Sys().(*syscall.Stat_t).Dev != rootDirStat.Sys().(*syscall.Stat_t).Dev {
+	if executer.GetDeviceForFileStat(slinkStat) != executer.GetDeviceForFileStat(rootDirStat){
 		return true, nil
 	}	 
 	
