@@ -38,7 +38,8 @@ UBIQUITY_DEPLOY_YML=ubiquity-deployment.yml
 UBIQUITY_DB_DEPLOY_YML=ubiquity-db-deployment.yml
 UBIQUITY_PROVISIONER_DEPLOY_YML=ubiquity-k8s-provisioner-deployment.yml
 UBIQUITY_FLEX_DAEMONSET_YML=ubiquity-k8s-flex-daemonset.yml
-
+ICP_CLUSTERROLES_FOR_PSP=ibm-anyuid-hostpath-clusterrole
+UBIQUITY_ICP_CLUSTERROLESBINDING_NAME="ubiquity-icp-rolebinding"
 
 
 # Example: wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout
