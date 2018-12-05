@@ -693,7 +693,8 @@ func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer ut
 		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
 	}
 	
-	rootDirStat, err := executer.Lstat(mountPoint + "/..")
+	
+	rootDirStat, err := executer.Lstat(filepath.Dir(mountPoint))
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
 	}
