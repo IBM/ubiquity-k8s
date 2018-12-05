@@ -12,13 +12,18 @@ spec:
         app: ubiquity-db
         product: ibm-storage-enabler-for-containers
     spec:
-      {{- if .Values.genericConfig.ubiquityDbNodeSelector }}
+      {{- if .Values.ubiquityDb.nodeSelector }}
       nodeSelector:
-{{ toYaml .Values.ubiquityDbNodeSelector | indent 8}}
+{{ toYaml .Values.ubiquityDb.nodeSelector | indent 8}}
       {{- end }}
       containers:
       - name: ubiquity-db
-        image: {{ .Values.images.ubiquitydb }}
+        image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
+        {{- with .Values.ubiquityDb.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         ports:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
@@ -45,7 +50,7 @@ spec:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
-{{- if eq .Values.genericConfig.connectionInfo.sslMode "verify-full" }}
+{{- if eq .Values.globalConfig.sslMode "verify-full" }}
           - name: ubiquity-db-private-certificate
             mountPath: /var/lib/postgresql/ssl/private/
 {{- end }}
@@ -54,7 +59,7 @@ spec:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
           claimName: ibm-ubiquity-db
-{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
       - name: ubiquity-db-private-certificate
         secret:
           secretName: ubiquity-db-private-certificate

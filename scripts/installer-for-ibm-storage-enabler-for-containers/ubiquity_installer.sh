@@ -434,6 +434,8 @@ function create_only_namespace_and_services()
 
     create_serviceaccount_and_clusterroles
 
+    create_icp_rolebinding_if_needed
+
     # Creating ubiquity service
     if ! kubectl get $nsf service ${UBIQUITY_SERVICE_NAME} >/dev/null 2>&1; then
         kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
@@ -447,6 +449,22 @@ function create_only_namespace_and_services()
     else
        echo "$UBIQUITY_DB_SERVICE_NAME service already exists, skipping service creation"
     fi
+}
+
+function create_icp_rolebinding_if_needed()
+{
+    # Only if clusterroles $ICP_CLUSTERROLES_FOR_PSP exist, then assuming its ICP 3.1.1+, then creates a bind for it.
+    if kubectl get $nsf clusterroles  ${ICP_CLUSTERROLES_FOR_PSP} >/dev/null 2>&1; then
+        echo "Found ICP ${ICP_CLUSTERROLES_FOR_PSP} clusterroles object. Binding it to ${NS} namespace to enable ICP v3.1.1 and higher."
+
+        # Creating ubiquity ubiquity-icp-rolebinding
+        if ! kubectl get $nsf clusterrolebindings ${UBIQUITY_ICP_CLUSTERROLESBINDING_NAME} >/dev/null 2>&1; then
+           kubectl create $nsf -f ${YML_DIR}/ubiquity-icp-rolebinding.yml
+        else
+           echo "${UBIQUITY_ICP_CLUSTERROLESBINDING_NAME} clusterrolebindings already exists,skipping clusterrolebindings creation"
+        fi
+    fi
+
 }
 
 function create_serviceaccount_and_clusterroles()

@@ -801,9 +801,12 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
 
-	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
-	if err != nil {
-		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
+	if (volumeBackend == resources.SCBE) {
+
+		err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
+		if err != nil {
+			return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
+		}
 	}
 
 	mountpoint, err := mounter.Mount(ubMountRequest)
