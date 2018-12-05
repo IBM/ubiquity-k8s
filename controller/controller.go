@@ -688,7 +688,7 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
 	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}})()
 
-	slinkStat, err := executer.Stat(mountPoint)
+	mountPointStat, err := executer.Stat(mountPoint)
 	if err != nil{
 		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
 	}
@@ -699,7 +699,7 @@ func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer ut
 		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
 	}
 	
-	if executer.GetDeviceForFileStat(slinkStat) != executer.GetDeviceForFileStat(rootDirStat){
+	if executer.GetDeviceForFileStat(mountPointStat) != executer.GetDeviceForFileStat(rootDirStat){
 		return true, nil
 	}	 
 	
