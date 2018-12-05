@@ -15,7 +15,12 @@ spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
-        image: {{ .Values.images.provisioner }}
+        image: "{{ .Values.ubiquityK8sProvisioner.image.repository }}:{{ .Values.ubiquityK8sProvisioner.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sProvisioner.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sProvisioner.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         env:
           - name: UBIQUITY_ADDRESS  # Ubiquity hostname, should point to the ubiquity service name
             value: "ubiquity"
@@ -33,7 +38,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{- if .Values.spectrumConnect }} # TODO consider to check if the secret exist instead
+{{- if .Values.ubiquity.spectrumConnect }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -54,7 +59,7 @@ spec:
                 key: SSL-MODE
 
 
-{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
         volumeMounts:
           - name: ubiquity-public-certificates
             mountPath: /var/lib/ubiquity/ssl/public
