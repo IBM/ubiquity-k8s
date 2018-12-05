@@ -759,7 +759,7 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 			if isInUse{
 				slinks = append(slinks, file)
 			} else {
-				logger.Warning("found a mounted slink to current mount point - which is not in use.", logs.Args{{"file", file}})
+				logger.Warning("Found a different Pod that uses the same PVC, but the slink is pointing to a directory that is NOT mounted. It may be a stale POD", logs.Args{{"pod directory", k8sMountPoint}, {"link target directory", mountPoint}})
 			}
 			
 		}
