@@ -685,6 +685,28 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 	return tempMountPoint, nil
 }
 
+func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
+	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}})()
+
+	mountPointStat, err := executer.Stat(mountPoint)
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
+	}
+	
+	
+	rootDirStat, err := executer.Lstat(filepath.Dir(mountPoint))
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
+	}
+	
+	if executer.GetDeviceForFileStat(mountPointStat) != executer.GetDeviceForFileStat(rootDirStat){
+		return true, nil
+	}	 
+	
+	return false, nil
+}
+
+
 func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
 	/*
 		the mountpoint parameter is the actual mountpoint we are pointing to: /ubiquity/WWN
@@ -729,7 +751,17 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			slinks = append(slinks, file)
+			isInUse, err := checkMountPointIsMounted(mountPoint, logger, executer)
+			if err != nil {
+				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
+				continue
+			}
+			if isInUse{
+				slinks = append(slinks, file)
+			} else {
+				logger.Warning("Found a different Pod that uses the same PVC, but the slink is pointing to a directory that is NOT mounted. It may be a stale POD", logs.Args{{"pod directory", k8sMountPoint}, {"link target directory", mountPoint}})
+			}
+			
 		}
 	}
 		
