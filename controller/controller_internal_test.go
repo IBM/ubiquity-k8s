@@ -64,11 +64,22 @@ var _ = Describe("controller_internal_tests", func() {
 		})
 		It("should return an error if this mountpoint already has links", func() {
 			file := "/tmp/file1"
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(0, 12)
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(1, 15)
 			fakeExecutor.GetGlobFilesReturns([]string{file}, nil)
 			fakeExecutor.IsSameFileReturns(true)
 			err:= checkSlinkAlreadyExistsOnMountPoint("mountPoint", mountPoint, logs.GetLogger(), fakeExecutor)
 			Expect(err).ToNot(BeNil())
 			Expect(err).To(Equal(&PVIsAlreadyUsedByAnotherPod{"mountPoint", []string{file}}))
+		})
+		It("should not return an error if this mountpoint already has links that are not mounted", func() {
+			file := "/tmp/file1"
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(0, 12)
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(1, 12)
+			fakeExecutor.GetGlobFilesReturns([]string{file}, nil)
+			fakeExecutor.IsSameFileReturns(true)
+			err:= checkSlinkAlreadyExistsOnMountPoint("mountPoint", mountPoint, logs.GetLogger(), fakeExecutor)
+			Expect(err).To(BeNil())
 		})
 		It("should return no errors if this mountpoint has only one links and it is the current pvc", func() {
 			file := mountPoint
@@ -102,6 +113,44 @@ var _ = Describe("controller_internal_tests", func() {
 			fakeExecutor.StatReturnsOnCall(1, nil, errstrObj)
 			err := checkSlinkAlreadyExistsOnMountPoint("mountPoint", mountPoint, logs.GetLogger(), fakeExecutor)
 			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+	Context(".checkMountPointIsMounted", func() {
+		var (
+			fakeExecutor *fakes.FakeExecutor
+			mountPoint string
+			errstrObj error
+		)
+		BeforeEach(func() {
+			fakeExecutor = new(fakes.FakeExecutor)
+			mountPoint = "/ubiquity/6001738CFC9035E8000000000091E219"
+			errstrObj = fmt.Errorf("An error ooccured")
+		})
+		It("should return error if fails to get stat of mountpoint", func() {
+			fakeExecutor.StatReturnsOnCall(0, nil, errstrObj)
+			_, err := checkMountPointIsMounted(mountPoint, logs.GetLogger(), fakeExecutor)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(errstrObj))
+		})
+		It("should return error if fails to get lstat of mountpoint/..", func() {
+			fakeExecutor.LstatReturnsOnCall(0, nil, errstrObj)
+			_, err := checkMountPointIsMounted(mountPoint, logs.GetLogger(), fakeExecutor)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(errstrObj))
+		})
+		It("should return true if directory is mounted", func() {
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(0, 12)
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(1, 15)
+			res, err := checkMountPointIsMounted(mountPoint, logs.GetLogger(), fakeExecutor)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeTrue())
+		})
+		It("should return false if directory is not mounted", func() {
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(0, 12)
+			fakeExecutor.GetDeviceForFileStatReturnsOnCall(1, 12)
+			res, err := checkMountPointIsMounted(mountPoint, logs.GetLogger(), fakeExecutor)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(res).To(BeFalse())
 		})
 	})
 })
