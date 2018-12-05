@@ -52,7 +52,7 @@ spec:
             subPath: "ibm-ubiquity"
 {{- if eq .Values.globalConfig.sslMode "verify-full" }}
           - name: ubiquity-db-private-certificate
-            mountPath: /var/lib/postgresql/ssl/private/
+            mountPath: /var/lib/postgresql/ssl/provided/
 {{- end }}
 
       volumes:
