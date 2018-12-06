@@ -330,7 +330,8 @@ function create-services()
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
-    echo "     (1)  $> $0 -s install -n $NS"
+    echo "     (1)  $> $0 -s update-ymls -c <ubiquity-config-file> -n $NS"
+    echo "     (2)  $> $0 -s install -n $NS"
     echo ""
 }
 
@@ -359,11 +360,11 @@ function create-secrets-for-certificates()
     if [ -z "$backend_from_configmap" ]; then
         # Assuming configmap does not exist, so no possibility of finding for backend from configmap.
         # check is ca-cert for spectrumscale exist in $CERT_DIR
-        if [ "-f $CERT_DIR/spectrumscale-trusted-ca.crt" ]; then
+        if [ -f "$CERT_DIR/spectrumscale-trusted-ca.crt" ]; then
             backend_cacert_file="spectrumscale-trusted-ca.crt"
         fi
         # check is ca-cert for scbe exist in $CERT_DIR
-        if [ "-f $CERT_DIR/scbe-trusted-ca.crt" ]; then
+        if [ -f "$CERT_DIR/scbe-trusted-ca.crt" ]; then
             backend_cacert_file="scbe-trusted-ca.crt"
         fi
 
@@ -375,11 +376,11 @@ function create-secrets-for-certificates()
         fi
     else
         if [ "$backend_from_configmap" == "spectrumscale" ]; then
-            backend_cacert_file=" spectrumscale-trusted-ca.crt"
+            backend_cacert_file="spectrumscale-trusted-ca.crt"
         fi
 
         if [ "$backend_from_configmap" == "spectrumconnect" ]; then
-            backend_cacert_file=" scbe-trusted-ca.crt"
+            backend_cacert_file="scbe-trusted-ca.crt"
         fi
     fi
     expected_cert_files+=" $backend_cacert_file"
@@ -403,11 +404,11 @@ function create-secrets-for-certificates()
     kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
     ca_cert_files="--from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt"
 
-    if [ $backend_cacert_file == "spectrumscale" ]; then
+    if [ $backend_cacert_file == "spectrumscale-trusted-ca.crt" ]; then
         ca_cert_files+=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
     fi
 
-    if [ $backend_cacert_file == "spectrumconnect" ]; then
+    if [ $backend_cacert_file == "scbe-trusted-ca.crt" ]; then
         ca_cert_files+=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
     fi
     kubectl create configmap $nsf ubiquity-public-certificates $ca_cert_files
