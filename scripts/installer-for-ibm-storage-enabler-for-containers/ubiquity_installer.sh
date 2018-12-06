@@ -326,7 +326,7 @@ function create-services()
     echo "Finished creating namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
     echo "Attention: To complete the $PRODUCT_NAME installation with SSL_MODE=verify-full:"
     echo "   Prerequisite:"
-    echo "     (1) Generate dedicated certificates for 'ubiquity', 'ubiquity-db' and SCBE, using specific file names"
+    echo "     (1) Generate dedicated certificates for 'ubiquity','ubiquity-db' and SCBE/SPECTRUMSCALE, using specific file names"
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
