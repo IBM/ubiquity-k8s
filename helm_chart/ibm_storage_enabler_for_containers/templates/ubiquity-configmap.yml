@@ -8,57 +8,67 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
+{{- if .Values.ubiquity.spectrumConnect }}
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
-   SCBE-MANAGEMENT-IP: "SCBE_MANAGEMENT_IP_VALUE"
+   SCBE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumConnect.connectionInfo.fqdn | quote }}
 
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
-   SCBE-MANAGEMENT-PORT: "SCBE_MANAGEMENT_PORT_VALUE"
+   SCBE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumConnect.connectionInfo.port | quote }}
 
    # Default Spectrum Connect storage service to be used, if not specified by the plugin.
-   SCBE-DEFAULT-SERVICE: SCBE_DEFAULT_SERVICE_VALUE
+   SCBE-DEFAULT-SERVICE: {{ .Values.ubiquity.spectrumConnect.backendConfig.DefaultStorageService | quote }}
 
    # The size for a new volume if not specified by the user when creating a new volume. Optional parameter with default value set at 1GB.
-   DEFAULT-VOLUME-SIZE: "DEFAULT_VOLUME_SIZE_VALUE"
+   DEFAULT-VOLUME-SIZE: {{ .Values.ubiquity.spectrumConnect.backendConfig.newVolumeDefaults.size | quote }}
 
    # A prefix for any new volume created on the storage system. Default value is None.
-   UBIQUITY-INSTANCE-NAME: UBIQUITY_INSTANCE_NAME_VALUE
+   UBIQUITY-INSTANCE-NAME: {{ .Values.ubiquity.spectrumConnect.backendConfig.instanceName | quote }}
 
    # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
-   DEFAULT-FSTYPE: DEFAULT_FSTYPE_VALUE
+   DEFAULT-FSTYPE: {{ .Values.ubiquity.spectrumConnect.backendConfig.newVolumeDefaults.fsType | quote }}
 
-   # DB pv name.
-   IBM-UBIQUITY-DB-PV-NAME: IBM_UBIQUITY_DB_PV_NAME_VALUE
+   # Default Ubiquity Backend
+   DEFAULT-BACKEND: scbe
+{{- end }}
 
+
+
+{{- if .Values.ubiquity.spectrumScale }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
-   SPECTRUMSCALE-MANAGEMENT-IP: "SPECTRUMSCALE_MANAGEMENT_IP_VALUE"
+   SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumScale.connectionInfo.fqdn | quote }}
   
    # Communication port of Spectrum Scale Management API server(GUI).
-   SPECTRUMSCALE-MANAGEMENT-PORT: "SPECTRUMSCALE_MANAGEMENT_PORT_VALUE"
-  
+   SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumScale.connectionInfo.port | quote }}
+
    # Default Filesystem for creating pvc
-   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: "SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE"
-  
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.ubiquity.spectrumScale.backendConfig.defaultFilesystemName | quote }}
+
    # Default Ubiquity Backend
-   DEFAULT-BACKEND: "DEFAULT_BACKEND_VALUE"
+   DEFAULT-BACKEND: spectrum-scale
+{{- end }}
+
+   # DB pv name.
+   IBM-UBIQUITY-DB-PV-NAME: {{ .Values.ubiquityDb.persistence.pvName | quote }}
+
+
 
    # The following keys are used by ubiquity, ubiquity-k8s-provisioner deployments, And ubiquity-k8s-flex daemon-set
    # ----------------------------------------------------------------------------------------------------------------------------
    # Flex log path. Allow to configure it, just make sure the the new path exist on all the minons and update the hostpath in the Flex daemonset
-   FLEX-LOG-DIR: "FLEX_LOG_DIR_VALUE"
+   FLEX-LOG-DIR: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}
 
    # Maxlog size(MB) for rotate
    FLEX-LOG-ROTATE-MAXSIZE: "50"
 
    # Log level. Allowed values: debug, info, error.
-   LOG-LEVEL: "LOG_LEVEL_VALUE"
-
-   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
-   SSL-MODE: "SSL_MODE_VALUE"
+   LOG-LEVEL: {{ .Values.globalConfig.logLevel | quote }}
 
 
    # The following keys are used by the ubiquity-k8s-flex daemonset
    # --------------------------------------------------------------
    # The IP address of the ubiquity service object. The ubiquity_installer.sh automatically updates this field during the initial installation.
    # The user must update this key manually if the ubiqutiy service object IP was changed.
-   UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
+   UBIQUITY-IP-ADDRESS: {{ .Values.ubiquityK8sFlex.ubiquityIpAddress | quote }}  # TODO this should be automatically set by post hook script(different PR)
 
+   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
+   SSL-MODE: {{ .Values.globalConfig.sslMode | quote }}

@@ -14,24 +14,30 @@ spec:
     spec:
       containers:
       - name: ubiquity
-        image: UBIQUITY_IMAGE
+        image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
         ports:
         - containerPort: 9999
           name: ubiquity-port
+        {{- with .Values.ubiquity.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         env:
+{{- if .Values.ubiquity.spectrumConnect }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
-# SCBE Credentials #          - name: SCBE_USERNAME
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: username
+          - name: SCBE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: username
 
-# SCBE Credentials #          - name: SCBE_PASSWORD
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: password
+          - name: SCBE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
 
           - name: SCBE_SSL_MODE            # Values : require/verify-full
             valueFrom:
@@ -78,26 +84,24 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: DEFAULT-FSTYPE
+{{- end }}
 
-          - name: IBM_UBIQUITY_DB_PV_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: IBM-UBIQUITY-DB-PV-NAME
+
+{{- if .Values.ubiquity.spectrumScale }}
 
           ### Ubiquity Spectrum Scale backend parameters:
           #####################################
-# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_USER
-# SPECTRUMSCALE Credentials #            valueFrom:
-# SPECTRUMSCALE Credentials #              secretKeyRef:
-# SPECTRUMSCALE Credentials #                name: spectrumscale-credentials
-# SPECTRUMSCALE Credentials #                key: username
+          - name: SPECTRUMSCALE_REST_USER
+            valueFrom:
+              secretKeyRef:
+                name: spectrumscale-credentials
+                key: username
 
-# SPECTRUMSCALE Credentials #          - name: SPECTRUMSCALE_REST_PASSWORD
-# SPECTRUMSCALE Credentials #            valueFrom:
-# SPECTRUMSCALE Credentials #              secretKeyRef:
-# SPECTRUMSCALE Credentials #                name: spectrumscale-credentials
-# SPECTRUMSCALE Credentials #                key: password
+          - name: SPECTRUMSCALE_REST_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: spectrumscale-credentials
+                key: password
 
           - name: SPECTRUMSCALE_MANAGEMENT_IP
             valueFrom:
@@ -125,9 +129,16 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
+{{- end }}
 
           ### Ubiquity generic parameters:
           ################################
+          - name: IBM_UBIQUITY_DB_PV_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: IBM-UBIQUITY-DB-PV-NAME
+
           - name: LOG_LEVEL         # debug / info / error
             valueFrom:
               configMapKeyRef:
@@ -138,8 +149,7 @@ spec:
             value: "9999"
           - name: LOG_PATH          # Ubiquity log file directory
             value: "/tmp"
-
-          - name: DEFAULT_BACKEND
+          - name: DEFAULT_BACKEND   # "IBM Storage Enabler for Containers" supports "scbe" (Spectrum Connect) as its backend.
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
@@ -173,40 +183,44 @@ spec:
                 name: ubiquity-db-credentials
                 key: dbname
 
-          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable # TODO verify-full
+          - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
+        volumeMounts:
+        - name: ubiquity-private-certificate
+          mountPath: /var/lib/ubiquity/ssl/private
+          readOnly: true
+        - name: ubiquity-public-certificates
+          mountPath: /var/lib/ubiquity/ssl/public
+          readOnly: true
 
-# Certificate Set : use the below volumeMounts and volumes only if predefine certificate given
-# Cert #        volumeMounts:
-# Cert #        - name: ubiquity-private-certificate
-# Cert #          mountPath: /var/lib/ubiquity/ssl/private
-# Cert #          readOnly: true
-# Cert #        - name: ubiquity-public-certificates
-# Cert #          mountPath: /var/lib/ubiquity/ssl/public
-# Cert #          readOnly: true
-# Cert #
-# Cert #      volumes:
-# Cert #      - name: ubiquity-private-certificate
-# Cert #        secret:
-# Cert #          secretName: ubiquity-private-certificate
-# Cert #          items:
-# Cert #          - key: ubiquity.crt
-# Cert #            path: ubiquity.crt
-# Cert #            mode: 0600
-# Cert #          - key: ubiquity.key
-# Cert #            path: ubiquity.key
-# Cert #            mode: 0600
-# Cert #      - name: ubiquity-public-certificates
-# Cert #        configMap:
-# Cert #          name: ubiquity-public-certificates
-# Cert #          items:
-# Cert #          - key: ubiquity-db-trusted-ca.crt
-# Cert #            path: ubiquity-db-trusted-ca.crt
-# SCBE Cert #          - key: scbe-trusted-ca.crt
-# SCBE Cert #            path: scbe-trusted-ca.crt
-# SPECTRUMSCALE Cert #          - key: spectrumscale-trusted-ca.crt
-# SPECTRUMSCALE Cert #            path: spectrumscale-trusted-ca.crt
+      volumes:
+      - name: ubiquity-private-certificate
+        secret:
+          secretName: ubiquity-private-certificate
+          items:
+          - key: ubiquity.crt
+            path: ubiquity.crt
+            mode: 0600
+          - key: ubiquity.key
+            path: ubiquity.key
+            mode: 0600
+      - name: ubiquity-public-certificates
+        configMap:
+          name: ubiquity-public-certificates
+          items:
+          - key: ubiquity-db-trusted-ca.crt
+            path: ubiquity-db-trusted-ca.crt
+  {{- if .Values.ubiquity.spectrumConnect }}
+          - key: scbe-trusted-ca.crt
+            path: scbe-trusted-ca.crt
+  {{- end }}
+  {{- if .Values.ubiquity.spectrumScale }}
+          - key: spectrumscale-trusted-ca.crt
+            path: spectrumscale-trusted-ca.crt
+  {{- end }}
+{{- end }}

@@ -39,6 +39,7 @@ const(
 	k8sMountPointvolumeDirectoryName = "ibm~ubiquity-k8s-flex"
 	FlexSuccessStr = "Success"
 	FlexFailureStr = "Failure"
+	FlexNotSupportedStr = "Not supported"
 )
 
 //Controller this is a structure that controls volume management
@@ -126,9 +127,25 @@ func (c *Controller) Attach(attachRequest k8sresources.FlexVolumeAttachRequest) 
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var err error
 	c.logger.Debug("", logs.Args{{"request", attachRequest}})
 
-	err := c.doAttach(attachRequest)
+	getVolumeRequest := resources.GetVolumeRequest{Name:attachRequest.Name}
+	volume, err :=  c.Client.GetVolume(getVolumeRequest)
+
+	if err != nil {
+		errormsg := fmt.Sprintf("Failed to get Volume details [%s]", attachRequest.Name)
+		response = c.failureFlexVolumeResponse(err, errormsg)
+		return response
+	}
+
+	//TODO: later we should consider to get the volume backend by using the attachRequest.opts instead of calling to ubiquity server
+	if (volume.Backend == resources.SpectrumScale) {
+		response = c.notSupportedFlexVolumeResponse("Flex Attach API is not supported for spectrum-scale backend, because the backend assume that volume is already attached to all nodes")
+		return response
+	}
+
+	err = c.doAttach(attachRequest)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to attach volume [%s]", attachRequest.Name)
 		response = c.failureFlexVolumeResponse(err, msg)
@@ -178,7 +195,37 @@ func (c *Controller) IsAttached(isAttachedRequest k8sresources.FlexVolumeIsAttac
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var volume resources.Volume
+	var err error
 	c.logger.Debug("", logs.Args{{"request", isAttachedRequest}})
+
+	volName, ok := isAttachedRequest.Opts["volumeName"]
+
+	if !ok {
+		err := fmt.Errorf("volumeName not found in isAttachedRequest")
+		response = c.failureFlexVolumeResponse(err, "")
+		return response
+	}
+
+	getVolumeRequest := resources.GetVolumeRequest{Name: volName}
+	if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
+		if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
+			warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentIsAttachedSkipOnVolumeNotExistWarnigMsg, err)
+			c.logger.Warning(warningMsg)
+			response = k8sresources.FlexVolumeResponse{
+            	Status:   "Success",
+            	Attached: false,
+				Message: warningMsg,
+        	}
+			return response
+		}
+		return c.failureFlexVolumeResponse(err, "")
+	}
+
+	if (volume.Backend == resources.SpectrumScale) {
+		response = c.notSupportedFlexVolumeResponse("Flex IsAttached API is not supported for spectrum-scale backend, because the backend assume that volume is always attached")
+		return response
+	}
 
 	isAttached, err := c.doIsAttached(isAttachedRequest)
 	if err != nil {
@@ -202,6 +249,8 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 	defer logs.GetDeleteFromMapFunc(go_id)
 	defer c.logger.Trace(logs.DEBUG)()
 	var response k8sresources.FlexVolumeResponse
+	var volume resources.Volume
+	var err error
 	c.logger.Debug("", logs.Args{{"request", detachRequest}})
 
 	if detachRequest.Version == k8sresources.KubernetesVersion_1_5 {
@@ -210,7 +259,22 @@ func (c *Controller) Detach(detachRequest k8sresources.FlexVolumeDetachRequest) 
 			Status: "Success",
 		}
 	} else {
-		err := c.doDetach(detachRequest, true)
+		getVolumeRequest := resources.GetVolumeRequest{Name: detachRequest.Name}
+		if volume, err = c.Client.GetVolume(getVolumeRequest); err != nil {
+	        if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
+				warningMsg := fmt.Sprintf("%s (backend error=%v)", IdempotentDetachSkipOnVolumeNotExistWarnigMsg, err)
+				c.logger.Warning(warningMsg)
+				return c.successFlexVolumeResponse(warningMsg)
+	        }
+	        return c.failureFlexVolumeResponse(err, "")
+	    }
+
+		if (volume.Backend == resources.SpectrumScale) {
+			response = c.notSupportedFlexVolumeResponse("Flex Detach API is not supported for spectrum-scale backend, because the backend assume that volume is always remain attached")
+			return response
+		}
+
+		err = c.doDetach(detachRequest, true)
 		if err != nil {
 			msg := fmt.Sprintf(
 				"Failed to detach volume [%s] from host [%s]. Error: %#v",
@@ -330,6 +394,16 @@ func (c *Controller) failureFlexVolumeResponse(err error, additionalMsg string) 
 	return response
 }
 
+func (c *Controller) notSupportedFlexVolumeResponse(msg string) k8sresources.FlexVolumeResponse {
+	defer c.logger.Trace(logs.DEBUG)()
+	response := k8sresources.FlexVolumeResponse{
+		Status:  FlexNotSupportedStr,
+		Message: msg,
+	}
+	c.logger.Info(fmt.Sprintf("%#v", response))
+	return response
+}
+
 func (c *Controller) checkSlinkBeforeUmount(k8sPVDirectoryPath string, realMountedPath string) (bool, error) {
 	/*
 	   Return <isSlink, error>
@@ -383,7 +457,8 @@ func (c *Controller) getRealMountpointForPvByBackend(volumeBackend string, volum
 	if volumeBackend == resources.SCBE {
 		return fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, volumeConfig["Wwn"].(string)), nil
 	} else if volumeBackend == resources.SpectrumScale {
-		return "", &BackendNotImplementedGetRealMountpointError{Backend: volumeBackend}
+                return volumeConfig["mountpoint"].(string), nil
+		//TODO: scale should remove the mountpoint
 	} else {
 		return "", &PvBackendNotSupportedError{Backend: volumeBackend}
 	}
@@ -475,8 +550,16 @@ func (c *Controller) Unmount(unmountRequest k8sresources.FlexVolumeUnmountReques
 	if err := c.doUnmount(k8sPVDirectoryPath, volume.Backend, volumeConfig, mounter); err != nil {
 		return c.failureFlexVolumeResponse(err, "")
 	}
+
+	if (volume.Backend == resources.SpectrumScale) {
+		return c.successFlexVolumeResponse("")
+	} else if (volume.Backend == resources.SCBE) {
 	// Do legacy detach (means trigger detach as part of the umount from the k8s node)
-	if err := c.doLegacyDetach(unmountRequest); err != nil {
+		if err := c.doLegacyDetach(unmountRequest); err != nil {
+			return c.failureFlexVolumeResponse(err, "")
+		}
+	} else {
+		err = c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volume.Backend}, "failed")
 		return c.failureFlexVolumeResponse(err, "")
 	}
 
@@ -519,7 +602,33 @@ func (c *Controller) getMounterForBackend(backend string, requestContext resourc
 	return c.mounterPerBackend[backend], nil
 }
 
-func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest) (resources.MountRequest, error) {
+func (c *Controller) getMountpointForVolume(mountRequest k8sresources.FlexVolumeMountRequest, volumeConfig map[string]interface{}, volumeBackend string) (string, error) {
+
+	defer c.logger.Trace(logs.DEBUG)()
+
+	var volumeMountPoint string
+	var ok bool
+
+	if (volumeBackend == resources.SpectrumScale) {
+		volumeMountPoint, ok = volumeConfig["mountpoint"].(string)
+		if !ok {
+			return "", c.logger.ErrorRet(&SpectrumScaleMissingMntPtVolumeError{VolumeName: mountRequest.MountDevice}, "failed")
+		}
+	} else if (volumeBackend == resources.SCBE) {
+		wwn, ok := mountRequest.Opts["Wwn"]
+		if !ok {
+			err := fmt.Errorf(MissingWwnMountRequestErrorStr)
+			return "", c.logger.ErrorRet(err, "failed")
+		}
+		volumeMountPoint = fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
+	} else {
+		return "", c.logger.ErrorRet(&PvBackendNotSupportedError{Backend: volumeBackend}, "failed")
+	}
+
+	return volumeMountPoint, nil
+}
+
+func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexVolumeMountRequest, volumeBackend string) (resources.MountRequest, error) {
 	/*
 		Prepare the mounter.Mount request
 	*/
@@ -532,32 +641,29 @@ func (c *Controller) prepareUbiquityMountRequest(mountRequest k8sresources.FlexV
 		return resources.MountRequest{}, c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
-	// Prepare request for mounter - step2 generate the designated mountpoint for this volume.
-	// TODO should be agnostic to the backend, currently its scbe oriented.
-	wwn, ok := mountRequest.Opts["Wwn"]
-	if !ok {
-		err = fmt.Errorf(MissingWwnMountRequestErrorStr)
-		return resources.MountRequest{}, c.logger.ErrorRet(err, "failed")
+	volumeMountpoint, err := c.getMountpointForVolume(mountRequest, volumeConfig, volumeBackend)
+	if err != nil {
+		return resources.MountRequest{}, err
 	}
-	volumeMountpoint := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, wwn)
+
 	ubMountRequest := resources.MountRequest{Mountpoint: volumeMountpoint, VolumeConfig: volumeConfig, Context: mountRequest.Context}
 	return ubMountRequest, nil
 }
 
-func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountRequest) (resources.Mounter, error) {
+func (c *Controller) getMounterByPV(mountRequest k8sresources.FlexVolumeMountRequest) (resources.Mounter, string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
 	getVolumeRequest := resources.GetVolumeRequest{Name: mountRequest.MountDevice, Context: mountRequest.Context}
 	volume, err := c.Client.GetVolume(getVolumeRequest)
 	if err != nil {
-		return nil, c.logger.ErrorRet(err, "GetVolume failed")
+		return nil, "", c.logger.ErrorRet(err, "GetVolume failed")
 	}
 	mounter, err := c.getMounterForBackend(volume.Backend, mountRequest.Context)
 	if err != nil {
-		return nil, c.logger.ErrorRet(err, "getMounterForBackend failed")
+		return nil, "", c.logger.ErrorRet(err, "getMounterForBackend failed")
 	}
 
-	return mounter, nil
+	return mounter, volume.Backend, nil
 }
 
 func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
@@ -578,6 +684,28 @@ func getK8sPodsBaseDir(k8sMountPoint string) (string, error ){
 	
 	return tempMountPoint, nil
 }
+
+func checkMountPointIsMounted(mountPoint string, logger logs.Logger, executer utils.Executor) (bool, error){
+	defer logger.Trace(logs.INFO, logs.Args{{"mountPoint", mountPoint}})()
+
+	mountPointStat, err := executer.Stat(mountPoint)
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from k8s slink file.", logs.Args{{"k8sMountPoint", mountPoint}})
+	}
+	
+	
+	rootDirStat, err := executer.Lstat(filepath.Dir(mountPoint))
+	if err != nil{
+		return false, logger.ErrorRet(err, "Failed to get stat from root directory.", logs.Args{{"directory", mountPoint}})
+	}
+	
+	if executer.GetDeviceForFileStat(mountPointStat) != executer.GetDeviceForFileStat(rootDirStat){
+		return true, nil
+	}	 
+	
+	return false, nil
+}
+
 
 func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string, logger logs.Logger, executer utils.Executor) (error){
 	/*
@@ -623,7 +751,17 @@ func checkSlinkAlreadyExistsOnMountPoint(mountPoint string, k8sMountPoint string
 		
 		isSameFile := executer.IsSameFile(fileStat, mountStat)
 		if isSameFile{
-			slinks = append(slinks, file)
+			isInUse, err := checkMountPointIsMounted(mountPoint, logger, executer)
+			if err != nil {
+				logger.Warning("Failed to check whether slink is in use.", logs.Args{{"file", file}})
+				continue
+			}
+			if isInUse{
+				slinks = append(slinks, file)
+			} else {
+				logger.Warning("Found a different Pod that uses the same PVC, but the slink is pointing to a directory that is NOT mounted. It may be a stale POD", logs.Args{{"pod directory", k8sMountPoint}, {"link target directory", mountPoint}})
+			}
+			
 		}
 	}
 		
@@ -653,19 +791,22 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 		return "", c.logger.ErrorRet(&k8sVersionNotSupported{mountRequest.Version}, "failed")
 	}
 
-	mounter, err := c.getMounterByPV(mountRequest)
+	mounter, volumeBackend, err := c.getMounterByPV(mountRequest)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "getMounterByPV failed")
 	}
 
-	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest)
+	ubMountRequest, err := c.prepareUbiquityMountRequest(mountRequest, volumeBackend)
 	if err != nil {
 		return "", c.logger.ErrorRet(err, "prepareUbiquityMountRequest failed")
 	}
-	
-	err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
-	if err != nil {
-		return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
+
+	if (volumeBackend == resources.SCBE) {
+
+		err = checkSlinkAlreadyExistsOnMountPoint(ubMountRequest.Mountpoint, mountRequest.MountPath, c.logger, c.exec)
+		if err != nil {
+			return "", c.logger.ErrorRet(err, "Failed to check if other links point to mountpoint")
+		}
 	}
 
 	mountpoint, err := mounter.Mount(ubMountRequest)
@@ -674,23 +815,6 @@ func (c *Controller) doMount(mountRequest k8sresources.FlexVolumeMountRequest) (
 	}
 
 	return mountpoint, nil
-}
-
-func (c *Controller) getK8sPVDirectoryByBackend(mountedPath string, k8sPVDirectory string) string {
-	/*
-	   mountedPath is the original device mountpoint (e.g /ubiquity/<WWN>)
-	   The function return the k8sPVDirectory based on the backend.
-	*/
-
-	// TODO route between backend by using the volume backend instead of using /ubiquity hardcoded in the mountpoint
-	ubiquityMountPrefix := fmt.Sprintf(resources.PathToMountUbiquityBlockDevices, "")
-	var lnPath string
-	if strings.HasPrefix(mountedPath, ubiquityMountPrefix) {
-		lnPath = k8sPVDirectory
-	} else {
-		lnPath, _ = path.Split(k8sPVDirectory) // TODO verify why Scale backend use this split?
-	}
-	return lnPath
 }
 
 func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountRequest, mountedPath string) error {
@@ -722,7 +846,7 @@ func (c *Controller) doAfterMount(mountRequest k8sresources.FlexVolumeMountReque
 	var k8sPVDirectoryPath string
 	var err error
 
-	k8sPVDirectoryPath = c.getK8sPVDirectoryByBackend(mountedPath, mountRequest.MountPath)
+	k8sPVDirectoryPath = mountRequest.MountPath
 
 	// Identify the PV directory by using Lstat and then handle all idempotent cases (use Lstat to get the dir or slink detail and not the evaluation of it)
 	fileInfo, err := c.exec.Lstat(k8sPVDirectoryPath)
@@ -886,14 +1010,23 @@ func (c *Controller) doDetach(detachRequest k8sresources.FlexVolumeDetachRequest
 	if host == "" {
 		// only when triggered during unmount
 		var err error
-		host, err = c.getHostAttached(detachRequest.Name, detachRequest.Context)
+		
+		// TODO: if the automation will stop using loggin authenticatin and the WWN here is no longer needed we can
+		// we can go back to using regulat getHostAttached and remove getHostAttachUsingConfig.
+		getVolumeConfigRequest := resources.GetVolumeConfigRequest{Name: detachRequest.Name, Context: detachRequest.Context}
+		volumeConfig, err := c.Client.GetVolumeConfig(getVolumeConfigRequest)
 		if err != nil {
-			return c.logger.ErrorRet(err, "getHostAttached failed")
+			return c.logger.ErrorRet(err, "getVolumeConfig failed.", logs.Args{{"vol", detachRequest.Name}})
+		}
+		
+		host, err = c.getHostAttachUsingConfig(volumeConfig)
+		if err != nil {
+			return c.logger.ErrorRet(err, "getHostAttached failed.")
 		}
 		
 		if host == "" {
 			// this means that the host is not attached to anything so no reason to call detach
-			c.logger.Warning(fmt.Sprintf("Vol: %s is not attahced to any host. so no detach action is called.", detachRequest.Name))
+			c.logger.Warning(fmt.Sprintf("Idempotent issue encountered - vol is not attached to any host. so no detach action is called"), logs.Args{{"vol wwn", volumeConfig["Wwn"]}})
 			return nil
 		}
 	}
@@ -926,6 +1059,16 @@ func (c *Controller) doIsAttached(isAttachedRequest k8sresources.FlexVolumeIsAtt
 	return isAttached, nil
 }
 
+func (c *Controller) getHostAttachUsingConfig(volumeConfig map[string]interface{}) (string, error){
+	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
+	if !ok {
+		return "", c.logger.ErrorRet(fmt.Errorf("GetVolumeConfig is missing info"), "GetVolumeConfig missing info.", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
+	}
+	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
+
+	return attachTo, nil
+}
+
 func (c *Controller) getHostAttached(volName string, requestContext resources.RequestContext) (string, error) {
 	defer c.logger.Trace(logs.DEBUG)()
 
@@ -935,13 +1078,7 @@ func (c *Controller) getHostAttached(volName string, requestContext resources.Re
 		return "", c.logger.ErrorRet(err, "Client.GetVolumeConfig failed")
 	}
 
-	attachTo, ok := volumeConfig[resources.ScbeKeyVolAttachToHost].(string)
-	if !ok {
-		return "", c.logger.ErrorRet(err, "GetVolumeConfig missing info", logs.Args{{"arg", resources.ScbeKeyVolAttachToHost}})
-	}
-	c.logger.Debug("", logs.Args{{"volumeConfig", volumeConfig}, {"attachTo", attachTo}})
-
-	return attachTo, nil
+	return c.getHostAttachUsingConfig(volumeConfig)
 }
 
 func getVolumeForMountpoint(mountpoint string, volumes []resources.Volume) (resources.Volume, error) {

@@ -15,7 +15,12 @@ spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
-        image: UBIQUITY_K8S_PROVISIONER_IMAGE
+        image: "{{ .Values.ubiquityK8sProvisioner.image.repository }}:{{ .Values.ubiquityK8sProvisioner.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sProvisioner.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sProvisioner.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         env:
           - name: UBIQUITY_ADDRESS  # Ubiquity hostname, should point to the ubiquity service name
             value: "ubiquity"
@@ -33,17 +38,19 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-# SCBE Credentials #          - name: UBIQUITY_USERNAME
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: username
+{{- if .Values.ubiquity.spectrumConnect }} # TODO consider to check if the secret exist instead
+          - name: UBIQUITY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: username
 
-# SCBE Credentials #          - name: UBIQUITY_PASSWORD
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: password
+          - name: UBIQUITY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -51,18 +58,17 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-# Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #        volumeMounts:
-# Cert #          - name: ubiquity-public-certificates
-# Cert #            mountPath: /var/lib/ubiquity/ssl/public
-# Cert #            readOnly: true
 
-# Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      volumes:
-# Cert #        - name: ubiquity-public-certificates
-# Cert #          configMap:
-# Cert #            name: ubiquity-public-certificates
-# Cert #            items:
-# Cert #              - key: ubiquity-trusted-ca.crt
-# Cert #                path: ubiquity-trusted-ca.crt
-
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
+        volumeMounts:
+          - name: ubiquity-public-certificates
+            mountPath: /var/lib/ubiquity/ssl/public
+            readOnly: true
+      volumes:
+        - name: ubiquity-public-certificates
+          configMap:
+            name: ubiquity-public-certificates
+            items:
+              - key: ubiquity-trusted-ca.crt
+                path: ubiquity-trusted-ca.crt
+{{- end }}

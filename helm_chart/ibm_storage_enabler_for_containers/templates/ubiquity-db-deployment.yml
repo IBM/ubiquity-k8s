@@ -12,9 +12,18 @@ spec:
         app: ubiquity-db
         product: ibm-storage-enabler-for-containers
     spec:
+      {{- if .Values.ubiquityDb.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.ubiquityDb.nodeSelector | indent 8}}
+      {{- end }}
       containers:
       - name: ubiquity-db
-        image: UBIQUITY_DB_IMAGE
+        image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
+        {{- with .Values.ubiquityDb.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         ports:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
@@ -41,21 +50,24 @@ spec:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
-# Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #          - name: ubiquity-db-private-certificate
-# Cert #            mountPath: /var/lib/postgresql/ssl/provided/
+{{- if eq .Values.globalConfig.sslMode "verify-full" }}
+          - name: ubiquity-db-private-certificate
+            mountPath: /var/lib/postgresql/ssl/provided/
+{{- end }}
+
       volumes:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
           claimName: ibm-ubiquity-db
-# Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      - name: ubiquity-db-private-certificate
-# Cert #        secret:
-# Cert #          secretName: ubiquity-db-private-certificate
-# Cert #          items:
-# Cert #          - key: ubiquity-db.key
-# Cert #            path: ubiquity-db.key
-# Cert #            mode: 0600
-# Cert #          - key: ubiquity-db.crt
-# Cert #            path: ubiquity-db.crt
-# Cert #            mode: 0600
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
+      - name: ubiquity-db-private-certificate
+        secret:
+          secretName: ubiquity-db-private-certificate
+          items:
+          - key: ubiquity-db.key
+            path: ubiquity-db.key
+            mode: 0600
+          - key: ubiquity-db.crt
+            path: ubiquity-db.crt
+            mode: 0600
+{{- end }}

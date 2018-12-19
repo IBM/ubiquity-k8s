@@ -79,6 +79,8 @@ func (e *k8sPVDirectoryIsNotDirNorSlinkError) Error() string {
 }
 
 const IdempotentUnmountSkipOnVolumeNotExistWarnigMsg = "Unmount operation requested to work on not exist volume. Assume its idempotent issue - so skip Unmount."
+const IdempotentIsAttachedSkipOnVolumeNotExistWarnigMsg = "IsAttached operation requested to work on not exist volume. Assume its idempotent issue - so skip IsAttached."
+const IdempotentDetachSkipOnVolumeNotExistWarnigMsg = "Detach operation requested to work on not exist volume. Assume its idempotent issue - so skip Detach."
 
 const K8sPVDirectoryIsNotSlinkErrorStr = "k8s PV directory, k8s-mountpoint, is not slink."
 
@@ -132,5 +134,15 @@ type WrongK8sDirectoryPathError struct {
 
 func (e *WrongK8sDirectoryPathError) Error() string {
 	return fmt.Sprintf(PVIsAlreadyUsedByAnotherPodMessage + "k8smountdir=[%s]", e.k8smountdir)
+}
+
+const SpectrumScaleMissingMntPtVolumeErrorStr = "MountPoint Missing in Volume Config."
+
+type SpectrumScaleMissingMntPtVolumeError struct {
+        VolumeName string
+}
+
+func (e *SpectrumScaleMissingMntPtVolumeError) Error() string {
+        return fmt.Sprintf(SpectrumScaleMissingMntPtVolumeErrorStr+" volume=[%s]", e.VolumeName)
 }
 

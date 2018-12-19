@@ -29,10 +29,10 @@
 #   2. PVC for the ibm-ubiquity-db. Wait until the deletion  of PVC and PV is complete.
 #   3. Storage class that match for the UbiquityDB PVC
 #   4. ubiquity-k8s-provisioner deployment
-#   5. k8s-config configmap
 #   6. ubiquity-k8s-flex daemonset
 #   7. ubiquity deployment
 #   8. ubiquity service
+#      ServiceAccount, ClusterRoles and ClusterRolesBinding
 #   9. ubiquity-db service
 #
 # Note: The script deletes the ubiquity-k8s-flex daemonset, but it does not delete the Flex driver from the nodes.
@@ -59,7 +59,6 @@ scripts=$(dirname $0)
 YML_DIR="./yamls"
 UBIQUITY_DB_PVC_NAME=ibm-ubiquity-db
 UTILS=$scripts/ubiquity_lib.sh
-K8S_CONFIGMAP_FOR_PROVISIONER=k8s-config
 FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 
 # Handle flags
@@ -109,27 +108,34 @@ if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS # to match the prefix of the pod
 fi
-pvname=`kubectl get $nsf pvc ${UBIQUITY_DB_PVC_NAME} --no-headers -o custom-columns=name:spec.volumeName`
 $kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
-echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} and PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
+echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
 wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
+pvname=`kubectl get -n ubiquity cm/ubiquity-configmap -o jsonpath="{.data['IBM-UBIQUITY-DB-PV-NAME']}"`
+echo "Waiting for PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
 [ -n "$pvname" ] && wait_for_item_to_delete pv $pvname 10 3 "" $NS
-
-
 
 # Second phase: Delete all the stateless components
 $kubectl_delete -f ${YML_DIR}/storage-class.yml
 $kubectl_delete -f $YML_DIR/${UBIQUITY_PROVISIONER_DEPLOY_YML}
-$kubectl_delete configmap ${K8S_CONFIGMAP_FOR_PROVISIONER}
 
 $kubectl_delete -f $YML_DIR/${UBIQUITY_FLEX_DAEMONSET_YML}
 
 $kubectl_delete -f $YML_DIR/${UBIQUITY_DEPLOY_YML}
 $kubectl_delete -f ${YML_DIR}/../ubiquity-configmap.yml
 $kubectl_delete -f ${YML_DIR}/../${SCBE_CRED_YML}
+$kubectl_delete -f ${YML_DIR}/../${SPECTRUMSCALE_CRED_YML}
 $kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
+
+if kubectl get $nsf clusterroles  ${ICP_CLUSTERROLES_FOR_PSP} >/dev/null 2>&1; then
+   $kubectl_delete -f $YML_DIR/ubiquity-icp-rolebinding.yml
+fi
+
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
+$kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml
 $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 
 echo ""

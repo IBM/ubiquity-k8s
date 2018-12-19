@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 
+	"flag"
 	k8sresources "github.com/IBM/ubiquity-k8s/resources"
 	k8sutils "github.com/IBM/ubiquity-k8s/utils"
 	"github.com/IBM/ubiquity-k8s/volume"
@@ -28,22 +29,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 )
 
 var (
 	provisioner = k8sresources.ProvisionerName
-	configFile  = os.Getenv("KUBECONFIG")
 )
 
 func main() {
+
+	/* this is fixing an existing issue with glog in kuberenetes in version 1.9
+	if we ever move to a newer code version this can be removed.
+	*/
+	flag.CommandLine.Parse([]string{})
 
 	ubiquityConfig, err := k8sutils.LoadConfig()
 	if err != nil {
 		panic(fmt.Errorf("Failed to load config %#v", err))
 	}
-	fmt.Printf("Starting ubiquity plugin with %s config file\n", configFile)
 
 	err = os.MkdirAll(ubiquityConfig.LogPath, 0640)
 	if err != nil {
@@ -57,14 +60,9 @@ func main() {
 
 	var config *rest.Config
 
-	if configFile != "" {
-		logger.Printf("Uses k8s configuration file name %s", configFile)
-		config, err = clientcmd.BuildConfigFromFlags("", configFile)
-	} else {
-		config, err = rest.InClusterConfig()
-	}
+	config, err = rest.InClusterConfig()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create config: %v", err))
+		panic(fmt.Sprintf("Failed to create k8s InClusterConfig: %v", err))
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -91,7 +89,7 @@ func main() {
 	flexProvisioner, err := volume.NewFlexProvisioner(logger, remoteClient, ubiquityConfig)
 	if err != nil {
 		logger.Printf("Error starting provisioner: %v", err)
-		panic("Error starting ubiquity client")
+		panic("Error starting ubiquity provisioner")
 	}
 
 	// Start the provision controller which will dynamically provision Ubiquity PVs

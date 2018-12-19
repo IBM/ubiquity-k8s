@@ -15,15 +15,26 @@ spec:
         product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+      {{- if .Values.ubiquityK8sFlex.tolerations }}
+{{ toYaml .Values.ubiquityK8sFlex.tolerations | indent 6}}
+      {{- else }}
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
         operator: Exists
         effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+      {{- end }}
+
       containers:
       - name: ubiquity-k8s-flex
-        image: UBIQUITY_K8S_FLEX_IMAGE
+        image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sFlex.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
+
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
@@ -49,17 +60,20 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-# SCBE Credentials #          - name: UBIQUITY_USERNAME
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: username
+{{- if .Values.ubiquity.spectrumConnect }}
+          - name: UBIQUITY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials  # TODO if we want scbe-credentials not to be hardcoded then we should put here a template.
+                key: username
 
-# SCBE Credentials #          - name: UBIQUITY_PASSWORD
-# SCBE Credentials #            valueFrom:
-# SCBE Credentials #              secretKeyRef:
-# SCBE Credentials #                name: scbe-credentials
-# SCBE Credentials #                key: password
+          - name: UBIQUITY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: scbe-credentials
+                key: password
+
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -80,12 +94,12 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: FLEX_LOG_DIR_VALUE
-# Certificate Set : use the below volumeMounts only if predefine certificate given
-# Cert #        - name: ubiquity-public-certificates
-# Cert #          mountPath: /var/lib/ubiquity/ssl/public
-# Cert #          readOnly: true
-
+          mountPath: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
+        - name: ubiquity-public-certificates
+          mountPath: /var/lib/ubiquity/ssl/public
+          readOnly: true
+{{- end }}
       volumes:
       - name: host-k8splugindir
         hostPath:
@@ -93,13 +107,12 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: FLEX_LOG_DIR_VALUE  # This directory must exist on the host
-# Certificate Set : use the below volumes only if predefine certificate given
-# Cert #      - name: ubiquity-public-certificates
-# Cert #        configMap:
-# Cert #          name: ubiquity-public-certificates
-# Cert #          items:
-# Cert #            - key: ubiquity-trusted-ca.crt
-# Cert #              path: ubiquity-trusted-ca.crt
-
-#      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
+          path: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}  # This directory must exist on the host
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
+      - name: ubiquity-public-certificates
+        configMap:
+          name: ubiquity-public-certificates
+          items:
+            - key: ubiquity-trusted-ca.crt
+              path: ubiquity-trusted-ca.crt
+{{- end }}

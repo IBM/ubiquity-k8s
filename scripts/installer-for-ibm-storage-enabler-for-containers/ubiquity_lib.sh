@@ -24,16 +24,21 @@ NO_RESOURCES_STR="No resources found."
 PVC_GOOD_STATUS=Bound
 UBIQUITY_DEFAULT_NAMESPACE="ubiquity"
 UBIQUITY_SERVICE_NAME="ubiquity"
+UBIQUITY_SERVICEACCOUNT_NAME="ubiquity-k8s-provisioner"
+UBIQUITY_CLUSTERROLES_NAME="ubiquity-k8s-provisioner"
+UBIQUITY_CLUSTERROLESBINDING_NAME="ubiquity-k8s-provisioner"
 UBIQUITY_DB_SERVICE_NAME="ubiquity-db"
 PRODUCT_NAME="IBM Storage Enabler for Containers"
 EXIT_WAIT_TIMEOUT_MESSAGE="Error: Script exits due to wait timeout."
 SCBE_CRED_YML=scbe-credentials-secret.yml
+SPECTRUMSCALE_CRED_YML=spectrumscale-credentials-secret.yml
 UBIQUITY_DB_CRED_YML=ubiquity-db-credentials-secret.yml
 UBIQUITY_DEPLOY_YML=ubiquity-deployment.yml
 UBIQUITY_DB_DEPLOY_YML=ubiquity-db-deployment.yml
 UBIQUITY_PROVISIONER_DEPLOY_YML=ubiquity-k8s-provisioner-deployment.yml
 UBIQUITY_FLEX_DAEMONSET_YML=ubiquity-k8s-flex-daemonset.yml
-
+ICP_CLUSTERROLES_FOR_PSP=ibm-anyuid-hostpath-clusterrole
+UBIQUITY_ICP_CLUSTERROLESBINDING_NAME="ubiquity-icp-rolebinding"
 
 
 # Example: wait_for_item pvc pvc1 Bound 10 1 ubiquity   # wait 10 seconds till timeout

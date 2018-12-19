@@ -36,15 +36,15 @@ function generate_flex_conf_from_envs_and_install_it()
     function missing_env() { echo "Error: missing environment variable $1"; exit 1; }
 
     # Mandatory environment variable
-    [ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
-    [ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
+    # UBIQUITY_USERNAME and UBIQUITY_PASSWORD are not mandatory for Spectrum Scale hence commented 
+    #[ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
+    #[ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
     [ -z "$UBIQUITY_IP_ADDRESS" ] && missing_env UBIQUITY_IP_ADDRESS || :
 
     # Other environment variable with default values
     [ -z "$FLEX_LOG_DIR" ] && FLEX_LOG_DIR=/var/log || :
     [ -z "$FLEX_LOG_ROTATE_MAXSIZE" ] && FLEX_LOG_ROTATE_MAXSIZE=50 || :
     [ -z "$LOG_LEVEL" ] && LOG_LEVEL=info || :
-    [ -z "$SKIP_RESCAN_ISCSI" ] && SKIP_RESCAN_ISCSI=false || :
     [ -z "$UBIQUITY_PLUGIN_USE_SSL" ] && UBIQUITY_PLUGIN_USE_SSL=true || :
     [ -z "$UBIQUITY_PLUGIN_SSL_MODE" ] && UBIQUITY_PLUGIN_SSL_MODE="verify-full" || :
     [ -z "$UBIQUITY_PORT" ] && UBIQUITY_PORT=9999 || :
@@ -65,9 +65,6 @@ port = $UBIQUITY_PORT
 [CredentialInfo]
 username = "$UBIQUITY_USERNAME"
 password = "$UBIQUITY_PASSWORD"
-
-[ScbeRemoteConfig]
-SkipRescanISCSI = $SKIP_RESCAN_ISCSI
 
 [SslConfig]
 UseSsl = $UBIQUITY_PLUGIN_USE_SSL
