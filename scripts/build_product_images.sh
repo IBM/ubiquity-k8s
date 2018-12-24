@@ -1,5 +1,4 @@
 set -x
-export DOCKER_REGISTRY=stg-artifactory.haifa.ibm.com:5030
 export PATH=$PATH:/usr/local/go/bin:$WORKSPACE/work/bin
 pwd
 ls
