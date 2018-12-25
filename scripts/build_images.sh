@@ -13,14 +13,6 @@ cd $repo
 pwd
 ls
 
-
-if [ -d ./deploy ]; then
-   # before cleanup in the repo -> https://github.com/IBM/ubiquity-k8s/pull/201  so the acceptance in ./deploy
-   tar cvf $PWDO/acceptance_tests.tar ./deploy ./scripts/*acceptance*
-else
-   tar cvf $PWDO/acceptance_tests.tar ./scripts/acceptance_tests
-fi
-
 echo "======================================================================="
 echo "Prepare the formal TAR.GZ file...."
 cd scripts
