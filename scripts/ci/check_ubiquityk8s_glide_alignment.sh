@@ -1,3 +1,5 @@
+# this script will fail the ci build if glide.yml of ubiquity-k8s is not aligned with ubiquity latest commit
+
 set +x
 
 echo "Fail k82 images build if git is not aligned with ubiquity"
