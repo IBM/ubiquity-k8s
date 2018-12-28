@@ -293,7 +293,7 @@ var _ = Describe("PreDelete", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 			})
 
-			It("should return without error", func(done Done) {
+			It("should succeed even if ubiqutiydb deployment does not exist (idempotancy)", func(done Done) {
 				err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
 				Ω(err).ShouldNot(HaveOccurred())
 				close(done)

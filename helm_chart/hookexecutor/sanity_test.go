@@ -112,7 +112,7 @@ var _ = Describe("Sanity", func() {
 			})
 		})
 
-		Context("revert changes if creating sanity resources is failed", func() {
+		Context("keep resources if creating sanity resources is failed", func() {
 
 			BeforeEach(func() {
 				pvc.SetNamespace(testNamespace)
@@ -132,16 +132,16 @@ var _ = Describe("Sanity", func() {
 				kubeClient.CoreV1().Pods(pod.Namespace).Create(pod)
 			})
 
-			It("should delete the pvc and pod before exit", func(done Done) {
+			It("should leave the pvc and pod as it is", func(done Done) {
 				err := e.(*sanityExecutor).createSanityResources()
 				Ω(err).Should(HaveOccurred())
 				Expect(apierrors.IsAlreadyExists(err)).To(BeTrue())
 
 				_, err = kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(pvc.Name, metav1.GetOptions{})
-				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				Ω(err).ShouldNot(HaveOccurred())
 
 				_, err = kubeClient.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				Ω(err).ShouldNot(HaveOccurred())
 
 				close(done)
 			})

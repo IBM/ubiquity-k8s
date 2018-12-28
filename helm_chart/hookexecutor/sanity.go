@@ -29,14 +29,15 @@ func (e *sanityExecutor) Execute() error {
 	logger.Info("Performing actions in sanity test")
 
 	var err error
+	msg := "Sanity test failed, please investigate the sanity resources with name sanity-* and delete them after that manually"
 	err = e.createSanityResources()
 	if err != nil {
-		return logger.ErrorRet(err, "Failed performing actions in sanity test")
+		return logger.ErrorRet(err, msg)
 	}
 
 	err = e.deleteSanityResources()
 	if err != nil {
-		return logger.ErrorRet(err, "Failed performing actions in sanity test")
+		return logger.ErrorRet(err, msg)
 	}
 
 	logger.Info("Successfully performed actions in sanity test")
@@ -63,13 +64,11 @@ func (e *sanityExecutor) createSanityResources() error {
 	logger.Info("Creating sanity PVCs")
 	_, err = e.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(pvc)
 	if err != nil {
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed to create sanity pvcs")
 	}
 
 	pvcWatcher, err := generatePvcWatcher(pvc.Name, pvc.Namespace, e.kubeClient.CoreV1())
 	if err != nil {
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed generating PVC watcher")
 	}
 	_, err = Watch(pvcWatcher, func(obj runtime.Object) bool {
@@ -77,22 +76,17 @@ func (e *sanityExecutor) createSanityResources() error {
 		return pvc.Status.Phase == corev1.ClaimBound
 	})
 	if err != nil {
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed waiting for PVC to be bound")
 	}
 
 	logger.Info("Creating sanity Pods")
 	_, err = e.kubeClient.CoreV1().Pods(pod.Namespace).Create(pod)
 	if err != nil {
-		e.deletePod(pod)
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed to create sanity pods")
 	}
 
 	podWatcher, err := generatePodWatcher(pod.Name, pod.Namespace, e.kubeClient.CoreV1())
 	if err != nil {
-		e.deletePod(pod)
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed generating Pod watcher")
 	}
 	_, err = Watch(podWatcher, func(obj runtime.Object) bool {
@@ -100,8 +94,6 @@ func (e *sanityExecutor) createSanityResources() error {
 		return pod.Status.Phase == corev1.PodRunning
 	}, sanityPodRunningTimeoutSecond*time.Second)
 	if err != nil {
-		e.deletePod(pod)
-		e.deletePvc(pvc)
 		return logger.ErrorRet(err, "Failed waiting for Pod to be running")
 	}
 
@@ -164,14 +156,6 @@ func (e *sanityExecutor) deleteSanityResources() error {
 
 	logger.Info("Successfully deleted sanity resources")
 	return nil
-}
-
-func (e *sanityExecutor) deletePvc(pvc *corev1.PersistentVolumeClaim) {
-	e.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Delete(pvc.Name, nil)
-}
-
-func (e *sanityExecutor) deletePod(pod *corev1.Pod) {
-	e.kubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, nil)
 }
 
 func getSanityPvcAndPod() (*corev1.PersistentVolumeClaim, *corev1.Pod) {
