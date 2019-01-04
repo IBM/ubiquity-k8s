@@ -52,6 +52,9 @@ ubiquity:
   #    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
   #    username:
   #    password:
+
+  #    # Set this param with an existing Spectrum Scale secret object if one exist.
+  #    existingSecret:
   #
   #  backendConfig:
   #    # Default Spectrum Scale filesystem to be used.
