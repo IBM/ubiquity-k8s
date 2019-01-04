@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pre-delete
+  annotations:
+    "helm.sh/hook": "pre-delete"
+    "helm.sh/hook-delete-policy": "hook-succeeded,hook-failed"
+  labels:
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
+spec:
+  template:
+    spec:
+      containers:
+        - name: pre-delete-hook
+          image: {{ .Values.images.hookexecutor }}
+          command: ["/usr/bin/hook-executor"]
+          args: ["predelete"]
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+      restartPolicy: Never
+      serviceAccount: ubiquity-helm-hook
+  backoffLimit: 1
