@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
         - name: post-install-hook
-          image: {{ .Values.images.hookexecutor }}
+          image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
           command: ["/usr/bin/hook-executor"]
           args: ["postinstall"]
           env:
