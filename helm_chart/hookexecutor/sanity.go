@@ -29,7 +29,7 @@ func (e *sanityExecutor) Execute() error {
 	logger.Info("Performing actions in sanity test")
 
 	var err error
-	msg := "Sanity test failed, please investigate the sanity resources with name sanity-* and delete them after that manually"
+	msg := "Sanity test failed. Please check sanity pod and other resources with name sanity-* and ubiquity logs for more details and clean them before next sanity test."
 	err = e.createSanityResources()
 	if err != nil {
 		return logger.ErrorRet(err, msg)
