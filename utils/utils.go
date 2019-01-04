@@ -36,13 +36,6 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	spectrumNFSConfig.ClientConfig = os.Getenv("SPECTRUM_NFS_REMOTE_CONFIG")
 	config.SpectrumNfsRemoteConfig = spectrumNFSConfig
 
-	bool, err := strconv.ParseBool(os.Getenv("SCBE_SKIP_RESCAN_ISCSI"))
-	if err != nil {
-		config.ScbeRemoteConfig.SkipRescanISCSI = false
-	} else {
-		config.ScbeRemoteConfig.SkipRescanISCSI = bool
-	}
-
 	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
 
 	return config, nil

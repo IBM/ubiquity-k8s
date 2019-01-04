@@ -128,6 +128,11 @@ $kubectl_delete -f ${YML_DIR}/../${SPECTRUMSCALE_CRED_YML}
 $kubectl_delete -f ${YML_DIR}/../${UBIQUITY_DB_CRED_YML}
 $kubectl_delete -f $YML_DIR/ubiquity-service.yml
 $kubectl_delete -f $YML_DIR/ubiquity-db-service.yml
+
+if kubectl get $nsf clusterroles  ${ICP_CLUSTERROLES_FOR_PSP} >/dev/null 2>&1; then
+   $kubectl_delete -f $YML_DIR/ubiquity-icp-rolebinding.yml
+fi
+
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml

@@ -15,12 +15,17 @@ spec:
     spec:
       containers:
       - name: ubiquity
-        image: {{ .Values.images.ubiquity }}
+        image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
         ports:
         - containerPort: 9999
           name: ubiquity-port
+        {{- with .Values.ubiquity.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         env:
-{{- if .Values.spectrumConnect }}
+{{- if .Values.ubiquity.spectrumConnect }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
           - name: SCBE_USERNAME
@@ -83,7 +88,7 @@ spec:
 {{- end }}
 
 
-{{- if .Values.spectrumScale }}
+{{- if .Values.ubiquity.spectrumScale }}
 
           ### Ubiquity Spectrum Scale backend parameters:
           #####################################
@@ -185,7 +190,7 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
         volumeMounts:
         - name: ubiquity-private-certificate
           mountPath: /var/lib/ubiquity/ssl/private
@@ -211,11 +216,11 @@ spec:
           items:
           - key: ubiquity-db-trusted-ca.crt
             path: ubiquity-db-trusted-ca.crt
-  {{- if .Values.spectrumConnect }}
+  {{- if .Values.ubiquity.spectrumConnect }}
           - key: scbe-trusted-ca.crt
             path: scbe-trusted-ca.crt
   {{- end }}
-  {{- if .Values.spectrumScale }}
+  {{- if .Values.ubiquity.spectrumScale }}
           - key: spectrumscale-trusted-ca.crt
             path: spectrumscale-trusted-ca.crt
   {{- end }}

@@ -15,8 +15,8 @@ spec:
         product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
-      {{- if .Values.genericConfig.flexTolerations }}
-{{ toYaml .Values.flexTolerations | indent 6}}
+      {{- if .Values.ubiquityK8sFlex.tolerations }}
+{{ toYaml .Values.ubiquityK8sFlex.tolerations | indent 6}}
       {{- else }}
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
@@ -28,7 +28,13 @@ spec:
 
       containers:
       - name: ubiquity-k8s-flex
-        image: {{ .Values.images.flex }}
+        image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sFlex.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
+
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
@@ -54,7 +60,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{- if .Values.spectrumConnect }}
+{{- if .Values.ubiquity.spectrumConnect }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -67,11 +73,6 @@ spec:
                 name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
 
-          - name: SKIP_RESCAN_ISCSI       # boolean
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SKIP-RESCAN-ISCSI
 {{- end }}
 
           - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
@@ -92,8 +93,8 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+          mountPath: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
         - name: ubiquity-public-certificates
           mountPath: /var/lib/ubiquity/ssl/public
           readOnly: true
@@ -105,8 +106,8 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-{{- if (eq .Values.genericConfig.connectionInfo.sslMode "verify-full") }}
+          path: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}  # This directory must exist on the host
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
       - name: ubiquity-public-certificates
         configMap:
           name: ubiquity-public-certificates

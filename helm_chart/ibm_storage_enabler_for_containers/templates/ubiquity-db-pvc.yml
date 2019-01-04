@@ -4,22 +4,14 @@ metadata:
   name: "ibm-ubiquity-db"
   labels:
     # Ubiquity provisioner will create a PV with dedicated name (by default its ibm-ubiquity-db)
-    pv-name: {{ if (.Values.spectrumConnect) }}
- {{- .Values.spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName | quote -}}
-{{- else if (.Values.spectrumScale) }}
- {{- .Values.spectrumScale.backendConfig.dbPvConfig.ubiquityDbPvName -}}
-{{- end }}
+    pv-name: {{ .Values.ubiquityDb.persistence.pvName | quote }}
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 
 spec:
-  storageClassName: {{ if (.Values.spectrumConnect) }}
- {{- .Values.spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
-{{- else if (.Values.spectrumScale) }}
- {{- .Values.spectrumScale.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName | quote -}}
-{{- end }}
+  storageClassName: {{ .Values.ubiquityDb.persistence.storageClass.storageClassName | quote }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
+      storage: {{ .Values.ubiquityDb.persistence.pvSize | quote  }}

@@ -208,5 +208,5 @@ spec:
 # Cert #            path: ubiquity-db-trusted-ca.crt
 # SCBE Cert #          - key: scbe-trusted-ca.crt
 # SCBE Cert #            path: scbe-trusted-ca.crt
-# SPECTRUMSCALE Cert #          - key: scbe-trusted-ca.crt
-# SPECTRUMSCALE Cert #            path: scbe-trusted-ca.crt
+# SPECTRUMSCALE Cert #          - key: spectrumscale-trusted-ca.crt
+# SPECTRUMSCALE Cert #            path: spectrumscale-trusted-ca.crt

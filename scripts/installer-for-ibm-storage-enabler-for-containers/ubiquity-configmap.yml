@@ -62,5 +62,3 @@ data:
    # The user must update this key manually if the ubiqutiy service object IP was changed.
    UBIQUITY-IP-ADDRESS: "UBIQUITY_IP_ADDRESS_VALUE"
 
-   # Allowed values: true or false. Set to true if the nodes have FC connectivity.
-   SKIP-RESCAN-ISCSI: "SKIP_RESCAN_ISCSI_VALUE"
