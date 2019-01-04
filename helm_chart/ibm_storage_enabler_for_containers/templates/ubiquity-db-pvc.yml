@@ -9,7 +9,7 @@ metadata:
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 
 spec:
-  storageClassName: {{ .Values.ubiquityDb.persistence.storageClass.storageClassName | quote }}
+  storageClassName: {{ template "ibm_storage_enabler_for_containers.ubiquityDbStorageClass" . }}
   accessModes:
     - ReadWriteOnce
   resources:

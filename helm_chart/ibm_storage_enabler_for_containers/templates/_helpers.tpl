@@ -31,26 +31,37 @@ Create chart name and version as used by the chart label.
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{/*                                                                                                                                                                         
-Create the name for the scbe secret                                                                                                                                                   
-*/}}                                                                                                                                                                         
-{{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}                  
+{{/*
+Create the name for the scbe secret
+*/}}
+{{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}
     {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
         {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
     {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe 
-    {{- end -}}                                                                                                        
+    {{- end -}}
 {{- end -}}
 
-{{/*                                                                                                                                                                         
-Create the name for ubiquity-db secret                                                                                                                                                 
-*/}}                                                                                                                                                                         
-{{- define "ibm_storage_enabler_for_containers.ubiquityDbCredentials" -}}                  
+{{/*
+Create the name for ubiquity-db secret
+*/}}
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbCredentials" -}}
     {{- if .Values.ubiquityDb.dbCredentials.existingSecret -}}
         {{- .Values.ubiquityDb.dbCredentials.existingSecret -}}
     {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquitydb 
-    {{- end -}}                                                                                                        
+    {{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of storageClass for ubiquity-db pvc
+*/}}
+{{- define "ibm_storage_enabler_for_containers.ubiquityDbStorageClass" -}}
+    {{- if .Values.ubiquityDb.persistence.storageClass.existingStorageClass -}}
+        {{- .Values.ubiquityDb.persistence.storageClass.existingStorageClass -}}
+    {{- else -}}
+        {{ .Values.ubiquityDb.persistence.storageClass.storageClassName }}
+    {{- end -}}
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.helmLabels" -}}
