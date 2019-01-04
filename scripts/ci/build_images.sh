@@ -79,6 +79,22 @@ docker push ${ubiquity_flex_tag_specific}
 [ "$tag_latest" = "true" ] && docker push ${ubiquity_flex_tag_version} || :
 
 
+echo "build ubiquity helm utils image"
+echo "==============================="
+ubiquity_registry="${DOCKER_REGISTRY}/${UBIQUITY_K8S_HELM_UTILS_IMAGE}"
+ubiquity_helm_utils_tag_specific="${ubiquity_registry}:${specific_tag}"
+ubiquity_helm_utils_tag_latest=${ubiquity_registry}:latest
+ubiquity_helm_utils_tag_version=${ubiquity_registry}:${IMAGE_VERSION}
+[ "$tag_latest" = "true" ] && taglatestflag="-t ${ubiquity_helm_utils_tag_latest} -t ${ubiquity_helm_utils_tag_version}" || taglatestflag=""
+# Build and tags together
+
+docker build -t ${ubiquity_helm_utils_tag_specific} $taglatestflag -f Dockerfile.HookExecutor .
+# push the tags
+docker push ${ubiquity_helm_utils_tag_specific}
+[ "$tag_latest" = "true" ] && docker push ${ubiquity_helm_utils_tag_latest} || :
+[ "$tag_latest" = "true" ] && docker push ${ubiquity_helm_utils_tag_version} || :
+
+
 echo "------- Docker images build and push - Done"
 
 
@@ -96,11 +112,11 @@ echo "   specific tag : ${ubiquity_flex_tag_specific}"
 [ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_flex_tag_latest}      ${ubiquity_flex_tag_version}"  || echo "no latest tag"
 
 echo "============================="
-echo "ubiquity hookexecutor IMAGE name : "
-echo "   specific tag : ${ubiquity_hookexecutor_tag_specific}"
-[ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_hookexecutor_tag_latest}      ${ubiquity_hookexecutor_tag_version}"  || echo "no latest tag"
+echo "ubiquity helm utils IMAGE name : "
+echo "   specific tag : ${ubiquity_helm_utils_tag_specific}"
+[ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_helm_utils_tag_latest}      ${ubiquity_helm_utils_tag_version}"  || echo "no latest tag"
 
 
 echo ${ubiquity_provisioner_tag_specific} > ubiquity_k8s_tags
 echo ${ubiquity_flex_tag_specific} >> ubiquity_k8s_tags
-echo ${ubiquity_hookexecutor_tag_specific} >> ubiquity_k8s_tags
+echo ${ubiquity_helm_utils_tag_specific} >> ubiquity_k8s_tags
