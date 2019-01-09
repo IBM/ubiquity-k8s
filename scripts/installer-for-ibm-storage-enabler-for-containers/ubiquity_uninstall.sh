@@ -108,12 +108,13 @@ if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS # to match the prefix of the pod
 fi
-$kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
-echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
-wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
-pvname=`kubectl get -n ubiquity cm/ubiquity-configmap -o jsonpath="{.data['IBM-UBIQUITY-DB-PV-NAME']}"`
-echo "Waiting for PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
-[ -n "$pvname" ] && wait_for_item_to_delete pv $pvname 10 3 "" $NS
+# keep the ubiquity-db PVC for upgrade later.
+# $kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
+# echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
+# wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
+# pvname=`kubectl get -n ubiquity cm/ubiquity-configmap -o jsonpath="{.data['IBM-UBIQUITY-DB-PV-NAME']}"`
+# echo "Waiting for PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
+# [ -n "$pvname" ] && wait_for_item_to_delete pv $pvname 10 3 "" $NS
 
 # Second phase: Delete all the stateless components
 $kubectl_delete -f ${YML_DIR}/storage-class.yml
@@ -136,7 +137,8 @@ fi
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml
-$kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
+# keep the namespace, otherwise the ubiquity-db PVC will be deleted.
+# $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 
 echo ""
 echo "\"$PRODUCT_NAME\" uninstall finished."
