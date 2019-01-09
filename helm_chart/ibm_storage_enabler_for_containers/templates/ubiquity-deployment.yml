@@ -1,11 +1,16 @@
-apiVersion: "extensions/v1beta1"
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: ubiquity
+      product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
@@ -30,13 +35,13 @@ spec:
           - name: SCBE_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: username
 
           - name: SCBE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
 
           - name: SCBE_SSL_MODE            # Values : require/verify-full
@@ -168,19 +173,19 @@ spec:
           - name: UBIQUITY_DB_USERNAME
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: username
 
           - name: UBIQUITY_DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: password
 
           - name: UBIQUITY_DB_NAME
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: dbname
 
           - name: UBIQUITY_DB_SSL_MODE         # Values : require/verify-full. The default is disable

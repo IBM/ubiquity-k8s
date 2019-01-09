@@ -1,25 +1,23 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: pre-delete
+  name: post-install
   annotations:
-    "helm.sh/hook": "pre-delete"
-    "helm.sh/hook-delete-policy": "hook-succeeded"
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": hook-succeeded
   labels:
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   template:
     spec:
       containers:
-        - name: pre-delete-hook
+        - name: post-install-hook
           image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
           command: ["/usr/bin/hook-executor"]
-          args: ["predelete"]
+          args: ["postinstall"]
           env:
             - name: NAMESPACE
               value: {{ .Release.Namespace }}
-            - name: UBIQUITY_DB_PV_NAME
-              value: {{ .Values.ubiquityDb.persistence.pvName | quote }}
       restartPolicy: Never
       serviceAccount: ubiquity-helm-hook
   backoffLimit: 1

@@ -27,6 +27,9 @@ ubiquity:
       username:
       password:
 
+      ## Set this param with an existing spectrum connect secret object if one exist.
+      # existingSecret:
+
     backendConfig:
       # A prefix for any new volume created on the storage system.
       instanceName:
@@ -49,6 +52,9 @@ ubiquity:
   #    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
   #    username:
   #    password:
+
+  #    # Set this param with an existing Spectrum Scale secret object if one exist.
+  #    existingSecret:
   #
   #  backendConfig:
   #    # Default Spectrum Scale filesystem to be used.
@@ -67,6 +73,9 @@ ubiquityDb:
     username: ubiquity
     password: ubiquity
 
+    ## Set this param with an existing secret object if one exist.
+    # existingSecret:
+
   # The Helm installation has automatic boot strap of the ubiquity-db volume (PVC named ibm-ubiquity-db).
   # The boot strap creates a storage class (see details below) and the PVC.
   persistence:
@@ -79,6 +88,9 @@ ubiquityDb:
       # Parameters to create the first storage class that is also to be used by Ubiquity for ibm-ubiquity-db PVC.
       # Note: The default reclaimPolicy is Delete. Can be changed manually if needed.
       storageClassName:
+
+      ## Set this param with an existing storageclass object if one exist.
+      # existingStorageClass:
 
       ## Set StorageClass as the default StorageClass. Ignored if storageClass.create is false.
       defaultClass: false
@@ -121,6 +133,14 @@ ubiquityK8sProvisioner:
   resources: {}
 
 
+ubiquityHelmUtils:
+  image:
+    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  resources: {}
+
+
 globalConfig:
   # Log level. Allowed values: debug, info, error.
   logLevel: info
@@ -128,5 +148,3 @@ globalConfig:
   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
-
-

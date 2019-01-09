@@ -4,8 +4,7 @@ metadata:
   name: ubiquity-k8s-provisioner
   labels:
     product: ibm-storage-enabler-for-containers
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 subjects:
   - kind: ServiceAccount
     name: ubiquity-k8s-provisioner

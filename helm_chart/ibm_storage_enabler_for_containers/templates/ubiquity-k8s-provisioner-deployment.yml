@@ -1,11 +1,16 @@
-apiVersion: "extensions/v1beta1"
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: ubiquity-k8s-provisioner
+      product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
@@ -42,13 +47,13 @@ spec:
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: username
 
           - name: UBIQUITY_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
 {{- end }}
 

@@ -5,6 +5,7 @@ metadata:
   name: ubiquity-configmap
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
@@ -16,7 +17,7 @@ data:
    SCBE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumConnect.connectionInfo.port | quote }}
 
    # Default Spectrum Connect storage service to be used, if not specified by the plugin.
-   SCBE-DEFAULT-SERVICE: {{ .Values.ubiquity.spectrumConnect.backendConfig.DefaultStorageService | quote }}
+   SCBE-DEFAULT-SERVICE: {{ .Values.ubiquity.spectrumConnect.backendConfig.defaultStorageService | quote }}
 
    # The size for a new volume if not specified by the user when creating a new volume. Optional parameter with default value set at 1GB.
    DEFAULT-VOLUME-SIZE: {{ .Values.ubiquity.spectrumConnect.backendConfig.newVolumeDefaults.size | quote }}
