@@ -18,6 +18,8 @@ spec:
           env:
             - name: NAMESPACE
               value: {{ .Release.Namespace }}
+            - name: UBIQUITY_DB_PV_NAME
+              value: {{ .Values.ubiquityDb.persistence.pvName | quote }}
       restartPolicy: Never
       serviceAccount: ubiquity-helm-hook
   backoffLimit: 1

@@ -6,12 +6,16 @@ metadata:
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
+  selector:
+    matchLabels:
+      app: ubiquity-k8s-flex
+      product: ibm-storage-enabler-for-containers
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        name: ubiquity-k8s-flex
+        app: ubiquity-k8s-flex
         product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)

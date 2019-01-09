@@ -1,4 +1,4 @@
-apiVersion: "apps/v1"
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
@@ -7,6 +7,10 @@ metadata:
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: ubiquity-k8s-provisioner
+      product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
