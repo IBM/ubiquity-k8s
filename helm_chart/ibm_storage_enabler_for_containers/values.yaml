@@ -85,7 +85,7 @@ ubiquityDb:
     pvSize: 20Gi
 
     ## Set this param to true if you want to use an existing PV as Ubiquity database PV.
-    ## Warning: Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version.
+    ## Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version.
     # useExistingPv:
 
     storageClass:
