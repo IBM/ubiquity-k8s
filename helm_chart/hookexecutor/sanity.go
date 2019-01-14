@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/IBM/ubiquity-k8s/utils"
 )
 
 type sanityExecutor struct {
@@ -182,7 +184,7 @@ func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 }
 
 func updateNamespace(objs []runtime.Object) error {
-	ns, err := getCurrentNamespace()
+	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
 		return err
 	}

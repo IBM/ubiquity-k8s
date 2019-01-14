@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/IBM/ubiquity-k8s/utils"
 )
 
 type preDeleteExecutor struct {
@@ -47,7 +49,7 @@ func (e *preDeleteExecutor) Execute() error {
 // deleteUbiquityDBPods sets replicas of ubiquity-db deployment to 0 and
 // wait for all the relevant pods to be deleted.
 func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
-	ns, err := getCurrentNamespace()
+	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
 		return err
 	}
@@ -103,7 +105,7 @@ func (e *preDeleteExecutor) deleteUbiquityDBPods() error {
 
 // deleteUbiquityDBPvc deletes the ubiquity-db pvc and wait for pvc/pv to be deleted.
 func (e *preDeleteExecutor) deleteUbiquityDBPvc() error {
-	ns, err := getCurrentNamespace()
+	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
 		return err
 	}

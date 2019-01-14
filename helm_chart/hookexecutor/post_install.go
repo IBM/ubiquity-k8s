@@ -2,11 +2,12 @@ package hookexecutor
 
 import (
 	"fmt"
-	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/IBM/ubiquity-k8s/utils"
 )
 
 type postInstallExecutor struct {
@@ -37,7 +38,7 @@ func (e *postInstallExecutor) Execute() error {
 // updateFlexDaemonSet get the clusterIP of ubiquity Service and apply it to the flex DaemonSet
 func (e *postInstallExecutor) updateFlexDaemonSet() error {
 	logger.Info(fmt.Sprintf("Updating %s DaemonSet", ubiquityK8sFlexDaemonSetName))
-	ns, err := getCurrentNamespace()
+	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
 		return err
 	}
@@ -89,16 +90,16 @@ func (e *postInstallExecutor) updateFlexDaemonSet() error {
 }
 
 func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
-	ns, err := getCurrentNamespace()
+	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
 		return "", err
 	}
 
 	logger.Info(
 		fmt.Sprintf("Getting ubiquity serviceIP from Service %s in namespace %s",
-			ubiquityServiceName,
+			utils.UbiquityServiceName,
 			ns))
-	service, err := e.kubeClient.CoreV1().Services(ns).Get(ubiquityServiceName, metav1.GetOptions{})
+	service, err := e.kubeClient.CoreV1().Services(ns).Get(utils.UbiquityServiceName, metav1.GetOptions{})
 	if err != nil {
 		return "", logger.ErrorRet(err, "Failed getting ubiquity serviceIP")
 	}
@@ -108,12 +109,4 @@ func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
 		return "", logger.ErrorRet(err, err.Error())
 	}
 	return ip, nil
-}
-
-func getCurrentNamespace() (string, error) {
-	ns := os.Getenv("NAMESPACE")
-	if ns == "" {
-		return "", fmt.Errorf(ENVNamespaceNotSet)
-	}
-	return ns, nil
 }

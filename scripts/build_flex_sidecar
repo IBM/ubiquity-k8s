@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+scripts=$(dirname $0)
+
+echo "Building flex sidecar"
+go build -o $scripts/../bin/flex-sidecar $scripts/../cmd/flex-sidecar/main.go

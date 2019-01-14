@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -39,4 +40,12 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
 
 	return config, nil
+}
+
+func GetCurrentNamespace() (string, error) {
+	ns := os.Getenv(ENVNamespace)
+	if ns == "" {
+		return "", fmt.Errorf(ENVNamespaceNotSet)
+	}
+	return ns, nil
 }
