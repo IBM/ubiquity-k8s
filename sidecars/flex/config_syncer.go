@@ -13,6 +13,7 @@ var cachedConfig *resources.UbiquityPluginConfig
 
 func getCurrentFlexConfig() (*resources.UbiquityPluginConfig, error) {
 	if cachedConfig == nil {
+		cachedConfig = &resources.UbiquityPluginConfig{}
 		if _, err := toml.DecodeFile(k8sresources.FlexConfPath, cachedConfig); err != nil {
 			return nil, err
 		}
@@ -21,7 +22,7 @@ func getCurrentFlexConfig() (*resources.UbiquityPluginConfig, error) {
 }
 
 func updateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
-	f, err := os.Open(k8sresources.FlexConfPath)
+	f, err := os.OpenFile(k8sresources.FlexConfPath, os.O_WRONLY, os.FileMode(0755))
 	if err != nil {
 		panic(err)
 	}
@@ -31,6 +32,9 @@ func updateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
 			panic(err)
 		}
 	}()
+
+	f.WriteString("# This file was generated automatically by the ubiquity-k8s-flex Pod.\n\n")
+	f.Sync()
 
 	encoder := toml.NewEncoder(f)
 	err = encoder.Encode(*newConfig)
