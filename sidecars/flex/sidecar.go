@@ -91,6 +91,8 @@ func (ss *ServiceSyncer) processService(obj interface{}) {
 		err := defaultFlexConfigSyncer.UpdateFlexConfig(currentFlexConfig)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Can't write flex config file: %v", err))
+			// revert change
+			currentFlexConfig.UbiquityServer.Address = ubiquityIP
 			return
 		}
 	}
