@@ -19,11 +19,9 @@ package flex
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/IBM/ubiquity-k8s/utils"
 	watcher "github.com/IBM/ubiquity-k8s/utils/watcher"
-	"github.com/IBM/ubiquity/utils/logs"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,51 +29,57 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-var logger logs.Logger
-
-func init() {
-	initLogger()
+type ServiceSyncer struct {
+	name, namespace string
+	kubeClient      kubernetes.Interface
+	ctx             context.Context
+	handler         cache.ResourceEventHandler
 }
 
-func initLogger() {
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = utils.DefaultlogLevel
-	}
-	utils.InitGenericLogger(logLevel)
-	logger = logs.GetLogger()
-}
-
-func SyncService(kubeClient kubernetes.Interface, ctx context.Context) error {
+func NewServiceSyncer(kubeClient kubernetes.Interface, ctx context.Context) (*ServiceSyncer, error) {
 	ns, err := utils.GetCurrentNamespace()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	ss := &ServiceSyncer{
+		name:       utils.UbiquityServiceName,
+		namespace:  ns,
+		kubeClient: kubeClient,
+		ctx:        ctx,
+	}
+
+	h := cache.ResourceEventHandlerFuncs{
+		AddFunc:    ss.processService,
+		UpdateFunc: ss.processServiceUpdate,
+	}
+	ss.handler = h
+	return ss, nil
+}
+
+// Sync watches the ubiquity service and sync its CLusterIP changes to flex config file
+func (ss *ServiceSyncer) Sync() error {
 	ubiquitySvcWatcher, err := watcher.GenerateSvcWatcher(
-		utils.UbiquityServiceName, ns,
-		kubeClient.CoreV1(),
+		ss.name, ss.namespace,
+		ss.kubeClient.CoreV1(),
 		logger)
 	if err != nil {
 		return err
 	}
 
-	h := cache.ResourceEventHandlerFuncs{
-		AddFunc:    processService,
-		UpdateFunc: processServiceUpdate,
-	}
-
 	// process service for the first time if it is already existing.
-	svc, err := kubeClient.CoreV1().Services(ns).Get(utils.UbiquityServiceName, metav1.GetOptions{})
+	svc, err := ss.kubeClient.CoreV1().Services(ss.namespace).Get(ss.name, metav1.GetOptions{})
 	if err == nil {
-		processService(svc)
+		ss.processService(svc)
 	}
-	err = watcher.Watch(ubiquitySvcWatcher, h, ctx, logger)
+	err = watcher.Watch(ubiquitySvcWatcher, ss.handler, ss.ctx, logger)
 	return err
 }
 
-func processService(obj interface{}) {
-	currentFlexConfig, err := getCurrentFlexConfig()
+// processService compare the ubiquity IP between service and config file and apply
+// the new value to flex config file if they are different.
+func (ss *ServiceSyncer) processService(obj interface{}) {
+	currentFlexConfig, err := defaultFlexConfigSyncer.GetCurrentFlexConfig()
 	if err != nil {
 		logger.Error(fmt.Sprintf("Can't read flex config file: %v", err))
 		return
@@ -84,7 +88,7 @@ func processService(obj interface{}) {
 	svc := obj.(*v1.Service)
 	if svc != nil && svc.Spec.ClusterIP != ubiquityIP {
 		currentFlexConfig.UbiquityServer.Address = svc.Spec.ClusterIP
-		err := updateFlexConfig(currentFlexConfig)
+		err := defaultFlexConfigSyncer.UpdateFlexConfig(currentFlexConfig)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Can't write flex config file: %v", err))
 			return
@@ -92,13 +96,14 @@ func processService(obj interface{}) {
 	}
 }
 
-func processServiceUpdate(old, cur interface{}) {
+func (ss *ServiceSyncer) processServiceUpdate(old, cur interface{}) {
 	if old == nil {
-		processService(cur)
+		ss.processService(cur)
+		return
 	}
 	oldSvc := old.(*v1.Service)
 	curSvc := cur.(*v1.Service)
 	if oldSvc.Spec.ClusterIP != curSvc.Spec.ClusterIP {
-		processService(cur)
+		ss.processService(cur)
 	}
 }

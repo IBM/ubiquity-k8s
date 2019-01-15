@@ -9,20 +9,29 @@ import (
 	"github.com/IBM/ubiquity/resources"
 )
 
-var cachedConfig *resources.UbiquityPluginConfig
+var flexConfPath = k8sresources.FlexConfPath
 
-func getCurrentFlexConfig() (*resources.UbiquityPluginConfig, error) {
-	if cachedConfig == nil {
-		cachedConfig = &resources.UbiquityPluginConfig{}
-		if _, err := toml.DecodeFile(k8sresources.FlexConfPath, cachedConfig); err != nil {
+type FlexConfigSyncer interface {
+	GetCurrentFlexConfig() (*resources.UbiquityPluginConfig, error)
+	UpdateFlexConfig(newConfig *resources.UbiquityPluginConfig) error
+}
+
+type flexConfigSyncer struct {
+	cachedConfig *resources.UbiquityPluginConfig
+}
+
+func (s *flexConfigSyncer) GetCurrentFlexConfig() (*resources.UbiquityPluginConfig, error) {
+	if s.cachedConfig == nil {
+		s.cachedConfig = &resources.UbiquityPluginConfig{}
+		if _, err := toml.DecodeFile(flexConfPath, s.cachedConfig); err != nil {
 			return nil, err
 		}
 	}
-	return cachedConfig, nil
+	return s.cachedConfig, nil
 }
 
-func updateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
-	f, err := os.OpenFile(k8sresources.FlexConfPath, os.O_WRONLY, os.FileMode(0755))
+func (s *flexConfigSyncer) UpdateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
+	f, err := os.OpenFile(flexConfPath, os.O_WRONLY|os.O_TRUNC, os.FileMode(0755))
 	if err != nil {
 		panic(err)
 	}
@@ -33,13 +42,17 @@ func updateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
 		}
 	}()
 
+	// write the file header first.
 	f.WriteString("# This file was generated automatically by the ubiquity-k8s-flex Pod.\n\n")
 	f.Sync()
 
 	encoder := toml.NewEncoder(f)
 	err = encoder.Encode(*newConfig)
+
 	if err != nil {
 		return err
 	}
 	return nil
 }
+
+var defaultFlexConfigSyncer FlexConfigSyncer = &flexConfigSyncer{}

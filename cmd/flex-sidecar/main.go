@@ -11,7 +11,11 @@ import (
 func main() {
 	clientset := getClientset()
 	ctx, _ := context.WithCancel(context.Background())
-	err := flex.SyncService(clientset, ctx)
+	s, err := flex.NewServiceSyncer(clientset, ctx)
+	if err != nil {
+		panic(err)
+	}
+	err = s.Sync()
 	if err != nil {
 		panic(err)
 	}

@@ -31,6 +31,7 @@ outerLoop:
 				if err != nil {
 					logger.Error(err.Error())
 				} else {
+					logger.Info("Resource created")
 					objCache[name] = event.Object
 					handler.OnAdd(event.Object)
 				}
@@ -41,12 +42,14 @@ outerLoop:
 					logger.Error("Can not get resource metadata")
 				} else {
 					if metadata.GetDeletionTimestamp() == nil {
+						logger.Info("Resource modified")
 						name, _ := cache.MetaNamespaceKeyFunc(event.Object)
 						handler.OnUpdate(objCache[name], event.Object)
 						objCache[name] = event.Object
 					}
 				}
 			} else if event.Type == watch.Deleted {
+				logger.Info("Resource deleted")
 				handler.OnDelete(event.Object)
 				name, err := cache.MetaNamespaceKeyFunc(event.Object)
 				if err == nil {
