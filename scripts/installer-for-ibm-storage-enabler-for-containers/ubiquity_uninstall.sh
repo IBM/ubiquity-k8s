@@ -47,9 +47,10 @@
 function usage()
 {
   cmd=`basename $0`
-  echo "USAGE   $cmd [-n <namespace>] [-h]"
+  echo "USAGE   $cmd [-n <namespace>] [-k] [-h]"
   echo "  Options:"
   echo "    -n [<namespace>] : By default, it is \"ubiquity\" namespace"
+  echo "    -k : Keep the Ubiquity data stored in PV ibm-ubiquity-db"
   echo "    -h : Display this usage"
   exit 1
 }
@@ -63,10 +64,14 @@ FLEX_K8S_DIR=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8
 
 # Handle flags
 NS="ubiquity" # default namespace
-while getopts ":n:" opt; do
+KEEP_UBIQUITY_DB_PVC=false
+while getopts ":n:k" opt; do
   case $opt in
     n)
       NS=$OPTARG
+      ;;
+    k)
+      KEEP_UBIQUITY_DB_PVC=true
       ;;
     h)
       usage
@@ -108,7 +113,15 @@ if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
     wait_for_item_to_delete deployment ubiquity-db 10 4 "" $NS
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS # to match the prefix of the pod
 fi
-# keep the ubiquity-db PVC for upgrade later.
+
+if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+    $kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
+    echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
+    wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
+    pvname=`kubectl get -n ubiquity cm/ubiquity-configmap -o jsonpath="{.data['IBM-UBIQUITY-DB-PV-NAME']}"`
+    echo "Waiting for PV $pvname to be deleted, before deleting Ubiquity and Provisioner."
+    [ -n "$pvname" ] && wait_for_item_to_delete pv $pvname 10 3 "" $NS
+fi
 
 # Second phase: Delete all the stateless components
 $kubectl_delete -f ${YML_DIR}/storage-class.yml
@@ -131,6 +144,10 @@ fi
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml
+
+if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+    $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
+fi
 
 echo ""
 echo "\"$PRODUCT_NAME\" uninstall finished."
