@@ -128,6 +128,11 @@ echo "   specific tag : ${ubiquity_flex_tag_specific}"
 [ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_flex_tag_latest}      ${ubiquity_flex_tag_version}"  || echo "no latest tag"
 
 echo "============================="
+echo "ubiquity flex sidecar IMAGE name : "
+echo "   specific tag : ${ubiquity_flex_sidecar_tag_specific}"
+[ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_flex_sidecar_tag_latest}      ${ubiquity_flex_sidecar_tag_version}"  || echo "no latest tag"
+
+echo "============================="
 echo "ubiquity helm utils IMAGE name : "
 echo "   specific tag : ${ubiquity_helm_utils_tag_specific}"
 [ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_helm_utils_tag_latest}      ${ubiquity_helm_utils_tag_version}"  || echo "no latest tag"
@@ -135,4 +140,5 @@ echo "   specific tag : ${ubiquity_helm_utils_tag_specific}"
 
 echo ${ubiquity_provisioner_tag_specific} > ubiquity_k8s_tags
 echo ${ubiquity_flex_tag_specific} >> ubiquity_k8s_tags
+echo ${ubiquity_flex_sidecar_tag_specific} >> ubiquity_k8s_tags
 echo ${ubiquity_helm_utils_tag_specific} >> ubiquity_k8s_tags
