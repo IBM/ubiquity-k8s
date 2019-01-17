@@ -97,8 +97,11 @@ kubectl get namespace $NS >/dev/null 2>&1 || { echo "Error: [$NS] namespace does
 
 . $UTILS # include utils for wait function and status
 
-
-echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components, including ubiquity-db, credentials and namespace."
+if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+    echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components, including ubiquity-db, credentials and namespace."
+else
+    echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components except the ubiquity-db PVC."
+fi
 read -p "Are you sure (y/n): " yn
 if [ "$yn" != "y" ]; then
    echo "Skip uninstall."
