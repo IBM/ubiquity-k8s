@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/IBM/ubiquity-k8s/utils"
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 )
 
 type postInstallExecutor struct {
@@ -105,7 +106,7 @@ func (e *postInstallExecutor) getUbiquityServiceIP() (string, error) {
 	}
 	ip := service.Spec.ClusterIP
 	if ip == "" {
-		err := fmt.Errorf(UbiquityServiceIPEmptyErrorStr)
+		err := uberrors.UbiquityServiceIPEmpty
 		return "", logger.ErrorRet(err, err.Error())
 	}
 	return ip, nil

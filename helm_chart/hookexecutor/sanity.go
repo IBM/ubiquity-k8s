@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/IBM/ubiquity-k8s/utils"
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 )
 
 type sanityExecutor struct {
@@ -171,7 +172,7 @@ func getSanityPvcAndPod() (*corev1.PersistentVolumeClaim, *corev1.Pod) {
 func updateStorageClassInPvc(pvc *corev1.PersistentVolumeClaim) error {
 	sc := os.Getenv("STORAGE_CLASS")
 	if sc == "" {
-		return fmt.Errorf(ENVStorageClassNotSet)
+		return uberrors.ENVStorageClassNotSet
 	}
 
 	annos := pvc.GetAnnotations()

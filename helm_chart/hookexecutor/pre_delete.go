@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/IBM/ubiquity-k8s/utils"
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 )
 
 type preDeleteExecutor struct {
@@ -190,7 +191,7 @@ func (e *preDeleteExecutor) waitUbiquityDbPvDeletion() error {
 func getUbiquityDbPvName() (string, error) {
 	name := os.Getenv("UBIQUITY_DB_PV_NAME")
 	if name == "" {
-		return "", fmt.Errorf(ENVUbiquityDbPvNameNotSet)
+		return "", uberrors.ENVUbiquityDbPvNameNotSet
 	}
 	return name, nil
 }

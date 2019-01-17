@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	fakekubeclientset "k8s.io/client-go/kubernetes/fake"
 	testcore "k8s.io/client-go/testing"
+
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 )
 
 var test_pvYaml = `
@@ -309,7 +311,7 @@ var _ = Describe("PreDelete", func() {
 			It("should raise an error", func() {
 				_, err := getUbiquityDbPvName()
 				Ω(err).Should(HaveOccurred())
-				Expect(err.Error()).To(Equal(ENVUbiquityDbPvNameNotSet))
+				Expect(uberrors.IsENVUbiquityDbPvNameNotSet(err)).To(BeTrue())
 			})
 		})
 	})

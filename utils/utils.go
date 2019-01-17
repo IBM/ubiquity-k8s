@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 	"github.com/IBM/ubiquity/resources"
 )
 
@@ -45,7 +45,7 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 func GetCurrentNamespace() (string, error) {
 	ns := os.Getenv(ENVNamespace)
 	if ns == "" {
-		return "", fmt.Errorf(ENVNamespaceNotSet)
+		return "", uberrors.ENVNamespaceNotSet
 	}
 	return ns, nil
 }

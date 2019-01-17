@@ -32,7 +32,7 @@ func (s *flexConfigSyncer) GetCurrentFlexConfig() (*resources.UbiquityPluginConf
 }
 
 func (s *flexConfigSyncer) UpdateFlexConfig(newConfig *resources.UbiquityPluginConfig) error {
-	f, err := os.OpenFile(flexConfPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.FileMode(0755))
+	f, err := os.OpenFile(flexConfPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.FileMode(0644))
 	if err != nil {
 		panic(err)
 	}
