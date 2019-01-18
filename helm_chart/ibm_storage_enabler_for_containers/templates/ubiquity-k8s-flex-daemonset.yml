@@ -99,7 +99,7 @@ spec:
 
         env:
           - name: NAMESPACE
-              value: {{ .Release.Namespace }}
+            value: {{ .Release.Namespace }}
 
         volumeMounts:
         - name: host-k8splugindir
