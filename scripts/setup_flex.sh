@@ -3,7 +3,7 @@
 ###########################################################################
 # Description:
 # The setup_flex.sh responsible for:
-# 1. Deploy flex driver & config file & trusted ca file(if exist) from the container into the host path
+# 1. Deploy flex driver & trusted ca file(if exist) from the container into the host path
 #    /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ibm~ubiquity-k8s-flex
 # 2. Run tail -f on the flex log file, so it will be visible via kubectl logs <flex Pod>
 # 3. Start infinite loop every 24 hours on the host for tailing the flex log file
@@ -14,13 +14,9 @@ set -o pipefail
 
 function install_flex_driver()
 {
-    # Create ibm flex directory and copy the flex binary
-    # ------------------------------------------------------
-    if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
-      echo "Creating the flex driver directory [$DRIVER] for the first time."
-      echo "***Attention*** : If you are running on a Kubernetes version which is lower then 1.8, a restart to the kubelet service is required to take affect."
-      mkdir "${MNT_FLEX_DRIVER_DIR}"
-    fi
+    # Copy the flex binary to ibm flex directory
+    # ------------------------------------------
+
     echo "Copying the flex driver ~/$DRIVER into ${MNT_FLEX_DRIVER_DIR} directory."
     cp ~/$DRIVER "${MNT_FLEX_DRIVER_DIR}/.$DRIVER"
     mv -f "${MNT_FLEX_DRIVER_DIR}/.$DRIVER" "${MNT_FLEX_DRIVER_DIR}/$DRIVER"
@@ -28,6 +24,14 @@ function install_flex_driver()
 
 function generate_flex_conf_from_envs_and_install_it()
 {
+    # Create ibm flex directory
+    # -------------------------
+    if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
+      echo "Creating the flex driver directory [$DRIVER] for the first time."
+      echo "***Attention*** : If you are running on a Kubernetes version which is lower then 1.8, a restart to the kubelet service is required to take affect."
+      mkdir "${MNT_FLEX_DRIVER_DIR}"
+    fi
+
     # Generate and copy the flex config file
     # --------------------------------------
     echo "Generating the flex config file(from environment variables) on the host path [${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}/${FLEX_CONF}]."
@@ -39,7 +43,6 @@ function generate_flex_conf_from_envs_and_install_it()
     # UBIQUITY_USERNAME and UBIQUITY_PASSWORD are not mandatory for Spectrum Scale hence commented 
     #[ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
     #[ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
-    [ -z "$UBIQUITY_IP_ADDRESS" ] && missing_env UBIQUITY_IP_ADDRESS || :
 
     # Other environment variable with default values
     [ -z "$FLEX_LOG_DIR" ] && FLEX_LOG_DIR=/var/log || :
@@ -59,7 +62,7 @@ backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
 [UbiquityServer]
-address = "$UBIQUITY_IP_ADDRESS"
+address = 0.0.0.0
 port = $UBIQUITY_PORT
 
 [CredentialInfo]
@@ -79,27 +82,37 @@ EOF
 function test_flex_driver()
 {
     echo "Test the flex driver by running $> ${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity"
-    testubiquity=`${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity 2>&1`
     flex_log=${FLEX_LOG_DIR}/ubiquity-k8s-flex.log
-    if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
-       echo "$testubiquity"
-       echo "Flex test passed Ok"
-    else
-       # Flex cli is not working, so print latest logs and exit with error.
+	err=
 
-       if [ -f "$flex_log" ]; then
-           echo "Error: Flex test was failed."
-           echo "tail the flex log file $flex_log"
-           echo "-----------------------[ Start view flex log ] ------------"
-           tail -40 $flex_log || :
-           echo "-----------------------[ End of flex log ] ------------"
-       fi
-       echo ""
-       echo "Flex test failed with the following error:"
-       echo "$testubiquity"
-       echo "Error: Flex test was failed - Please check ubiquity_configmap parameters."
-       exit 4
+	for i in {1..15}
+    do
+        testubiquity=`${MNT_FLEX_DRIVER_DIR}/$DRIVER testubiquity 2>&1`
+        if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
+           echo "$testubiquity"
+           echo "Flex test passed Ok"
+		   return 0
+        else
+            err="$testubiquity"
+        fi
+
+		sleep 2
+    done
+
+    # Flex cli is not working, so print latest logs and exit with error.
+
+    if [ -f "$flex_log" ]; then
+        echo "Error: Flex test was failed."
+        echo "tail the flex log file $flex_log"
+        echo "-----------------------[ Start view flex log ] ------------"
+        tail -40 $flex_log || :
+        echo "-----------------------[ End of flex log ] ------------"
     fi
+    echo ""
+    echo "Flex test failed with the following error:"
+    echo "$err"
+    echo "Error: Flex test was failed - Please check ubiquity_configmap parameters."
+    exit 4
 }
 
 function install_flex_trusted_ca()
@@ -131,8 +144,8 @@ FLEX_CONF=${DRIVER}.conf
 
 echo "[`date`]"
 echo "Starting $DRIVER Pod..."
+#generate_flex_conf_from_envs_and_install_it
 install_flex_driver
-generate_flex_conf_from_envs_and_install_it
 install_flex_trusted_ca
 
 echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
