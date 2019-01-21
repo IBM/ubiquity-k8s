@@ -113,52 +113,6 @@ spec:
 {{ toYaml . | indent 10 }}
         {{- end }}
 
-        env:
-          - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
-            value: "9999"
-
-          - name: UBIQUITY_BACKEND         # "IBM Storage Enabler for Containers" supports "scbe" (IBM Spectrum Connect) as its backend.
-            value: "scbe"
-
-          - name: FLEX_LOG_DIR    # /var/log default
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: FLEX-LOG-DIR
-
-          - name: FLEX_LOG_ROTATE_MAXSIZE # 50MB default
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: FLEX-LOG-ROTATE-MAXSIZE
-
-          - name: LOG_LEVEL       # debug / info / error
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: LOG-LEVEL
-
-{{- if .Values.ubiquity.spectrumConnect }}
-          - name: UBIQUITY_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
-                key: username
-
-          - name: UBIQUITY_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
-                key: password
-
-{{- end }}
-          - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SSL-MODE
-
-
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: host-k8splugindir

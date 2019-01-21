@@ -62,7 +62,7 @@ backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
 [UbiquityServer]
-address = 0.0.0.0
+address = "0.0.0.0""
 port = $UBIQUITY_PORT
 
 [CredentialInfo]
