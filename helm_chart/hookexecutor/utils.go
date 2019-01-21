@@ -26,8 +26,6 @@ func init() {
 }
 
 const (
-	defaultlogLevel                         = "info"
-	ubiquityServiceName                     = "ubiquity"
 	ubiquityK8sFlexDaemonSetName            = "ubiquity-k8s-flex"
 	ubiquityDBDeploymentName                = "ubiquity-db"
 	ubiquityDBPvcName                       = "ibm-ubiquity-db"
@@ -46,7 +44,7 @@ var logger logs.Logger
 func initLogger() {
 	logLevel := os.Getenv("LOG_LEVEL")
 	if logLevel == "" {
-		logLevel = defaultlogLevel
+		logLevel = k8sutils.DefaultlogLevel
 	}
 	k8sutils.InitGenericLogger(logLevel)
 	logger = logs.GetLogger()

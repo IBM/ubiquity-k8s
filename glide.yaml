@@ -153,3 +153,4 @@ import:
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega
+- package: github.com/golang/mock

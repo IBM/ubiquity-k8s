@@ -79,6 +79,22 @@ docker push ${ubiquity_flex_tag_specific}
 [ "$tag_latest" = "true" ] && docker push ${ubiquity_flex_tag_version} || :
 
 
+echo "build ubiquity flex sidecar image"
+echo "================================="
+ubiquity_registry="${DOCKER_REGISTRY}/${UBIQUITY_K8S_FLEX_SIDECAR_IMAGE}"
+ubiquity_flex_sidecar_tag_specific="${ubiquity_registry}:${specific_tag}"
+ubiquity_flex_sidecar_tag_latest=${ubiquity_registry}:latest
+ubiquity_flex_sidecar_tag_version=${ubiquity_registry}:${IMAGE_VERSION}
+[ "$tag_latest" = "true" ] && taglatestflag="-t ${ubiquity_flex_sidecar_tag_latest} -t ${ubiquity_flex_sidecar_tag_version}" || taglatestflag=""
+# Build and tags together
+
+docker build -t ${ubiquity_flex_sidecar_tag_specific} ${taglatestflag} -f Dockerfile.FlexSidecar .
+# push the tags
+docker push ${ubiquity_flex_sidecar_tag_specific}
+[ "$tag_latest" = "true" ] && docker push ${ubiquity_flex_sidecar_tag_latest} || :
+[ "$tag_latest" = "true" ] && docker push ${ubiquity_flex_sidecar_tag_version} || :
+
+
 echo "build ubiquity helm utils image"
 echo "==============================="
 ubiquity_registry="${DOCKER_REGISTRY}/${UBIQUITY_K8S_HELM_UTILS_IMAGE}"
@@ -112,6 +128,11 @@ echo "   specific tag : ${ubiquity_flex_tag_specific}"
 [ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_flex_tag_latest}      ${ubiquity_flex_tag_version}"  || echo "no latest tag"
 
 echo "============================="
+echo "ubiquity flex sidecar IMAGE name : "
+echo "   specific tag : ${ubiquity_flex_sidecar_tag_specific}"
+[ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_flex_sidecar_tag_latest}      ${ubiquity_flex_sidecar_tag_version}"  || echo "no latest tag"
+
+echo "============================="
 echo "ubiquity helm utils IMAGE name : "
 echo "   specific tag : ${ubiquity_helm_utils_tag_specific}"
 [ "$tag_latest" = "true" ] && echo "   latest tag \ version   : ${ubiquity_helm_utils_tag_latest}      ${ubiquity_helm_utils_tag_version}"  || echo "no latest tag"
@@ -119,4 +140,5 @@ echo "   specific tag : ${ubiquity_helm_utils_tag_specific}"
 
 echo ${ubiquity_provisioner_tag_specific} > ubiquity_k8s_tags
 echo ${ubiquity_flex_tag_specific} >> ubiquity_k8s_tags
+echo ${ubiquity_flex_sidecar_tag_specific} >> ubiquity_k8s_tags
 echo ${ubiquity_helm_utils_tag_specific} >> ubiquity_k8s_tags

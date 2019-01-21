@@ -10,6 +10,8 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakekubeclientset "k8s.io/client-go/kubernetes/fake"
+
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 )
 
 var test_svcYaml = `
@@ -119,7 +121,7 @@ var _ = Describe("PostInstall", func() {
 			It("should raise an error", func() {
 				err := e.Execute()
 				Ω(err).Should(HaveOccurred())
-				Expect(err.Error()).To(Equal(ENVNamespaceNotSet))
+				Expect(uberrors.IsENVNamespaceNotSet(err)).To(BeTrue())
 			})
 		})
 
@@ -134,7 +136,7 @@ var _ = Describe("PostInstall", func() {
 			It("should raise an error", func() {
 				err := e.Execute()
 				Ω(err).Should(HaveOccurred())
-				Expect(err.Error()).To(Equal(UbiquityServiceIPEmptyErrorStr))
+				Expect(uberrors.IsUbiquityServiceIPEmpty(err)).To(BeTrue())
 			})
 		})
 
