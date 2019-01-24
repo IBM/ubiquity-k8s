@@ -28,7 +28,6 @@ function generate_flex_conf_from_envs_and_install_it()
     # -------------------------
     if [ ! -d "${MNT_FLEX_DRIVER_DIR}" ]; then
       echo "Creating the flex driver directory [$DRIVER] for the first time."
-      echo "***Attention*** : If you are running on a Kubernetes version which is lower then 1.8, a restart to the kubelet service is required to take affect."
       mkdir "${MNT_FLEX_DRIVER_DIR}"
     fi
 
@@ -40,7 +39,7 @@ function generate_flex_conf_from_envs_and_install_it()
     function missing_env() { echo "Error: missing environment variable $1"; exit 1; }
 
     # Mandatory environment variable
-    # UBIQUITY_USERNAME and UBIQUITY_PASSWORD are not mandatory for Spectrum Scale hence commented 
+    # UBIQUITY_USERNAME and UBIQUITY_PASSWORD are not mandatory for Spectrum Scale hence commented
     #[ -z "$UBIQUITY_USERNAME" ] && missing_env UBIQUITY_USERNAME || :
     #[ -z "$UBIQUITY_PASSWORD" ] && missing_env UBIQUITY_PASSWORD || :
 
@@ -62,7 +61,7 @@ backends = ["$UBIQUITY_BACKEND"]
 logLevel = "$LOG_LEVEL"
 
 [UbiquityServer]
-address = "0.0.0.0""
+address = "0.0.0.0"
 port = $UBIQUITY_PORT
 
 [CredentialInfo]
@@ -94,6 +93,7 @@ function test_flex_driver()
 		   return 0
         else
             err="$testubiquity"
+            echo "Flex test failed, sleep for a while and try again"
         fi
 
 		sleep 2
@@ -142,25 +142,35 @@ MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 
-echo "[`date`]"
-echo "Starting $DRIVER Pod..."
-#generate_flex_conf_from_envs_and_install_it
-install_flex_driver
-install_flex_trusted_ca
+if [ $# -eq 1 -a $1 == "--generate_flex_conf" ]; then
+    echo "Starting generating flex config file..."
+    generate_flex_conf_from_envs_and_install_it
 
-echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
-echo ""
+    echo "Finished to generate flex config file"
+    echo ""
+else
+    echo "[`date`]"
+    echo "Starting $DRIVER Pod..."
+    #generate_flex_conf_from_envs_and_install_it
+    install_flex_driver
+    install_flex_trusted_ca
 
-test_flex_driver
+    echo "Finished to deploy the flex driver [$DRIVER], config file and its certificate into the host path ${HOST_K8S_PLUGIN_DIR}/${DRIVER_DIR}"
+    echo ""
 
-echo ""
-echo "This Pod will handle log rotation for the <flex log> on the host [${FLEX_LOG_DIR}/${DRIVER}.log]"
-echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
-echo "[`date`] Start to run in background #>"
-echo "tail -F ${FLEX_LOG_DIR}/${DRIVER}.log"
-echo "-----------------------------------------------"
-tail -F ${FLEX_LOG_DIR}/${DRIVER}.log &
+    test_flex_driver
 
-while : ; do
-    sleep 86400 # every 24 hours
-done
+    echo ""
+    echo "This Pod will handle log rotation for the <flex log> on the host [${FLEX_LOG_DIR}/${DRIVER}.log]"
+    echo "Running in the background tail -F <flex log>, so the log will be visible though kubectl logs <flex POD>"
+    echo "[`date`] Start to run in background #>"
+    echo "tail -F ${FLEX_LOG_DIR}/${DRIVER}.log"
+    echo "-----------------------------------------------"
+    tail -F ${FLEX_LOG_DIR}/${DRIVER}.log &
+
+    while : ; do
+        sleep 86400 # every 24 hours
+    done
+fi
+
+

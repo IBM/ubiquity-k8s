@@ -1,8 +1,6 @@
 FROM alpine:3.8
-RUN apk --no-cache add ca-certificates=20171114-r3
-ENV UBIQUITY_PLUGIN_VERIFY_CA=/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.crt
 WORKDIR /root/
-COPY ./scripts/generate_flex_conf.sh .
+COPY ./scripts/setup_flex.sh .
 COPY ./LICENSE .
 COPY ./scripts/notices_file_for_ibm_storage_enabler_for_containers ./NOTICES
-CMD ["./generate_flex_conf.sh"]
+CMD ["./setup_flex.sh","--generate_flex_conf"]
