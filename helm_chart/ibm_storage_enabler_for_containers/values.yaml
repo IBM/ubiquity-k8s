@@ -152,3 +152,12 @@ globalConfig:
   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
+
+  ## The default Pod Security Policy if specified. it will be applied to any pods in chart if it does not have its own policy.
+  ## Defining new policies is not support, you must define them in advance or using existing ones, and add one or more policies
+  ## to a role or clusterRole, then give the name of the role or clusterRole here.
+  ## Currently, only clusterRole is supported.
+  # defaultPodSecurityPolicy:
+    ## the name of clusterRole that defines the required policies.
+	## Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
+    # clusterRole: ibm-anyuid-hostpath-clusterrole
