@@ -159,5 +159,5 @@ globalConfig:
   ## Currently, only clusterRole is supported.
   # defaultPodSecurityPolicy:
     ## the name of clusterRole that defines the required policies.
-	## Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
+    ## Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
     # clusterRole: ibm-anyuid-hostpath-clusterrole
