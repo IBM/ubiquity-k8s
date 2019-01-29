@@ -1,20 +1,34 @@
-apiVersion: "extensions/v1beta1"
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity-db
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: ubiquity-db
+      product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
         app: ubiquity-db
         product: ibm-storage-enabler-for-containers
     spec:
+      {{- if .Values.ubiquityDb.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.ubiquityDb.nodeSelector | indent 8}}
+      {{- end }}
       containers:
       - name: ubiquity-db
-        image: {{ .Values.images.ubiquitydb }}
+        image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
+        {{- with .Values.ubiquityDb.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         ports:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
@@ -22,35 +36,35 @@ spec:
           - name: UBIQUITY_DB_USERNAME
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: username
 
           - name: UBIQUITY_DB_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: password
 
           - name: UBIQUITY_DB_NAME
             valueFrom:
               secretKeyRef:
-                name: ubiquity-db-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.ubiquityDbCredentials" . }}
                 key: dbname
 
         volumeMounts:
           - name: ibm-ubiquity-db
             mountPath: "/var/lib/postgresql/data"
             subPath: "ibm-ubiquity"
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{- if eq .Values.globalConfig.sslMode "verify-full" }}
           - name: ubiquity-db-private-certificate
-            mountPath: /var/lib/postgresql/ssl/private/
-{{ end }}
+            mountPath: /var/lib/postgresql/ssl/provided/
+{{- end }}
 
       volumes:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
           claimName: ibm-ubiquity-db
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
       - name: ubiquity-db-private-certificate
         secret:
           secretName: ubiquity-db-private-certificate
@@ -61,4 +75,4 @@ spec:
           - key: ubiquity-db.crt
             path: ubiquity-db.crt
             mode: 0600
-{{ end }}
+{{- end }}

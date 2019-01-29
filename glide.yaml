@@ -110,7 +110,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: ae6a0a55dd776cfac7fa96c973b9f7691e2c6e2a
+  version: bf9a572a09294818716306cad200c0f8cd252108
   subpackages:
   - remote
   - resources
@@ -153,3 +153,4 @@ import:
 testImport:
 - package: github.com/onsi/ginkgo
 - package: github.com/onsi/gomega
+- package: github.com/golang/mock

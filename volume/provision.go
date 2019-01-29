@@ -33,6 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"k8s.io/api/core/v1"
+	"net"
+	"net/url"
+	"syscall"
 )
 
 const (
@@ -93,7 +96,27 @@ func newFlexProvisionerInternal(logger *log.Logger, ubiquityClient resources.Sto
 	logger.Printf("activating backend %s\n", config.Backends)
 	err := provisioner.ubiquityClient.Activate(activateRequest)
 
+	if err != nil {
+		if isTimeOutError(err) {
+			// The log is here to advise the user on where to look for further information
+			logger.Printf("Cannot start ubiqutiy-k8s-provisioner due to failure of connectivity to Ubiquity pod.")
+		}
+	}
+
 	return provisioner, err
+}
+
+func isTimeOutError(err error) bool {
+	if urlError, ok := err.(*url.Error); ok {
+		if opError, ok := urlError.Err.(*net.OpError); ok {
+			if sysErr, ok := opError.Err.(*os.SyscallError); ok {
+				if errno, ok := sysErr.Err.(syscall.Errno); ok && errno == syscall.ETIMEDOUT {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 type flexProvisioner struct {
@@ -194,9 +217,14 @@ func (p *flexProvisioner) Delete(volume *v1.PersistentVolume) error {
 		getVolumeRequest := resources.GetVolumeRequest{Name: volume.Name, Context: requestContext}
 		volume, err := p.ubiquityClient.GetVolume(getVolumeRequest)
 		if err != nil {
-			fmt.Printf("error-retrieving-volume-info")
-			return err
+			if strings.Contains(err.Error(), resources.VolumeNotFoundErrorMsg) {
+				p.logger.Warning("Idempotent issue while deleting volume : volume was not found in ubiquity DB", logs.Args{{"volume name", volume.Name}})
+				return nil
+			} else {
+				return p.logger.ErrorRet(err, "error retreiving volume  information.", logs.Args{{"volume name", volume.Name}})
+			}
 		}
+
 		removeVolumeRequest := resources.RemoveVolumeRequest{Name: volume.Name, Context: requestContext}
 		err = p.ubiquityClient.RemoveVolume(removeVolumeRequest)
 		if err != nil {

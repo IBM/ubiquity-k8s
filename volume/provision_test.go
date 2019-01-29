@@ -89,6 +89,15 @@ var _ = Describe("Provisioner", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(1))
 		})
+		It("succeeds when volume wasnot found in ubiquity DB", func() {
+			fakeClient.GetVolumeReturns(resources.Volume{}, &resources.VolumeNotFoundError{"vol1"})
+			objectMeta := metav1.ObjectMeta{Name: "vol1"}
+			volume := v1.PersistentVolume{ObjectMeta: objectMeta}
+			err = provisioner.Delete(&volume)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(fakeClient.GetVolumeCallCount()).To(Equal(1))
+			Expect(fakeClient.RemoveVolumeCallCount()).To(Equal(0))
+		})
 
 	})
 })

@@ -1,29 +1,44 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: ubiquity-k8s-flex
   labels:
-    app: ubiquity-k8s-flex
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
+  selector:
+    matchLabels:
+      app: ubiquity-k8s-flex
+      product: ibm-storage-enabler-for-containers
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        name: ubiquity-k8s-flex
+        app: ubiquity-k8s-flex
         product: ibm-storage-enabler-for-containers
     spec:
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
+      {{- if .Values.ubiquityK8sFlex.tolerations }}
+{{ toYaml .Values.ubiquityK8sFlex.tolerations | indent 6}}
+      {{- else }}
       # Some k8s versions use dedicated key for toleration of the master and some use node-role.kubernetes.io/master key.
       - key: dedicated
         operator: Exists
         effect: NoSchedule
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+      {{- end }}
+
       containers:
       - name: ubiquity-k8s-flex
-        image: {{ .Values.images.flex }}
+        image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sFlex.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
+
         env:
           - name: UBIQUITY_PORT     # Ubiquity port, should point to the ubiquity service port
             value: "9999"
@@ -49,36 +64,31 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
+{{- if .Values.ubiquity.spectrumConnect }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: username
 
           - name: UBIQUITY_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
 
+{{- end }}
+
+          - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
+            # The default value 0.0.0.0 is just a placeholder, it will be updated
+            # during installation, if it is chagned after installation, you should
+            # update it accordingly.
+            value: 0.0.0.0
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
-
-          - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: UBIQUITY-IP-ADDRESS
-
-          - name: SKIP_RESCAN_ISCSI       # boolean
-            valueFrom:
-              configMapKeyRef:
-                name: ubiquity-configmap
-                key: SKIP-RESCAN-ISCSI
-
 
 
         command: ["./setup_flex.sh"]
@@ -87,12 +97,12 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
         - name: flex-log-dir
-          mountPath: {{ .Values.genericConfig.logging.flexLogDir | quote  }}
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+          mountPath: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
         - name: ubiquity-public-certificates
           mountPath: /var/lib/ubiquity/ssl/public
           readOnly: true
-{{ end }}
+{{- end }}
       volumes:
       - name: host-k8splugindir
         hostPath:
@@ -100,14 +110,12 @@ spec:
 
       - name: flex-log-dir
         hostPath:
-          path: {{ .Values.genericConfig.logging.flexLogDir | quote  }}  # This directory must exist on the host
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+          path: {{ .Values.ubiquityK8sFlex.flexLogDir | quote  }}  # This directory must exist on the host
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
       - name: ubiquity-public-certificates
         configMap:
           name: ubiquity-public-certificates
           items:
             - key: ubiquity-trusted-ca.crt
               path: ubiquity-trusted-ca.crt
-{{ end }}
-
-#      nodeSelector:    # use this tag to target specific nodes in the cluster for flex installation
+{{- end }}

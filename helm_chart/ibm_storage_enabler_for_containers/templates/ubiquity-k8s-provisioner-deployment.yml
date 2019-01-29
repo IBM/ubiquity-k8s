@@ -1,11 +1,16 @@
-apiVersion: "extensions/v1beta1"
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
   labels:
     product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: ubiquity-k8s-provisioner
+      product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
@@ -15,7 +20,12 @@ spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
-        image: {{ .Values.images.provisioner }}
+        image: "{{ .Values.ubiquityK8sProvisioner.image.repository }}:{{ .Values.ubiquityK8sProvisioner.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sProvisioner.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sProvisioner.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
         env:
           - name: UBIQUITY_ADDRESS  # Ubiquity hostname, should point to the ubiquity service name
             value: "ubiquity"
@@ -33,18 +43,19 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-          # TODO : For Scale support we should choose the right credential
+{{- if .Values.ubiquity.spectrumConnect }} # TODO consider to check if the secret exist instead
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: username
 
           - name: UBIQUITY_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: scbe-credentials
+                name: {{ template "ibm_storage_enabler_for_containers.scbeCredentials" . }}
                 key: password
+{{- end }}
 
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
@@ -52,7 +63,8 @@ spec:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
-{{ if and (.Values.spectrumConnect.connectionInfo.sslMode) (eq .Values.spectrumConnect.connectionInfo.sslMode "verify-full") }}
+
+{{- if (eq .Values.globalConfig.sslMode "verify-full") }}
         volumeMounts:
           - name: ubiquity-public-certificates
             mountPath: /var/lib/ubiquity/ssl/public
@@ -64,5 +76,4 @@ spec:
             items:
               - key: ubiquity-trusted-ca.crt
                 path: ubiquity-trusted-ca.crt
-{{ end }}
-
+{{- end }}

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 	"github.com/IBM/ubiquity/resources"
 )
 
@@ -36,14 +37,15 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	spectrumNFSConfig.ClientConfig = os.Getenv("SPECTRUM_NFS_REMOTE_CONFIG")
 	config.SpectrumNfsRemoteConfig = spectrumNFSConfig
 
-	bool, err := strconv.ParseBool(os.Getenv("SCBE_SKIP_RESCAN_ISCSI"))
-	if err != nil {
-		config.ScbeRemoteConfig.SkipRescanISCSI = false
-	} else {
-		config.ScbeRemoteConfig.SkipRescanISCSI = bool
-	}
-
 	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
 
 	return config, nil
+}
+
+func GetCurrentNamespace() (string, error) {
+	ns := os.Getenv(ENVNamespace)
+	if ns == "" {
+		return "", uberrors.ENVNamespaceNotSet
+	}
+	return ns, nil
 }

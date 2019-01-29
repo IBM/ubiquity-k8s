@@ -186,7 +186,6 @@ function update-ymls()
     KEY_FILE_DICT['FLEX_LOG_DIR_VALUE']="${UBIQUITY_CONFIGMAP_YML} ${UBIQUITY_FLEX_DAEMONSET_YML}"
     KEY_FILE_DICT['LOG_LEVEL_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
-    KEY_FILE_DICT['SKIP_RESCAN_ISCSI_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['DEFAULT_VOLUME_SIZE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SCBE_USERNAME_VALUE']="${SCBE_CRED_YML}"
     KEY_FILE_DICT['SCBE_PASSWORD_VALUE']="${SCBE_CRED_YML}"
@@ -200,7 +199,6 @@ function update-ymls()
     KEY_FILE_DICT['SPECTRUMSCALE_MANAGEMENT_IP_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SPECTRUMSCALE_MANAGEMENT_PORT_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
     KEY_FILE_DICT['SPECTRUMSCALE_DEFAULT_FILESYSTEM_NAME_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
-    KEY_FILE_DICT['SPECTRUMSCALE_SSL_MODE_VALUE']="${UBIQUITY_CONFIGMAP_YML}"
 
 
    base64_placeholders="UBIQUITY_DB_USERNAME_VALUE UBIQUITY_DB_PASSWORD_VALUE UBIQUITY_DB_NAME_VALUE SCBE_USERNAME_VALUE SCBE_PASSWORD_VALUE SPECTRUMSCALE_USERNAME_VALUE SPECTRUMSCALE_PASSWORD_VALUE"
@@ -268,7 +266,6 @@ function update-ymls()
    if [ "$backend_from_configfile" == "spectrumscale" ]; then
        sed -i "s|DEFAULT_BACKEND_VALUE|spectrum-scale|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i "s|SCBE_MANAGEMENT_IP_VALUE||g" ${YML_DIR}/../ubiquity-configmap.yml
-       sed -i "s|SKIP_RESCAN_ISCSI_VALUE|false|g" ${YML_DIR}/../ubiquity-configmap.yml
        sed -i 's/^# SPECTRUMSCALE Credentials #\(.*\)/\1  # SPECTRUMSCALE Credentials #/g' ${ymls_to_updates}
    fi
 
@@ -329,11 +326,12 @@ function create-services()
     echo "Finished creating namespace, ${UBIQUITY_SERVICE_NAME} service and ${UBIQUITY_DB_SERVICE_NAME} service"
     echo "Attention: To complete the $PRODUCT_NAME installation with SSL_MODE=verify-full:"
     echo "   Prerequisite:"
-    echo "     (1) Generate dedicated certificates for 'ubiquity', 'ubiquity-db' and SCBE, using specific file names"
+    echo "     (1) Generate dedicated certificates for 'ubiquity','ubiquity-db' and SCBE/SPECTRUMSCALE, using specific file names"
     echo "     (2) Create secrets and ConfigMap to store the certificates and trusted CA files by running::"
     echo "          $> $0 -s create-secrets-for-certificates -t <certificates-directory> -n $NS"
     echo "   Complete the installation:"
-    echo "     (1)  $> $0 -s install -n $NS"
+    echo "     (1)  $> $0 -s update-ymls -c <ubiquity-config-file> -n $NS"
+    echo "     (2)  $> $0 -s install -n $NS"
     echo ""
 }
 
@@ -362,11 +360,11 @@ function create-secrets-for-certificates()
     if [ -z "$backend_from_configmap" ]; then
         # Assuming configmap does not exist, so no possibility of finding for backend from configmap.
         # check is ca-cert for spectrumscale exist in $CERT_DIR
-        if [ "-f $CERT_DIR/spectrumscale-trusted-ca.crt" ]; then
+        if [ -f "$CERT_DIR/spectrumscale-trusted-ca.crt" ]; then
             backend_cacert_file="spectrumscale-trusted-ca.crt"
         fi
         # check is ca-cert for scbe exist in $CERT_DIR
-        if [ "-f $CERT_DIR/scbe-trusted-ca.crt" ]; then
+        if [ -f "$CERT_DIR/scbe-trusted-ca.crt" ]; then
             backend_cacert_file="scbe-trusted-ca.crt"
         fi
 
@@ -378,11 +376,11 @@ function create-secrets-for-certificates()
         fi
     else
         if [ "$backend_from_configmap" == "spectrumscale" ]; then
-            backend_cacert_file=" spectrumscale-trusted-ca.crt"
+            backend_cacert_file="spectrumscale-trusted-ca.crt"
         fi
 
         if [ "$backend_from_configmap" == "spectrumconnect" ]; then
-            backend_cacert_file=" scbe-trusted-ca.crt"
+            backend_cacert_file="scbe-trusted-ca.crt"
         fi
     fi
     expected_cert_files+=" $backend_cacert_file"
@@ -406,11 +404,11 @@ function create-secrets-for-certificates()
     kubectl create secret $nsf generic ubiquity-private-certificate --from-file=ubiquity.key --from-file=ubiquity.crt
     ca_cert_files="--from-file=ubiquity-db-trusted-ca.crt=ubiquity-db-trusted-ca.crt --from-file=ubiquity-trusted-ca.crt=ubiquity-trusted-ca.crt"
 
-    if [ $backend_cacert_file == "spectrumscale" ]; then
+    if [ $backend_cacert_file == "spectrumscale-trusted-ca.crt" ]; then
         ca_cert_files+=" --from-file=spectrumscale-trusted-ca.crt=spectrumscale-trusted-ca.crt"
     fi
 
-    if [ $backend_cacert_file == "spectrumconnect" ]; then
+    if [ $backend_cacert_file == "scbe-trusted-ca.crt" ]; then
         ca_cert_files+=" --from-file=scbe-trusted-ca.crt=scbe-trusted-ca.crt"
     fi
     kubectl create configmap $nsf ubiquity-public-certificates $ca_cert_files
@@ -437,6 +435,8 @@ function create_only_namespace_and_services()
 
     create_serviceaccount_and_clusterroles
 
+    create_icp_rolebinding_if_needed
+
     # Creating ubiquity service
     if ! kubectl get $nsf service ${UBIQUITY_SERVICE_NAME} >/dev/null 2>&1; then
         kubectl create $nsf -f ${YML_DIR}/ubiquity-service.yml
@@ -450,6 +450,22 @@ function create_only_namespace_and_services()
     else
        echo "$UBIQUITY_DB_SERVICE_NAME service already exists, skipping service creation"
     fi
+}
+
+function create_icp_rolebinding_if_needed()
+{
+    # Only if clusterroles $ICP_CLUSTERROLES_FOR_PSP exist, then assuming its ICP 3.1.1+, then creates a bind for it.
+    if kubectl get $nsf clusterroles  ${ICP_CLUSTERROLES_FOR_PSP} >/dev/null 2>&1; then
+        echo "Found ICP ${ICP_CLUSTERROLES_FOR_PSP} clusterroles object. Binding it to ${NS} namespace to enable ICP v3.1.1 and higher."
+
+        # Creating ubiquity ubiquity-icp-rolebinding
+        if ! kubectl get $nsf clusterrolebindings ${UBIQUITY_ICP_CLUSTERROLESBINDING_NAME} >/dev/null 2>&1; then
+           kubectl create $nsf -f ${YML_DIR}/ubiquity-icp-rolebinding.yml
+        else
+           echo "${UBIQUITY_ICP_CLUSTERROLESBINDING_NAME} clusterrolebindings already exists,skipping clusterrolebindings creation"
+        fi
+    fi
+
 }
 
 function create_serviceaccount_and_clusterroles()

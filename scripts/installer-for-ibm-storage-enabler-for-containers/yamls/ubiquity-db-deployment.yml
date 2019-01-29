@@ -43,7 +43,7 @@ spec:
             subPath: "ibm-ubiquity"
 # Certificate Set : use the below volumeMounts only if predefine certificate given
 # Cert #          - name: ubiquity-db-private-certificate
-# Cert #            mountPath: /var/lib/postgresql/ssl/private/
+# Cert #            mountPath: /var/lib/postgresql/ssl/provided/
       volumes:
       - name: ibm-ubiquity-db
         persistentVolumeClaim:
