@@ -153,7 +153,7 @@ globalConfig:
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
 
-  ## The default Pod Security Policy if specified. it will be applied to any pods in chart if it does not have its own policy.
+  ## The default Pod Security Policy if specified. it will be applied to every pod in chart if it does not have its own policy.
   ## Defining new policies is not support, you must define them in advance or using existing ones, and add one or more policies
   ## to a role or clusterRole, then give the name of the role or clusterRole here.
   ## Currently, only clusterRole is supported.
