@@ -93,7 +93,8 @@ function test_flex_driver()
 		   return 0
         else
             err="$testubiquity"
-            echo "Flex test failed, sleep for a while and try again"
+            echo "Flex test failed with error: $testubiquity"
+            echo "Wait 2 seconds before $i retries of the flex test."
         fi
 
 		sleep 2
