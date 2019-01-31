@@ -1,6 +1,0 @@
-FROM alpine:3.8
-WORKDIR /root/
-COPY ./scripts/setup_flex.sh .
-COPY ./LICENSE .
-COPY ./scripts/notices_file_for_ibm_storage_enabler_for_containers ./NOTICES
-CMD ["./setup_flex.sh","--generate_flex_conf"]

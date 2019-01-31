@@ -33,8 +33,8 @@ spec:
       serviceAccountName: ubiquity-k8s-flex
       initContainers:
       - name: ubiquity-k8s-flex-init-container
-        image: "{{ .Values.ubiquityK8sFlexInitContainer.image.repository }}:{{ .Values.ubiquityK8sFlexInitContainer.image.tag }}"
-        imagePullPolicy: {{ .Values.ubiquityK8sFlexInitContainer.image.pullPolicy }}
+        image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlexInitContainer.resources }}
         resources:
 {{ toYaml . | indent 10 }}
@@ -84,6 +84,11 @@ spec:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
+
+        command:
+          - ./setup_flex.sh
+        args:
+          - --generate_flex_conf
 
         volumeMounts:
         - name: host-k8splugindir

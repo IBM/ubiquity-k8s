@@ -128,10 +128,6 @@ ubiquityK8sFlex:
   ubiquityIpAddress:
 
 ubiquityK8sFlexInitContainer:
-  image:
-    repository: ibmcom/ibm-storage-flex-volume-init-container-for-kubernetes
-    tag: "2.0.0"
-    pullPolicy: IfNotPresent
   resources: {}
 
 ubiquityK8sFlexSidecar:
