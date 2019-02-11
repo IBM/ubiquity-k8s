@@ -90,14 +90,14 @@ function test_flex_driver()
         if echo "$testubiquity" | grep '"status":"Success"' >/dev/null; then
            echo "$testubiquity"
            echo "Flex test passed Ok"
-		   return 0
+           return 0
         else
             err="$testubiquity"
             echo "Flex test failed with error: $testubiquity"
             echo "Wait 2 seconds before $i retries of the flex test."
         fi
 
-		sleep 2
+        sleep 2
     done
 
     # Flex cli is not working, so print latest logs and exit with error.
