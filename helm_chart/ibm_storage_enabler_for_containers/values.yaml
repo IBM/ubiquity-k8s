@@ -153,11 +153,11 @@ globalConfig:
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
 
-  ## The default Pod Security Policy if specified. it will be applied to every pod in chart.
-  ## Defining new policies is not support, you must define them in advance or using existing ones, and attach one or more policies
-  ## to a role or clusterRole, then give the name of the role or clusterRole here.
+  ## Default pod security policy. If specified, it is applied to all pods in the chart.
+  ## New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies
+  ## to a role or clusterRole, and provide the name for the role or clusterRole.
   ## Currently, only clusterRole is supported. It will be bound to all serviceAccounts under the current namespace.
   # defaultPodSecurityPolicy:
-    ## the name of clusterRole that attaches the required policies.
+    ## The name of clusterRole that has the required policies attached.
     ## Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
     # clusterRole: ibm-anyuid-hostpath-clusterrole
