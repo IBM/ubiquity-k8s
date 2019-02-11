@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: ubiquity-k8s-flex
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yml") . | sha256sum }}
+    checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yml") . | sha256sum }}
   labels:
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
