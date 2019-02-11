@@ -103,13 +103,13 @@ spec:
           - name: SPECTRUMSCALE_REST_USER
             valueFrom:
               secretKeyRef:
-                name: {{ template "ibm_storage_enabler_for_containers.scaleCredentials" . }}
+                name: {{ template "ibm_storage_enabler_for_containers.spectrumscaleCredentials" . }}
                 key: username
 
           - name: SPECTRUMSCALE_REST_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ template "ibm_storage_enabler_for_containers.scaleCredentials" . }}
+                name: {{ template "ibm_storage_enabler_for_containers.spectrumscaleCredentials" . }}
                 key: password
 
           - name: SPECTRUMSCALE_MANAGEMENT_IP

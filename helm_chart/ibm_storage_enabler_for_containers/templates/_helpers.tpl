@@ -49,7 +49,7 @@ Create the name for the scbe secret
 {{/*
 Create the name for the spectrum scale secret
 */}}
-{{- define "ibm_storage_enabler_for_containers.scaleCredentials" -}}
+{{- define "ibm_storage_enabler_for_containers.spectrumscaleCredentials" -}}
     {{- if .Values.ubiquity.spectrumScale -}}
         {{- if .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
             {{- .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
