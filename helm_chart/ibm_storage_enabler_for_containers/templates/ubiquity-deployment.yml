@@ -5,7 +5,7 @@ metadata:
   annotations:
     checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yml") . | sha256sum }}
     checksum/secret-scbe: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yml") . | sha256sum }}
-    checksum/secret-scale: {{ include (print $.Template.BasePath "/spectrumscale-credentials-secret.yml") . | sha256sum }}
+    checksum/secret-spectrumscale: {{ include (print $.Template.BasePath "/spectrumscale-credentials-secret.yml") . | sha256sum }}
   labels:
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}

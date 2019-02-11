@@ -54,10 +54,10 @@ Create the name for the spectrum scale secret
         {{- if .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
             {{- .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
         {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scale
+            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
         {{- end -}}
 	{{- else -}}
-        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scale
+        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
     {{- end -}}
 {{- end -}}
 
