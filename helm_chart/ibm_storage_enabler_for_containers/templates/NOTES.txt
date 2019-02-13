@@ -1,0 +1,7 @@
+Release {{ .Release.Name }} installation finished successfully in the Kubernetes cluster.
+
+You can check the status by run:
+    helm status {{ .Release.Name }}
+
+When all the status are fine, you can run sanity test by:
+    helm test {{ .Release.Name }}

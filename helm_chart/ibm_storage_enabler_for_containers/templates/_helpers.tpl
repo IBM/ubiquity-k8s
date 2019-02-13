@@ -35,10 +35,29 @@ Create chart name and version as used by the chart label.
 Create the name for the scbe secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}
-    {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
-        {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
+    {{- if .Values.ubiquity.spectrumConnect -}}
+        {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
+            {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
+        {{- else -}}
+            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe 
+        {{- end -}}
     {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe 
+    {{- end -}}
+{{- end -}}
+
+{{/*
+Create the name for the spectrum scale secret
+*/}}
+{{- define "ibm_storage_enabler_for_containers.spectrumscaleCredentials" -}}
+    {{- if .Values.ubiquity.spectrumScale -}}
+        {{- if .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
+            {{- .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
+        {{- else -}}
+            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
+        {{- end -}}
+	{{- else -}}
+        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
     {{- end -}}
 {{- end -}}
 
