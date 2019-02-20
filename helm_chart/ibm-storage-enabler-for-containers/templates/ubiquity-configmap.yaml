@@ -37,7 +37,7 @@ data:
 {{- if .Values.ubiquity.spectrumScale }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumScale.connectionInfo.fqdn | quote }}
-  
+
    # Communication port of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumScale.connectionInfo.port | quote }}
 
