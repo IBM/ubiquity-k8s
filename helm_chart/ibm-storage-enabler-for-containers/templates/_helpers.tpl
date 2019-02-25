@@ -39,10 +39,10 @@ Create the name for the scbe secret
         {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
             {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
         {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe 
+            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
         {{- end -}}
     {{- else -}}
-        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe 
+        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
     {{- end -}}
 {{- end -}}
 
@@ -68,7 +68,7 @@ Create the name for ubiquity-db secret
     {{- if .Values.ubiquityDb.dbCredentials.existingSecret -}}
         {{- .Values.ubiquityDb.dbCredentials.existingSecret -}}
     {{- else -}}
-        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquitydb 
+        {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-ubiquitydb
     {{- end -}}
 {{- end -}}
 

@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
   annotations:
-    checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yml") . | sha256sum }}
-    checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yml") . | sha256sum }}
+    checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
+    checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
   labels:
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
