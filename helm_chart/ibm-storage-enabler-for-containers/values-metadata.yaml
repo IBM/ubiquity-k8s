@@ -156,7 +156,7 @@ ubiquity:
           name: "existingSecret"
           label: "existingSecret"
           description: "Set this param with an existing Spectrum Scale secret object if one exist."
-          type: "boolean"
+          type: "string"
 
     backendConfig:
       # Default Spectrum Scale filesystem to be used.
@@ -220,4 +220,248 @@ ubiquityDb:
         name: "password"
         label: "password"
         description: "Password for the deployment of ubiquity-db database."
+        type: "string"
+    existingSecret:
+      __metadata:
+        name: "existingSecret"
+        label: "existingSecret"
+        description: "Set this param with an existing secret object if one exist."
+        type: "string"
+
+  persistence:
+    __metadata:
+      label: "persistence"
+      description: "persistence"
+    # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
+    # For DS8000 Family, use "ibmdb" instead and make sure instanceName value length does not exceed 8 chars if you use spectrumConnect as backend.
+    pvName:
+      __metadata:
+        name: "pvName"
+        label: "pvName"
+        description: "Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use spectrumConnect as backend."
+        type: "string"
+        required: true
+    pvSize:
+      __metadata:
+        name: "pvSize"
+        label: "pvSize"
+        description: "pvSize"
+        type: "number"
+        required: true
+
+    useExistingPv:
+      __metadata:
+        name: "useExistingPv"
+        label: "useExistingPv"
+        description: "Set this param to true if you want to use an existing PV as Ubiquity database PV. Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version."
+        type: "boolean"
+
+    storageClass:
+      __metadata:
+        label: "storageClass"
+        description: "Parameters to create the first storage class that is also to be used by Ubiquity for ibm-ubiquity-db PVC. Note: The default reclaimPolicy is Delete. Can be changed manually if needed."
+      storageClassName:
+        __metadata:
+          name: "storageClassName"
+          label: "storageClassName"
+          description: "storageClassName"
+          type: "string"
+
+      existingStorageClass:
+        __metadata:
+          name: "existingStorageClass"
+          label: "existingStorageClass"
+          description: "Set this param with an existing storageclass object if one exist."
+          type: "string"
+
+      defaultClass: false
+        __metadata:
+          name: "defaultClass"
+          label: "defaultClass"
+          description: "Set StorageClass as the default StorageClass."
+          type: "boolean"
+
+      spectrumConnect:
+        __metadata:
+          label: "spectrumConnect"
+          description: "If ubiquity.spectrumConnect is set, the following parameters must be set as well."
+        spectrumConnectServiceName:
+          __metadata:
+            name: "spectrumConnectServiceName"
+            label: "spectrumConnectServiceName"
+            description: "Storage Class profile parameter must point to the Spectrum Connect storage service name."
+            type: "string"
+        fsType: ext4
+          __metadata:
+            label: "fsType"
+            description: "Storage Class filesystem type."
+            options:
+            - label: "ext4"
+              value: "ext4"
+            - label: "xfs"
+              value: "xfs"
+
+
+ubiquityK8sFlex:
+  __metadata:
+    label: "ubiquityK8sFlex"
+    description: "ubiquityK8sFlex"
+  image:
+    __metadata:
+      label: "image"
+      description: "image"
+    repository:
+      __metadata:
+        name: "repository"
+        label: "repository"
+        description: "repository"
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "tag"
+        description: "tag"
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+  resources:
+  # By default, the toleration is set to run the Flex DeamonSet on all worker and master nodes. To define a different toleration, uncomment and apply the relevant toleration value.
+  tolerations:
+  flexLogDir:
+    __metadata:
+      name: "flexLogDir"
+      label: "flexLogDir"
+      description: "Flex log directory. If the default value is changed, make sure that the new path exists on all the nodes and update the Flex DaemonSet hostpath accordingly."
+      type: "string"
+
+
+ubiquityK8sProvisioner:
+  __metadata:
+    label: "ubiquityK8sProvisioner"
+    description: "ubiquityK8sProvisioner"
+  image:
+    __metadata:
+      label: "image"
+      description: "image"
+    repository:
+      __metadata:
+        name: "repository"
+        label: "repository"
+        description: "repository"
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "tag"
+        description: "tag"
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+  resources:
+
+
+ubiquityHelmUtils:
+  __metadata:
+    label: "ubiquityHelmUtils"
+    description: "ubiquityHelmUtils"
+  image:
+    __metadata:
+      label: "image"
+      description: "image"
+    repository:
+      __metadata:
+        name: "repository"
+        label: "repository"
+        description: "repository"
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "tag"
+        description: "tag"
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+
+
+globalConfig:
+  __metadata:
+    label: "globalConfig"
+    description: "globalConfig"
+  logLevel:
+    __metadata:
+      label: "logLevel"
+      description: "logLevel"
+      options:
+      - label: "debug"
+        value: "debug"
+      - label: "info"
+        value: "info"
+      - label: "error"
+        value: "error"
+
+  sslMode:
+    __metadata:
+      label: "sslMode"
+      description: "SSL verification mode. SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale]."
+      options:
+      - label: "require (no validation is required)"
+        value: "require"
+      - label: "verify-full (user-provided certificates)"
+        value: "verify-full"
+
+  defaultPodSecurityPolicy:
+    __metadata:
+      label: "sslMode"
+      description: "Default pod security policy. If specified, it is applied to all pods in the chart.New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies to a role or clusterRole, and provide the name for the role or clusterRole. Currently, only clusterRole is supported. It will be bound to all serviceAccounts under the current namespace."
+    enabled:
+      __metadata:
+        name: "enabled"
+        label: "enabled"
+        description: "Enable the default pod security policy if it is set to true. Default is false."
+        type: "boolean"
+    clusterRole: ibm-anyuid-hostpath-clusterrole
+      __metadata:
+        name: "clusterRole"
+        label: "clusterRole"
+        description: "The name of clusterRole that has the required policies attached. Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole"
         type: "string"
