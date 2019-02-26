@@ -37,6 +37,7 @@ ubiquity:
           value: "Never"
         - label: "IfNotPresent"
           value: "IfNotPresent"
+  resources:
 
   backend:
     __metadata:
@@ -57,7 +58,7 @@ ubiquity:
         __metadata:
           name: "fqdn"
           label: "fqdn"
-          description: "IP\FQDN of Spectrum Connect server."
+          description: "IP or FQDN of Spectrum Connect server."
           type: "string"
       port:
         __metadata:
@@ -82,7 +83,7 @@ ubiquity:
         __metadata:
           name: "existingSecret"
           label: "existingSecret"
-          description: "Set this param with an existing spectrum connect secret object if one exist."
+          description: "Set this param with an existing Spectrum Connect secret object if one exist."
           type: "boolean"
 
     backendConfig:
@@ -119,3 +120,104 @@ ubiquity:
             label: "size"
             description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
             type: "number"
+
+  spectrumScale:
+    __metadata:
+      label: "Spectrum Scale"
+      description: "Spectrum Scale"
+    connectionInfo:
+      fqdn:
+        __metadata:
+          name: "fqdn"
+          label: "fqdn"
+          description: "IP\FQDN of Spectrum Scale RESTful API server."
+          type: "string"
+      port: 443
+        __metadata:
+          name: "port"
+          label: "port"
+          description: "Port of Spectrum Scale RESTful API server."
+          type: "number"
+      username:
+        __metadata:
+          name: "username"
+          label: "username"
+          description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Scale."
+          type: "string"
+      password:
+        __metadata:
+          name: "password"
+          label: "password"
+          description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Scale."
+          type: "string"
+
+      existingSecret:
+        __metadata:
+          name: "existingSecret"
+          label: "existingSecret"
+          description: "Set this param with an existing Spectrum Scale secret object if one exist."
+          type: "boolean"
+
+    backendConfig:
+      # Default Spectrum Scale filesystem to be used.
+      defaultFilesystemName:
+        __metadata:
+          name: "defaultFilesystemName"
+          label: "defaultFilesystemName"
+          description: "Default Spectrum Scale filesystem to be used."
+          type: "string"
+
+
+ubiquityDb:
+  __metadata:
+    label: "ubiquity db"
+    description: "ubiquity db"
+  image:
+    __metadata:
+      label: "image"
+      description: "image"
+    repository:
+      __metadata:
+        name: "repository"
+        label: "repository"
+        description: "repository"
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "tag"
+        description: "tag"
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+  resources:
+  nodeSelector:
+  dbCredentials:
+    __metadata:
+      label: "dbCredentials"
+      description: "dbCredentials for the deployment of ubiquity-db database. Note: Do not use the 'postgres' username, because it already exists."
+    username:
+      __metadata:
+        name: "username"
+        label: "username"
+        description: "Username for the deployment of ubiquity-db database."
+        type: "string"
+    password:
+      __metadata:
+        name: "password"
+        label: "password"
+        description: "Password for the deployment of ubiquity-db database."
+        type: "string"

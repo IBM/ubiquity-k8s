@@ -28,8 +28,8 @@ ubiquity:
       fqdn:
       port: 8440
       # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
-      username:
-      password:
+      username: admin
+      password: admin1!
 
       # Set this param with an existing spectrum connect secret object if one exist.
       existingSecret:
@@ -110,9 +110,6 @@ ubiquityDb:
         # Storage Class filesystem type. Allowed values: ext4 or xfs.
         fsType: ext4
 
-      # If ubiquity.spectrumScale is set, the following parameters must be set as well.
-      spectrumScale:
-
 
 ubiquityK8sFlex:
   image:
@@ -126,9 +123,6 @@ ubiquityK8sFlex:
 
   # Flex log directory. If the default value is changed, make sure that the new path exists on all the nodes and update the Flex DaemonSet hostpath accordingly.
   flexLogDir: /var/log
-  # The IP address of the ubiquity service object.
-  # Update this key manually if the ubiquity service object IP was changed.
-  ubiquityIpAddress:
 
 
 ubiquityK8sProvisioner:

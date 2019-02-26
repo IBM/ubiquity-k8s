@@ -11,6 +11,7 @@ keywords:
   - ppc64le
   - s390x
   - Storage
+  - OpenSource
 
 appVersion: 2.1.0
 tillerVersion: ">=2.6.0"
