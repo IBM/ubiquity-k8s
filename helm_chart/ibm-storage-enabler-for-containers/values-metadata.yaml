@@ -1,0 +1,121 @@
+## Metadata for IBM Storage Enabler for Containers configuration
+## This metadata is used to augment the value.yaml to drive IBM Cloud Private UI for configuration of the Helm chart installation
+
+
+ubiquity:
+  __metadata:
+    label: "ubiquity"
+    description: "ubiquity"
+  image:
+    __metadata:
+      label: "image"
+      description: "image"
+    repository:
+      __metadata:
+        name: "repository"
+        label: "repository"
+        description: "repository"
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "tag"
+        description: "tag"
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+
+  backend:
+    __metadata:
+      label: "backend"
+      description: "Operation backend of Provisioner and Flex volume."
+      options:
+      - label: "spectrumConnect"
+        value: "spectrumConnect"
+      - label: "spectrumScale"
+        value: "spectrumScale"
+
+  spectrumConnect:
+    __metadata:
+      label: "Spectrum Connect"
+      description: "Spectrum Connect"
+    connectionInfo:
+      fqdn:
+        __metadata:
+          name: "fqdn"
+          label: "fqdn"
+          description: "IP\FQDN of Spectrum Connect server."
+          type: "string"
+      port:
+        __metadata:
+          name: "port"
+          label: "port"
+          description: "Port of Spectrum Connect server."
+          type: "number"
+      username:
+        __metadata:
+          name: "username"
+          label: "username"
+          description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect."
+          type: "string"
+      password:
+        __metadata:
+          name: "password"
+          label: "password"
+          description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Connect."
+          type: "string"
+
+      existingSecret:
+        __metadata:
+          name: "existingSecret"
+          label: "existingSecret"
+          description: "Set this param with an existing spectrum connect secret object if one exist."
+          type: "boolean"
+
+    backendConfig:
+      instanceName:
+        __metadata:
+          name: "instanceName"
+          label: "instanceName"
+          description: "A prefix for any new volume created on the storage system."
+          type: "string"
+      defaultStorageService:
+        __metadata:
+          name: "defaultStorageService"
+          label: "defaultStorageService"
+          description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
+          type: "string"
+      newVolumeDefaults:
+        __metadata:
+          name: "newVolumeDefaults"
+          label: "newVolumeDefaults"
+          description: "Default field of a new volume."
+        fsType:
+          __metadata:
+            name: "fsType"
+            label: "fsType"
+            description: "The fstype of a new volume if not specified by the user in the storage class."
+            options:
+            - label: "ext4"
+              value: "ext4"
+            - label: "xfs"
+              value: "xfs"
+        size:
+          __metadata:
+            name: "size"
+            label: "size"
+            description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
+            type: "number"

@@ -4,6 +4,8 @@ metadata:
   name: {{ .Release.Name }}-sanity-test
   annotations:
     "helm.sh/hook": test-success
+  labels:
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
   containers:
     - name: sanity-test

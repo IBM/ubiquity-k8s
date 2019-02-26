@@ -1,4 +1,5 @@
-{{- if and (.Values.ubiquity.spectrumConnect) (not .Values.ubiquityDb.persistence.storageClass.existingStorageClass) }}
+{{- if eq .Values.ubiquity.backend "spectrumConnect" }}
+{{- if (not .Values.ubiquityDb.persistence.storageClass.existingStorageClass) }}
 kind: StorageClass
 apiVersion: storage.k8s.io/v1beta1
 metadata:
@@ -15,4 +16,5 @@ parameters:
   profile: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.spectrumConnectServiceName  | quote }}
   fstype: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.fsType  | quote }}        # xfs or ext4
   backend: "scbe"
+{{- end }}
 {{- end }}
