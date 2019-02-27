@@ -12,7 +12,7 @@ The operations include initiation, attachment/detachment, mounting/unmounting et
 
 ## Chart Details
 This chart includes:
-* A Ubiquity server Deployment used as the server of Kubernetes Dynamic Provisioner and FlexVolume.
+* A Storage Enabler for Containers server deployment used as the server of Kubernetes Dynamic Provisioner and FlexVolume.
 * A Ubiquity database Deployment used to store the persistent data of Ubiquity server.
 * A Kubernetes Dynamic Provisioner Deployment for creation  storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
 * A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
