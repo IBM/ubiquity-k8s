@@ -98,8 +98,14 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `ubiquity.spectrumConnect.connectionInfo.backendConfig.defaultStorageService`                                                       |Default Spectrum Connect storage service to be used, if not specified by the storage class. | ` ` |
 | `ubiquity.spectrumConnect.connectionInfo.backendConfig.fsType`                                                       |File system type of a new volume, if not specified by the user in the storage class. Allowed values: ext4 or xfs. | ext4 |
 | `ubiquity.spectrumConnect.connectionInfo.backendConfig.size`                                                       |Default volume size (in GB), if not specified by the user when creating a new volume. | 1 |
-| `ubiquityDb.dbCredentials.username`                                                       |Username for the deployment of ubiquity-db database.
-Do not use the postgres username, because it already exists. |  |
+| `ubiquityDb.dbCredentials.username`                                                       |Username for the deployment of ubiquity-db database. Do not use the postgres username, because it already exists. |  |
+| `ubiquityDb.dbCredentials.password`                                                       |Password for the deployment of ubiquity-db database. |  |
+| `ubiquityDb.persistence.pvName`                                                       |Name of the persistent volume to be used for the ubiquity-db database.
+For the Spectrum Virtualize and Spectrum Accelerate storage systems, use the default value (ibm-ubiquity-db). For the DS8000 storage system, use a shorter value, such as (ibmdb). This is necessary because the DS8000 volume name length cannot exceed 8 characters. |  |
+
+
+
+
 
 | `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
 | `spectrumConnect.backendConfig.instanceName`                                                    | A prefix for any new volume created on the storage system | ` ` |
@@ -114,7 +120,7 @@ Do not use the postgres username, because it already exists. |  |
 | `genericConfig.ubiquityIpAddress`                                                               | The IP address of the ubiquity service object | ` ` |
 | `genericConfig.logging.logLevel`                                                                | Log level. Allowed values: debug, info, error | `info` |
 | `genericConfig.logging.flexLogDir`                                                              | Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according | `/var/log` |
-| `genericConfig.ubiquityDbCredentials.username`                                                  | Username for the deployment of ubiquity-db database. Note : Do not use the "postgres" username, because it already exists | ` ` |
+| `genericConfig.ubiquityDbCredentials.username`                                                  | Username for the deployment of ubiquity-db database. Do not use the "postgres" username, because it already exists | ` ` |
 | `genericConfig.ubiquityDbCredentials.password`                                                  | Password for the deployment of ubiquity-db database | ` ` |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`.
