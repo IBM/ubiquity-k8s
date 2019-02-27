@@ -90,7 +90,7 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `images.ubiquitydb`                                                                             | Image for ISEC database | `ibmcom/ibm-storage-enabler-for-containers-db:2.0.0` |
 | `images.provisioner`                                                                            | Image for Kubernetes Dynamic Provisioner | `ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0` |
 | `images.flex`                                                                                   | Image for Kubernetes FlexVolume | `ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0` |
-| `spectrumConnect.connectionInfo.fqdn`                                                           | IP\FQDN of Spectrum Connect server. | ` ` |
+| `ubiquity.spectrumConnect.connectionInfo.fqdn`                                                           | IP address or FQDN of the Spectrum Connect server. | ` ` |
 | `spectrumConnect.connectionInfo.port`                                                           | Port of Spectrum Connect server. | ` ` |
 | `spectrumConnect.connectionInfo.username`                                                       | Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
 | `spectrumConnect.connectionInfo.password`                                                       | Password defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
