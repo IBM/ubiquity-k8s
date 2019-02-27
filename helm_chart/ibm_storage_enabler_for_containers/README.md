@@ -95,6 +95,10 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `ubiquity.spectrumConnect.connectionInfo.username`                                                       | Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
 | `ubiquity.spectrumConnect.connectionInfo.password`                                                       | Password defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
 | `ubiquity.spectrumConnect.connectionInfo.backendConfig.instanceName`                                                       |A prefix for any new volume created on the storage system. | ` ` |
+| `ubiquity.spectrumConnect.connectionInfo.backendConfig.defaultStorageService`                                                       |Default Spectrum Connect storage service to be used, if not specified by the storage class. | ` ` |
+| `ubiquity.spectrumConnect.connectionInfo.backendConfig.fsType`                                                       |File system type of a new volume, if not specified by the user in the storage class. Allowed values: ext4 or xfs. Default value is ext4. | ` ` |
+| `ubiquity.spectrumConnect.connectionInfo.backendConfig.size`                                                       |Default volume size (in GB), if not specified by the user when creating a new volume. Default value is 1. | ` ` |
+
 | `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
 | `spectrumConnect.backendConfig.instanceName`                                                    | A prefix for any new volume created on the storage system | ` ` |
 | `spectrumConnect.backendConfig.skipRescanIscsi`                                                 | Allowed values: true or false. Set to true if the nodes have FC connectivity | `false` |
