@@ -100,11 +100,11 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `ubiquity.spectrumConnect.connectionInfo.backendConfig.size`                                                       |Default volume size (in GB), if not specified by the user when creating a new volume. | 1 |
 | `ubiquityDb.dbCredentials.username`                                                       |Username for the deployment of ubiquity-db database. Do not use the postgres username, because it already exists. |  |
 | `ubiquityDb.dbCredentials.password`                                                       |Password for the deployment of ubiquity-db database. |  |
-| `ubiquityDb.persistence.pvName`                                                       |Name of the persistent volume to be used for the ubiquity-db database.
-For the Spectrum Virtualize and Spectrum Accelerate storage systems, use the default value (ibm-ubiquity-db). For the DS8000 storage system, use a shorter value, such as (ibmdb). This is necessary because the DS8000 volume name length cannot exceed 8 characters. |  |
-
-
-
+| `ubiquityDb.persistence.pvName`                                                       |Name of the persistent volume to be used for the ubiquity-db database. For the Spectrum Virtualize and Spectrum Accelerate storage systems, use the default value (ibm-ubiquity-db). For the DS8000 storage system, use a shorter value, such as (ibmdb). This is necessary because the DS8000 volume name length cannot exceed 8 characters. |  |
+| `ubiquityDb.persistence.pvSize`                                                       |Default size (in GB) of the persistent volume to be used for the ubiquity-db database. | 20 |
+| `ubiquityDb.persistence.useExistingPv`                                                       |Enabling the usage of an existing PV as the ubiquity-db database PV. Allowed values: True or False. | True |
+| `ubiquityDb.persistence.storageClass.storageClassName`                                                       |Storage class name. The storage class parameters are used for creating an initial storage class for the ubiquity-db PVC. You can use this storage class for other applications as well. It is recommended to set the storage class name to be the same as the Spectrum Connect storage service name. | |
+| `ubiquityDb.persistence.storageClass.existingStorageClass`                                                       |Enabling the usage of an existing storage class object if it exists. | |
 
 
 | `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
