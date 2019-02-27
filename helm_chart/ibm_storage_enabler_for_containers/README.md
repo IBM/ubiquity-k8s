@@ -103,27 +103,15 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `ubiquityDb.persistence.pvName`                                                       |Name of the persistent volume to be used for the ubiquity-db database. For the Spectrum Virtualize and Spectrum Accelerate storage systems, use the default value (ibm-ubiquity-db). For the DS8000 storage system, use a shorter value, such as (ibmdb). This is necessary because the DS8000 volume name length cannot exceed 8 characters. |  |
 | `ubiquityDb.persistence.pvSize`                                                       |Default size (in GB) of the persistent volume to be used for the ubiquity-db database. | 20 |
 | `ubiquityDb.persistence.useExistingPv`                                                       |Enabling the usage of an existing PV as the ubiquity-db database PV. Allowed values: True or False. | True |
-| `ubiquityDb.persistence.storageClass.storageClassName`                                                       |Storage class name. The storage class parameters are used for creating an initial storage class for the ubiquity-db PVC. You can use this storage class for other applications as well. It is recommended to set the storage class name to be the same as the Spectrum Connect storage service name. | |
+ubiquityDb.persistence.storageClass.storageClassName`                                                       |Storage class name. The storage class parameters are used for creating an initial storage class for the ubiquity-db PVC. You can use this storage class for other applications as well. It is recommended to set the storage class name to be the same as the Spectrum Connect storage service name. | |
 | `ubiquityDb.persistence.storageClass.existingStorageClass`                                                       |Enabling the usage of an existing storage class object if it exists. | |
 | `ubiquityDb.persistence.storageClass.spectrumConnect.spectrumConnectServiceName`                                                       |Storage class profile, directing to the Spectrum Connect storage service name. | |
 | `ubiquityDb.persistence.storageClass.spectrumConnect.fsType`                                                       |File system type for the storage class profile. Allowed values: ext4 or xfs.  | ext4 |
+| `ubiquityK8sFlex.flexLogDir`                                                       |Directory for storing the ubiquity-k8s-flex.log file.  | /var/log |
+| `ubiquityK8sFlex.ubiquityIPaddress`                                                       |IP address of the ubiquity service object.  | |
+| `globalConfig.logLevel`                                                       |Log level. Allowed values: debug, info, error.  | info |
+| `globalConfig.sslMode`                                                       |SSL verification mode. Allowed values: require (No validation is required, the IBM Storage Enabler for Containers server generates self-signed certificates on the fly.) or verify-full (Certificates are provided by the user.).  | require |
 
-
-| `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
-| `spectrumConnect.backendConfig.instanceName`                                                    | A prefix for any new volume created on the storage system | ` ` |
-| `spectrumConnect.backendConfig.skipRescanIscsi`                                                 | Allowed values: true or false. Set to true if the nodes have FC connectivity | `false` |
-| `spectrumConnect.backendConfig.DefaultStorageService`                                           | Default Spectrum Connect storage service to be used, if not specified by the storage class | ` ` |
-| `spectrumConnect.backendConfig.newVolumeDefaults.fsType`                                        | File system type. Allowed values: ext4 or xfs | `ext4` |
-| `spectrumConnect.backendConfig.newVolumeDefaults.size`                                          | The default volume size (in GB) if not specified by the user when creating a new volume | `1` |
-| `spectrumConnect.backendConfig.dbPvConfig.ubiquityDbPvName`                                     | Ubiquity database PV name. For Spectrum Virtualize and Spectrum Accelerate, use default value "ibm-ubiquity-db". For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars | `ibm-ubiquity-db`                                                        |
-| `spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.storageClassName`                 | Parameters to create the first Storage Class that also be used by ubiquity for ibm-ubiquity-db PVC | ` `|
-| `spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.spectrumConnectServiceName`| Storage Class profile parameter should point to the Spectrum Connect storage service name | ` ` |
-| `spectrumConnect.backendConfig.dbPvConfig.storageClassForDbPv.params.fsType`                    | Storage Class file-system type, Allowed values: ext4 or xfs | `ext4` |
-| `genericConfig.ubiquityIpAddress`                                                               | The IP address of the ubiquity service object | ` ` |
-| `genericConfig.logging.logLevel`                                                                | Log level. Allowed values: debug, info, error | `info` |
-| `genericConfig.logging.flexLogDir`                                                              | Flex log directory. If you change the default, then make the new path exist on all the nodes and update the Flex daemonset hostpath according | `/var/log` |
-| `genericConfig.ubiquityDbCredentials.username`                                                  | Username for the deployment of ubiquity-db database. Do not use the "postgres" username, because it already exists | ` ` |
-| `genericConfig.ubiquityDbCredentials.password`                                                  | Password for the deployment of ubiquity-db database | ` ` |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`.
 
