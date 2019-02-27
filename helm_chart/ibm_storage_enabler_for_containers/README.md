@@ -129,5 +129,4 @@ Alternatively, a YAML file that specifies the values for the parameters can be p
 *  None of the deployments under this chart  support scaling. Thus, their replica must be 1.
 
 ## Documentation
-* Can have as many supporting links as necessary for this specific workload however don't overload the consumer with unnecessary information.
-* Can be links to special procedures in the knowledge center.
+Full documentation set for IBM Storage Enabler for Containers is available in IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
