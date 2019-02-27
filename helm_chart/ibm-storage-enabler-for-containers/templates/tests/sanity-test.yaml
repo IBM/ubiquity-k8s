@@ -7,6 +7,20 @@ metadata:
   labels:
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
 spec:
+  hostNetwork: false
+  hostPID: false
+  hostIPC: false
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                  - amd64
+                  - ppc64le
+                  - s390x
   containers:
     - name: sanity-test
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
