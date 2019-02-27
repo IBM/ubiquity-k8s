@@ -91,9 +91,10 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `images.provisioner`                                                                            | Image for Kubernetes Dynamic Provisioner | `ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0` |
 | `images.flex`                                                                                   | Image for Kubernetes FlexVolume | `ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0` |
 | `ubiquity.spectrumConnect.connectionInfo.fqdn`                                                           | IP address or FQDN of the Spectrum Connect server. | ` ` |
-| `spectrumConnect.connectionInfo.port`                                                           | Port of Spectrum Connect server. | ` ` |
+| `ubiquity.spectrumConnect.connectionInfo.port`                                                           |Communication port of the Spectrum Connect server. Default value is 8440. | ` ` |
 | `spectrumConnect.connectionInfo.username`                                                       | Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
 | `spectrumConnect.connectionInfo.password`                                                       | Password defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
+| `spectrumConnect.connectionInfo.backendConfig.instanceName`                                                       |A prefix for any new volume created on the storage system. | ` ` |
 | `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
 | `spectrumConnect.backendConfig.instanceName`                                                    | A prefix for any new volume created on the storage system | ` ` |
 | `spectrumConnect.backendConfig.skipRescanIscsi`                                                 | Allowed values: true or false. Set to true if the nodes have FC connectivity | `false` |
