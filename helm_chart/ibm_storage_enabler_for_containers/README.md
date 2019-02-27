@@ -105,6 +105,8 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `ubiquityDb.persistence.useExistingPv`                                                       |Enabling the usage of an existing PV as the ubiquity-db database PV. Allowed values: True or False. | True |
 | `ubiquityDb.persistence.storageClass.storageClassName`                                                       |Storage class name. The storage class parameters are used for creating an initial storage class for the ubiquity-db PVC. You can use this storage class for other applications as well. It is recommended to set the storage class name to be the same as the Spectrum Connect storage service name. | |
 | `ubiquityDb.persistence.storageClass.existingStorageClass`                                                       |Enabling the usage of an existing storage class object if it exists. | |
+| `ubiquityDb.persistence.storageClass.spectrumConnect.spectrumConnectServiceName`                                                       |Storage class profile, directing to the Spectrum Connect storage service name. | |
+| `ubiquityDb.persistence.storageClass.spectrumConnect.fsType`                                                       |File system type for the storage class profile. Allowed values: ext4 or xfs.  | ext4 |
 
 
 | `spectrumConnect.connectionInfo.sslMode`                                                        | SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates) | `require` |
