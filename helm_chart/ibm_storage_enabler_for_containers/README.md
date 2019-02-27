@@ -12,10 +12,10 @@ The operations include initiation, attachment/detachment, mounting/unmounting et
 
 ## Chart Details
 This chart includes:
-* A Storage Enabler for Containers server deployment used as the server of Kubernetes Dynamic Provisioner and FlexVolume.
-* A Ubiquity database Deployment used to store the persistent data of Ubiquity server.
-* A Kubernetes Dynamic Provisioner Deployment for creation  storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
-* A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
+* A Storage Enabler for Containers server deployment is used as the server for running Kubernetes Dynamic Provisioner and FlexVolume.
+* A Storage Enabler for Containers database deployment is used to store the persistent data for Enabler for Container server.
+* A Kubernetes Dynamic Provisioner deployment is for creation storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
+* A Kubernetes FlexVolume DaemonSet is used for attaching and mounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
 Before installing the helm chart, verify following:
