@@ -4,7 +4,7 @@
 * Don't include versions of charts or products
 
 ## Introduction
-IBM Storage Enabler for Containers allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
+IBM Storage Enabler for Containers (ISEC) allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
 Thus, the containers can be used with stateful microservices, such as database applications (MongoDB, PostgreSQL etc).
 IBM Storage Enabler for Containers uses Kubernetes dynamic provisioning for creating and deleting volumes on IBM storage systems.
 In addition, IBM Storage Enabler for Containers utilizes the full set of Kubernetes FlexVolume APIs for volume operations on a host.
@@ -86,8 +86,8 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 
 | Parameter                  | Description                                     | Default                                                    |
 | -----------------------    | ---------------------------------------------   | ---------------------------------------------------------- |
-| `images.ubiquity`                                                                               | Image for Ubiquity server | `ibmcom/ibm-storage-enabler-for-containers:2.0.0` |
-| `images.ubiquitydb`                                                                             | Image for Ubiquity database | `ibmcom/ibm-storage-enabler-for-containers-db:2.0.0` |
+| `images.ubiquity`                                                                               | Image for ISEC server | `ibmcom/ibm-storage-enabler-for-containers:2.0.0` |
+| `images.ubiquitydb`                                                                             | Image for ISEC database | `ibmcom/ibm-storage-enabler-for-containers-db:2.0.0` |
 | `images.provisioner`                                                                            | Image for Kubernetes Dynamic Provisioner | `ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0` |
 | `images.flex`                                                                                   | Image for Kubernetes FlexVolume | `ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0` |
 | `spectrumConnect.connectionInfo.fqdn`                                                           | IP\FQDN of Spectrum Connect server. | ` ` |
