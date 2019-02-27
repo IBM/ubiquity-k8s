@@ -34,6 +34,11 @@ Before installing the helm chart, verify following:
 
 These configuration steps are mandatory and cannot be skipped. See the IBM Storage Enabler for Containers user guide for their detailed description.
 
+## PodSecurityPolicy Requirements
+This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "globalConfig.defaultPodSecurityPolicy.clusterRole". 
+
+The predefined PodSecurityPolicy name: ibm-anyuid-hostpath has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
+The predefined clusterRole name: ibm-anyuid-hostpath-clusterrole has been verified for this chart, if you use it you can proceed to install the chart.
 
 ## Resources Required
 * Describes Minimum System Resources Required
@@ -117,11 +122,8 @@ Alternatively, a YAML file that specifies the values for the parameters can be p
 * Any special quality of service or security needs for storage
 
 ## Limitations
-* Deployment limits - can you deploy more than once, can you deploy into different namespace
-* List specific limitations such as platforms, security, replica's, scaling, upgrades etc.. - noteworthy limits identified
-* List deployment limitations such as : restrictions on deploying more than once or into custom namespaces.
-* Not intended to provide chart nuances, but more a state of what is supported and not - key items in simple bullet form.
-* Does it support IBM Cloud Kubernetes Service in addition to IBM Cloud Private?
+* Only one instance of IBM Storage Enabler for Containers can be deployed in a Kubernetes cluster.
+*  None of the deployments under this chart  support scaling. Thus, their replica must be 1.
 
 ## Documentation
 * Can have as many supporting links as necessary for this specific workload however don't overload the consumer with unnecessary information.
