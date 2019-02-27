@@ -28,8 +28,8 @@ ubiquity:
       fqdn:
       port: 8440
       # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
-      username: admin
-      password: admin1!
+      username:
+      password:
 
       # Set this param with an existing spectrum connect secret object if one exist.
       existingSecret:
