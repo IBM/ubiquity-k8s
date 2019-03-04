@@ -4,22 +4,22 @@
 
 ubiquity:
   __metadata:
-    label: "ubiquity label"
-    description: "Ubiquity description"
+    label: "Ubiquity"
+    description: "Settings for ubiquity server."
   image:
     repository:
       __metadata:
-        name: "repository"
-        label: "repository label"
-        description: "Repository description"
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
         type: "string"
         immutable: false
         required: true
     tag:
       __metadata:
         name: "tag"
-        label: "tag label"
-        description: "Tag description"
+        label: "Docker image tag"
+        description: "Docker image tag."
         type: "string"
         immutable: false
         required: true
@@ -35,11 +35,15 @@ ubiquity:
         - label: "IfNotPresent"
           value: "IfNotPresent"
   resources:
+    __metadata:
+      label: "Ubiquity resource configuration"
+      description: "The resource configuration for ubiquity deployment."
 
   backend:
     __metadata:
-      label: "backend label"
-      description: "Operation backend of Provisioner and Flex volume."
+      label: "Backend"
+      description: "Backend of Provisioner and Flex volume. If one is specified, ignore all the settings for others."
+      immutable: true
       options:
       - label: "spectrumConnect"
         value: "spectrumConnect"
@@ -51,32 +55,32 @@ ubiquity:
       fqdn:
         __metadata:
           name: "fqdn"
-          label: "spectrumScale fqdn label"
+          label: "Spectrum Connect IP or FQDN"
           description: "IP or FQDN of Spectrum Connect server."
           type: "string"
       port:
         __metadata:
           name: "port"
-          label: "port label"
+          label: "Spectrum Connect port"
           description: "Port of Spectrum Connect server."
           type: "number"
       username:
         __metadata:
           name: "username"
-          label: "username label"
+          label: "Spectrum Connect username"
           description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect."
           type: "string"
       password:
         __metadata:
           name: "password"
-          label: "password label"
+          label: "Spectrum Connect password"
           description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Connect."
           type: "string"
 
       existingSecret:
         __metadata:
           name: "existingSecret"
-          label: "existingSecret label"
+          label: "Existing secret for Spectrum Connect"
           description: "Set this param with an existing Spectrum Connect secret object if one exist."
           type: "string"
 
@@ -84,20 +88,21 @@ ubiquity:
       instanceName:
         __metadata:
           name: "instanceName"
-          label: "instance name"
+          label: "Spectrum Connect instance name"
           description: "A prefix for any new volume created on the storage system."
           type: "string"
+          immutable: true
       defaultStorageService:
         __metadata:
           name: "defaultStorageService"
-          label: "default storageService"
+          label: "Spectrum Connect default storage Service"
           description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
           type: "string"
       newVolumeDefaults:
         fsType:
           __metadata:
             name: "fsType"
-            label: "fs type"
+            label: "Default fstype of a new volume"
             description: "The fstype of a new volume if not specified by the user in the storage class."
             options:
             - label: "ext4"
@@ -107,7 +112,7 @@ ubiquity:
         size:
           __metadata:
             name: "size"
-            label: "size label"
+            label: "Default volume size (in GiB)"
             description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
             type: "number"
 
@@ -116,32 +121,32 @@ ubiquity:
       fqdn:
         __metadata:
           name: "fqdn"
-          label: "spectrumScale fqdn label"
+          label: "Spectrum Scale IP or FQDN"
           description: "IP or FQDN of Spectrum Scale RESTful API server."
           type: "string"
       port:
         __metadata:
           name: "port"
-          label: "port label"
+          label: "Spectrum Scale port"
           description: "Port of Spectrum Scale RESTful API server."
           type: "number"
       username:
         __metadata:
           name: "username"
-          label: "username label"
+          label: "Spectrum Scale username"
           description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Scale."
           type: "string"
       password:
         __metadata:
           name: "password"
-          label: "password label"
+          label: "Spectrum Scale password"
           description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Scale."
           type: "string"
 
       existingSecret:
         __metadata:
           name: "existingSecret"
-          label: "existing secret"
+          label: "Existing secret for Spectrum Scale"
           description: "Set this param with an existing Spectrum Scale secret object if one exist."
           type: "string"
 
@@ -150,29 +155,29 @@ ubiquity:
       defaultFilesystemName:
         __metadata:
           name: "defaultFilesystemName"
-          label: "default filesystem name"
+          label: "Default Spectrum Scale filesystem name"
           description: "Default Spectrum Scale filesystem to be used."
           type: "string"
 
 
 ubiquityDb:
   __metadata:
-    label: "ubiquity db"
-    description: "Ubiquity db description"
+    label: "Ubiquity DB"
+    description: "Settings for ubiquity DB."
   image:
     repository:
       __metadata:
-        name: "repository"
-        label: "repository label"
-        description: "Repository description"
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
         type: "string"
         immutable: false
         required: true
     tag:
       __metadata:
         name: "tag"
-        label: "tag label"
-        description: "Tag description"
+        label: "Docker image tag"
+        description: "Docker image tag."
         type: "string"
         immutable: false
         required: true
@@ -188,24 +193,34 @@ ubiquityDb:
         - label: "IfNotPresent"
           value: "IfNotPresent"
   resources:
+    __metadata:
+      label: "Ubiquity DB resource configuration"
+      description: "The resource configuration for ubiquity DB deployment."
   nodeSelector:
+    __metadata:
+      label: "Node Selector"
+      description: "Specify the extra node selector for deployment."
+      type: "string"
+      minProperties: 0
+      immutable: false
+      required: false
   dbCredentials:
     username:
       __metadata:
         name: "username"
-        label: "username label"
+        label: "Ubiquity DB username"
         description: "Username for the deployment of ubiquity-db database."
         type: "string"
     password:
       __metadata:
         name: "password"
-        label: "password label"
+        label: "Ubiquity DB password"
         description: "Password for the deployment of ubiquity-db database."
         type: "string"
     existingSecret:
       __metadata:
         name: "existingSecret"
-        label: "existing secret"
+        label: "Existing secret for Ubiquity DB"
         description: "Set this param with an existing secret object if one exist."
         type: "string"
 
@@ -213,22 +228,24 @@ ubiquityDb:
     pvName:
       __metadata:
         name: "pvName"
-        label: "pv name"
-        description: "Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use spectrumConnect as backend."
+        label: "Ubiquity DB PV name"
+        description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use spectrumConnect as backend."
         type: "string"
         required: true
+        immutable: true
     pvSize:
       __metadata:
         name: "pvSize"
-        label: "pv size"
-        description: "pv Size description"
+        label: "Ubiquity DB PV size"
+        description: "The size of ubiquity DB PV."
         type: "string"
         required: true
+        immutable: true
 
     useExistingPv:
       __metadata:
         name: "useExistingPv"
-        label: "useExisting pv"
+        label: "Use an existing PV as the Ubiquity DB PV"
         description: "Set this param to true if you want to use an existing PV as Ubiquity database PV. Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version."
         type: "boolean"
 
@@ -236,35 +253,38 @@ ubiquityDb:
       storageClassName:
         __metadata:
           name: "storageClassName"
-          label: "storageClass name"
-          description: "storageClass Name description"
+          label: "Ubiquity DB storageClass"
+          description: "Name of Ubiquity DB storageClass"
           type: "string"
+          immutable: true
 
       existingStorageClass:
         __metadata:
           name: "existingStorageClass"
-          label: "existing storageClass"
+          label: "Existing storageClass for Ubiquity DB"
           description: "Set this param with an existing storageclass object if one exist."
           type: "string"
+          immutable: true
 
       defaultClass:
         __metadata:
           name: "defaultClass"
-          label: "defaultClass label"
-          description: "Set StorageClass as the default StorageClass."
+          label: "Is default storageClass?"
+          description: "Set to true if the storageClass of ubiquity DB is default storageClass."
           type: "boolean"
 
       spectrumConnect:
         spectrumConnectServiceName:
           __metadata:
             name: "spectrumConnectServiceName"
-            label: "spectrumConnect serviceName"
-            description: "Storage Class profile parameter must point to the Spectrum Connect storage service name."
+            label: "Spectrum Connect service name"
+            description: "The Spectrum Connect storage service name which is pointed to ubiquity DB storageClass profile parameter"
             type: "string"
+            immutable: true
         fsType:
           __metadata:
-            label: "fs type"
-            description: "Storage Class filesystem type."
+            label: "ubiquity DB storageClass fstype"
+            description: "The fstype parameter of ubiquity DB storageClass"
             options:
             - label: "ext4"
               value: "ext4"
@@ -274,22 +294,22 @@ ubiquityDb:
 
 ubiquityK8sFlex:
   __metadata:
-    label: "ubiquityK8s flex"
-    description: "ubiquityK8s Flex description"
+    label: "Ubiquity Kubernetes Flex volume"
+    description: "Settings for ubiquity Kubernetes Flex volume daemonSet."
   image:
     repository:
       __metadata:
-        name: "repository"
-        label: "repository label"
-        description: "Repository description"
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
         type: "string"
         immutable: false
         required: true
     tag:
       __metadata:
         name: "tag"
-        label: "tag label"
-        description: "Tag description"
+        label: "Docker image tag"
+        description: "Docker image tag."
         type: "string"
         immutable: false
         required: true
@@ -305,34 +325,41 @@ ubiquityK8sFlex:
         - label: "IfNotPresent"
           value: "IfNotPresent"
   resources:
-  # By default, the toleration is set to run the Flex DeamonSet on all worker and master nodes. To define a different toleration, uncomment and apply the relevant toleration value.
+    __metadata:
+      label: "Ubiquity Kubernetes Flex volume resource configuration"
+      description: "The resource configuration for Kubernetes Flex volume daemonSet."
   tolerations:
+    __metadata:
+      name: "tolerations"
+      label: "Tolerations"
+      description: "Toleration labels for pod assignment, e.g. [{\"key\": \"key\", \"operator\":\"Equal\", \"value\": \"value\", \"effect\":\"NoSchedule\"}]"
+      type: "string"
   flexLogDir:
     __metadata:
       name: "flexLogDir"
-      label: "flex LogDir"
-      description: "Flex log directory. If the default value is changed, make sure that the new path exists on all the nodes and update the Flex DaemonSet hostpath accordingly."
+      label: "Flex volume log directory"
+      description: "If the default value is changed, make sure that the new path exists on all the nodes and update the Flex DaemonSet hostpath accordingly."
       type: "string"
 
 
 ubiquityK8sProvisioner:
   __metadata:
-    label: "ubiquityK8s provisioner"
-    description: "ubiquityK8s Provisioner"
+    label: "Ubiquity Kubernetes  provisioner"
+    description: "Settings for ubiquity Kubernetes provisioner deployment."
   image:
     repository:
       __metadata:
-        name: "repository"
-        label: "repository label"
-        description: "Repository description"
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
         type: "string"
         immutable: false
         required: true
     tag:
       __metadata:
         name: "tag"
-        label: "tag label"
-        description: "Tag description"
+        label: "Docker image tag"
+        description: "Docker image tag."
         type: "string"
         immutable: false
         required: true
@@ -348,26 +375,29 @@ ubiquityK8sProvisioner:
         - label: "IfNotPresent"
           value: "IfNotPresent"
   resources:
+    __metadata:
+      label: "Ubiquity Kubernetes provisioner resource configuration"
+      description: "The resource configuration for Kubernetes provisioner deployment."
 
 
 ubiquityHelmUtils:
   __metadata:
-    label: "ubiquity helmUtils"
-    description: "ubiquity HelmUtils description"
+    label: "ubiquity Helm utils"
+    description: "Settings for ubiquity Helm utils."
   image:
     repository:
       __metadata:
-        name: "repository"
-        label: "repository label"
-        description: "Repository description"
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
         type: "string"
         immutable: false
         required: true
     tag:
       __metadata:
         name: "tag"
-        label: "tag label"
-        description: "Tag description"
+        label: "Docker image tag"
+        description: "Docker image tag."
         type: "string"
         immutable: false
         required: true
@@ -386,12 +416,12 @@ ubiquityHelmUtils:
 
 globalConfig:
   __metadata:
-    label: "global config"
-    description: "global Config description"
+    label: "Global configuration"
+    description: "Settings for global configuration."
   logLevel:
     __metadata:
-      label: "log level"
-      description: "log Level description"
+      label: "Log level"
+      description: "log Level."
       options:
       - label: "debug"
         value: "debug"
@@ -402,8 +432,8 @@ globalConfig:
 
   sslMode:
     __metadata:
-      label: "ssl mode"
-      description: "SSL verification mode. SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale]."
+      label: "SSL verification mode"
+      description: "SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale]."
       options:
       - label: "require (no validation is required)"
         value: "require"
@@ -414,12 +444,12 @@ globalConfig:
     enabled:
       __metadata:
         name: "enabled"
-        label: "enabled label"
-        description: "Enable the default pod security policy if it is set to true. Default is false."
+        label: "Enable the default pod security policy"
+        description: "Enable the default pod security policy if you want to set default pod security policy."
         type: "boolean"
     clusterRole:
       __metadata:
         name: "clusterRole"
-        label: "clusterRole label"
-        description: "The name of clusterRole that has the required policies attached. Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole"
+        label: "Name of clusterRole"
+        description: "The name of clusterRole that has the required policies attached."
         type: "string"
