@@ -51,7 +51,7 @@ ubiquity:
       fqdn:
         __metadata:
           name: "fqdn"
-          label: "fqdn label"
+          label: "spectrumScale fqdn label"
           description: "IP or FQDN of Spectrum Connect server."
           type: "string"
       port:
@@ -116,7 +116,7 @@ ubiquity:
       fqdn:
         __metadata:
           name: "fqdn"
-          label: "fqdn label"
+          label: "spectrumScale fqdn label"
           description: "IP or FQDN of Spectrum Scale RESTful API server."
           type: "string"
       port:

@@ -47,7 +47,7 @@ spec:
 {{ toYaml . | indent 10 }}
         {{- end }}
         env:
-{{- if .Values.ubiquity.spectrumConnect }}
+{{- if eq .Values.ubiquity.backend "spectrumConnect" }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
           - name: SCBE_USERNAME
@@ -110,7 +110,7 @@ spec:
 {{- end }}
 
 
-{{- if .Values.ubiquity.spectrumScale }}
+{{- if eq .Values.ubiquity.backend "spectrumScale" }}
 
           ### Ubiquity Spectrum Scale backend parameters:
           #####################################
@@ -238,11 +238,11 @@ spec:
           items:
           - key: ubiquity-db-trusted-ca.crt
             path: ubiquity-db-trusted-ca.crt
-  {{- if .Values.ubiquity.spectrumConnect }}
+  {{- if eq .Values.ubiquity.backend "spectrumConnect" }}
           - key: scbe-trusted-ca.crt
             path: scbe-trusted-ca.crt
   {{- end }}
-  {{- if .Values.ubiquity.spectrumScale }}
+  {{- if eq .Values.ubiquity.backend "spectrumScale" }}
           - key: spectrumscale-trusted-ca.crt
             path: spectrumscale-trusted-ca.crt
   {{- end }}
