@@ -110,7 +110,7 @@ import:
   subpackages:
   - lib
 - package: github.com/IBM/ubiquity
-  version: e031aec6d2ae42da94d3a9ba0c4922a2dc470e5b
+  version: fix/mountpoint-permissions
   subpackages:
   - remote
   - resources
