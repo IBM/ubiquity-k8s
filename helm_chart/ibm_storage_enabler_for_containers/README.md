@@ -115,11 +115,7 @@ Specify each parameter using the `--set key=value[,key=value]` argument to `helm
 Alternatively, a YAML file that specifies the values for the parameters can be provided while installing the chart.
 
 ## Storage
-* Define how storage works with the workload
-* Dynamic vs PV pre-created
-* Considerations if using hostpath, local volume, empty dir
-* Loss of data considerations
-* Any special quality of service or security needs for storage
+IBM Storage Enabler for Containers is a dynamic provisioner for persistent volumes, it allows IBM storage systems volumes to be used for stateful applications running in Kubernetes clusters.
 
 ## Limitations
 * Only one instance of IBM Storage Enabler for Containers can be deployed in a Kubernetes cluster.
