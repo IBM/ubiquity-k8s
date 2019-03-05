@@ -38,10 +38,14 @@ The predefined PodSecurityPolicy name: ibm-anyuid-hostpath has been verified for
 The predefined clusterRole name: ibm-anyuid-hostpath-clusterrole has been verified for this chart, if you use it you can proceed to install the chart.
 
 ## Resources Required
-* Describes Minimum System Resources Required
+IBM Storage Enabler for Containers can be deployed on the following operating systems and orchestration platforms:  
+* RHEL 7.x
+* Ubuntu 16.04 or later
+* SLES 12
+* Kubernetes 1.10–1.12
+* IBM Cloud Private 3.1.1, 3.1.2
 
 ## Installing the Chart
-
 To install the chart with the release name `my-release`:
 
 ```bash
@@ -65,7 +69,6 @@ $ helm test my-release
 ```
 
 ### Uninstalling the Chart
-
 To uninstall/delete the `my-release` release:
 
 ```bash
