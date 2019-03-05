@@ -43,7 +43,6 @@ ubiquity:
     __metadata:
       label: "Backend"
       description: "Backend of Provisioner and Flex volume. If one is specified, ignore all the settings for others."
-      immutable: true
       options:
       - label: "spectrumConnect"
         value: "spectrumConnect"
@@ -91,7 +90,6 @@ ubiquity:
           label: "Spectrum Connect instance name"
           description: "A prefix for any new volume created on the storage system."
           type: "string"
-          immutable: true
       defaultStorageService:
         __metadata:
           name: "defaultStorageService"
@@ -102,7 +100,7 @@ ubiquity:
         fsType:
           __metadata:
             name: "fsType"
-            label: "Default fstype of a new volume"
+            label: "Spectrum Connect default fstype of a new volume"
             description: "The fstype of a new volume if not specified by the user in the storage class."
             options:
             - label: "ext4"
@@ -112,7 +110,7 @@ ubiquity:
         size:
           __metadata:
             name: "size"
-            label: "Default volume size (in GiB)"
+            label: "Spectrum Connect default volume size (in GiB)"
             description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
             type: "number"
 
@@ -232,7 +230,6 @@ ubiquityDb:
         description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use spectrumConnect as backend."
         type: "string"
         required: true
-        immutable: true
     pvSize:
       __metadata:
         name: "pvSize"
@@ -240,7 +237,6 @@ ubiquityDb:
         description: "The size of ubiquity DB PV."
         type: "string"
         required: true
-        immutable: true
 
     useExistingPv:
       __metadata:
@@ -256,7 +252,6 @@ ubiquityDb:
           label: "Ubiquity DB storageClass"
           description: "Name of Ubiquity DB storageClass"
           type: "string"
-          immutable: true
 
       existingStorageClass:
         __metadata:
@@ -264,7 +259,6 @@ ubiquityDb:
           label: "Existing storageClass for Ubiquity DB"
           description: "Set this param with an existing storageclass object if one exist."
           type: "string"
-          immutable: true
 
       defaultClass:
         __metadata:
@@ -280,7 +274,6 @@ ubiquityDb:
             label: "Spectrum Connect service name"
             description: "The Spectrum Connect storage service name which is pointed to ubiquity DB storageClass profile parameter"
             type: "string"
-            immutable: true
         fsType:
           __metadata:
             label: "ubiquity DB storageClass fstype"
