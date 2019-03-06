@@ -34,8 +34,67 @@ These configuration steps are mandatory and cannot be skipped. See the IBM Stora
 ## PodSecurityPolicy Requirements
 This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "globalConfig.defaultPodSecurityPolicy.clusterRole". 
 
-The predefined PodSecurityPolicy name: ibm-anyuid-hostpath has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
+The predefined PodSecurityPolicy name: [`ibm-anyuid-hostpath-psp`](https://ibm.biz/cpkspec-psp) has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
 The predefined clusterRole name: ibm-anyuid-hostpath-clusterrole has been verified for this chart, if you use it you can proceed to install the chart.
+You can also define a custom PodSecurityPolicy which can be used to finely control the permissions/capabilities needed to deploy this chart. You can enable this custom PodSecurityPolicy using the ICP user interface.
+
+- From the user interface, you can copy and paste the following snippets to enable the custom PodSecurityPolicy
+  - Custom PodSecurityPolicy definition:
+    ```
+    apiVersion: extensions/v1beta1
+    kind: PodSecurityPolicy
+    metadata:
+      annotations:
+        kubernetes.io/description: "This policy allows pods to run with 
+          any UID and GID and any volume, including the host path.  
+          WARNING:  This policy allows hostPath volumes.  
+          Use with caution." 
+      name: custom-psp
+    spec:
+      allowPrivilegeEscalation: true
+      fsGroup:
+        rule: RunAsAny
+      requiredDropCapabilities: 
+      - MKNOD
+      allowedCapabilities:
+      - SETPCAP
+      - AUDIT_WRITE
+      - CHOWN
+      - NET_RAW
+      - DAC_OVERRIDE
+      - FOWNER
+      - FSETID
+      - KILL
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+      - SYS_CHROOT
+      - SETFCAP 
+      runAsUser:
+        rule: RunAsAny
+      seLinux:
+        rule: RunAsAny
+      supplementalGroups:
+        rule: RunAsAny
+      volumes:
+      - '*'
+    ```
+  - Custom ClusterRole for the custom PodSecurityPolicy:
+    ```
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: custom-clusterrole
+    rules:
+    - apiGroups:
+      - extensions
+      resourceNames:
+      - custom-psp
+      resources:
+      - podsecuritypolicies
+      verbs:
+      - use
+    ```
 
 ## Resources Required
 IBM Storage Enabler for Containers can be deployed on the following operating systems and orchestration platforms:  
