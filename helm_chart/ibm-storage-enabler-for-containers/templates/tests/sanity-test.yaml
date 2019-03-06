@@ -23,6 +23,10 @@ spec:
                   - s390x
   containers:
     - name: sanity-test
+      securityContext:
+        readOnlyRootFilesystem: false
+        runAsNonRoot: false
+        runAsUser: 1001
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
       imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
       command: ["/usr/bin/hook-executor"]

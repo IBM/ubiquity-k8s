@@ -1,0 +1,35 @@
+ignoreMessages:
+  - '\[WARNING\] .*expected use of storageClassName key within condition based on parameter containing.*'
+
+    # Flex volume daemonSet requires hostpath in order to deploy the flex binary on the node. we cannot avoid it.
+  - '\[ERROR\] .*use of hostPath not allowed.*'
+
+    # The replicas of the deployments in this chart is always 1, and we do not support ReadWriteMany.
+  - '\[ERROR\] .*unexpected deployment with ReadWriteOnce PVC.*'
+
+    # Linter 1.3.4
+    # Current chart allows users to use a generated TLS secret in the release. This is a known
+    # gap to close in next release or CloudPak L2 certification.
+    # To move secret generation according to ICP guidance, ie: use hooks/jobs
+    # or only allow user pre-created secrets.
+    # We support both user pre-created secrets and default secrets
+  - '\[ERROR\] .*found Secret resource, review the playbook for directions and proper use at.*'
+
+  #Like https://github.ibm.com/IBMPrivateCloud/charts/blob/master/stable/ibm-powervc-k8s-volume-driver/cv-tests/lintOverrides.yaml
+  #We can't provide livenessProbe in this release and we will provide them in next release
+  - '\[ERROR\] .*expected container to have a livenessProbe.*'
+
+  #We can't provide readinessProbe in this release and we will provide them in next release
+  - '\[ERROR\] .*expected container to have a readinessProbe.*'
+
+  # We will add it in next release.
+  - '\[ERROR\] .*missing pod security-related keys.*'
+
+  # We store our images on dockerHub, no imagePullSecrets are required.
+  - '\[ERROR\] .*imagePullSecret with name "sa\-\{\{ .Release.Namespace \}\}" not found in imagePullSecrets.*'
+
+  # We will support it in next release.
+  - '\[ERROR\] .*container must drop.*'
+
+  # We will fix it in next release, but currently, our pods mush run as root.
+  - '\[ERROR\] .*container running as root is not allowed.*'

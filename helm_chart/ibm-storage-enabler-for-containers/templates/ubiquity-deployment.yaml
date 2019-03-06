@@ -16,10 +16,12 @@ spec:
       labels:
         app: ubiquity
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
         checksum/secret-scbe: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
         checksum/secret-spectrumscale: {{ include (print $.Template.BasePath "/spectrumscale-credentials-secret.yaml") . | sha256sum }}
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
       hostNetwork: false
       hostPID: false
@@ -37,6 +39,10 @@ spec:
                       - s390x
       containers:
       - name: ubiquity
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
         ports:

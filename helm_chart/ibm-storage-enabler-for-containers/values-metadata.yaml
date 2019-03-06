@@ -199,9 +199,6 @@ ubiquityDb:
       label: "Node selector"
       description: "Extra node selector for deployment."
       type: "string"
-      minProperties: 0
-      immutable: false
-      required: false
   dbCredentials:
     username:
       __metadata:
@@ -227,7 +224,8 @@ ubiquityDb:
       __metadata:
         name: "pvName"
         label: "Ubiquity DB PV name"
-        description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use Spectrum Connect as backend."        type: "string"
+        description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use Spectrum Connect as backend."
+        type: "string"
         required: true
     pvSize:
       __metadata:
@@ -256,7 +254,7 @@ ubiquityDb:
         __metadata:
           name: "existingStorageClass"
           label: "Existing storage class for Enabler for Containers DB"
-          description: "Use an existing storage class object."
+          description: "Use an existing storage class object for Enabler for Containers DB."
           type: "string"
 
       defaultClass:

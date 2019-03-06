@@ -16,9 +16,11 @@ spec:
       labels:
         app: ubiquity-k8s-provisioner
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
       hostNetwork: false
       hostPID: false
@@ -37,6 +39,10 @@ spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquityK8sProvisioner.image.repository }}:{{ .Values.ubiquityK8sProvisioner.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sProvisioner.image.pullPolicy }}
         {{- with .Values.ubiquityK8sProvisioner.resources }}

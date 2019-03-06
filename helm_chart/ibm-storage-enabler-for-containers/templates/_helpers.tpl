@@ -32,6 +32,20 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
+Create product ID as used by the chart label.
+*/}}
+{{- define "ibm_storage_enabler_for_containers.productName" -}}
+"IBM Storage Enabler for Containers"
+{{- end -}}
+
+{{/*
+Create product name as used by the chart label.
+*/}}
+{{- define "ibm_storage_enabler_for_containers.productID" -}}
+ibm-storage-enabler-for-containers
+{{- end -}}
+
+{{/*
 Create the name for the scbe secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}
@@ -88,4 +102,16 @@ app: {{ template "ibm_storage_enabler_for_containers.name" . }}
 chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
 release: {{ .Release.Name }}
 heritage: {{ .Release.Service }}
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.podLabels" -}}
+chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+release: {{ .Release.Name }}
+heritage: {{ .Release.Service }}
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.productAnnotations" -}}
+productName: {{ template "ibm_storage_enabler_for_containers.productName" . }}
+productID: {{ template "ibm_storage_enabler_for_containers.productID" . }}
+productVersion: {{ .Chart.AppVersion }}
 {{- end -}}

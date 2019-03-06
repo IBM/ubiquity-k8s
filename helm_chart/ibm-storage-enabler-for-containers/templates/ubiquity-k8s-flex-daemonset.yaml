@@ -17,9 +17,11 @@ spec:
       labels:
         app: ubiquity-k8s-flex
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
       hostNetwork: false
       hostPID: false
@@ -49,6 +51,10 @@ spec:
 
       containers:
       - name: ubiquity-k8s-flex
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlex.resources }}

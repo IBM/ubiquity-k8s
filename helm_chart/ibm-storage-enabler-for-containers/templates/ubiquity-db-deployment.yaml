@@ -13,9 +13,12 @@ spec:
       product: ibm-storage-enabler-for-containers
   template:
     metadata:
+      annotations:
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
       labels:
         app: ubiquity-db
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
     spec:
       hostNetwork: false
       hostPID: false
@@ -37,6 +40,10 @@ spec:
       {{- end }}
       containers:
       - name: ubiquity-db
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
         {{- with .Values.ubiquityDb.resources }}
