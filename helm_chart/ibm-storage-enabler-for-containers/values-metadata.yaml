@@ -80,7 +80,7 @@ ubiquity:
         __metadata:
           name: "existingSecret"
           label: "Existing secret for Spectrum Connect"
-          description: "The value must be the same as configured in Spectrum Connect if the secret object exists."
+          description: "The value must be the same as configured in Spectrum Connect if the secret object exists.\n Keys username and password are mandatory."
           type: "string"
 
     backendConfig:
@@ -145,7 +145,7 @@ ubiquity:
         __metadata:
           name: "existingSecret"
           label: "Existing secret for Spectrum Scale"
-          description: "The value must be the same as configured in Spectrum Scale if the secret object exists."
+          description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
           type: "string"
 
     backendConfig:
@@ -219,7 +219,7 @@ ubiquityDb:
       __metadata:
         name: "existingSecret"
         label: "Existing secret for Enabler for Containers DB"
-        description: "The value must be the same as configured for the existing secret object."
+        description: "Define keys username, password and dbname for the secret object used by Enabler for Containers DB. The dbname must be set to 'ubiquity'."
         type: "string"
 
   persistence:
