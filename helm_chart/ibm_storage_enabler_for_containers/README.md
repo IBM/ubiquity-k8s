@@ -15,7 +15,7 @@ This chart includes:
 * A Kubernetes FlexVolume DaemonSet is used for attaching and mounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
-Before installing the helm chart, verify following:
+Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM Spectrum Connect, verify the following:
 1. Install and configure IBM Spectrum Connect, according to the application requirements.
 2. Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
 3. For each worker node:
@@ -29,7 +29,9 @@ Before installing the helm chart, verify following:
 5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers.
 6. When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
-These configuration steps are mandatory and cannot be skipped. See the IBM Storage Enabler for Containers user guide for their detailed description.
+Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale, verify the following: 
+
+These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
 ## PodSecurityPolicy Requirements
 This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "globalConfig.defaultPodSecurityPolicy.clusterRole". 
@@ -185,4 +187,4 @@ IBM Storage Enabler for Containers is a dynamic provisioner for persistent volum
 *  None of the deployments under this chart  support scaling. Thus, their replica must be 1.
 
 ## Documentation
-Full documentation set for IBM Storage Enabler for Containers is available in IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
+Full documentation set for IBM Storage Enabler for Containers is available on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
