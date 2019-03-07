@@ -35,6 +35,9 @@ HELM_PATH="$PROJECT_ROOT/scripts/ci"
 export PATH=$PATH:$HELM_PATH
 CHART_PATH="$PROJECT_ROOT/helm_chart/$CHART_NAME/"
 
+# load artifactory info, like ci_user and ci_password
+. site_vars
+
 update_chart_version
 
 # init helm
