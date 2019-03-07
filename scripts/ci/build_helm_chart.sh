@@ -1,8 +1,23 @@
+#!/bin/bash -e
+
 set -x
 set -e
 
+# update_chart_version will add the build number to the chart version
+function update_chart_version()
+{
+  if [ !$PRODUCTION_BUILD ]; then
+    chart_file="$CHART_PATH"Chart.yaml
+    sed -i -r "s/^version: [0-9]+\.[0-9]+\.[0-9]+$/&-$BUILD_NUMBER/" $chart_file
+  fi
+}
+
+function cleanup_helm()
+{
+	rm -rf ~/.helm
+}
+
 PRODUCTION_BUILD=false
-# BUILD_NUMBER=624
 
 ci_user="cssgitfuncid.CSS.Automation@il.ibm.com"
 ci_password="CSSG1tFunc1D"
@@ -14,22 +29,10 @@ CHART_FOLDER=$CHART_INDEX
 INDEX_PATH="$CHART_REPOSITORY/index.yaml"
 CHART_NAME="ibm-storage-enabler-for-containers"
 
-PWD=`pwd`
-export PATH=$PATH:$PWD
-CHART_PATH="$PWD/../../helm_chart/$CHART_NAME/"
-
-# update_chart_version will add the build number to the chart version
-function update_chart_version()
-{
-  if [ !$PRODUCTION_BUILD ]; then
-    chart_file="$CHART_PATH"Chart.yaml
-    sed -i -r "s/^version: [0-9]+\.[0-9]+\.[0-9]+$/&-$BUILD_NUMBER/" $chart_file
-  fi
-}
-
-function cleanup_helm() {
-	rm -rf ~/.helm
-}
+PROJECT_ROOT=`pwd`
+HELM_PATH="$PROJECT_ROOT/scripts/ci"
+export PATH=$PATH:$HELM_PATH
+CHART_PATH="$PROJECT_ROOT/helm_chart/$CHART_NAME/"
 
 update_chart_version
 
