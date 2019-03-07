@@ -4,6 +4,7 @@ set -x
 set -e
 
 # update_chart_version will add the build number to the chart version
+# for example: 1.0.0 -> 1.0.0-648
 function update_chart_version()
 {
   if [ !$PRODUCTION_BUILD ]; then
@@ -19,8 +20,8 @@ function cleanup_helm()
 
 PRODUCTION_BUILD=false
 
-ci_user="cssgitfuncid.CSS.Automation@il.ibm.com"
-ci_password="CSSG1tFunc1D"
+# ci_user=
+# ci_password=
 
 CHART_REPOSITORY="https://stg-artifactory.haifa.ibm.com/artifactory/chart-repo"
 CHART_REPOSITORY_NAME="artifactory"
@@ -66,4 +67,6 @@ curl -u $ci_user:$ci_password -T "$CHART_FOLDER/$CHART_NAME_TGZ" "$CHART_REPOSIT
 cleanup_helm
 
 CHART_VERSION=`echo "$CHART_NAME_TGZ" | egrep "[0-9]+\.[0-9]+\.[0-9]+-[0-9]+" -o`
-echo "\nchart_name: $CHART_NAME, chart_version: $CHART_VERSION" >> ubiquity_k8s_tags
+echo "Repository: $CHART_REPOSITORY" > ubiquity_helm_info
+echo "Name: $CHART_NAME" >> ubiquity_helm_info
+echo "Version: $CHART_VERSION" >> ubiquity_helm_info
