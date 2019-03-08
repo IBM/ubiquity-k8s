@@ -34,7 +34,7 @@ PROJECT_ROOT=`pwd`
 repo="work/src/github.com/IBM/ubiquity-k8s"
 HELM_PATH="$PROJECT_ROOT/$repo/scripts/ci"
 export PATH=$PATH:$HELM_PATH
-CHART_PATH="$repo/helm_chart/$CHART_NAME/"
+CHART_PATH="$PROJECT_ROOT/$repo/helm_chart/$CHART_NAME/"
 
 cd $repo
 # load artifactory info, like ci_user and ci_password
