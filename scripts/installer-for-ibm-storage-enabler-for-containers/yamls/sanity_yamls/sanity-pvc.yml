@@ -2,6 +2,8 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: "sanity-pvc"
+  labels:
+    pv-name: "sanity-pv"
   annotations:
     volume.beta.kubernetes.io/storage-class: "STORAGE_CLASS_NAME_VALUE"
 spec:
