@@ -31,10 +31,12 @@ INDEX_PATH="$CHART_REPOSITORY/index.yaml"
 CHART_NAME="ibm-storage-enabler-for-containers"
 
 PROJECT_ROOT=`pwd`
-HELM_PATH="$PROJECT_ROOT/scripts/ci"
+repo="work/src/github.com/IBM/ubiquity-k8s"
+HELM_PATH="$PROJECT_ROOT/$repo/scripts/ci"
 export PATH=$PATH:$HELM_PATH
-CHART_PATH="$PROJECT_ROOT/helm_chart/$CHART_NAME/"
+CHART_PATH="$repo/helm_chart/$CHART_NAME/"
 
+cd $repo
 # load artifactory info, like ci_user and ci_password
 . site_vars
 
@@ -68,6 +70,8 @@ curl -u $ci_user:$ci_password -T "$CHART_FOLDER/index.yaml" "$CHART_REPOSITORY/"
 curl -u $ci_user:$ci_password -T "$CHART_FOLDER/$CHART_NAME_TGZ" "$CHART_REPOSITORY/"
 
 cleanup_helm
+
+cd $PROJECT_ROOT
 
 CHART_VERSION=`echo "$CHART_NAME_TGZ" | egrep "[0-9]+\.[0-9]+\.[0-9]+-[0-9]+" -o`
 echo "Repository: $CHART_REPOSITORY" > ubiquity_helm_info
