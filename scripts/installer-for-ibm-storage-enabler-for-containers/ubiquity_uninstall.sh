@@ -97,7 +97,7 @@ kubectl get namespace $NS >/dev/null 2>&1 || { echo "Error: [$NS] namespace does
 
 . $UTILS # include utils for wait function and status
 
-if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+if [ "$KEEP_UBIQUITY_DB_PVC" = false ] ; then
     echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components, including ubiquity-db, credentials and namespace."
 else
     echo "Attention: Uninstall \"$PRODUCT_NAME\" will delete all Ubiquity components except the ubiquity-db PVC."
@@ -117,7 +117,7 @@ if kubectl get $nsf deployment ubiquity-db >/dev/null 2>&1; then
     wait_for_item_to_delete pod "ubiquity-db-" 10 4 regex $NS # to match the prefix of the pod
 fi
 
-if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+if [ "$KEEP_UBIQUITY_DB_PVC" = false ] ; then
     $kubectl_delete -f ${YML_DIR}/ubiquity-db-pvc.yml
     echo "Waiting for PVC ${UBIQUITY_DB_PVC_NAME} to be deleted, before deleting Ubiquity and Provisioner."
     wait_for_item_to_delete pvc ${UBIQUITY_DB_PVC_NAME} 10 3 "" $NS
@@ -148,7 +148,7 @@ $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterrolebindings.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-clusterroles.yml
 $kubectl_delete -f $YML_DIR/ubiquity-k8s-provisioner-serviceaccount.yml
 
-if [ "$KEEP_UBIQUITY_DB_PVC" = false] ; then
+if [ "$KEEP_UBIQUITY_DB_PVC" = false ] ; then
     $kubectl_delete -f $YML_DIR/ubiquity-namespace.yml
 fi
 

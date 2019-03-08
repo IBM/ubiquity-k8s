@@ -15,6 +15,6 @@ provisioner: "ubiquity/flex"
 parameters:
   backend: "spectrum-scale"
   filesystem: {{ .Values.ubiquity.spectrumScale.backendConfig.defaultFilesystemName | quote }}
-  fileset-type: "dependent"   ## Not allow to change it via the values.yml file, because for the DB volume the storage class must be dependent.
+  fileset-type: "dependent"   ## Not allow to change it via the values.yaml file, because for the DB volume the storage class must be dependent.
   type: fileset
 {{- end }}

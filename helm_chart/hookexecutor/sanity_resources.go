@@ -35,6 +35,8 @@ apiVersion: v1
 metadata:
   name: sanity-pvc
   namespace: default
+  labels:
+    pv-name: sanity-pv
   annotations:
     volume.beta.kubernetes.io/storage-class: ""
 spec:

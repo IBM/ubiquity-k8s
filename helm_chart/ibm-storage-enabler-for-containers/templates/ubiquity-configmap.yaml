@@ -37,7 +37,7 @@ data:
 {{- if .Values.ubiquity.spectrumScale }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumScale.connectionInfo.fqdn | quote }}
-  
+
    # Communication port of Spectrum Scale Management API server(GUI).
    SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumScale.connectionInfo.port | quote }}
 
@@ -63,13 +63,6 @@ data:
 
    # Log level. Allowed values: debug, info, error.
    LOG-LEVEL: {{ .Values.globalConfig.logLevel | quote }}
-
-
-   # The following keys are used by the ubiquity-k8s-flex daemonset
-   # --------------------------------------------------------------
-   # The IP address of the ubiquity service object. The ubiquity_installer.sh automatically updates this field during the initial installation.
-   # The user must update this key manually if the ubiqutiy service object IP was changed.
-   UBIQUITY-IP-ADDRESS: {{ .Values.ubiquityK8sFlex.ubiquityIpAddress | quote }}  # TODO this should be automatically set by post hook script(different PR)
 
    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
    SSL-MODE: {{ .Values.globalConfig.sslMode | quote }}

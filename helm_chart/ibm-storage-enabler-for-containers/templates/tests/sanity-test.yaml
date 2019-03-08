@@ -8,6 +8,7 @@ spec:
   containers:
     - name: sanity-test
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
+      imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
       command: ["/usr/bin/hook-executor"]
       args: ["sanity"]
       env:
