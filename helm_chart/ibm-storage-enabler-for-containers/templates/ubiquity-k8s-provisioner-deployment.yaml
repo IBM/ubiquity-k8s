@@ -2,9 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ubiquity-k8s-provisioner
-  annotations:
-    checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
-    checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
   labels:
     product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
@@ -19,6 +16,9 @@ spec:
       labels:
         app: ubiquity-k8s-provisioner
         product: ibm-storage-enabler-for-containers
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
     spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
