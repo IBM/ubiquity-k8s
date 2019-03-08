@@ -7,7 +7,7 @@ export GOPATH=`pwd`/work
 repo="work/src/github.com/IBM/ubiquity-k8s"
 rm -rf $repo || :
 mkdir -p $repo
-mv * $repo || :
+cp -R * $repo || :
 cd $repo
 
 pwd
