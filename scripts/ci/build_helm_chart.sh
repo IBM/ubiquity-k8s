@@ -43,6 +43,7 @@ cd $repo
 update_chart_version
 
 # init helm
+chmod +x "$HELM_PATH/helm"
 helm init --client-only
 
 # add ubiquity helm repo
