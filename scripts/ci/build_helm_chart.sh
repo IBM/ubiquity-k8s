@@ -20,10 +20,11 @@ function cleanup_helm()
 
 PRODUCTION_BUILD=false
 
-# ci_user=
-# ci_password=
+if [ -z $CHART_REPOSITORY ]; then
+  echo "ERROR: CHART_REPOSITORY is not set"
+  exit 1
+fi
 
-CHART_REPOSITORY="https://stg-artifactory.haifa.ibm.com/artifactory/chart-repo"
 CHART_REPOSITORY_NAME="artifactory"
 CHART_INDEX="artifactory-charts"
 CHART_FOLDER=$CHART_INDEX
@@ -37,8 +38,6 @@ export PATH=$PATH:$HELM_PATH
 CHART_PATH="$PROJECT_ROOT/$repo/helm_chart/$CHART_NAME/"
 
 cd $repo
-# load artifactory info, like ci_user and ci_password
-. site_vars
 
 update_chart_version
 
@@ -65,6 +64,9 @@ mv $CHART_NAME_TGZ $CHART_FOLDER
 
 # merge index.yaml
 helm repo index --merge "$CHART_FOLDER/index.yaml" --url $CHART_REPOSITORY $CHART_FOLDER
+
+# load artifactory info, like ci_user and ci_password
+. site_vars
 
 # upload chart and new index
 curl -u $ci_user:$ci_password -T "$CHART_FOLDER/index.yaml" "$CHART_REPOSITORY/"
