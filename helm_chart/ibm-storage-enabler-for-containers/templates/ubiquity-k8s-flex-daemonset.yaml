@@ -52,6 +52,10 @@ spec:
       serviceAccountName: ubiquity-k8s-flex
       initContainers:
       - name: ubiquity-k8s-flex-init-container
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlexInitContainer.resources }}
@@ -114,6 +118,10 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
       containers:
       - name: ubiquity-k8s-flex-sidecar
+        securityContext:
+          readOnlyRootFilesystem: false
+          runAsNonRoot: false
+          runAsUser: 0
         image: "{{ .Values.ubiquityK8sFlexSidecar.image.repository }}:{{ .Values.ubiquityK8sFlexSidecar.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlexSidecar.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlexSidecar.resources }}

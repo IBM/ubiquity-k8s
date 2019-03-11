@@ -332,6 +332,53 @@ ubiquityK8sFlex:
       type: "string"
 
 
+ubiquityK8sFlexInitContainer:
+  __metadata:
+    label: "Enabler for Containers Kubernetes FlexVolume Init-Container"
+    description: "Settings for Enabler for Containers Kubernetes FlexVolume daemonSet Init-Container."
+  resources:
+    __metadata:
+      label: "Enabler for Containers Kubernetes FlexVolume Init-Container resources configuration"
+      description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet Init-Container."
+
+
+ubiquityK8sFlexSidecar:
+  __metadata:
+    label: "Enabler for Containers Kubernetes FlexVolume sidecar container configuration"
+    description: "Configuration required for deploying Kubernetes FlexVolume daemonSet sidecar container."
+  image:
+    repository:
+      __metadata:
+        name: "Repository"
+        label: "Docker Repository"
+        description: "Docker registry to pull image from."
+        type: "string"
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "Docker image tag"
+        description: "Docker image tag."
+        type: "string"
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+  resources:
+    __metadata:
+      label: "Enabler for Containers Kubernetes FlexVolume sidecar container resources configuration"
+      description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet sidecar container."
+
 ubiquityK8sProvisioner:
   __metadata:
     label: "Enabler for Containers Kubernetes Provisioner configuration"
