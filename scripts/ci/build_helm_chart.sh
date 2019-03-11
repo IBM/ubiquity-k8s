@@ -21,8 +21,8 @@ function cleanup_helm()
 PRODUCTION_BUILD=false
 
 if [ -z $CHART_REPOSITORY ]; then
-  echo "ERROR: CHART_REPOSITORY is not set"
-  exit 1
+  echo "Warning: Set CHART_REPOSITORY if you want to build and upload Ubiquity helm chart!"
+  exit 0
 fi
 
 CHART_REPOSITORY_NAME="artifactory"
