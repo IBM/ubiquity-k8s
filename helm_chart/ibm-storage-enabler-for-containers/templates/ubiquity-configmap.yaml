@@ -64,7 +64,6 @@ data:
    # Log level. Allowed values: debug, info, error.
    LOG-LEVEL: {{ .Values.globalConfig.logLevel | quote }}
 
-
    # The following keys are used by the ubiquity-k8s-flex daemonset
    # ----------------------------------------------------------------------------------------------------------------
    # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
