@@ -12,7 +12,7 @@ ubiquity:
         name: "Repository"
         label: "Docker repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -20,7 +20,7 @@ ubiquity:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -38,6 +38,7 @@ ubiquity:
     __metadata:
       label: "IBM Storage Enabler for Containers configuration"
       description: "Configuration required for deploying Enabler for Containers."
+      type: string
 
   backend:
     __metadata:
@@ -56,7 +57,7 @@ ubiquity:
           name: "fqdn"
           label: "Spectrum Connect IP or FQDN"
           description: "IP or FQDN of Spectrum Connect server."
-          type: "string"
+          type: string
       port:
         __metadata:
           name: "port"
@@ -68,20 +69,20 @@ ubiquity:
           name: "username"
           label: "Spectrum Connect username"
           description: "Username for Enabler for Containers interface in Spectrum Connect."
-          type: "string"
+          type: string
       password:
         __metadata:
           name: "password"
           label: "Spectrum Connect password"
           description: "Password for Enabler for Containers interface in Spectrum Connect."
-          type: "string"
+          type: string
 
       existingSecret:
         __metadata:
           name: "existingSecret"
           label: "Existing secret for Spectrum Connect"
           description: "The value must be the same as configured in Spectrum Connect if the secret object exists.\n Keys username and password are mandatory."
-          type: "string"
+          type: string
 
     backendConfig:
       instanceName:
@@ -89,13 +90,13 @@ ubiquity:
           name: "instanceName"
           label: "Spectrum Connect instance name"
           description: "A prefix for any new volume created on the storage system."
-          type: "string"
+          type: string
       defaultStorageService:
         __metadata:
           name: "defaultStorageService"
           label: "Spectrum Connect default storage service"
           description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
-          type: "string"
+          type: string
       newVolumeDefaults:
         fsType:
           __metadata:
@@ -121,7 +122,7 @@ ubiquity:
           name: "fqdn"
           label: "Spectrum Scale IP or FQDN"
           description: "IP or FQDN of Spectrum Scale RESTful API server."
-          type: "string"
+          type: string
       port:
         __metadata:
           name: "port"
@@ -133,20 +134,20 @@ ubiquity:
           name: "username"
           label: "Spectrum Scale username"
           description: "Username defined for Enabler for Containers interface in Spectrum Scale."
-          type: "string"
+          type: string
       password:
         __metadata:
           name: "password"
           label: "Spectrum Scale password"
           description: "Password defined for Enabler for Containers interface in Spectrum Scale."
-          type: "string"
+          type: string
 
       existingSecret:
         __metadata:
           name: "existingSecret"
           label: "Existing secret for Spectrum Scale"
           description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
-          type: "string"
+          type: string
 
     backendConfig:
       # Default Spectrum Scale filesystem to be used.
@@ -155,7 +156,7 @@ ubiquity:
           name: "defaultFilesystemName"
           label: "Default Spectrum Scale filesystem name"
           description: "Default Spectrum Scale filesystem to be used."
-          type: "string"
+          type: string
 
 
 ubiquityDb:
@@ -168,7 +169,7 @@ ubiquityDb:
         name: "Repository"
         label: "Docker Repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -176,7 +177,7 @@ ubiquityDb:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -194,30 +195,31 @@ ubiquityDb:
     __metadata:
       label: "Enabler for Containers DB configuration"
       description: "Configuration required for deploying Enabler for Containers DB."
+      type: string
   nodeSelector:
     __metadata:
       label: "Node selector"
       description: "Extra node selector for deployment."
-      type: "string"
+      type: string
   dbCredentials:
     username:
       __metadata:
         name: "username"
         label: "Enabler for Containers DB username"
         description: "Username for the deploying ubiquity-db database."
-        type: "string"
+        type: string
     password:
       __metadata:
         name: "password"
         label: "Enabler for Containers DB password"
         description: "Password for the deploying ubiquity-db database."
-        type: "string"
+        type: string
     existingSecret:
       __metadata:
         name: "existingSecret"
         label: "Existing secret for Enabler for Containers DB"
         description: "Define keys username, password and dbname for the secret object used by Enabler for Containers DB. The dbname must be set to 'ubiquity'."
-        type: "string"
+        type: string
 
   persistence:
     pvName:
@@ -225,14 +227,14 @@ ubiquityDb:
         name: "pvName"
         label: "Ubiquity DB PV name"
         description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use Spectrum Connect as backend."
-        type: "string"
+        type: string
         required: true
     pvSize:
       __metadata:
         name: "pvSize"
         label: "Enabler for Containers DB PV size"
         description: "The size of Enabler for Containers DB PV."
-        type: "string"
+        type: string
         required: true
 
     useExistingPv:
@@ -248,14 +250,14 @@ ubiquityDb:
           name: "storageClassName"
           label: "Enabler for Containers DB storage class"
           description: "Name of Enabler for Containers DB storage class"
-          type: "string"
+          type: string
 
       existingStorageClass:
         __metadata:
           name: "existingStorageClass"
           label: "Existing storage class for Enabler for Containers DB"
           description: "Use an existing storage class object for Enabler for Containers DB."
-          type: "string"
+          type: string
 
       defaultClass:
         __metadata:
@@ -270,7 +272,7 @@ ubiquityDb:
             name: "spectrumConnectServiceName"
             label: "Spectrum Connect service name"
             description: "The Spectrum Connect storage service name which is directed to Enabler for Containers DB storage class profile."
-            type: "string"
+            type: string
         fsType:
           __metadata:
             label: "Enabler for Containers DB storage class fstype"
@@ -292,7 +294,7 @@ ubiquityK8sFlex:
         name: "Repository"
         label: "Docker Repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -300,7 +302,7 @@ ubiquityK8sFlex:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -318,18 +320,19 @@ ubiquityK8sFlex:
     __metadata:
       label: "Enabler for Containers Kubernetes FlexVolume configuration"
       description: "Configuration required for deploying Kubernetes FlexVolume daemonSet."
+      type: string
   tolerations:
     __metadata:
       name: "tolerations"
       label: "Tolerations"
       description: "Toleration labels for pod assignment, such as [{\"key\": \"key\", \"operator\":\"Equal\", \"value\": \"value\", \"effect\":\"NoSchedule\"}]"
-      type: "string"
+      type: string
   flexLogDir:
     __metadata:
       name: "flexLogDir"
       label: "FlexVolume log directory"
       description: "If the default value is changed, verify that the new path exists on all the nodes and update the Flex daemonSet hostpath accordingly."
-      type: "string"
+      type: string
 
 
 ubiquityK8sFlexInitContainer:
@@ -340,6 +343,7 @@ ubiquityK8sFlexInitContainer:
     __metadata:
       label: "Enabler for Containers Kubernetes FlexVolume Init-Container resources configuration"
       description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet Init-Container."
+      type: string
 
 
 ubiquityK8sFlexSidecar:
@@ -352,7 +356,7 @@ ubiquityK8sFlexSidecar:
         name: "Repository"
         label: "Docker Repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -360,7 +364,7 @@ ubiquityK8sFlexSidecar:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -378,6 +382,7 @@ ubiquityK8sFlexSidecar:
     __metadata:
       label: "Enabler for Containers Kubernetes FlexVolume sidecar container resources configuration"
       description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet sidecar container."
+      type: string
 
 ubiquityK8sProvisioner:
   __metadata:
@@ -389,7 +394,7 @@ ubiquityK8sProvisioner:
         name: "Repository"
         label: "Docker Repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -397,7 +402,7 @@ ubiquityK8sProvisioner:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -415,6 +420,7 @@ ubiquityK8sProvisioner:
     __metadata:
       label: "Enabler for Containers Kubernetes Provisioner configuration"
       description: "Configuration required for deploying Kubernetes Provisioner."
+      type: string
 
 
 ubiquityHelmUtils:
@@ -427,7 +433,7 @@ ubiquityHelmUtils:
         name: "Repository"
         label: "Docker Repository"
         description: "Docker registry to pull image from."
-        type: "string"
+        type: string
         immutable: false
         required: true
     tag:
@@ -435,7 +441,7 @@ ubiquityHelmUtils:
         name: "tag"
         label: "Docker image tag"
         description: "Docker image tag."
-        type: "string"
+        type: string
         immutable: false
         required: true
     pullPolicy:
@@ -489,4 +495,4 @@ globalConfig:
         name: "clusterRole"
         label: "Name of clusterRole"
         description: "The name of clusterRole with the required policies attached."
-        type: "string"
+        type: string
