@@ -149,6 +149,13 @@ spec:
 {{ toYaml . | indent 10 }}
         {{- end }}
 
+        env:
+          - name: FLEX_LOG_DIR    # /var/log default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-DIR
+
         command: ["./setup_flex.sh"]
         volumeMounts:
         - name: host-k8splugindir
