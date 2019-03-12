@@ -2,20 +2,19 @@
 
 ## Introduction
 IBM Storage Enabler for Containers (ISEC) allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
-Thus, the containers can be used with stateful microservices, such as database applications (MongoDB, PostgreSQL etc).
 IBM Storage Enabler for Containers uses Kubernetes dynamic provisioning for creating and deleting volumes on IBM storage systems.
 In addition, IBM Storage Enabler for Containers utilizes the full set of Kubernetes FlexVolume APIs for volume operations on a host.
 The operations include initiation, attachment/detachment, mounting/unmounting etc..
 
 ## Chart Details
 This chart includes:
-* A Storage Enabler for Containers server deployment is used as the server for running Kubernetes Dynamic Provisioner and FlexVolume.
-* A Storage Enabler for Containers database deployment is used to store the persistent data for Enabler for Container server.
-* A Kubernetes Dynamic Provisioner deployment is for creation storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services.
-* A Kubernetes FlexVolume DaemonSet is used for attaching and mounting storage volumes into a pod within a Kubernetes node.
+* A Storage Enabler for Containers server for running Kubernetes Dynamic Provisioner and FlexVolume.
+* A Storage Enabler for Containers database for storing the persistent data for the Enabler for Container server.
+* A Kubernetes Dynamic Provisioner for creating storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services or Spectrum Scale storage classes.
+* A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
-Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM Spectrum Connect, verify the following:
+Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM Spectrum Connect and IBM block storage:
 1. Install and configure IBM Spectrum Connect, according to the application requirements.
 2. Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
 3. For each worker node:
@@ -26,7 +25,7 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 4. For each master node:
    1. Enable the attach/detach capability for the kubelet service.
    2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
-5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers.
+5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 6. When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
 Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale, verify the following: 
@@ -100,12 +99,7 @@ You can also define a custom PodSecurityPolicy which can be used to finely contr
     ```
 
 ## Resources Required
-IBM Storage Enabler for Containers can be deployed on the following operating systems and orchestration platforms:  
-* RHEL 7.x
-* Ubuntu 16.04 or later
-* SLES 12
-* Kubernetes 1.10–1.12
-* IBM Cloud Private 3.1.1, 3.1.2
+IBM Storage Enabler for Containers can be deployed on different operating systems, while provisioning storage from a variety of IBM arrays, as detailed in the release notes of the package.  
 
 ## Installing the Chart
 To install the chart with the release name `my-release`:
@@ -183,8 +177,9 @@ Alternatively, a YAML file that specifies the values for the parameters can be p
 IBM Storage Enabler for Containers is a dynamic provisioner for persistent volumes, it allows IBM storage systems volumes to be used for stateful applications running in Kubernetes clusters.
 
 ## Limitations
+* Only one type of IBM storage backend (block or file) can be configured on the same Kubernetes or ICP cluster.
 * Only one instance of IBM Storage Enabler for Containers can be deployed in a Kubernetes cluster.
-*  None of the deployments under this chart  support scaling. Thus, their replica must be 1.
+* None of the deployments under this chart  support scaling. Thus, their replica must be 1.
 
 ## Documentation
 Full documentation set for IBM Storage Enabler for Containers is available on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
