@@ -152,7 +152,7 @@ if [ $# -eq 1 -a $1 == "--generate_flex_conf" ]; then
 else
     echo "[`date`]"
     echo "Starting $DRIVER Pod..."
-    #generate_flex_conf_from_envs_and_install_it
+
     install_flex_driver
     install_flex_trusted_ca
 
