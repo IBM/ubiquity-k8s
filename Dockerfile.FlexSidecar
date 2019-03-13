@@ -14,4 +14,3 @@ WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/flex-sidecar .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/LICENSE .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/notices_file_for_ibm_storage_enabler_for_containers ./NOTICES
-CMD ["./flex-sidecar"]
