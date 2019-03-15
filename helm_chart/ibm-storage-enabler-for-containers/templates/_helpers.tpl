@@ -49,12 +49,8 @@ ibm-storage-enabler-for-containers
 Create the name for the scbe secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}
-    {{- if .Values.ubiquity.spectrumConnect -}}
-        {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
-            {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
-        {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
-        {{- end -}}
+    {{- if .Values.spectrumConnect.connectionInfo.existingSecret -}}
+        {{- .Values.spectrumConnect.connectionInfo.existingSecret -}}
     {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
     {{- end -}}
@@ -64,13 +60,9 @@ Create the name for the scbe secret
 Create the name for the spectrum scale secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.spectrumscaleCredentials" -}}
-    {{- if .Values.ubiquity.spectrumScale -}}
-        {{- if .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
-            {{- .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
-        {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
-        {{- end -}}
-	{{- else -}}
+    {{- if .Values.spectrumScale.connectionInfo.existingSecret -}}
+        {{- .Values.spectrumScale.connectionInfo.existingSecret -}}
+    {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
     {{- end -}}
 {{- end -}}

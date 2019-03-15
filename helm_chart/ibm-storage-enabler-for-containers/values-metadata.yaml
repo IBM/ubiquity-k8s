@@ -2,161 +2,147 @@
 ## This metadata is used to augment the value.yaml to drive IBM Cloud Private UI for configuration of the Helm chart installation
 
 
-ubiquity:
+backend:
   __metadata:
-    label: "IBM Storage Enabler for Containers"
-    description: "Settings for IBM Storage Enabler for Containers server."
-  image:
-    repository:
+    label: "Backend"
+    description: "Backend for Provisioner and FlexVolume. If one is specified, ignore all the settings for the other."
+    options:
+    - label: "spectrumConnect"
+      value: "spectrumConnect"
+    - label: "spectrumScale"
+      value: "spectrumScale"
+
+
+spectrumConnect:
+  __metadata:
+    label: "Spectrum Connect"
+    description: "Settings for Spectrum Connect."
+  connectionInfo:
+    fqdn:
       __metadata:
-        name: "Repository"
-        label: "Docker repository"
-        description: "Docker registry to pull image from."
+        name: "fqdn"
+        label: "Spectrum Connect IP or FQDN"
+        description: "IP or FQDN of Spectrum Connect server."
         type: string
-        immutable: false
-        required: true
-    tag:
+    port:
       __metadata:
-        name: "tag"
-        label: "Docker image tag"
-        description: "Docker image tag."
+        name: "port"
+        label: "Spectrum Connect port"
+        description: "Port of Spectrum Connect server."
+        type: "number"
+    username:
+      __metadata:
+        name: "username"
+        label: "Spectrum Connect username"
+        description: "Username for Enabler for Containers interface in Spectrum Connect."
         type: string
-        immutable: false
-        required: true
-    pullPolicy:
+    password:
       __metadata:
-        label: "Image pull policy"
-        description: "The default pull policy is IfNotPresent which causes the kubelet to skip pulling an image if it already exists."
+        name: "password"
+        label: "Spectrum Connect password"
+        description: "Password for Enabler for Containers interface in Spectrum Connect."
+        type: string
+
+    existingSecret:
+      __metadata:
+        name: "existingSecret"
+        label: "Existing secret for Spectrum Connect"
+        description: "The value must be the same as configured in Spectrum Connect if the secret object exists.\n Keys username and password are mandatory."
+        type: string
+
+  backendConfig:
+    instanceName:
+      __metadata:
+        name: "instanceName"
+        label: "Spectrum Connect instance name"
+        description: "A prefix for any new volume created on the storage system."
+        type: string
+    defaultStorageService:
+      __metadata:
+        name: "defaultStorageService"
+        label: "Spectrum Connect default storage service"
+        description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
+        type: string
+    newVolumeDefaults:
+      fsType:
+        __metadata:
+          name: "fsType"
+          label: "Spectrum Connect default fstype of a new volume"
+          description: "The fstype of a new volume if not specified by the user in the storage class."
+          options:
+          - label: "ext4"
+            value: "ext4"
+          - label: "xfs"
+            value: "xfs"
+      size:
+        __metadata:
+          name: "size"
+          label: "Spectrum Connect default volume size (in GiB)"
+          description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
+          type: "number"
+
+  storageClass:
+    spectrumConnectServiceName:
+      __metadata:
+        name: "spectrumConnectServiceName"
+        label: "Spectrum Connect service name"
+        description: "The Spectrum Connect storage service name which is directed to Enabler for Containers DB storage class profile."
+        type: string
+    fsType:
+      __metadata:
+        label: "Enabler for Containers DB storage class fstype"
+        description: "The fstype parameter of Enabler for Containers DB storage class."
         options:
-        - label: "Always"
-          value: "Always"
-        - label: "Never"
-          value: "Never"
-        - label: "IfNotPresent"
-          value: "IfNotPresent"
-  resources:
-    __metadata:
-      label: "IBM Storage Enabler for Containers configuration"
-      description: "Configuration required for deploying Enabler for Containers."
-      type: string
+        - label: "ext4"
+          value: "ext4"
+        - label: "xfs"
+          value: "xfs"
 
-  backend:
-    __metadata:
-      label: "Backend"
-      description: "Backend for Provisioner and FlexVolume. If one is specified, ignore all the settings for the other."
-      options:
-      - label: "spectrumConnect"
-        value: "spectrumConnect"
-      - label: "spectrumScale"
-        value: "spectrumScale"
 
-  spectrumConnect:
-    connectionInfo:
-      fqdn:
-        __metadata:
-          name: "fqdn"
-          label: "Spectrum Connect IP or FQDN"
-          description: "IP or FQDN of Spectrum Connect server."
-          type: string
-      port:
-        __metadata:
-          name: "port"
-          label: "Spectrum Connect port"
-          description: "Port of Spectrum Connect server."
-          type: "number"
-      username:
-        __metadata:
-          name: "username"
-          label: "Spectrum Connect username"
-          description: "Username for Enabler for Containers interface in Spectrum Connect."
-          type: string
-      password:
-        __metadata:
-          name: "password"
-          label: "Spectrum Connect password"
-          description: "Password for Enabler for Containers interface in Spectrum Connect."
-          type: string
+spectrumScale:
+  __metadata:
+    label: "Spectrum Scale"
+    description: "Settings for Spectrum Scale."
+  connectionInfo:
+    fqdn:
+      __metadata:
+        name: "fqdn"
+        label: "Spectrum Scale IP or FQDN"
+        description: "Spectrum Scale IP or FQDN of the Management API Server (GUI)."
+        type: string
+    port:
+      __metadata:
+        name: "port"
+        label: "Spectrum Scale port"
+        description: "Port of Spectrum Scale Management API Server (GUI)."
+        type: "number"
+    username:
+      __metadata:
+        name: "username"
+        label: "Spectrum Scale username"
+        description: "Username defined for Enabler for Containers interface in Spectrum Scale."
+        type: string
+    password:
+      __metadata:
+        name: "password"
+        label: "Spectrum Scale password"
+        description: "Password defined for Enabler for Containers interface in Spectrum Scale."
+        type: string
 
-      existingSecret:
-        __metadata:
-          name: "existingSecret"
-          label: "Existing secret for Spectrum Connect"
-          description: "The value must be the same as configured in Spectrum Connect if the secret object exists.\n Keys username and password are mandatory."
-          type: string
+    existingSecret:
+      __metadata:
+        name: "existingSecret"
+        label: "Existing secret for Spectrum Scale"
+        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
+        type: string
 
-    backendConfig:
-      instanceName:
-        __metadata:
-          name: "instanceName"
-          label: "Spectrum Connect instance name"
-          description: "A prefix for any new volume created on the storage system."
-          type: string
-      defaultStorageService:
-        __metadata:
-          name: "defaultStorageService"
-          label: "Spectrum Connect default storage service"
-          description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
-          type: string
-      newVolumeDefaults:
-        fsType:
-          __metadata:
-            name: "fsType"
-            label: "Spectrum Connect default fstype of a new volume"
-            description: "The fstype of a new volume if not specified by the user in the storage class."
-            options:
-            - label: "ext4"
-              value: "ext4"
-            - label: "xfs"
-              value: "xfs"
-        size:
-          __metadata:
-            name: "size"
-            label: "Spectrum Connect default volume size (in GiB)"
-            description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
-            type: "number"
-
-  spectrumScale:
-    connectionInfo:
-      fqdn:
-        __metadata:
-          name: "fqdn"
-          label: "Spectrum Scale IP or FQDN"
-          description: "IP or FQDN of Spectrum Scale RESTful API server."
-          type: string
-      port:
-        __metadata:
-          name: "port"
-          label: "Spectrum Scale port"
-          description: "Port of Spectrum Scale RESTful API server."
-          type: "number"
-      username:
-        __metadata:
-          name: "username"
-          label: "Spectrum Scale username"
-          description: "Username defined for Enabler for Containers interface in Spectrum Scale."
-          type: string
-      password:
-        __metadata:
-          name: "password"
-          label: "Spectrum Scale password"
-          description: "Password defined for Enabler for Containers interface in Spectrum Scale."
-          type: string
-
-      existingSecret:
-        __metadata:
-          name: "existingSecret"
-          label: "Existing secret for Spectrum Scale"
-          description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
-          type: string
-
-    backendConfig:
-      # Default Spectrum Scale filesystem to be used.
-      defaultFilesystemName:
-        __metadata:
-          name: "defaultFilesystemName"
-          label: "Default Spectrum Scale filesystem name"
-          description: "Default Spectrum Scale filesystem to be used."
-          type: string
+  backendConfig:
+    defaultFilesystemName:
+      __metadata:
+        name: "defaultFilesystemName"
+        label: "Default Spectrum Scale filesystem name"
+        description: "Default Spectrum Scale filesystem to be used."
+        type: string
 
 
 ubiquityDb:
@@ -222,6 +208,12 @@ ubiquityDb:
         type: string
 
   persistence:
+    useExistingPv:
+      __metadata:
+        name: "useExistingPv"
+        label: "Use an existing PV as the Enabler for Containers DB PV"
+        description: "Set this parameter to True if you want to use an existing PV as Enabler for Containers database PV."
+        type: "boolean"
     pvName:
       __metadata:
         name: "pvName"
@@ -237,21 +229,19 @@ ubiquityDb:
         type: string
         required: true
 
-    useExistingPv:
-      __metadata:
-        name: "useExistingPv"
-        label: "Use an existing PV as the Enabler for Containers DB PV"
-        description: "Set this parameter to True if you want to use an existing PV as Enabler for Containers database PV."
-        type: "boolean"
-
     storageClass:
+      defaultClass:
+        __metadata:
+          name: "defaultClass"
+          label: "Is default storage class?"
+          description: "Set to True if the storage class of Enabler for Containers DB is default storage class."
+          type: "boolean"
       storageClassName:
         __metadata:
           name: "storageClassName"
           label: "Enabler for Containers DB storage class"
           description: "Name of Enabler for Containers DB storage class"
           type: string
-
       existingStorageClass:
         __metadata:
           name: "existingStorageClass"
@@ -259,29 +249,44 @@ ubiquityDb:
           description: "Use an existing storage class object for Enabler for Containers DB."
           type: string
 
-      defaultClass:
-        __metadata:
-          name: "defaultClass"
-          label: "Is default storage class?"
-          description: "Set to True if the storage class of Enabler for Containers DB is default storage class."
-          type: "boolean"
 
-      spectrumConnect:
-        spectrumConnectServiceName:
-          __metadata:
-            name: "spectrumConnectServiceName"
-            label: "Spectrum Connect service name"
-            description: "The Spectrum Connect storage service name which is directed to Enabler for Containers DB storage class profile."
-            type: string
-        fsType:
-          __metadata:
-            label: "Enabler for Containers DB storage class fstype"
-            description: "The fstype parameter of Enabler for Containers DB storage class."
-            options:
-            - label: "ext4"
-              value: "ext4"
-            - label: "xfs"
-              value: "xfs"
+ubiquity:
+  __metadata:
+    label: "IBM Storage Enabler for Containers"
+    description: "Settings for IBM Storage Enabler for Containers server."
+  image:
+    repository:
+      __metadata:
+        name: "Repository"
+        label: "Docker repository"
+        description: "Docker registry to pull image from."
+        type: string
+        immutable: false
+        required: true
+    tag:
+      __metadata:
+        name: "tag"
+        label: "Docker image tag"
+        description: "Docker image tag."
+        type: string
+        immutable: false
+        required: true
+    pullPolicy:
+      __metadata:
+        label: "Image pull policy"
+        description: "The default pull policy is IfNotPresent which causes the kubelet to skip pulling an image if it already exists."
+        options:
+        - label: "Always"
+          value: "Always"
+        - label: "Never"
+          value: "Never"
+        - label: "IfNotPresent"
+          value: "IfNotPresent"
+  resources:
+    __metadata:
+      label: "IBM Storage Enabler for Containers configuration"
+      description: "Configuration required for deploying Enabler for Containers."
+      type: string
 
 
 ubiquityK8sFlex:

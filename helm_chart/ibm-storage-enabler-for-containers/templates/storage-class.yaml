@@ -1,4 +1,4 @@
-{{- if eq .Values.ubiquity.backend "spectrumConnect" }}
+{{- if eq .Values.backend "spectrumConnect" }}
 {{- if (not .Values.ubiquityDb.persistence.storageClass.existingStorageClass) }}
 {{- if .Values.ubiquityDb.persistence.storageClass.storageClassName }}
 kind: StorageClass
@@ -14,8 +14,8 @@ metadata:
 {{- end }}
 provisioner: "ubiquity/flex"
 parameters:
-  profile: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.spectrumConnectServiceName  | quote }}
-  fstype: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.fsType  | quote }}        # xfs or ext4
+  profile: {{ .Values.spectrumConnect.storageClass.spectrumConnectServiceName  | quote }}
+  fstype: {{ .Values.spectrumConnect.storageClass.fsType  | quote }}        # xfs or ext4
   backend: "scbe"
 {{- end }}
 {{- end }}

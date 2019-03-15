@@ -88,7 +88,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{- if eq .Values.ubiquity.backend "spectrumConnect" }}
+{{- if eq .Values.backend "spectrumConnect" }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:

@@ -9,24 +9,24 @@ metadata:
 data:
    # The keys below are used by ubiquity deployment
    # -----------------------------------------------
-{{- if eq .Values.ubiquity.backend "spectrumConnect" }}
+{{- if eq .Values.backend "spectrumConnect" }}
    # IP or FQDN of Spectrum Connect(previously known as SCBE) server.
-   SCBE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumConnect.connectionInfo.fqdn | quote }}
+   SCBE-MANAGEMENT-IP: {{ .Values.spectrumConnect.connectionInfo.fqdn | quote }}
 
    # Communication port of Spectrum Connect server. Optional parameter with default value set at 8440.
-   SCBE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumConnect.connectionInfo.port | quote }}
+   SCBE-MANAGEMENT-PORT: {{ .Values.spectrumConnect.connectionInfo.port | quote }}
 
    # Default Spectrum Connect storage service to be used, if not specified by the plugin.
-   SCBE-DEFAULT-SERVICE: {{ .Values.ubiquity.spectrumConnect.backendConfig.defaultStorageService | quote }}
+   SCBE-DEFAULT-SERVICE: {{ .Values.spectrumConnect.backendConfig.defaultStorageService | quote }}
 
    # The size for a new volume if not specified by the user when creating a new volume. Optional parameter with default value set at 1GB.
-   DEFAULT-VOLUME-SIZE: {{ .Values.ubiquity.spectrumConnect.backendConfig.newVolumeDefaults.size | quote }}
+   DEFAULT-VOLUME-SIZE: {{ .Values.spectrumConnect.backendConfig.newVolumeDefaults.size | quote }}
 
    # A prefix for any new volume created on the storage system. Default value is None.
-   UBIQUITY-INSTANCE-NAME: {{ .Values.ubiquity.spectrumConnect.backendConfig.instanceName | quote }}
+   UBIQUITY-INSTANCE-NAME: {{ .Values.spectrumConnect.backendConfig.instanceName | quote }}
 
    # File system type. Optional parameter with two allowed values: ext4 or xfs. Default value is ext4.
-   DEFAULT-FSTYPE: {{ .Values.ubiquity.spectrumConnect.backendConfig.newVolumeDefaults.fsType | quote }}
+   DEFAULT-FSTYPE: {{ .Values.spectrumConnect.backendConfig.newVolumeDefaults.fsType | quote }}
 
    # Default Ubiquity Backend
    DEFAULT-BACKEND: scbe
@@ -34,15 +34,15 @@ data:
 
 
 
-{{- if eq .Values.ubiquity.backend "spectrumScale" }}
+{{- if eq .Values.backend "spectrumScale" }}
    # IP or FQDN of Spectrum Scale Management API server(GUI).
-   SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.ubiquity.spectrumScale.connectionInfo.fqdn | quote }}
+   SPECTRUMSCALE-MANAGEMENT-IP: {{ .Values.spectrumScale.connectionInfo.fqdn | quote }}
 
    # Communication port of Spectrum Scale Management API server(GUI).
-   SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.ubiquity.spectrumScale.connectionInfo.port | quote }}
+   SPECTRUMSCALE-MANAGEMENT-PORT: {{ .Values.spectrumScale.connectionInfo.port | quote }}
 
    # Default Filesystem for creating pvc
-   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.ubiquity.spectrumScale.backendConfig.defaultFilesystemName | quote }}
+   SPECTRUMSCALE-DEFAULT-FILESYSTEM-NAME: {{ .Values.spectrumScale.backendConfig.defaultFilesystemName | quote }}
 
    # Default Ubiquity Backend
    DEFAULT-BACKEND: spectrum-scale
