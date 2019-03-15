@@ -226,7 +226,7 @@ ubiquityDb:
       __metadata:
         name: "pvName"
         label: "Ubiquity DB PV name"
-        description: "For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value 'ibm-ubiquity-db'. For DS8000 Family, use 'ibmdb' instead and make sure instanceName value length does not exceed 8 chars if you use Spectrum Connect as backend."
+        description: "Default value is 'ibm-ubiquity-db'. For DS8K Family, use 'ibmdb' instead, the length can not exceed 8 chars when using SC."
         type: string
         required: true
     pvSize:
@@ -241,7 +241,7 @@ ubiquityDb:
       __metadata:
         name: "useExistingPv"
         label: "Use an existing PV as the Enabler for Containers DB PV"
-        description: "Set this paramater to True if you want to use an existing PV as Enabler for Containers database PV. Use it when upgrading Enabler for Containers from a script-based version."
+        description: "Set this parameter to True if you want to use an existing PV as Enabler for Containers database PV."
         type: "boolean"
 
     storageClass:

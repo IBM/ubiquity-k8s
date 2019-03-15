@@ -1,6 +1,9 @@
 ignoreMessages:
   - '\[WARNING\] .*expected use of storageClassName key within condition based on parameter containing.*'
 
+    # Store all the images in docker hub
+  - '\[WARNING\] .*no imagePullSecrets specified, pods will not be able to pull namespace-scoped images from the local registry.*'
+
     # Flex volume daemonSet requires hostpath in order to deploy the flex binary on the node. we cannot avoid it.
   - '\[ERROR\] .*use of hostPath not allowed.*'
 

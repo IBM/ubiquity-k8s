@@ -28,3 +28,6 @@ images:
 - image: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.0.0
   references:
   - repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.0.0
+- image: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.0.0
+  references:
+  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.0.0
