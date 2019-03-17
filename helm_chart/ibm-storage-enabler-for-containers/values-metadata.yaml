@@ -108,32 +108,32 @@ spectrumScale:
       __metadata:
         name: "fqdn"
         label: "Spectrum Scale IP or FQDN"
-        description: "Spectrum Scale IP or FQDN of the Management API Server (GUI)."
+        description: "Spectrum Scale IP or FQDN of the Management API (GUI) Server."
         type: string
     port:
       __metadata:
         name: "port"
         label: "Spectrum Scale port"
-        description: "Port of Spectrum Scale Management API Server (GUI)."
+        description: "Communication port of Spectrum Scale Management API (GUI) Server."
         type: "number"
     username:
       __metadata:
         name: "username"
         label: "Spectrum Scale username"
-        description: "Username defined for Enabler for Containers interface in Spectrum Scale."
+        description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
         type: string
     password:
       __metadata:
         name: "password"
         label: "Spectrum Scale password"
-        description: "Password defined for Enabler for Containers interface in Spectrum Scale."
+        description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
         type: string
 
     existingSecret:
       __metadata:
         name: "existingSecret"
-        label: "Existing secret for Spectrum Scale"
-        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
+        label: "Existing secret for Spectrum Scale Management API (GUI) Server user credentials"
+        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Key username and password are mandatory."
         type: string
 
   backendConfig:
@@ -141,7 +141,7 @@ spectrumScale:
       __metadata:
         name: "defaultFilesystemName"
         label: "Default Spectrum Scale filesystem name"
-        description: "Default Spectrum Scale filesystem to be used."
+        description: "Default Spectrum Scale filesystem to be used for creating persistent volume."
         type: string
 
 
