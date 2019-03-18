@@ -227,7 +227,6 @@ ubiquityDb:
         label: "Enabler for Containers DB PV size"
         description: "The size of Enabler for Containers DB PV."
         type: string
-        required: true
 
     storageClass:
       defaultClass:
