@@ -28,8 +28,15 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 6. When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
-Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale, verify the following: 
-
+Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale:
+1. Install and configure IBM Spectrum Scale, according to the application requirements.
+2. Establish a proper communication link between Spectrum Scale Management GUI Address and Kubernetes cluster.
+3. For each worker node:
+   1. Install Spectum Scale client packages.
+   2. Mount Spectrum Scale filesystem for persistent storage.
+3. For each master node:
+   1. Enable the attach/detach capability for the kubelet service.
+   2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
 These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
 ## PodSecurityPolicy Requirements
@@ -105,10 +112,10 @@ IBM Storage Enabler for Containers can be deployed on different operating system
 To install the chart with the release name `my-release`:
 
 ```bash
-$ helm install --name my-release --namespace ubiquity stable/ibm_storage_enabler_for_containers
+$ helm install --name my-release --namespace ubiquity stable/ibm-storage-enabler-for-containers
 ```
 
-The command deploys <Chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+The command deploys <chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
 
 > **Tip**: List all releases using `helm list`
@@ -125,17 +132,19 @@ $ helm test my-release
 ```
 
 ### Uninstalling the Chart
+Verify that there are no persistent volumes (PVs) that have been created, using IBM Storage Enabler for Containers. 
 To uninstall/delete the `my-release` release:
 
 ```bash
-$ helm delete my-release --purge
+$ helm delete `my-release` --purge
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release.
+The command removes the IBM Storage Enabler for Containers components associated with the Helm chart, metadata, user credentials, and other elements.
 
-This command fails if any of the following resources do not exist: serviceAccount, role, clusterRole, roleBinding, clusterRoleBinding with same name `ubiquity-helm-hook`. To continue the deletion, first create these entities.
-> **Tip**: You can generate the manifests of these resources by running the "helm install --debug –dry-run" command with same release name, namespace and other values.
-
+When the Helm chart is deleted, the first elements to be removed are the Enabler for Container database deployment and its PVC. If the `helm delete` command fails after several attempts, delete these entities manually before continuing. Then, verify that the Enabler for Container database deployment and its PVC are deleted, and complete the uninstall procedure by running
+```
+$ helm delete `my-release` --purge --no-hooks
+```
 ## Configuration
 
 The following table lists the configurable parameters of the <Ubiquity> chart and their default values.
