@@ -37,6 +37,7 @@ Prior to installing the Helm chart for Storage Enabler for Containers in conjunc
 3. For each master node:
    1. Enable the attach/detach capability for the kubelet service.
    2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+
 These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
 ## PodSecurityPolicy Requirements
