@@ -14,7 +14,7 @@ metadata:
 {{- end }}
 provisioner: "ubiquity/flex"
 parameters:
-  profile: {{ .Values.spectrumConnect.storageClass.spectrumConnectServiceName  | quote }}
+  profile: {{ .Values.spectrumConnect.storageClass.storageService  | quote }}
   fstype: {{ .Values.spectrumConnect.storageClass.fsType  | quote }}        # xfs or ext4
   backend: "scbe"
 {{- end }}

@@ -141,6 +141,17 @@ ubiquityHelmUtils:
     pullPolicy: IfNotPresent
 
 
+# Default pod security policy. If specified, it is applied to all pods in the chart.
+# New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies
+# to a role or clusterRole, and provide the name for the role or clusterRole.
+# Currently, only clusterRole is supported. It will be bound to all serviceAccounts under the current namespace.
+defaultPodSecurityPolicy:
+  # The name of clusterRole that has the required policies attached.
+  # Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
+  enabled: false
+  clusterRole: ibm-anyuid-hostpath-clusterrole
+
+
 globalConfig:
   # Log level. Allowed values: debug, info, error.
   logLevel: debug
@@ -149,12 +160,3 @@ globalConfig:
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
 
-  # Default pod security policy. If specified, it is applied to all pods in the chart.
-  # New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies
-  # to a role or clusterRole, and provide the name for the role or clusterRole.
-  # Currently, only clusterRole is supported. It will be bound to all serviceAccounts under the current namespace.
-  defaultPodSecurityPolicy:
-    # The name of clusterRole that has the required policies attached.
-    # Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
-    enabled: false
-    clusterRole: ibm-anyuid-hostpath-clusterrole

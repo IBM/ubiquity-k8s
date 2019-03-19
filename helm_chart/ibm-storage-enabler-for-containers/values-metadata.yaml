@@ -7,9 +7,9 @@ backend:
     label: "Backend"
     description: "Backend for Provisioner and FlexVolume. If one is specified, ignore all the settings for the other."
     options:
-    - label: "spectrumConnect"
+    - label: "Spectrum Connect"
       value: "spectrumConnect"
-    - label: "spectrumScale"
+    - label: "Spectrum Scale"
       value: "spectrumScale"
 
 
@@ -82,11 +82,11 @@ spectrumConnect:
           type: "number"
 
   storageClass:
-    spectrumConnectServiceName:
+    storageService:
       __metadata:
-        name: "spectrumConnectServiceName"
-        label: "Spectrum Connect service name"
-        description: "The Spectrum Connect storage service name which is directed to Enabler for Containers DB storage class profile."
+        name: "storageService"
+        label: "Spectrum Connect storage service"
+        description: "The Spectrum Connect storage service which is directed to Enabler for Containers DB storage class profile."
         type: string
     fsType:
       __metadata:
@@ -120,20 +120,20 @@ spectrumScale:
       __metadata:
         name: "username"
         label: "Spectrum Scale username"
-        description: "Username defined for IBM Storage Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
+        description: "Username defined for Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
         type: string
     password:
       __metadata:
         name: "password"
         label: "Spectrum Scale password"
-        description: "Password defined for IBM Storage Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
+        description: "Password defined for Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
         type: string
 
     existingSecret:
       __metadata:
         name: "existingSecret"
         label: "Existing secret for Spectrum Scale Management API (GUI) Server user credentials"
-        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Key username and password are mandatory."
+        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
         type: string
 
   backendConfig:
@@ -218,7 +218,7 @@ ubiquityDb:
       __metadata:
         name: "pvName"
         label: "Ubiquity DB PV name"
-        description: "Default value is 'ibm-ubiquity-db'. For DS8K Family, use 'ibmdb' instead, the length can not exceed 8 chars when using SC."
+        description: "Default value is 'ibm-ubiquity-db'. For DS8K Family, use 'ibmdb' instead."
         type: string
         required: true
     pvSize:
@@ -251,8 +251,8 @@ ubiquityDb:
 
 ubiquity:
   __metadata:
-    label: "IBM Storage Enabler for Containers"
-    description: "Settings for IBM Storage Enabler for Containers server."
+    label: "Enabler for Containers"
+    description: "Settings for Enabler for Containers server."
   image:
     repository:
       __metadata:
@@ -283,7 +283,7 @@ ubiquity:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "IBM Storage Enabler for Containers configuration"
+      label: "Enabler for Containers configuration"
       description: "Configuration required for deploying Enabler for Containers."
       type: string
 
@@ -461,6 +461,24 @@ ubiquityHelmUtils:
           value: "IfNotPresent"
 
 
+defaultPodSecurityPolicy:
+  __metadata:
+    label: "Default pod security policy for all pods in chart"
+    description: "Default pod security policy. If enabled, it is applied to all pods in the chart."
+  enabled:
+    __metadata:
+      name: "enabled"
+      label: "Use as default pod security policy"
+      description: "Enable to use the default pod security settings."
+      type: "boolean"
+  clusterRole:
+    __metadata:
+      name: "clusterRole"
+      label: "Name of clusterRole"
+      description: "The name of clusterRole with the required policies attached."
+      type: string
+
+
 globalConfig:
   __metadata:
     label: "Global configuration"
@@ -486,17 +504,3 @@ globalConfig:
         value: "require"
       - label: "verify-full (user-provided certificates)"
         value: "verify-full"
-
-  defaultPodSecurityPolicy:
-    enabled:
-      __metadata:
-        name: "enabled"
-        label: "Default pod security policy"
-        description: "Enable to use the default pod security settings."
-        type: "boolean"
-    clusterRole:
-      __metadata:
-        name: "clusterRole"
-        label: "Name of clusterRole"
-        description: "The name of clusterRole with the required policies attached."
-        type: string
