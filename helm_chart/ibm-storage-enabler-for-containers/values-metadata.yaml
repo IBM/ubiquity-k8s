@@ -430,7 +430,7 @@ ubiquityHelmUtils:
 
 defaultPodSecurityPolicy:
   __metadata:
-    label: "Default pod security policy for all pods in chart"
+    label: "Default pod security policy"
     description: "Default pod security policy. If enabled, it is applied to all pods in the chart."
   enabled:
     __metadata:
