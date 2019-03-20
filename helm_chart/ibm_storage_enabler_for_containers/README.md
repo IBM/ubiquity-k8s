@@ -9,12 +9,12 @@ The operations include initiation, attachment/detachment, mounting/unmounting et
 ## Chart Details
 This chart includes:
 * A Storage Enabler for Containers server for running Kubernetes Dynamic Provisioner and FlexVolume.
-* A Storage Enabler for Containers database for storing the persistent data for the Enabler for Container server.
+* A Storage Enabler for Containers database for storing the persistent data for the Enabler for Container service.
 * A Kubernetes Dynamic Provisioner for creating storage volumes on-demand, using Kubernetes storage classes based on Spectrum Connect storage services or Spectrum Scale storage classes.
-* A Kubernetes FlexVolume DaemonSet for attaching and mounting storage volumes into a pod within a Kubernetes node.
+* A Kubernetes FlexVolume DaemonSet for attaching/detaching and mounting/unmounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
-Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM Spectrum Connect and IBM block storage:
+Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
 1. Install and configure IBM Spectrum Connect, according to the application requirements.
 2. Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
 3. For each worker node:
@@ -152,10 +152,10 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 
 | Parameter                  | Description                                     | Default                                                    |
 | -----------------------    | ---------------------------------------------   | ---------------------------------------------------------- |
-| `images.ubiquity`                                                                               | Image for ISEC server | `ibmcom/ibm-storage-enabler-for-containers:2.0.0` |
-| `images.ubiquitydb`                                                                             | Image for ISEC database | `ibmcom/ibm-storage-enabler-for-containers-db:2.0.0` |
-| `images.provisioner`                                                                            | Image for Kubernetes Dynamic Provisioner | `ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0` |
-| `images.flex`                                                                                   | Image for Kubernetes FlexVolume | `ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0` |
+| `images.ubiquity`                                                                               | Image for ISEC server | `ibmcom/ibm-storage-enabler-for-containers:2.1.0` |
+| `images.ubiquitydb`                                                                             | Image for ISEC database | `ibmcom/ibm-storage-enabler-for-containers-db:2.1.0` |
+| `images.provisioner`                                                                            | Image for Kubernetes Dynamic Provisioner | `ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.1.0` |
+| `images.flex`                                                                                   | Image for Kubernetes FlexVolume | `ibmcom/ibm-storage-flex-volume-for-kubernetes:2.1.0` |
 | `ubiquity.spectrumConnect.connectionInfo.fqdn`                                                           | IP address or FQDN of the Spectrum Connect server. | ` ` |
 | `ubiquity.spectrumConnect.connectionInfo.port`                                                           |Communication port of the Spectrum Connect server. Default value is 8440. | ` ` |
 | `ubiquity.spectrumConnect.connectionInfo.username`                                                       | Username defined for IBM Storage Enabler for Containers interface in Spectrum Connect. | ` ` |
@@ -188,7 +188,7 @@ IBM Storage Enabler for Containers is a dynamic provisioner for persistent volum
 
 ## Limitations
 * Only one type of IBM storage backend (block or file) can be configured on the same Kubernetes or ICP cluster.
-* Only one instance of IBM Storage Enabler for Containers can be deployed in a Kubernetes cluster.
+* Only one instance of IBM Storage Enabler for Containers can be deployed in a Kubernetes cluster, serving all Kubernetes namespaces.
 * None of the deployments under this chart  support scaling. Thus, their replica must be 1.
 
 ## Documentation
