@@ -22,9 +22,6 @@ spectrumConnect:
     # IP\FQDN and port of Spectrum Connect server.
     fqdn:
     port: 8440
-    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Connect.
-    username:
-    password:
 
     # Set this param with an existing spectrum connect secret object if one exist.
     existingSecret:
@@ -56,9 +53,6 @@ spectrumScale:
     # IP\FQDN and port of Spectrum Scale RESTful API server.
     fqdn:
     port: 443
-    # Username and password defined for IBM Storage Enabler for Containers interface in Spectrum Scale.
-    username:
-    password:
 
     # Set this param with an existing Spectrum Scale secret object if one exist.
     existingSecret:
@@ -76,11 +70,7 @@ ubiquityDb:
   resources: {}
   nodeSelector: {}
   dbCredentials:
-    # Username and password for the deployment of ubiquity-db database. Note: Do not use the "postgres" username, because it already exists.
-    username: ubiquity
-    password: ubiquity
-
-    # Set this param with an existing secret object if one exist.
+    # Set this param with an existing secret object if one exist. . Note: Do not use the "postgres" username, because it already exists.
     existingSecret:
 
   # The Helm installation has automatic boot strap of the ubiquity-db volume (PVC named ibm-ubiquity-db).

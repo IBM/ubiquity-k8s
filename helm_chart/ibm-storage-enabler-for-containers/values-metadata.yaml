@@ -30,18 +30,6 @@ spectrumConnect:
         label: "Spectrum Connect port"
         description: "Port of Spectrum Connect server."
         type: "number"
-    username:
-      __metadata:
-        name: "username"
-        label: "Spectrum Connect username"
-        description: "Username for Enabler for Containers interface in Spectrum Connect."
-        type: string
-    password:
-      __metadata:
-        name: "password"
-        label: "Spectrum Connect password"
-        description: "Password for Enabler for Containers interface in Spectrum Connect."
-        type: string
 
     existingSecret:
       __metadata:
@@ -116,18 +104,6 @@ spectrumScale:
         label: "Spectrum Scale port"
         description: "Communication port of Spectrum Scale Management API (GUI) Server."
         type: "number"
-    username:
-      __metadata:
-        name: "username"
-        label: "Spectrum Scale username"
-        description: "Username defined for Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
-        type: string
-    password:
-      __metadata:
-        name: "password"
-        label: "Spectrum Scale password"
-        description: "Password defined for Enabler for Containers interface in Spectrum Scale Management API (GUI) Server."
-        type: string
 
     existingSecret:
       __metadata:
@@ -188,18 +164,6 @@ ubiquityDb:
       description: "Extra node selector for deployment."
       type: string
   dbCredentials:
-    username:
-      __metadata:
-        name: "username"
-        label: "Enabler for Containers DB username"
-        description: "Username for the deploying ubiquity-db database."
-        type: string
-    password:
-      __metadata:
-        name: "password"
-        label: "Enabler for Containers DB password"
-        description: "Password for the deploying ubiquity-db database."
-        type: string
     existingSecret:
       __metadata:
         name: "existingSecret"
@@ -247,6 +211,7 @@ ubiquityDb:
           label: "Existing storage class for Enabler for Containers DB"
           description: "Use an existing storage class object for Enabler for Containers DB."
           type: string
+          hidden: true
 
 
 ubiquity:
