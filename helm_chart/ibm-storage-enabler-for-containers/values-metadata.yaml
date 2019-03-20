@@ -21,41 +21,41 @@ spectrumConnect:
     fqdn:
       __metadata:
         name: "fqdn"
-        label: "Spectrum Connect IP or FQDN"
+        label: "IP or FQDN"
         description: "IP or FQDN of Spectrum Connect server."
         type: string
     port:
       __metadata:
         name: "port"
-        label: "Spectrum Connect port"
+        label: "Port"
         description: "Port of Spectrum Connect server."
         type: "number"
 
     existingSecret:
       __metadata:
         name: "existingSecret"
-        label: "Existing secret for Spectrum Connect"
-        description: "The value must be the same as configured in Spectrum Connect if the secret object exists.\n Keys username and password are mandatory."
+        label: "Secret for Spectrum Connect interface"
+        description: "The value must be the same as configured in Spectrum Connect.\n Keys username and password are mandatory."
         type: string
 
   backendConfig:
     instanceName:
       __metadata:
         name: "instanceName"
-        label: "Spectrum Connect instance name"
+        label: "Instance name"
         description: "A prefix for any new volume created on the storage system."
         type: string
     defaultStorageService:
       __metadata:
         name: "defaultStorageService"
-        label: "Spectrum Connect default storage service"
+        label: "Default storage service"
         description: "Default Spectrum Connect storage service to be used, if not specified by the storage class."
         type: string
     newVolumeDefaults:
       fsType:
         __metadata:
           name: "fsType"
-          label: "Spectrum Connect default fstype of a new volume"
+          label: "Default fstype of a new volume"
           description: "The fstype of a new volume if not specified by the user in the storage class."
           options:
           - label: "ext4"
@@ -65,7 +65,7 @@ spectrumConnect:
       size:
         __metadata:
           name: "size"
-          label: "Spectrum Connect default volume size (in GiB)"
+          label: "Default volume size (in GiB)"
           description: "The default volume size (in GiB) if not specified by the user when creating a new volume."
           type: "number"
 
@@ -73,12 +73,12 @@ spectrumConnect:
     storageService:
       __metadata:
         name: "storageService"
-        label: "Spectrum Connect storage service"
+        label: "Storage service for Enabler for Containers DB storage class"
         description: "The Spectrum Connect storage service which is directed to Enabler for Containers DB storage class profile."
         type: string
     fsType:
       __metadata:
-        label: "Enabler for Containers DB storage class fstype"
+        label: "fstype for Enabler for Containers DB storage class"
         description: "The fstype parameter of Enabler for Containers DB storage class."
         options:
         - label: "ext4"
@@ -95,28 +95,28 @@ spectrumScale:
     fqdn:
       __metadata:
         name: "fqdn"
-        label: "Spectrum Scale IP or FQDN"
+        label: "IP or FQDN"
         description: "Spectrum Scale IP or FQDN of the Management API (GUI) Server."
         type: string
     port:
       __metadata:
         name: "port"
-        label: "Spectrum Scale port"
+        label: "Port"
         description: "Communication port of Spectrum Scale Management API (GUI) Server."
         type: "number"
 
     existingSecret:
       __metadata:
         name: "existingSecret"
-        label: "Existing secret for Spectrum Scale Management API (GUI) Server user credentials"
-        description: "The value must be the same as configured in Spectrum Scale if the secret object exists.\n Keys username and password are mandatory."
+        label: "Secret for Spectrum Scale Management API (GUI) Server user credentials"
+        description: "The value must be the same as configured in Spectrum Scale.\n Keys username and password are mandatory."
         type: string
 
   backendConfig:
     defaultFilesystemName:
       __metadata:
         name: "defaultFilesystemName"
-        label: "Default Spectrum Scale filesystem name"
+        label: "Default filesystem"
         description: "Default Spectrum Scale filesystem to be used for creating persistent volume."
         type: string
 
@@ -155,8 +155,8 @@ ubiquityDb:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "Enabler for Containers DB configuration"
-      description: "Configuration required for deploying Enabler for Containers DB."
+      label: "Resources"
+      description: "Resources configuration required for deploying Enabler for Containers DB."
       type: string
   nodeSelector:
     __metadata:
@@ -167,9 +167,10 @@ ubiquityDb:
     existingSecret:
       __metadata:
         name: "existingSecret"
-        label: "Existing secret for Enabler for Containers DB"
+        label: "Secret for Enabler for Containers DB"
         description: "Define keys username, password and dbname for the secret object used by Enabler for Containers DB. The dbname must be set to 'ubiquity'."
         type: string
+        required: true
 
   persistence:
     useExistingPv:
@@ -193,18 +194,13 @@ ubiquityDb:
         type: string
 
     storageClass:
-      defaultClass:
-        __metadata:
-          name: "defaultClass"
-          label: "Is default storage class?"
-          description: "Set to True if the storage class of Enabler for Containers DB is default storage class."
-          type: "boolean"
       storageClassName:
         __metadata:
           name: "storageClassName"
-          label: "Enabler for Containers DB storage class"
-          description: "Name of Enabler for Containers DB storage class"
+          label: "Name of Enabler for Containers DB storage class"
+          description: "Name of Enabler for Containers DB storage class to be created."
           type: string
+          required: true
       existingStorageClass:
         __metadata:
           name: "existingStorageClass"
@@ -212,6 +208,12 @@ ubiquityDb:
           description: "Use an existing storage class object for Enabler for Containers DB."
           type: string
           hidden: true
+      defaultClass:
+        __metadata:
+          name: "defaultClass"
+          label: "Used as default storage class?"
+          description: "Set to True if the storage class of Enabler for Containers DB will be used as default storage class."
+          type: "boolean"
 
 
 ubiquity:
@@ -248,8 +250,8 @@ ubiquity:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "Enabler for Containers configuration"
-      description: "Configuration required for deploying Enabler for Containers."
+      label: "Resources"
+      description: "Resources configuration required for deploying Enabler for Containers."
       type: string
 
 
@@ -287,8 +289,8 @@ ubiquityK8sFlex:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "Enabler for Containers Kubernetes FlexVolume configuration"
-      description: "Configuration required for deploying Kubernetes FlexVolume daemonSet."
+      label: "Resources"
+      description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet."
       type: string
   tolerations:
     __metadata:
@@ -310,7 +312,7 @@ ubiquityK8sFlexInitContainer:
     description: "Settings for Enabler for Containers Kubernetes FlexVolume daemonSet Init-Container."
   resources:
     __metadata:
-      label: "Enabler for Containers Kubernetes FlexVolume Init-Container resources configuration"
+      label: "Resources"
       description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet Init-Container."
       type: string
 
@@ -349,7 +351,7 @@ ubiquityK8sFlexSidecar:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "Enabler for Containers Kubernetes FlexVolume sidecar container resources configuration"
+      label: "Resources"
       description: "Resources configuration required for deploying Kubernetes FlexVolume daemonSet sidecar container."
       type: string
 
@@ -387,8 +389,8 @@ ubiquityK8sProvisioner:
           value: "IfNotPresent"
   resources:
     __metadata:
-      label: "Enabler for Containers Kubernetes Provisioner configuration"
-      description: "Configuration required for deploying Kubernetes Provisioner."
+      label: "Resources"
+      description: "Resources configuration required for deploying Kubernetes Provisioner."
       type: string
 
 
@@ -433,7 +435,7 @@ defaultPodSecurityPolicy:
   enabled:
     __metadata:
       name: "enabled"
-      label: "Use as default pod security policy"
+      label: "Used as default pod security policy?"
       description: "Enable to use the default pod security settings."
       type: "boolean"
   clusterRole:

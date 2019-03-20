@@ -88,15 +88,15 @@ ubiquityDb:
 
     storageClass:
 
-      # Set StorageClass as the default StorageClass. Ignored if storageClass.create is false.
-      defaultClass: false
-
       # Parameters to create the first storage class that is also to be used by Ubiquity for ibm-ubiquity-db PVC.
       # Note: The default reclaimPolicy is Delete. Can be changed manually if needed.
       storageClassName:
 
       # Set this param with an existing storageclass object if one exist.
       existingStorageClass:
+
+      # Set StorageClass as the default StorageClass. Ignored if storageClass.create is false.
+      defaultClass: false
 
 
 ubiquity:
