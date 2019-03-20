@@ -13,21 +13,21 @@
 # limitations under the License.
 
 images:
-- image: ibmcom/ibm-storage-enabler-for-containers:2.0.0
+- image: ibmcom/ibm-storage-enabler-for-containers:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-enabler-for-containers:2.0.0
-- image: ibmcom/ibm-storage-enabler-for-containers-db:2.0.0
+  - repository: ibmcom/ibm-storage-enabler-for-containers:2.1.0
+- image: ibmcom/ibm-storage-enabler-for-containers-db:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-enabler-for-containers-db:2.0.0
-- image: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
+  - repository: ibmcom/ibm-storage-enabler-for-containers-db:2.1.0
+- image: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.0.0
-- image: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
+  - repository: ibmcom/ibm-storage-flex-volume-for-kubernetes:2.1.0
+- image: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.0.0
-- image: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.0.0
+  - repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes:2.1.0
+- image: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.0.0
-- image: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.0.0
+  - repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils:2.1.0
+- image: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.0.0
+  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes:2.1.0
