@@ -150,6 +150,8 @@ $ helm delete `my-release` --purge --no-hooks
 
 The following table lists the configurable parameters of the <Ubiquity> chart and their default values.
 
+[//]: # (Do not edit the table directly, use Tables Generator: https://www.tablesgenerator.com/markdown_tables)
+
 | Parameter                                                | Description                                                                                                                                                                                                                                                                                                                                   | Default                           |
 |----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
 | `backend`                                                | Backend for Provisioner and Flex volume. Allowed values: spectrumConnect or spectrumScale                                                                                                                                                                                                                                                     | `spectrumConnect`                 |
