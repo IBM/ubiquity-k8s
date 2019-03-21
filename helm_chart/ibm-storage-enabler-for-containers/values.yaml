@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 
 
-# Operation backend of Provisioner and Flex volume.
+# Backend for Provisioner and Flex volume.
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
 backend: spectrumConnect
 

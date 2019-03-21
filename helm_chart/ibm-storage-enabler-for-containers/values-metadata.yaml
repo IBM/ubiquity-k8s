@@ -22,7 +22,7 @@ spectrumConnect:
       __metadata:
         name: "fqdn"
         label: "IP or FQDN"
-        description: "IP or FQDN of Spectrum Connect server."
+        description: "IP address or FQDN of Spectrum Connect server."
         type: string
     port:
       __metadata:
@@ -96,7 +96,7 @@ spectrumScale:
       __metadata:
         name: "fqdn"
         label: "IP or FQDN"
-        description: "Spectrum Scale IP or FQDN of the Management API (GUI) Server."
+        description: "Spectrum Scale IP address or FQDN of the Management API (GUI) Server."
         type: string
     port:
       __metadata:
@@ -302,7 +302,7 @@ ubiquityK8sFlex:
     __metadata:
       name: "flexLogDir"
       label: "FlexVolume log directory"
-      description: "If the default value is changed, verify that the new path exists on all the nodes and update the Flex daemonSet hostpath accordingly."
+      description: "If the default value is changed, verify that the new path exists on all the nodes."
       type: string
 
 
