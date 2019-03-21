@@ -184,7 +184,15 @@ Specify each parameter using the `--set key=value[,key=value]` argument to `helm
 Alternatively, a YAML file that specifies the values for the parameters can be provided while installing the chart.
 
 ## Storage
-IBM Storage Enabler for Containers is a dynamic provisioner for persistent volumes, it allows IBM storage systems volumes to be used for stateful applications running in Kubernetes clusters.
+IBM Storage Enabler for Containers allows IBM storage system volumes to be used for stateful applications running in Kubernetes clusters. The full list of supported IBM systems is detailed in the Enabler for Containers realease notes (see the Documentation section below).
+
+## Troubleshooting
+You can use the IBM Storage Enabler for Containers logs for problem identification. To collect and display logs, related to the different components of IBM Storage Enabler for Containers, use this script: 
+
+```bash
+./ubiquity_cli.sh -a collect_logs
+```
+The logs are kept in the `./ubiquity_collect_logs_MM-DD-YYYY-h:m:s` folder. The folder is placed in the directory, from which the log collection command was run.
 
 ## Limitations
 * Only one type of IBM storage backend (block or file) can be configured on the same Kubernetes or ICP cluster.
