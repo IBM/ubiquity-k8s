@@ -142,6 +142,13 @@ ubiquityK8sProvisioner:
   resources: {}
 
 
+ubiquityHelmUtils:
+  image:
+    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+
+
 # Default pod security policy. If specified, it is applied to all pods in the chart.
 # New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies
 # to a role or clusterRole, and provide the name for the role or clusterRole.
@@ -151,13 +158,6 @@ defaultPodSecurityPolicy:
   # Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
   enabled: false
   clusterRole: ibm-anyuid-hostpath-clusterrole
-
-
-ubiquityHelmUtils:
-  image:
-    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils
-    tag: "2.1.0"
-    pullPolicy: IfNotPresent
 
 
 globalConfig:

@@ -42,3 +42,10 @@ cat $preinstallDir/../values.yaml
 
 echo "Test render the templates"
 helm template $CV_TEST_CHART_DIR -n $chartRelease -f $preinstallDir/../values.yaml
+
+echo "Create secret for sc and ubiquity db"
+kubectl apply -f $preinstallDir/scbe-secret.yaml
+kubectl apply -f $preinstallDir/ubiquity-db-secret.yaml
+echo "Using local pv"
+kubectl apply -f $preinstallDir/local-pv.yaml
+kubectl apply -f $preinstallDir/local-pvc.yaml
