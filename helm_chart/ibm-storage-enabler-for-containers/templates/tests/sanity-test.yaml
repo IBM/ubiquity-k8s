@@ -29,8 +29,7 @@ spec:
         runAsUser: 1001
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
       imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
-      command: ["/usr/bin/hook-executor"]
-      args: ["sanity"]
+      command: ['sh', '-c', 'sleep 10 && sanity test passed.']
       env:
         - name: NAMESPACE
           value: {{ .Release.Namespace }}
