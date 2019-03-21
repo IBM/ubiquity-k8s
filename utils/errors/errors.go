@@ -8,6 +8,7 @@ const (
 	ErrorReasonENVNamespaceNotSet        ErrorReason = "ENV NAMESPACE is not set"
 	ErrorReasonENVStorageClassNotSet     ErrorReason = "ENV STORAGE_CLASS is not set"
 	ErrorReasonENVUbiquityDbPvNameNotSet ErrorReason = "ENV UBIQUITY_DB_PV_NAME is not set"
+	ErrorReasonENVUbiquityDbSCNotSet     ErrorReason = "ENV UBIQUITY_DB_STORAGECLASS is not set"
 	ErrorReasonUnknown                   ErrorReason = "unknown"
 )
 
@@ -59,7 +60,12 @@ func IsENVUbiquityDbPvNameNotSet(err error) bool {
 	return ReasonForError(err) == ErrorReasonENVUbiquityDbPvNameNotSet
 }
 
+func IsENVUbiquityDbSCNotSet(err error) bool {
+	return ReasonForError(err) == ErrorReasonENVUbiquityDbSCNotSet
+}
+
 var UbiquityServiceIPEmpty = NewError(ErrorReasonUbiquityServiceIPEmpty)
 var ENVNamespaceNotSet = NewError(ErrorReasonENVNamespaceNotSet)
 var ENVStorageClassNotSet = NewError(ErrorReasonENVStorageClassNotSet)
 var ENVUbiquityDbPvNameNotSet = NewError(ErrorReasonENVUbiquityDbPvNameNotSet)
+var ENVUbiquityDbSCNotSet = NewError(ErrorReasonENVUbiquityDbSCNotSet)

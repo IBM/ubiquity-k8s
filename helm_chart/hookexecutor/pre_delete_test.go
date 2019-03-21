@@ -151,6 +151,7 @@ var _ = Describe("PreDelete", func() {
 
 		os.Setenv("UBIQUITY_DB_PV_NAME", pv.Name)
 		os.Setenv("NAMESPACE", "ubiquity")
+		os.Setenv("UBIQUITY_DB_STORAGECLASS", pv.Spec.StorageClassName)
 
 		kubeClient = fakekubeclientset.NewSimpleClientset(pvc, pv, deploy, pod)
 
@@ -160,6 +161,7 @@ var _ = Describe("PreDelete", func() {
 	AfterEach(func() {
 		os.Setenv("UBIQUITY_DB_PV_NAME", "")
 		os.Setenv("NAMESPACE", "")
+		os.Setenv("UBIQUITY_DB_STORAGECLASS", "")
 	})
 
 	Describe("test Execute", func() {
@@ -271,15 +273,34 @@ var _ = Describe("PreDelete", func() {
 				}()
 			})
 
-			It("should return after pv is deleted", func(done Done) {
-				err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
-				Ω(err).ShouldNot(HaveOccurred())
+			Context("pv is managed by us", func() {
 
-				// The fake server won't delete pv in cascade.
-				// _, err := kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
-				// Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				It("should return after pv is deleted", func(done Done) {
+					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+					Ω(err).ShouldNot(HaveOccurred())
 
-				close(done)
+					// The fake server won't delete pv in cascade.
+					// _, err := kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+					// Expect(apierrors.IsNotFound(err)).To(BeTrue())
+
+					close(done)
+				})
+			})
+
+			Context("pv is managed by other storageClass", func() {
+
+				BeforeEach(func() {
+					os.Setenv("UBIQUITY_DB_STORAGECLASS", "other-sc")
+				})
+
+				It("should return directly", func() {
+					err := e.(*preDeleteExecutor).deleteUbiquityDBPvc()
+					Ω(err).ShouldNot(HaveOccurred())
+
+					// pv still exists on API Server after action
+					_, err = kubeClient.CoreV1().PersistentVolumes().Get(pv.Name, metav1.GetOptions{})
+					Ω(err).ShouldNot(HaveOccurred())
+				})
 			})
 		})
 
