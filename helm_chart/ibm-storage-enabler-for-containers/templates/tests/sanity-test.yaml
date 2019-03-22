@@ -30,7 +30,7 @@ spec:
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
       imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
       {{- if .Values.cvTest }}
-      command: ['sh', '-c', 'sleep 10 && sanity test passed.']
+      command: ['sh', '-c', 'sleep 10 && echo "sanity test passed."']
       {{- else }}
       command: ['/usr/bin/hook-executor', 'sanity']
       {{- end }}
