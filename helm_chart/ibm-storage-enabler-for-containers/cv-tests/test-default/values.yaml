@@ -8,8 +8,6 @@
 #   - deamonset/ubiquity-k8s-flex         : Implements k8s FlexVolume driver.
 #   - deployment/ubiquity-k8s-provisioner : Implements k8s Dynamic Provisioner
 # ---------------------------------------------------------
-
-
 # Operation backend of Provisioner and Flex volume.
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
 backend: spectrumConnect

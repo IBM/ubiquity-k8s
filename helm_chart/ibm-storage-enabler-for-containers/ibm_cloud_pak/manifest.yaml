@@ -13,92 +13,92 @@
 # limitations under the License.
 
 images:
-- image: ibm-storage-enabler-for-containers
+- image: ibm-storage-enabler-for-containers-amd64:2.1.0_b436_dev
   references:
-  - repository: ibm-storage-enabler-for-containers-amd64:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-amd64:2.1.0_b436_dev
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-enabler-for-containers-ppc64le:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-ppc64le:2.1.0_b436_dev
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-enabler-for-containers-s390x:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-s390x:2.1.0_b436_dev
     platform:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-enabler-for-containers-db
+- image: ibm-storage-enabler-for-containers-db-amd64:2.1.0_b436_dev
   references:
-  - repository: ibm-storage-enabler-for-containers-db-amd64:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-db-amd64:2.1.0_b436_dev
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-enabler-for-containers-db-ppc64le:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-db-ppc64le:2.1.0_b436_dev
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-enabler-for-containers-db-s390x:2.1.0_b436_dev
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-db-s390x:2.1.0_b436_dev
     platform:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-dynamic-provisioner-for-kubernetes
+- image: ibm-storage-dynamic-provisioner-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
   references:
-  - repository: ibm-storage-dynamic-provisioner-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-dynamic-provisioner-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-dynamic-provisioner-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-dynamic-provisioner-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-dynamic-provisioner-for-kubernetes-390x:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-dynamic-provisioner-for-kubernetes-s390x:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-flex-volume-for-kubernetes
+- image: ibm-storage-flex-volume-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
   references:
-  - repository: ibm-storage-flex-volume-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-volume-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-flex-volume-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-volume-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-flex-volume-for-kubernetes-s390x:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-volume-for-kubernetes-s390x:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-enabler-for-containers-helm-utils
+- image: ibm-storage-enabler-for-containers-helm-utils-amd64:2.1.0_b685_feature.UB-1884_values_metadata
   references:
-  - repository: ibm-storage-enabler-for-containers-helm-utils-amd64:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-helm-utils-amd64:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-enabler-for-containers-helm-utils-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-helm-utils-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-enabler-for-containers-helm-utils-s390x:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-helm-utils-s390x:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-flex-sidecar-for-kubernetes
+- image: ibm-storage-flex-sidecar-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
   references:
-  - repository: ibm-storage-flex-sidecar-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-sidecar-for-kubernetes-amd64:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: amd64
-  - repository: ibm-storage-flex-sidecar-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-sidecar-for-kubernetes-ppc64le:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibm-storage-flex-sidecar-for-kubernetes-s390x:2.1.0_b685_feature.UB-1884_values_metadata
+  - repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-sidecar-for-kubernetes-s390x:2.1.0_b685_feature.UB-1884_values_metadata
     platform:
       os: linux
       architecture: s390x
