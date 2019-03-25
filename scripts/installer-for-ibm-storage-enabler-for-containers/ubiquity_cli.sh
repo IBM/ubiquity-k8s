@@ -124,7 +124,7 @@ function collect_logs()
     # kubectl logs on Flex pods
     for flex_pod in `kubectl get $nsf pod | grep ubiquity-k8s-flex | awk '{print $1}'`; do
        echo "$klog pod/${flex_pod}"
-       $klog pod/${flex_pod} > ${logdir}/${flex_pod}.log 2>&1 || :
+       $klog pod/${flex_pod} -c ubiquity-k8s-flex > ${logdir}/${flex_pod}.log 2>&1 || :
        files_to_collect="${files_to_collect} ${logdir}/${flex_pod}.log"
     done
 
