@@ -8,14 +8,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: ubiquity-k8s-flex
+      app.kubernetes.io/name: ubiquity-k8s-flex
       product: ibm-storage-enabler-for-containers
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: ubiquity-k8s-flex
+        app.kubernetes.io/name: ubiquity-k8s-flex
         product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:

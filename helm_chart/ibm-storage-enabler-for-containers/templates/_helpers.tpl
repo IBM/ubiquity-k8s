@@ -90,22 +90,25 @@ Create the name of storageClass for ubiquity-db pvc
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.helmLabels" -}}
-app: {{ template "ibm_storage_enabler_for_containers.name" . }}
-chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+app.kubernetes.io/name: {{ template "ibm_storage_enabler_for_containers.name" . }}
+helm.sh/chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
 release: {{ .Release.Name }}
-heritage: {{ .Release.Service }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.podLabels" -}}
-chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+helm.sh/chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
 release: {{ .Release.Name }}
-heritage: {{ .Release.Service }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.productAnnotations" -}}
 productName: {{ template "ibm_storage_enabler_for_containers.productName" . }}
 productID: {{ template "ibm_storage_enabler_for_containers.productID" . }}
 productVersion: {{ .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion }}
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.securityContext" -}}

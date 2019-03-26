@@ -9,12 +9,12 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubiquity
+      app.kubernetes.io/name: ubiquity
       product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
-        app: ubiquity
+        app.kubernetes.io/name: ubiquity
         product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:

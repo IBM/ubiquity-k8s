@@ -9,14 +9,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubiquity-db
+      app.kubernetes.io/name: ubiquity-db
       product: ibm-storage-enabler-for-containers
   template:
     metadata:
       annotations:
 {{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
       labels:
-        app: ubiquity-db
+        app.kubernetes.io/name: ubiquity-db
         product: ibm-storage-enabler-for-containers
 {{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
     spec:

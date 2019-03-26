@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       targetPort: 9999
   selector:
-    app: ubiquity
+    app.kubernetes.io/name: ubiquity
 {{ end }}

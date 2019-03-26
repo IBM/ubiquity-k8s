@@ -13,5 +13,5 @@ spec:
       protocol: TCP
       targetPort: 5432
   selector:
-    app: ubiquity-db
+    app.kubernetes.io/name: ubiquity-db
 {{ end }}
