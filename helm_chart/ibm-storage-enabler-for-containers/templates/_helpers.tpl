@@ -116,7 +116,4 @@ securityContext:
   readOnlyRootFilesystem: false
   runAsNonRoot: false
   runAsUser: 0
-  capabilities:
-    drop:
-    - ALL
 {{- end -}}
