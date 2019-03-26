@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-sanity-test
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: sanity-test
+      image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
+      imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
+      command: ["/usr/bin/hook-executor"]
+      args: ["sanity"]
+      env:
+        - name: NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: STORAGE_CLASS
+          value: {{ template "ibm_storage_enabler_for_containers.ubiquityDbStorageClass" . }}
+  restartPolicy: Never
+  serviceAccount: ubiquity-helm-hook

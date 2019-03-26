@@ -142,3 +142,7 @@ echo ${ubiquity_provisioner_tag_specific} > ubiquity_k8s_tags
 echo ${ubiquity_flex_tag_specific} >> ubiquity_k8s_tags
 echo ${ubiquity_flex_sidecar_tag_specific} >> ubiquity_k8s_tags
 echo ${ubiquity_helm_utils_tag_specific} >> ubiquity_k8s_tags
+
+if [ -e "$repo/scripts/ci/build_helm_chart.sh" ]; then
+  "./$repo/scripts/ci/build_helm_chart.sh"
+fi

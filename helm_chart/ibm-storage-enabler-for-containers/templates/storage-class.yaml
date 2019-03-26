@@ -1,0 +1,18 @@
+{{- if and (.Values.ubiquity.spectrumConnect) (not .Values.ubiquityDb.persistence.storageClass.existingStorageClass) }}
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: {{ .Values.ubiquityDb.persistence.storageClass.storageClassName  | quote }}
+  labels:
+    product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.helmLabels" . | indent 4 }}
+{{- if .Values.ubiquityDb.persistence.storageClass.defaultClass }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+{{- end }}
+provisioner: "ubiquity/flex"
+parameters:
+  profile: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.spectrumConnectServiceName  | quote }}
+  fstype: {{ .Values.ubiquityDb.persistence.storageClass.spectrumConnect.fsType  | quote }}        # xfs or ext4
+  backend: "scbe"
+{{- end }}
