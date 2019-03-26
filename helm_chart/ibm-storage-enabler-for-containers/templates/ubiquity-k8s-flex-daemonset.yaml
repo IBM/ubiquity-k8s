@@ -33,11 +33,12 @@ spec:
         effect: NoSchedule
       {{- end }}
 
-      containers:
-      - name: ubiquity-k8s-flex
+      serviceAccountName: ubiquity-k8s-flex
+      initContainers:
+      - name: ubiquity-k8s-flex-init-container
         image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
-        {{- with .Values.ubiquityK8sFlex.resources }}
+        {{- with .Values.ubiquityK8sFlexInitContainer.resources }}
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
@@ -81,18 +82,52 @@ spec:
                 key: password
 
 {{- end }}
-
-          - name: UBIQUITY_IP_ADDRESS   # The ubiquity service IP. The flex pod will update this IP inside the flex config file
-            # The default value 0.0.0.0 is just a placeholder, it will be updated
-            # during installation, if it is chagned after installation, you should
-            # update it accordingly.
-            value: 0.0.0.0
           - name: UBIQUITY_PLUGIN_SSL_MODE   # require / verify-full
             valueFrom:
               configMapKeyRef:
                 name: ubiquity-configmap
                 key: SSL-MODE
 
+        command:
+          - ./setup_flex.sh
+        args:
+          - --generate_flex_conf
+
+        volumeMounts:
+        - name: host-k8splugindir
+          mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+      containers:
+      - name: ubiquity-k8s-flex-sidecar
+        image: "{{ .Values.ubiquityK8sFlexSidecar.image.repository }}:{{ .Values.ubiquityK8sFlexSidecar.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlexSidecar.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sFlexSidecar.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
+
+        env:
+          - name: NAMESPACE
+            value: {{ .Release.Namespace }}
+
+        command: ["./flex-sidecar"]
+        volumeMounts:
+        - name: host-k8splugindir
+          mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
+
+      - name: ubiquity-k8s-flex
+        image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
+        imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
+        {{- with .Values.ubiquityK8sFlex.resources }}
+        resources:
+{{ toYaml . | indent 10 }}
+        {{- end }}
+
+        env:
+          - name: FLEX_LOG_DIR    # /var/log default
+            valueFrom:
+              configMapKeyRef:
+                name: ubiquity-configmap
+                key: FLEX-LOG-DIR
 
         command: ["./setup_flex.sh"]
         volumeMounts:

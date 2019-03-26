@@ -127,6 +127,16 @@ ubiquityK8sFlex:
   ## Update this key manually if the ubiquity service object IP was changed.
   ubiquityIpAddress:
 
+ubiquityK8sFlexInitContainer:
+  resources: {}
+
+ubiquityK8sFlexSidecar:
+  image:
+    repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  resources: {}
+
 
 ubiquityK8sProvisioner:
   ## RBAC and service account are set automatically for the Provisioner.
