@@ -107,3 +107,13 @@ productName: {{ template "ibm_storage_enabler_for_containers.productName" . }}
 productID: {{ template "ibm_storage_enabler_for_containers.productID" . }}
 productVersion: {{ .Chart.AppVersion }}
 {{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.securityContext" -}}
+securityContext:
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+  runAsUser: 0
+  capabilities:
+    drop:
+    - ALL
+{{- end -}}

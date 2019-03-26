@@ -39,10 +39,7 @@ spec:
                       - s390x
       containers:
       - name: ubiquity
-        securityContext:
-          readOnlyRootFilesystem: false
-          runAsNonRoot: false
-          runAsUser: 0
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
         ports:

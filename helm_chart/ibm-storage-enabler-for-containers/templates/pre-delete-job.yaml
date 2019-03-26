@@ -26,10 +26,7 @@ spec:
                       - s390x
       containers:
         - name: pre-delete-hook
-          securityContext:
-            readOnlyRootFilesystem: false
-            runAsNonRoot: false
-            runAsUser: 1001
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 10 }}
           image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
           imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
           command: ["/usr/bin/hook-executor"]

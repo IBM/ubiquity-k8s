@@ -23,10 +23,7 @@ spec:
                   - s390x
   containers:
     - name: sanity-test
-      securityContext:
-        readOnlyRootFilesystem: false
-        runAsNonRoot: false
-        runAsUser: 1001
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 6 }}
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
       imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
       {{- if .Values.cvTest }}

@@ -39,10 +39,7 @@ spec:
       serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
-        securityContext:
-          readOnlyRootFilesystem: false
-          runAsNonRoot: false
-          runAsUser: 0
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityK8sProvisioner.image.repository }}:{{ .Values.ubiquityK8sProvisioner.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sProvisioner.image.pullPolicy }}
         {{- with .Values.ubiquityK8sProvisioner.resources }}

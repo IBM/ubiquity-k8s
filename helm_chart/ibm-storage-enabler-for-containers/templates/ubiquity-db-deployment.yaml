@@ -40,10 +40,7 @@ spec:
       {{- end }}
       containers:
       - name: ubiquity-db
-        securityContext:
-          readOnlyRootFilesystem: false
-          runAsNonRoot: false
-          runAsUser: 0
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
         {{- with .Values.ubiquityDb.resources }}
