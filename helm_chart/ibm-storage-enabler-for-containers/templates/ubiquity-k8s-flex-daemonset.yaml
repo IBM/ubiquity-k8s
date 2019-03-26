@@ -126,8 +126,7 @@ spec:
           - name: NAMESPACE
             value: {{ .Release.Namespace }}
 
-        command:
-          - ./flex-sidecar
+        command: ["./flex-sidecar"]
         volumeMounts:
         - name: host-k8splugindir
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
