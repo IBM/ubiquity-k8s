@@ -1,6 +1,6 @@
 qualification:
-  levelName: "ibm-cloud-pak"
-  levelDescription: "IBM Cloud Pak"
+  levelName: "certified-ibm-cloud-pak"
+  levelDescription: "Certified IBM Cloud Pak"
   issueDate: "04/2019"
   duration: "12M"
   terms: "Valid from date of issue. Security vulnerability management and enhancements are delivered on the latest version of the chart and images."
@@ -11,4 +11,4 @@ prereqs:
         name: "ibm-anyuid-hostpath-psp"
     ibmCloudPrivate:
       installerRole:
-        name: "Administrator"
+        name: "ClusterAdministrator"

@@ -1,5 +1,5 @@
 apiVersion: v1
-name: ibm-storage-enabler-for-containers
+name: ibm-storage-enabler-for-containers-dev
 version: 1.0.0
 kubeVersion: ">=1.10.0"
 description: A Helm chart for IBM Storage Enabler for Containers
@@ -14,12 +14,7 @@ keywords:
   - OpenSource
 
 appVersion: 2.1.0
-tillerVersion: ">=2.6.0"
-sources:
-  - https://github.com/ibm/ubiquity-k8s
+tillerVersion: ">=2.9.1"
 maintainers:
-  - name: Shay Berman
-    email: bshay@il.ibm.com
-  - name: Guang Jiong Lou
-    email:  luogj@cn.ibm.com
+  - name: IBM CSS
 icon: https://github.com/IBM/ubiquity-k8s/blob/master/helm_chart/IBM_Spectrum_Connect_icon.png?sanitize=true

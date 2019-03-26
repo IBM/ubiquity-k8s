@@ -26,7 +26,7 @@ ignoreMessages:
   #We can't provide readinessProbe in this release and we will provide them in next release
   - '.*readinessProbe not found.*'
 
-  # We will add it in next release.
+  # false alarm, we defined PSP, bind PSP to the ServiceAccount, and configured ServiceAccount in the pod
   - '.*missing pod security-related keys.*'
 
   # We store our images on dockerHub, no imagePullSecrets are required.
