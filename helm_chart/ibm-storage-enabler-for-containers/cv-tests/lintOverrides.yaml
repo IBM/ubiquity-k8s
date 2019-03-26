@@ -32,7 +32,7 @@ ignoreMessages:
   # We store our images on dockerHub, no imagePullSecrets are required.
   - '\[ERROR\] .*imagePullSecret with name "sa\-\{\{ .Release.Namespace \}\}" not found in imagePullSecrets.*'
 
-  # We will support it in next release.
+  # We will use root user to stat/create files in folder /root, if we drop all, we will get "permission denied".
   - '\[ERROR\] .*container must drop.*'
 
   # We will fix it in next release, but currently, our pods mush run as root.
