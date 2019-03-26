@@ -19,7 +19,6 @@ spec:
 {{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
 {{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
       hostNetwork: false
