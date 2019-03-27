@@ -123,9 +123,7 @@ spec:
         {{- end }}
         livenessProbe:
           exec:
-            command:
-            - echo
-            - "hello"
+            command: ["./health_check.sh"]
           initialDelaySeconds: 10
           periodSeconds: 30
         env:
@@ -147,9 +145,7 @@ spec:
         {{- end }}
         livenessProbe:
           exec:
-            command:
-            - echo
-            - "hello"
+            command: ["./health_check.sh"]
           initialDelaySeconds: 10
           periodSeconds: 30
         env:
