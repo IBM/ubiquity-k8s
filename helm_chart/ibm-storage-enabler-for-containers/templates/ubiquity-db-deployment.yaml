@@ -50,6 +50,16 @@ spec:
         ports:
         - containerPort: 5432
           name: ubiq-db-port  # no more then 15 chars
+        readinessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 5432
+          initialDelaySeconds: 60
+          periodSeconds: 30
         env:
           - name: UBIQUITY_DB_USERNAME
             valueFrom:
