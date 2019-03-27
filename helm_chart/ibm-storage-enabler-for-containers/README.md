@@ -15,30 +15,30 @@ This chart includes:
 
 ## Prerequisites
 Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
-1. Install and configure IBM Spectrum Connect, according to the application requirements.
-2. Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
-3. For each worker node:
-   1. Install relevant Linux packages to ensure Fibre Channel and iSCSI connectivity.
-   2. Configure Linux multipath devices on the host.
-   3. Configure storage system connectivity.
-   4. Make sure that the node kubelet service has the attach/detach capability enabled.
-4. For each master node:
-   1. Enable the attach/detach capability for the kubelet service.
-   2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
-5. If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
-6. When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
+- Install and configure IBM Spectrum Connect, according to the application requirements.
+- Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
+- For each worker node:
+   - Install relevant Linux packages to ensure Fibre Channel and iSCSI connectivity.
+   - Configure Linux multipath devices on the host.
+   - Configure storage system connectivity.
+   - Make sure that the node kubelet service has the attach/detach capability enabled.
+- For each master node:
+   - Enable the attach/detach capability for the kubelet service.
+   - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+- If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
+- When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
 Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale:
-1. Install and configure IBM Spectrum Scale, according to the application requirements.
-2. Establish a proper communication link between Spectrum Scale Management GUI Address and Kubernetes cluster.
-3. For each worker node:
-   1. Install Spectum Scale client packages.
-   2. Mount Spectrum Scale filesystem for persistent storage.
-3. For each master node:
-   1. Enable the attach/detach capability for the kubelet service.
-   2. If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+- Install and configure IBM Spectrum Scale, according to the application requirements.
+- Establish a proper communication link between Spectrum Scale Management GUI Address and Kubernetes cluster.
+- For each worker node:
+   - Install Spectum Scale client packages.
+   - Mount Spectrum Scale filesystem for persistent storage.
+- For each master node:
+   - Enable the attach/detach capability for the kubelet service.
+   - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
 
-These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
+These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT
 
 ## PodSecurityPolicy Requirements
 This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "globalConfig.defaultPodSecurityPolicy.clusterRole". 
@@ -167,19 +167,26 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `spectrumScale.connectionInfo.fqdn`                      | Spectrum Scale IP address or FQDN of the Management API (GUI) Server.                                                                                                                                                                                                                                                                         |                                   |
 | `spectrumScale.connectionInfo.port`                      | Communication port of Spectrum Scale Management API (GUI) Server.                                                                                                                                                                                                                                                                             | `443`                             |
 | `spectrumScale.connectionInfo.existingSecret`            | Secret for Spectrum Scale Management API (GUI) Server user credentials. The value must be the same as configured in Spectrum Scale. Keys username and password are mandatory.                                                                                                                                                                 |                                   |
-| `spectrumScale.defaultFilesystemName`                    | Default Spectrum Scale filesystem to be used for creating persistent volume.                                                                                                                                                                                                                                                                  |                                   |
+| `spectrumScale.backendConfig.defaultFilesystemName`      | Default Spectrum Scale filesystem to be used for creating persistent volume.                                                                                                                                                                                                                                                                  |                                   |
+| `ubiquitydb.resources`                                   | Resources configuration required for deploying Enabler for Containers DB.                                                                                                                                                                                                                                                                     |                                   |
+| `ubiquitydb.nodeSelector`                                | Extra node selector for deployment.                                                                                                                                                                                                                                                                                                           |                                   |
 | `ubiquitydb.dbCredentials.existingSecret`                | Secret for Enabler for Containers DB. Define keys username, password and dbname for the secret object used by Enabler for Containers DB. The dbname must be set to 'ubiquity'.                                                                                                                                                                |                                   |
 | `ubiquityDb.persistence.useExistingPv`                   | Set this parameter to True if you want to use an existing PVC as Enabler for Containers database PVC. Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version.                                                                                                                               | `false`                           |
 | `ubiquityDb.persistence.pvName`                          | Name of the persistent volume to be used for the ubiquity-db database. For the Spectrum Virtualize and Spectrum Accelerate storage systems, use the default value (ibm-ubiquity-db). For the DS8000 storage system, use a shorter value, such as (ibmdb). This is necessary because the DS8000 volume name length cannot exceed 8 characters. | `ibm-ubiquity-db`                 |
 | `ubiquityDb.persistence.pvSize`                          | Default size (in GiB) of the persistent volume to be used for the ubiquity-db database.                                                                                                                                                                                                                                                       | `20`                              |
 | `ubiquityDb.persistence.storageClass.storageClassName`   | Storage class name. The storage class parameters are used for creating an initial storage class for the ubiquity-db PVC. You can use this storage class for other applications as well. It is recommended to set the storage class name to be the same as the Spectrum Connect storage service name.                                          |                                   |
 | `ubiquityDb.persistence.storageClass.defaultClass`       | Set to True if the storage class of Enabler for Containers DB will be used as default storage class.                                                                                                                                                                                                                                          | `false`                           |
+| `ubiquity.resources`                                     | Resources configuration required for deploying Enabler for Containers.                                                                                                                                                                                                                                                                        |                                   |
+| `ubiquityK8sFlex.resources`                              | Resources configuration required for deploying Kubernetes FlexVolume daemonSet.                                                                                                                                                                                                                                                               |                                   |
+| `ubiquityK8sFlex.tolerations`                            | Toleration labels for pod assignment, such as [{\"key\": \"key\",,\"operator\":\"Equal\", \"value\": \"value\",,\"effect\":\"NoSchedule\"}]                                                                                                                                                                                                   |                                   |
 | `ubiquityK8sFlex.flexLogDir`                             | If the default value is changed, make sure that the new path exists on all the nodes                                                                                                                                                                                                                                                          | `/var/log`                        |
+| `ubiquityK8sFlexInitContainer.resources`                 | Resources configuration required for deploying Kubernetes FlexVolume daemonSet Init-Container.                                                                                                                                                                                                                                                |                                   |
+| `ubiquityK8sFlexSidecar.resources`                       | Resources configuration required for deploying Kubernetes FlexVolume daemonSet sidecar container.                                                                                                                                                                                                                                             |                                   |
+| `ubiquityK8sProvisioner.resources`                       | Resources configuration required for deploying Kubernetes Provisioner.                                                                                                                                                                                                                                                                        |                                   |
 | `defaultPodSecurityPolicy.enabled`                       | Default pod security policy. If enabled, it is applied to all pods in the chart.                                                                                                                                                                                                                                                              | `false`                           |
 | `defaultPodSecurityPolicy.clusterRole`                   | The name of clusterRole that has the required policies attached.                                                                                                                                                                                                                                                                              | `ibm-anyuid-hostpath-clusterrole` |
 | `globalConfig.logLevel`                                  | Log level. Allowed values: debug, info, error.                                                                                                                                                                                                                                                                                                | `info`                            |
 | `globalConfig.sslMode`                                   | SSL verification mode. Allowed values: require (No validation is required, the IBM Storage Enabler for Containers server generates self-signed certificates on the fly.) or verify-full (Certificates are provided by the user.).                                                                                                             | `require`                         |
-
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`.
 
