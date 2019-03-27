@@ -170,14 +170,24 @@ func (e *preDeleteExecutor) waitUbiquityDbPvDeletion() error {
 	if err != nil {
 		return err
 	}
+	desiredStorageClass, err := getUbiquityDbStorageClass()
+	if err != nil {
+		return err
+	}
 
-	_, err = e.kubeClient.CoreV1().PersistentVolumes().Get(name, metav1.GetOptions{})
+	pv, err := e.kubeClient.CoreV1().PersistentVolumes().Get(name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Warning(fmt.Sprintf("The Ubiquity DB PV %s is already deleted", name))
 			return nil
 		}
 		return logger.ErrorRet(err, "Failed waiting for ubiquity DB PV to be deleted")
+	}
+
+	if pv.Spec.StorageClassName != desiredStorageClass {
+		// the pv is not created by ubiquity, maybe it is an external pv,
+		// if it is not deleted by its provisioner, we should leave it as it is.
+		return nil
 	}
 
 	pvWatcher, err := generatePvWatcher(name, e.kubeClient.CoreV1())
@@ -192,6 +202,14 @@ func getUbiquityDbPvName() (string, error) {
 	name := os.Getenv("UBIQUITY_DB_PV_NAME")
 	if name == "" {
 		return "", uberrors.ENVUbiquityDbPvNameNotSet
+	}
+	return name, nil
+}
+
+func getUbiquityDbStorageClass() (string, error) {
+	name := os.Getenv("UBIQUITY_DB_STORAGECLASS")
+	if name == "" {
+		return "", uberrors.ENVUbiquityDbSCNotSet
 	}
 	return name, nil
 }

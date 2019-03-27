@@ -21,6 +21,8 @@ spec:
               value: {{ .Release.Namespace }}
             - name: UBIQUITY_DB_PV_NAME
               value: {{ .Values.ubiquityDb.persistence.pvName | quote }}
+            - name: UBIQUITY_DB_STORAGECLASS
+              value: {{ template "ibm_storage_enabler_for_containers.ubiquityDbStorageClass" . }}
       restartPolicy: Never
       serviceAccount: ubiquity-helm-hook
   backoffLimit: 1
