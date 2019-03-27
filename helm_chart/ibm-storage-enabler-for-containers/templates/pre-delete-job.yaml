@@ -10,8 +10,23 @@ metadata:
 spec:
   template:
     spec:
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: beta.kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - ppc64le
+                      - s390x
       containers:
         - name: pre-delete-hook
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 10 }}
           image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
           imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
           command: ["/usr/bin/hook-executor"]

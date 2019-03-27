@@ -9,20 +9,38 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubiquity-db
+      app.kubernetes.io/name: ubiquity-db
       product: ibm-storage-enabler-for-containers
   template:
     metadata:
+      annotations:
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
       labels:
-        app: ubiquity-db
+        app.kubernetes.io/name: ubiquity-db
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
     spec:
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: beta.kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - ppc64le
+                      - s390x
       {{- if .Values.ubiquityDb.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.ubiquityDb.nodeSelector | indent 8}}
       {{- end }}
       containers:
       - name: ubiquity-db
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityDb.image.repository }}:{{ .Values.ubiquityDb.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityDb.image.pullPolicy }}
         {{- with .Values.ubiquityDb.resources }}

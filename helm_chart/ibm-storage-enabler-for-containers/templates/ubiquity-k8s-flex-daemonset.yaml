@@ -8,19 +8,34 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: ubiquity-k8s-flex
+      app.kubernetes.io/name: ubiquity-k8s-flex
       product: ibm-storage-enabler-for-containers
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: ubiquity-k8s-flex
+        app.kubernetes.io/name: ubiquity-k8s-flex
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: beta.kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - ppc64le
+                      - s390x
       tolerations:   # Create flex Pods also on master nodes (even if there are NoScheduled nodes)
       {{- if .Values.ubiquityK8sFlex.tolerations }}
 {{ toYaml .Values.ubiquityK8sFlex.tolerations | indent 6}}
@@ -36,6 +51,7 @@ spec:
       serviceAccountName: ubiquity-k8s-flex
       initContainers:
       - name: ubiquity-k8s-flex-init-container
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlexInitContainer.resources }}
@@ -68,7 +84,7 @@ spec:
                 name: ubiquity-configmap
                 key: LOG-LEVEL
 
-{{- if .Values.ubiquity.spectrumConnect }}
+{{- if eq .Values.backend "spectrumConnect" }}
           - name: UBIQUITY_USERNAME
             valueFrom:
               secretKeyRef:
@@ -98,6 +114,7 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
       containers:
       - name: ubiquity-k8s-flex-sidecar
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityK8sFlexSidecar.image.repository }}:{{ .Values.ubiquityK8sFlexSidecar.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlexSidecar.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlexSidecar.resources }}
@@ -115,6 +132,7 @@ spec:
           mountPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec
 
       - name: ubiquity-k8s-flex
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquityK8sFlex.image.repository }}:{{ .Values.ubiquityK8sFlex.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquityK8sFlex.image.pullPolicy }}
         {{- with .Values.ubiquityK8sFlex.resources }}

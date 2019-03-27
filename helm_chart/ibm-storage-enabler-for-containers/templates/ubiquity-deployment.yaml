@@ -9,20 +9,35 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ubiquity
+      app.kubernetes.io/name: ubiquity
       product: ibm-storage-enabler-for-containers
   template:
     metadata:
       labels:
-        app: ubiquity
+        app.kubernetes.io/name: ubiquity
         product: ibm-storage-enabler-for-containers
+{{ include "ibm_storage_enabler_for_containers.podLabels" . | indent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/ubiquity-configmap.yaml") . | sha256sum }}
-        checksum/secret-scbe: {{ include (print $.Template.BasePath "/scbe-credentials-secret.yaml") . | sha256sum }}
-        checksum/secret-spectrumscale: {{ include (print $.Template.BasePath "/spectrumscale-credentials-secret.yaml") . | sha256sum }}
+{{ include "ibm_storage_enabler_for_containers.productAnnotations" . | indent 8 }}
     spec:
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: beta.kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - ppc64le
+                      - s390x
       containers:
       - name: ubiquity
+{{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
         ports:
@@ -33,7 +48,7 @@ spec:
 {{ toYaml . | indent 10 }}
         {{- end }}
         env:
-{{- if .Values.ubiquity.spectrumConnect }}
+{{- if eq .Values.backend "spectrumConnect" }}
           ### Spectrum Connect(previously known as SCBE) connectivity parameters:
           #############################################
           - name: SCBE_USERNAME
@@ -96,7 +111,7 @@ spec:
 {{- end }}
 
 
-{{- if .Values.ubiquity.spectrumScale }}
+{{- if eq .Values.backend "spectrumScale" }}
 
           ### Ubiquity Spectrum Scale backend parameters:
           #####################################
@@ -224,11 +239,11 @@ spec:
           items:
           - key: ubiquity-db-trusted-ca.crt
             path: ubiquity-db-trusted-ca.crt
-  {{- if .Values.ubiquity.spectrumConnect }}
+  {{- if eq .Values.backend "spectrumConnect" }}
           - key: scbe-trusted-ca.crt
             path: scbe-trusted-ca.crt
   {{- end }}
-  {{- if .Values.ubiquity.spectrumScale }}
+  {{- if eq .Values.backend "spectrumScale" }}
           - key: spectrumscale-trusted-ca.crt
             path: spectrumscale-trusted-ca.crt
   {{- end }}

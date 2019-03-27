@@ -32,15 +32,25 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
+Create product ID as used by the chart label.
+*/}}
+{{- define "ibm_storage_enabler_for_containers.productName" -}}
+"IBM Storage Enabler for Containers"
+{{- end -}}
+
+{{/*
+Create product name as used by the chart label.
+*/}}
+{{- define "ibm_storage_enabler_for_containers.productID" -}}
+ibm-storage-enabler-for-containers
+{{- end -}}
+
+{{/*
 Create the name for the scbe secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.scbeCredentials" -}}
-    {{- if .Values.ubiquity.spectrumConnect -}}
-        {{- if .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
-            {{- .Values.ubiquity.spectrumConnect.connectionInfo.existingSecret -}}
-        {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
-        {{- end -}}
+    {{- if .Values.spectrumConnect.connectionInfo.existingSecret -}}
+        {{- .Values.spectrumConnect.connectionInfo.existingSecret -}}
     {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-scbe
     {{- end -}}
@@ -50,13 +60,9 @@ Create the name for the scbe secret
 Create the name for the spectrum scale secret
 */}}
 {{- define "ibm_storage_enabler_for_containers.spectrumscaleCredentials" -}}
-    {{- if .Values.ubiquity.spectrumScale -}}
-        {{- if .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
-            {{- .Values.ubiquity.spectrumScale.connectionInfo.existingSecret -}}
-        {{- else -}}
-            {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
-        {{- end -}}
-	{{- else -}}
+    {{- if .Values.spectrumScale.connectionInfo.existingSecret -}}
+        {{- .Values.spectrumScale.connectionInfo.existingSecret -}}
+    {{- else -}}
         {{- template "ibm_storage_enabler_for_containers.fullname" . -}}-spectrumscale
     {{- end -}}
 {{- end -}}
@@ -84,8 +90,30 @@ Create the name of storageClass for ubiquity-db pvc
 {{- end -}}
 
 {{- define "ibm_storage_enabler_for_containers.helmLabels" -}}
-app: {{ template "ibm_storage_enabler_for_containers.name" . }}
-chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+app.kubernetes.io/name: {{ template "ibm_storage_enabler_for_containers.name" . }}
+helm.sh/chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
 release: {{ .Release.Name }}
-heritage: {{ .Release.Service }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.podLabels" -}}
+helm.sh/chart: {{ template "ibm_storage_enabler_for_containers.chart" . }}
+release: {{ .Release.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.productAnnotations" -}}
+productName: {{ template "ibm_storage_enabler_for_containers.productName" . }}
+productID: {{ template "ibm_storage_enabler_for_containers.productID" . }}
+productVersion: {{ .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion }}
+{{- end -}}
+
+{{- define "ibm_storage_enabler_for_containers.securityContext" -}}
+securityContext:
+  readOnlyRootFilesystem: false
+  runAsNonRoot: false
+  runAsUser: 0
 {{- end -}}
