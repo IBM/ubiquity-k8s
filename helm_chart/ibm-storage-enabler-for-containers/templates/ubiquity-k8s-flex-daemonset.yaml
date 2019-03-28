@@ -121,7 +121,11 @@ spec:
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
-
+        livenessProbe:
+          exec:
+            command: ["./health_check.sh"]
+          initialDelaySeconds: 10
+          periodSeconds: 30
         env:
           - name: NAMESPACE
             value: {{ .Release.Namespace }}
@@ -139,7 +143,11 @@ spec:
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
-
+        livenessProbe:
+          exec:
+            command: ["./health_check.sh"]
+          initialDelaySeconds: 10
+          periodSeconds: 30
         env:
           - name: FLEX_LOG_DIR    # /var/log default
             valueFrom:

@@ -45,6 +45,11 @@ spec:
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
+        livenessProbe:
+          exec:
+            command: ["./health_check.sh"]
+          initialDelaySeconds: 10
+          periodSeconds: 30
         env:
           - name: UBIQUITY_ADDRESS  # Ubiquity hostname, should point to the ubiquity service name
             value: "ubiquity"

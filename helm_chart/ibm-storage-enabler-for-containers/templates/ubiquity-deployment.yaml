@@ -40,6 +40,16 @@ spec:
 {{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
         image: "{{ .Values.ubiquity.image.repository }}:{{ .Values.ubiquity.image.tag }}"
         imagePullPolicy: {{ .Values.ubiquity.image.pullPolicy }}
+        readinessProbe:
+          tcpSocket:
+            port: 9999
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: 9999
+          initialDelaySeconds: 15
+          periodSeconds: 20
         ports:
         - containerPort: 9999
           name: ubiquity-port
