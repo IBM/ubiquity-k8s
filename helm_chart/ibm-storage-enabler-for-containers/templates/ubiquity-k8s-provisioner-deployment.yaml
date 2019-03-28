@@ -45,6 +45,11 @@ spec:
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
+        readinessProbe:
+          exec:
+            command: ["./health_check.sh"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
         livenessProbe:
           exec:
             command: ["./health_check.sh"]
