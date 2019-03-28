@@ -20,7 +20,7 @@ import (
 	"github.com/IBM/ubiquity/resources"
 )
 
-var _ = Describe("ServiceSyncer", func() {
+var _ = PDescribe("ServiceSyncer", func() {
 
 	var ss *ServiceSyncer
 	var kubeClient *fakekubeclientset.Clientset
