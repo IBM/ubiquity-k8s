@@ -13,6 +13,13 @@ function update_chart_version()
   fi
 }
 
+# use right helm bindary according to the arch
+function update_helm_executor()
+{
+	arch=`uname -i`
+	cp "$HELM_PATH/helm-$arch" "$HELM_PATH/helm"
+}
+
 function cleanup_helm()
 {
 	rm -rf ~/.helm
@@ -40,6 +47,8 @@ CHART_PATH="$PROJECT_ROOT/$repo/helm_chart/$CHART_NAME/"
 cd $repo
 
 update_chart_version
+
+update_helm_executor
 
 # init helm
 chmod +x "$HELM_PATH/helm"
