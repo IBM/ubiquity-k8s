@@ -39,5 +39,5 @@ spec:
             - name: UBIQUITY_DB_STORAGECLASS
               value: {{ template "ibm_storage_enabler_for_containers.ubiquityDbStorageClass" . }}
       restartPolicy: Never
-      serviceAccount: ubiquity-helm-hook
+      serviceAccountName: ubiquity-helm-hook
   backoffLimit: 1
