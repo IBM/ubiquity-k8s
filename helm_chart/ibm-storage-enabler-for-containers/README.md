@@ -25,6 +25,15 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 - For each master node:
    - Enable the attach/detach capability for the kubelet service.
    - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+- Create a namespace for two secrets:
+```bash
+kubectl create ns <namespace_name>
+```   
+- Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password must be the same as Enabler for Containers interface username and password in Spectrum Connect UI.
+```bash
+kubectl create secret generic <enabler_sc_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+```   
 - If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 - When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
