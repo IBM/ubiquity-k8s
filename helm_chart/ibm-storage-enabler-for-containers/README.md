@@ -29,7 +29,7 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 ```bash
 kubectl create ns <namespace_name>
 ```   
-- Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password must be the same as Enabler for Containers interface username and password in Spectrum Connect UI.
+- Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password are the same as Enabler for Containers interface username and password in Spectrum Connect UI.
 ```bash
 kubectl create secret generic <enabler_sc_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
 kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
