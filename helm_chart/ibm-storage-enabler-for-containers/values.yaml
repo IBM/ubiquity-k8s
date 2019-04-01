@@ -167,3 +167,5 @@ globalConfig:
   # SSL verification mode. Allowed values: require (no validation is required) and verify-full (user-provided certificates).
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
+
+  imagePullSecret:
