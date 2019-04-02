@@ -116,4 +116,10 @@ securityContext:
   readOnlyRootFilesystem: false
   runAsNonRoot: false
   runAsUser: 0
+  drop:
+  - ALL
+  add:
+  {{- range .Values.add }}
+  - {{ . | title | quote }}
+  {{- end }}
 {{- end -}}
