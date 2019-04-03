@@ -16,7 +16,7 @@ import (
 	testcore "k8s.io/client-go/testing"
 )
 
-var _ = Describe("Sanity", func() {
+var _ = PDescribe("Sanity", func() {
 
 	var e Executor
 	var kubeClient *fakekubeclientset.Clientset

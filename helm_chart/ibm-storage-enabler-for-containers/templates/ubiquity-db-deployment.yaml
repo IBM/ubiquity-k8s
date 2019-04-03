@@ -54,8 +54,8 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 5432
-          initialDelaySeconds: 30
-          periodSeconds: 5
+          initialDelaySeconds: 2
+          periodSeconds: 2
         livenessProbe:
           tcpSocket:
             port: 5432

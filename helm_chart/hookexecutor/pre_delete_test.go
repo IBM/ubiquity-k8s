@@ -126,7 +126,7 @@ spec:
 var test_one = int32(1)
 var test_zero = int32(0)
 
-var _ = Describe("PreDelete", func() {
+var _ = PDescribe("PreDelete", func() {
 
 	var e Executor
 	var kubeClient *fakekubeclientset.Clientset
