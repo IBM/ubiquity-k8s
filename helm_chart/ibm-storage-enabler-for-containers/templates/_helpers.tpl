@@ -120,7 +120,10 @@ securityContext:
     drop:
     - ALL
     add:
-    {{- range .Values.add }}
-    - {{ . | title | quote }}
-    {{- end }}
+    - CHOWN
+    - FSETID
+    - FOWNER
+    - SETGID
+    - SETUID
+    - DAC_OVERRIDE
 {{- end -}}
