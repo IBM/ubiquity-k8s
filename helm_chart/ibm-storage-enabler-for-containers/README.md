@@ -4,7 +4,7 @@
 IBM Storage Enabler for Containers (ISEC) allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
 IBM Storage Enabler for Containers uses Kubernetes dynamic provisioning for creating and deleting volumes on IBM storage systems.
 In addition, IBM Storage Enabler for Containers utilizes the full set of Kubernetes FlexVolume APIs for volume operations on a host.
-The operations include initiation, attachment/detachment, mounting/unmounting etc..
+The operations include initiation, attachment/detachment, mounting/unmounting etc.
 
 ## Chart Details
 This chart includes:
@@ -17,6 +17,7 @@ This chart includes:
 Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
 - Install and configure IBM Spectrum Connect, according to the application requirements.
 - Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
+- For ICP deployment, make sure the user has the cluster admin access level.
 - For each worker node:
    - Install relevant Linux packages to ensure Fibre Channel and iSCSI connectivity.
    - Configure Linux multipath devices on the host.
@@ -25,6 +26,8 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 - For each master node:
    - Enable the attach/detach capability for the kubelet service.
    - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+
+The next configuration steps describe installation using command-line interface. For installation, using ICP GUI, see the Installation section of the Enabler for Containers user guide. 
 - Create a namespace for two secrets:
 ```bash
 kubectl create ns <namespace_name>
@@ -128,7 +131,7 @@ $ helm install --tls --name my-release --namespace ubiquity stable/ibm-storage-e
 The command deploys <chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
 
-> **Tip**: List all releases using `helm list --tls`
+> **Note**: You can list all releases using the  `helm list --tls` command.
 
 ### Verifying the Chart
 You can check the status by running:
