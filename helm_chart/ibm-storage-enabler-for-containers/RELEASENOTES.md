@@ -11,7 +11,7 @@ features are available:
 
 
 # Fixes
-There are no fixed issues in version 2.1.0 of IBM Storage Enabler for Containers.  
+There are no fixed issues in version 2.1.0 of IBM Storage Enabler for Containers.
 
 # Prerequisites
 * IBM Cloud Private version 3.1.1 or 3.1.2
