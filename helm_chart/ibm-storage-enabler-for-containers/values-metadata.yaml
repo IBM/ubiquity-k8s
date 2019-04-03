@@ -471,3 +471,11 @@ globalConfig:
         value: "require"
       - label: "verify-full (user-provided certificates)"
         value: "verify-full"
+
+  imagePullSecret:
+    __metadata:
+      label: "Image Pull Secrets"
+      description: "Add 'imagePullSecret' if images are pulled from a private docker registry."
+      type: "string"
+      immutable: false
+      required: false
