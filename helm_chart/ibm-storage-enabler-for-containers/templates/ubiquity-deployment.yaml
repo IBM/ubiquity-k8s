@@ -35,6 +35,7 @@ spec:
                       - amd64
                       - ppc64le
                       - s390x
+      serviceAccountName: ubiquity
       containers:
       - name: ubiquity
 {{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}

@@ -17,7 +17,7 @@ There are no fixed issues in version 2.1.0 of IBM Storage Enabler for Containers
 * IBM Cloud Private version 3.1.1 or 3.1.2
 
 # Documentation
-Full documentation set for IBM Storage Enabler for Containers is available in IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
+Full documentation set for IBM Storage Enabler for Containers is available in IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT
 
 # Version History
 

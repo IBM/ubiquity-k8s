@@ -35,7 +35,7 @@ spec:
                       - amd64
                       - ppc64le
                       - s390x
-      serviceAccount: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
+      serviceAccountName: ubiquity-k8s-provisioner      # In order to get the server API token from the service account.
       containers:
       - name: ubiquity-k8s-provisioner
 {{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
@@ -45,6 +45,11 @@ spec:
         resources:
 {{ toYaml . | indent 10 }}
         {{- end }}
+        readinessProbe:
+          exec:
+            command: ["./health_check.sh"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
         livenessProbe:
           exec:
             command: ["./health_check.sh"]

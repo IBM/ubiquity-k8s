@@ -4,7 +4,7 @@
 IBM Storage Enabler for Containers (ISEC) allows IBM storage systems to be used as persistent volumes for stateful applications running in Kubernetes clusters.
 IBM Storage Enabler for Containers uses Kubernetes dynamic provisioning for creating and deleting volumes on IBM storage systems.
 In addition, IBM Storage Enabler for Containers utilizes the full set of Kubernetes FlexVolume APIs for volume operations on a host.
-The operations include initiation, attachment/detachment, mounting/unmounting etc..
+The operations include initiation, attachment/detachment, mounting/unmounting etc.
 
 ## Chart Details
 This chart includes:
@@ -17,6 +17,7 @@ This chart includes:
 Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
 - Install and configure IBM Spectrum Connect, according to the application requirements.
 - Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
+- For ICP deployment, make sure the user has the cluster admin access level.
 - For each worker node:
    - Install relevant Linux packages to ensure Fibre Channel and iSCSI connectivity.
    - Configure Linux multipath devices on the host.
@@ -25,6 +26,17 @@ Before installing the Helm chart for Storage Enabler for Containers in conjuctio
 - For each master node:
    - Enable the attach/detach capability for the kubelet service.
    - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
+
+The next configuration steps describe installation using command-line interface. For installation, using ICP GUI, see the Installation section of the Enabler for Containers user guide. 
+- Create a namespace for two secrets:
+```bash
+kubectl create ns <namespace_name>
+```   
+- Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password are the same as Enabler for Containers interface username and password in Spectrum Connect UI.
+```bash
+kubectl create secret generic <enabler_sc_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+```   
 - If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 - When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
@@ -41,7 +53,7 @@ Prior to installing the Helm chart for Storage Enabler for Containers in conjunc
 These configuration steps are mandatory and cannot be skipped. For detailed description, see the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT
 
 ## PodSecurityPolicy Requirements
-This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "globalConfig.defaultPodSecurityPolicy.clusterRole". 
+This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "defaultPodSecurityPolicy.clusterRole". 
 
 The predefined PodSecurityPolicy name: [`ibm-anyuid-hostpath-psp`](https://ibm.biz/cpkspec-psp) has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
 The predefined clusterRole name: ibm-anyuid-hostpath-clusterrole has been verified for this chart, if you use it you can proceed to install the chart.
@@ -113,23 +125,23 @@ IBM Storage Enabler for Containers can be deployed on different operating system
 To install the chart with the release name `my-release`:
 
 ```bash
-$ helm install --name my-release --namespace ubiquity stable/ibm-storage-enabler-for-containers
+$ helm install --tls --name my-release --namespace ubiquity stable/ibm-storage-enabler-for-containers
 ```
 
 The command deploys <chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
 
-> **Tip**: List all releases using `helm list`
+> **Note**: You can list all releases using the  `helm list --tls` command.
 
 ### Verifying the Chart
 You can check the status by running:
 ```bash
-$ helm status my-release
+$ helm status --tls my-release
 ```
 
 If all statuses are free of errors, you can run sanity test by:
 ```bash
-$ helm test my-release
+$ helm test --tls my-release
 ```
 
 ### Uninstalling the Chart
@@ -137,14 +149,14 @@ Verify that there are no persistent volumes (PVs) that have been created, using 
 To uninstall/delete the `my-release` release:
 
 ```bash
-$ helm delete `my-release` --purge
+$ helm delete --tls `my-release` --purge
 ```
 
 The command removes the IBM Storage Enabler for Containers components associated with the Helm chart, metadata, user credentials, and other elements.
 
 When the Helm chart is deleted, the first elements to be removed are the Enabler for Container database deployment and its PVC. If the `helm delete` command fails after several attempts, delete these entities manually before continuing. Then, verify that the Enabler for Container database deployment and its PVC are deleted, and complete the uninstall procedure by running
 ```
-$ helm delete `my-release` --purge --no-hooks
+$ helm delete --tls `my-release` --purge --no-hooks
 ```
 ## Configuration
 
@@ -157,7 +169,7 @@ The following table lists the configurable parameters of the <Ubiquity> chart an
 | `backend`                                                | Backend type for Provisioner and FlexVolume. Allowed values: spectrumConnect or spectrumScale                                                                                                                                                                                                                                                 | `spectrumConnect`                 |
 | `spectrumConnect.connectionInfo.fqdn`                    | IP address or FQDN of the Spectrum Connect server.                                                                                                                                                                                                                                                                                            |                                   |
 | `spectrumConnect.connectionInfo.port`                    | Communication port of the Spectrum Connect server.                                                                                                                                                                                                                                                                                            | `8440`                            |
-| `spectrumConnect.connectionInfo.existingSecret`          | Secret for Spectrum Connect interface. The value must be the same as configured in Spectrum Connect.Keys username and password are mandatory.                                                                                                                                                                                                 |                                   |
+| `spectrumConnect.connectionInfo.existingSecret`          | Secret for Spectrum Connect interface. The value must be the same as configured in Spectrum Connect. Keys username and password are mandatory.                                                                                                                                                                                                 |                                   |
 | `spectrumConnect.backendConfig.instanceName`             | A prefix for any new volume created on the storage system.                                                                                                                                                                                                                                                                                    |                                   |
 | `spectrumConnect.backendConfig.defaultStorageService`    | Default Spectrum Connect storage service to be used, if not specified by the storage class.                                                                                                                                                                                                                                                   |                                   |
 | `spectrumConnect.backendConfig.newVolumeDefaults.fsType` | File system type of a new volume, if not specified by the user in the storage class. Allowed values: ext4 or xfs.                                                                                                                                                                                                                             | `ext4`                            |

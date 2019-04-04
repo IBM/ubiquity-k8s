@@ -38,6 +38,7 @@ spec:
       nodeSelector:
 {{ toYaml .Values.ubiquityDb.nodeSelector | indent 8}}
       {{- end }}
+      serviceAccountName: ubiquity
       containers:
       - name: ubiquity-db
 {{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 8 }}
