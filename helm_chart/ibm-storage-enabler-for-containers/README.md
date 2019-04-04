@@ -49,7 +49,15 @@ Prior to installing the Helm chart for Storage Enabler for Containers in conjunc
 - For each master node:
    - Enable the attach/detach capability for the kubelet service.
    - If the controller-manager is configured to run as a pod in your Kubernetes cluster, allow for event recording in controller-manager log file.
-
+- Create a namespace for two secrets:
+```bash
+kubectl create ns <namespace_name>
+```   
+- Create two secrets: Enabler for Containers secret for Spectrum Scale and Enabler for Containers secret for its database. Verify that Spectrum Scale credentials secret username and password are the same as Enabler for Containers username and password define for Spectrum Scale Management API (GUI) Server.
+```bash
+kubectl create secret generic <enabler_scale_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+```   
 These configuration steps are mandatory and cannot be skipped. For detailed description of installation prerequisites, see the Compatibility and Requirements sections for IBM Spectrum Connect and IBM Spectrum Scale in the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
 ## PodSecurityPolicy Requirements
