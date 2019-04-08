@@ -43,21 +43,6 @@ cat $preinstallDir/../values.yaml
 echo "Test render the templates"
 helm template $CV_TEST_CHART_DIR -n $chartRelease -f $preinstallDir/../values.yaml
 
-echo "Create secret for sc and ubiquity db"
-kubectl apply -f $preinstallDir/scbe-secret.yaml
+echo "Create secret for ss and ubiquity db"
+kubectl apply -f $preinstallDir/ss-secret.yaml
 kubectl apply -f $preinstallDir/ubiquity-db-secret.yaml
-echo "Using local pv"
-kubectl apply -f $preinstallDir/local-pv.yaml > /dev/null 2>&1 || echo "local-pvc has been created."
-kubectl apply -f $preinstallDir/local-pvc.yaml > /dev/null 2>&1 || echo "local-pvc has been created."
-echo "Get clusterimagepolicies"
-my_yml=$preinstallDir/clusterimagepolicies.yaml
-echo "my yaml file is $my_yml"
-kubectl get clusterimagepolicies ibmcloud-default-cluster-image-policy -o yaml >> ${my_yml}
-echo "add the repo in it"
-sed -i '$a\  - name: stg-artifactory.haifa.ibm.com:5030/*' ${my_yml}
-echo "replace default clusterimagepolicies"
-kubectl replace -f ${my_yml}
-if [[ -a ${my_yml} ]];then
-echo "remove it"
-rm -f ${my_yml}
-fi

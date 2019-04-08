@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 # Operation backend of Provisioner and Flex volume.
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
-backend: spectrumConnect
+backend: spectrumScale
 
 
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
@@ -18,17 +18,17 @@ backend: spectrumConnect
 spectrumConnect:
   connectionInfo:
     # IP\FQDN and port of Spectrum Connect server.
-    fqdn: 9.37.37.46
+    fqdn:
     port: 8440
 
     # Set this param with an existing spectrum connect secret object if one exist.
-    existingSecret: scbe-credentials
+    existingSecret:
 
   backendConfig:
     # A prefix for any new volume created on the storage system.
-    instanceName: ubiquity
+    instanceName:
     # Default Spectrum Connect storage service to be used, if not specified by the storage class.
-    defaultStorageService: gold
+    defaultStorageService:
     newVolumeDefaults:
       # The fstype of a new volume if not specified by the user in the storage class.
       # File system type. Allowed values: ext4 or xfs.
@@ -39,7 +39,7 @@ spectrumConnect:
   ## storageClass parameters for ubiquity-db PVC
   storageClass:
     # Storage Class profile parameter must point to the Spectrum Connect storage service name.
-    storageService: gold
+    storageService:
     # Storage Class filesystem type. Allowed values: ext4 or xfs.
     fsType: ext4
 
@@ -49,21 +49,21 @@ spectrumConnect:
 spectrumScale:
   connectionInfo:
     # IP\FQDN and port of Spectrum Scale RESTful API server.
-    fqdn:
+    fqdn: ibmgpfs-1.rtp.raleigh.ibm.com
     port: 443
 
     # Set this param with an existing Spectrum Scale secret object if one exist.
-    existingSecret:
+    existingSecret: ss-credentials
 
   backendConfig:
     # Default Spectrum Scale filesystem to be used.
-    defaultFilesystemName:
+    defaultFilesystemName: buildsharedFS
 
 
 ubiquityDb:
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-db-amd64
-    tag: "2.1.0_b452_dev"
+    repository: ibmcom/ibm-storage-enabler-for-containers-db-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
   nodeSelector: {}
@@ -77,7 +77,7 @@ ubiquityDb:
 
     # Set this param to true if you want to use an existing PV as Ubiquity database PV.
     # Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version.
-    useExistingPv: true
+    useExistingPv: false
 
     # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
     # For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
@@ -99,16 +99,16 @@ ubiquityDb:
 
 ubiquity:
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-amd64
-    tag: "2.1.0_b452_dev"
+    repository: ibmcom/ibm-storage-enabler-for-containers-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
 
 
 ubiquityK8sFlex:
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-volume-for-kubernetes-amd64
-    tag: "2.1.0_b710_dev"
+    repository: ibmcom/ibm-storage-flex-volume-for-kubernetes-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -125,8 +125,8 @@ ubiquityK8sFlexInitContainer:
 
 ubiquityK8sFlexSidecar:
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-flex-sidecar-for-kubernetes-amd64
-    tag: "2.1.0_b710_dev"
+    repository: ibmcom/ibm-storage-flex-sidecar-for-kubernetes-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -134,16 +134,16 @@ ubiquityK8sFlexSidecar:
 ubiquityK8sProvisioner:
   # RBAC and service account are set automatically for the Provisioner.
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-dynamic-provisioner-for-kubernetes-amd64
-    tag: "2.1.0_b710_dev"
+    repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
 
 
 ubiquityHelmUtils:
   image:
-    repository: stg-artifactory.haifa.ibm.com:5030/ibm-storage-enabler-for-containers-helm-utils-amd64
-    tag: "2.1.0_b710_dev"
+    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils-amd64
+    tag: "2.1.0"
     pullPolicy: IfNotPresent
 
 
