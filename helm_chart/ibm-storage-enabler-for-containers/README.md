@@ -31,12 +31,12 @@ The next configuration steps describe installation using command-line interface.
 - Create a namespace for two secrets:
 ```bash
 kubectl create ns <namespace_name>
-```   
+```
 - Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password are the same as Enabler for Containers interface username and password in Spectrum Connect UI.
 ```bash
 kubectl create secret generic <enabler_sc_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
-kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
-```   
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+```
 - If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 - When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
@@ -56,14 +56,14 @@ kubectl create ns <namespace_name>
 - Create two secrets: Enabler for Containers secret for Spectrum Scale and Enabler for Containers secret for its database. Verify that Spectrum Scale credentials secret username and password are the same as Enabler for Containers username and password define for Spectrum Scale Management API (GUI) Server.
 ```bash
 kubectl create secret generic <enabler_scale_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
-kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=<db_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
 ```
 These configuration steps are mandatory and cannot be skipped. For detailed description of installation prerequisites, see the Compatibility and Requirements sections for IBM Spectrum Connect and IBM Spectrum Scale in the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
 ## PodSecurityPolicy Requirements
 This chart requires a PodSecurityPolicy to be bound to the target namespace prior to installation or to be bound to the current namespace during installation by setting "customPodSecurityPolicy.enabled" to "true" and setting "customPodSecurityPolicy.clusterRole".
 
-The predefined PodSecurityPolicy name: [`ibm-anyuid-hostpath-psp`](https://ibm.biz/cpkspec-psp) has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
+The recommended predefined PodSecurityPolicy name: [`ibm-anyuid-hostpath-psp`](https://ibm.biz/cpkspec-psp) has been verified for this chart, if your target namespace is bound to this PodSecurityPolicy you can proceed to install the chart.
 The predefined clusterRole name: ibm-anyuid-hostpath-clusterrole has been verified for this chart, if you use it you can proceed to install the chart.
 
 You can also define a custom PodSecurityPolicy which can be used to finely control the permissions/capabilities needed to deploy this chart. You can enable this custom PodSecurityPolicy using the ICP user interface.
