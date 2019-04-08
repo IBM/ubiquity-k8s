@@ -17,4 +17,4 @@ appVersion: 2.1.0
 tillerVersion: ">=2.9.1"
 maintainers:
   - name: IBM Storage
-icon: https://github.com/IBM/ubiquity-k8s/blob/master/helm_chart/IBM_Spectrum_Connect_icon.png?sanitize=true
+icon: https://raw.githubusercontent.com/IBM/charts/master/logo/IBM_Spectrum_Connect_icon.png
