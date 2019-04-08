@@ -122,10 +122,16 @@ You can also define a custom PodSecurityPolicy which can be used to finely contr
 IBM Storage Enabler for Containers can be deployed on different operating systems, while provisioning storage from a variety of IBM arrays, as detailed in the release notes of the package.  
 
 ## Installing the Chart
+First add the IBM Stable charts repository:
+
+```bash
+$ helm repo add --tls ibm-stable https://raw.githubusercontent.com/IBM/charts/master/repo/stable
+```
+
 To install the chart with the release name `my-release`:
 
 ```bash
-$ helm install --tls --name my-release --namespace ubiquity stable/ibm-storage-enabler-for-containers
+$ helm install --tls --name my-release --namespace ubiquity ibm-stable/ibm-storage-enabler-for-containers
 ```
 
 The command deploys <chart name> on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
