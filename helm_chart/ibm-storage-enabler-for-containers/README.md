@@ -14,6 +14,7 @@ This chart includes:
 * A Kubernetes FlexVolume DaemonSet for attaching/detaching and mounting/unmounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
+### IBM block storage
 Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
 - Install and configure IBM Spectrum Connect, according to the application requirements.
 - Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
@@ -40,6 +41,7 @@ kubectl create secret generic <enabler_db_credentials_secret_name> --from-litera
 - If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 - When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
+### IBM Spectrum Scale
 Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale:
 - Install and configure IBM Spectrum Scale, according to the application requirements.
 - Establish a proper communication link between Spectrum Scale Management GUI Address and Kubernetes cluster.
