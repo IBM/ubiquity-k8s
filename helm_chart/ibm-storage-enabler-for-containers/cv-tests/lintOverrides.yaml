@@ -1,5 +1,7 @@
 ignoreMessages:
   # Flex volume daemonSet requires hostpath in order to deploy the flex binary on the node. we cannot avoid it.
-  - '\[ERROR\] .*Deployment volumes should not be using hostPath.*'
+  - '.*use of hostPath not allowed.*'
   # We will fix it in next release, but currently, our pods mush run as root.
-  - '.*Pod with securityContext which allows containers to be run as root was found.*'
+  - '.*container running as root is not allowed.*'
+  - '.*missing pod security-related keys.*'
+  - '.*ReadWriteOnce access mode.*'

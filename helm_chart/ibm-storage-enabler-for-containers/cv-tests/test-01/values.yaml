@@ -10,7 +10,7 @@
 # ---------------------------------------------------------
 # Operation backend of Provisioner and Flex volume.
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
-backend: spectrumScale
+backend: spectrumConnect
 
 
 # IBM Storage Enabler for Containers supports one of the following backend types: spectrumConnect OR spectrumScale.
@@ -18,17 +18,17 @@ backend: spectrumScale
 spectrumConnect:
   connectionInfo:
     # IP\FQDN and port of Spectrum Connect server.
-    fqdn:
+    fqdn: 9.37.37.46
     port: 8440
 
     # Set this param with an existing spectrum connect secret object if one exist.
-    existingSecret:
+    existingSecret: backend-credentials
 
   backendConfig:
     # A prefix for any new volume created on the storage system.
-    instanceName:
+    instanceName: ubiquity
     # Default Spectrum Connect storage service to be used, if not specified by the storage class.
-    defaultStorageService:
+    defaultStorageService: gold
     newVolumeDefaults:
       # The fstype of a new volume if not specified by the user in the storage class.
       # File system type. Allowed values: ext4 or xfs.
@@ -39,7 +39,7 @@ spectrumConnect:
   ## storageClass parameters for ubiquity-db PVC
   storageClass:
     # Storage Class profile parameter must point to the Spectrum Connect storage service name.
-    storageService:
+    storageService: gold
     # Storage Class filesystem type. Allowed values: ext4 or xfs.
     fsType: ext4
 
@@ -49,20 +49,20 @@ spectrumConnect:
 spectrumScale:
   connectionInfo:
     # IP\FQDN and port of Spectrum Scale RESTful API server.
-    fqdn: ibmgpfs-1.rtp.raleigh.ibm.com
+    fqdn:
     port: 443
 
     # Set this param with an existing Spectrum Scale secret object if one exist.
-    existingSecret: ss-credentials
+    existingSecret:
 
   backendConfig:
     # Default Spectrum Scale filesystem to be used.
-    defaultFilesystemName: buildsharedFS
+    defaultFilesystemName:
 
 
 ubiquityDb:
   image:
-    repository: ibmcom/ibm-storage-enabler-for-containers-db-amd64
+    repository: ibmcom/ibm-storage-enabler-for-containers-db
     tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
@@ -77,7 +77,7 @@ ubiquityDb:
 
     # Set this param to true if you want to use an existing PV as Ubiquity database PV.
     # Use it only when you want to upgrade Ubiquity from old version installed by script to the latest version.
-    useExistingPv: false
+    useExistingPv: true
 
     # Ubiquity database PV name. For Spectrum Virtualize, Spectrum Accelerate and Spectrum Scale, use default value "ibm-ubiquity-db".
     # For DS8000 Family, use "ibmdb" instead and make sure UBIQUITY_INSTANCE_NAME_VALUE value length does not exceed 8 chars.
@@ -99,7 +99,7 @@ ubiquityDb:
 
 ubiquity:
   image:
-    repository: ibmcom/ibm-storage-enabler-for-containers-amd64
+    repository: ibmcom/ibm-storage-enabler-for-containers
     tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
@@ -107,7 +107,7 @@ ubiquity:
 
 ubiquityK8sFlex:
   image:
-    repository: ibmcom/ibm-storage-flex-volume-for-kubernetes-amd64
+    repository: ibmcom/ibm-storage-flex-volume-for-kubernetes
     tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
@@ -125,7 +125,7 @@ ubiquityK8sFlexInitContainer:
 
 ubiquityK8sFlexSidecar:
   image:
-    repository: ibmcom/ibm-storage-flex-sidecar-for-kubernetes-amd64
+    repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes
     tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
@@ -134,7 +134,7 @@ ubiquityK8sFlexSidecar:
 ubiquityK8sProvisioner:
   # RBAC and service account are set automatically for the Provisioner.
   image:
-    repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes-amd64
+    repository: ibmcom/ibm-storage-dynamic-provisioner-for-kubernetes
     tag: "2.1.0"
     pullPolicy: IfNotPresent
   resources: {}
@@ -142,16 +142,16 @@ ubiquityK8sProvisioner:
 
 ubiquityHelmUtils:
   image:
-    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils-amd64
+    repository: ibmcom/ibm-storage-enabler-for-containers-helm-utils
     tag: "2.1.0"
     pullPolicy: IfNotPresent
 
 
-# Default pod security policy. If specified, it is applied to all pods in the chart.
+# Custom pod security policy. If specified, it is applied to all pods in the chart.
 # New policies cannot be defined. Configure a policy in advance or use existing ones. Then, attach one or more policies
 # to a role or clusterRole, and provide the name for the role or clusterRole.
 # Currently, only clusterRole is supported. It will be bound to all serviceAccounts under the current namespace.
-defaultPodSecurityPolicy:
+customPodSecurityPolicy:
   # The name of clusterRole that has the required policies attached.
   # Default value for ICP 3.1.1+ is ibm-anyuid-hostpath-clusterrole
   enabled: true
@@ -166,4 +166,4 @@ globalConfig:
   # SSL mode is set for all communication paths between [flex||provisioner]<->ubiquity<->[SpectrumConnect||SpectrumScale].
   sslMode: require
 
-cvTest: true
+helmTestOverride: disabled

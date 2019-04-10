@@ -1,3 +1,4 @@
+{{- $helmTest := default "enabled" .Values.helmTestOverride }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -26,9 +27,7 @@ spec:
 {{ include "ibm_storage_enabler_for_containers.securityContext" . | indent 6 }}
       image: "{{ .Values.ubiquityHelmUtils.image.repository }}:{{ .Values.ubiquityHelmUtils.image.tag }}"
       imagePullPolicy: {{ .Values.ubiquityHelmUtils.image.pullPolicy }}
-      {{- if .Values.cvTest }}
-      command: ['sh', '-c', 'sleep 10 && echo "sanity test passed."']
-      {{- else }}
+      {{- if ne $helmTest "disabled" }}
       command: ['/usr/bin/hook-executor', 'sanity']
       {{- end }}
       env:

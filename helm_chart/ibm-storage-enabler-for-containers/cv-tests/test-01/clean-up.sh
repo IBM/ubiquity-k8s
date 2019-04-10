@@ -38,6 +38,9 @@ done
 command -v kubectl > /dev/null 2>&1 || { echo "kubectl pre-req is missing."; exit 1; }
 
 #delete the secret
-echo "Delete secret for ss and ubiquity db"
-kubectl delete -f $preinstallDir/pre-install/ss-secret.yaml
+echo "Delete the secrets......"
+kubectl delete -f $preinstallDir/pre-install/backend-secret.yaml
 kubectl delete -f $preinstallDir/pre-install/ubiquity-db-secret.yaml
+echo "Delete local pv"
+kubectl delete -f $preinstallDir/pre-install/local-pvc.yaml > /dev/null 2>&1 || echo "local-pvc has been deleted."
+kubectl delete -f $preinstallDir/pre-install/local-pv.yaml > /dev/null 2>&1 || echo "local-pv has been deleted."

@@ -88,17 +88,17 @@ images:
       os: linux
       architecture: s390x
 
-- image: ibm-storage-flex-sidecar-for-kubernetes:2.1.0
+- image: ibm-storage-flex-volume-sidecar-for-kubernetes:2.1.0
   references:
-  - repository: ibmcom/ibm-storage-flex-sidecar-for-kubernetes-amd64:2.1.0
+  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes-amd64:2.1.0
     platform:
       os: linux
       architecture: amd64
-  - repository: ibmcom/ibm-storage-flex-sidecar-for-kubernetes-ppc64le:2.1.0
+  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes-ppc64le:2.1.0
     platform:
       os: linux
       architecture: ppc64le
-  - repository: ibmcom/ibm-storage-flex-sidecar-for-kubernetes-s390x:2.1.0
+  - repository: ibmcom/ibm-storage-flex-volume-sidecar-for-kubernetes-s390x:2.1.0
     platform:
       os: linux
       architecture: s390x

@@ -43,6 +43,9 @@ cat $preinstallDir/../values.yaml
 echo "Test render the templates"
 helm template $CV_TEST_CHART_DIR -n $chartRelease -f $preinstallDir/../values.yaml
 
-echo "Create secret for ss and ubiquity db"
-kubectl apply -f $preinstallDir/ss-secret.yaml
+echo "Create the secrets......"
+kubectl apply -f $preinstallDir/backend-secret.yaml
 kubectl apply -f $preinstallDir/ubiquity-db-secret.yaml
+echo "Using local pv"
+kubectl apply -f $preinstallDir/local-pv.yaml > /dev/null 2>&1 || echo "local-pvc has been created."
+kubectl apply -f $preinstallDir/local-pvc.yaml > /dev/null 2>&1 || echo "local-pvc has been created."
