@@ -14,6 +14,7 @@ This chart includes:
 * A Kubernetes FlexVolume DaemonSet for attaching/detaching and mounting/unmounting storage volumes into a pod within a Kubernetes node.
 
 ## Prerequisites
+### IBM block storage
 Before installing the Helm chart for Storage Enabler for Containers in conjuction with IBM block storage:
 - Install and configure IBM Spectrum Connect, according to the application requirements.
 - Establish a proper communication link between Spectrum Connect and Kubernetes cluster.
@@ -35,11 +36,12 @@ kubectl create ns <namespace_name>
 - Create two secrets: Enabler for Containers secret for Spectrum Connect and Enabler for Containers secret for its database. Verify that Spectrum Connect credentials secret username and password are the same as Enabler for Containers interface username and password in Spectrum Connect UI.
 ```bash
 kubectl create secret generic <enabler_sc_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
-kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
 ```
 - If dedicated SSL certificates are required, see the Managing SSL certificates section in the IBM Storage Enabler for Containers user guide.
 - When using IBM Cloud Private with the Spectrum Virtualize Family products, use only hostnames for the Kubernetes cluster nodes, do not use IP addresses.
 
+### IBM Spectrum Scale
 Prior to installing the Helm chart for Storage Enabler for Containers in conjunction with IBM Spectrum Scale:
 - Install and configure IBM Spectrum Scale, according to the application requirements.
 - Establish a proper communication link between Spectrum Scale Management GUI Address and Kubernetes cluster.
@@ -56,7 +58,7 @@ kubectl create ns <namespace_name>
 - Create two secrets: Enabler for Containers secret for Spectrum Scale and Enabler for Containers secret for its database. Verify that Spectrum Scale credentials secret username and password are the same as Enabler for Containers username and password define for Spectrum Scale Management API (GUI) Server.
 ```bash
 kubectl create secret generic <enabler_scale_credentials_secret_name> --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
-kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace> 
+kubectl create secret generic <enabler_db_credentials_secret_name> --from-literal=dbname=ubiquity --from-literal=username=<username> --from-literal=password=<password> -n <namespace>
 ```
 These configuration steps are mandatory and cannot be skipped. For detailed description of installation prerequisites, see the Compatibility and Requirements sections for IBM Spectrum Connect and IBM Spectrum Scale in the IBM Storage Enabler for Containers user guide on IBM Knowledge Center at https://www.ibm.com/support/knowledgecenter/SSCKLT.
 
