@@ -5,6 +5,7 @@ metadata:
 spec:
   accessModes:
   - ReadWriteOnce
+  storageClassName: ubiquity-local-pv
   capacity:
     storage: 3Gi
   hostPath:
