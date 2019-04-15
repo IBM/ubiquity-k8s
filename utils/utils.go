@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	uberrors "github.com/IBM/ubiquity-k8s/utils/errors"
 	"github.com/IBM/ubiquity/resources"
 )
 
@@ -39,4 +40,12 @@ func LoadConfig() (resources.UbiquityPluginConfig, error) {
 	config.CredentialInfo = resources.CredentialInfo{UserName: os.Getenv("UBIQUITY_USERNAME"), Password: os.Getenv("UBIQUITY_PASSWORD")}
 
 	return config, nil
+}
+
+func GetCurrentNamespace() (string, error) {
+	ns := os.Getenv(ENVNamespace)
+	if ns == "" {
+		return "", uberrors.ENVNamespaceNotSet
+	}
+	return ns, nil
 }

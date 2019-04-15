@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+scripts=$(dirname $0)
+
+echo "Building hook executor"
+go build -o $scripts/../bin/hook-executor $scripts/../cmd/hook-executor/main.go

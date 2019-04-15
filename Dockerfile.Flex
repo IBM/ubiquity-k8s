@@ -13,5 +13,6 @@ ENV UBIQUITY_PLUGIN_VERIFY_CA=/var/lib/ubiquity/ssl/public/ubiquity-trusted-ca.c
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/ubiquity-k8s-flex .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/setup_flex.sh .
+COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/health_check.sh .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/LICENSE .
 COPY --from=0 /go/src/github.com/IBM/ubiquity-k8s/scripts/notices_file_for_ibm_storage_enabler_for_containers ./NOTICES
