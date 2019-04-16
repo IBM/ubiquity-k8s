@@ -3,5 +3,5 @@ ignoreMessages:
   - '.*use of hostPath not allowed.*'
   # We will fix it in next release, but currently, our pods mush run as root.
   - '.*container running as root is not allowed.*'
-  - '.*missing pod security-related keys.*'
   - '.*ReadWriteOnce access mode.*'
+  - '.*invalid container image name.*'

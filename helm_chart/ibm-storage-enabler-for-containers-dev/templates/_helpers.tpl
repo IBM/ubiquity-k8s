@@ -113,6 +113,8 @@ app.kubernetes.io/version: {{ .Chart.AppVersion }}
 
 {{- define "ibm_storage_enabler_for_containers.securityContext" -}}
 securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
   readOnlyRootFilesystem: false
   runAsNonRoot: false
   runAsUser: 0
