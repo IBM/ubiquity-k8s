@@ -18,7 +18,7 @@ backend: spectrumConnect
 spectrumConnect:
   connectionInfo:
     # IP\FQDN and port of Spectrum Connect server.
-    fqdn: 9.37.37.46
+    fqdn: spectrum-connect.rtp.raleigh.ibm.com
     port: 8440
 
     # Set this param with an existing spectrum connect secret object if one exist.
