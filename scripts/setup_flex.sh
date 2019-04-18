@@ -143,7 +143,7 @@ MNT_FLEX=${HOST_K8S_PLUGIN_DIR}
 MNT_FLEX_DRIVER_DIR=${MNT_FLEX}/${DRIVER_DIR}
 FLEX_CONF=${DRIVER}.conf
 
-if [ $# -eq 1 -a $1 == "--generate_flex_conf" ]; then
+if [ $# -eq 1 -a "$1" == "--generate_flex_conf" ]; then
     echo "Starting generating flex config file..."
     generate_flex_conf_from_envs_and_install_it
 
