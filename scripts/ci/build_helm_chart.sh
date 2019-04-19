@@ -36,7 +36,7 @@ CHART_REPOSITORY_NAME="artifactory"
 CHART_INDEX="artifactory-charts"
 CHART_FOLDER=$CHART_INDEX
 INDEX_PATH="$CHART_REPOSITORY/index.yaml"
-CHART_NAME="ibm-storage-enabler-for-containers-dev"
+CHART_NAME="ibm-storage-enabler-for-containers"
 
 PROJECT_ROOT=`pwd`
 repo="work/src/github.com/IBM/ubiquity-k8s"
