@@ -1,11 +1,11 @@
 apiVersion: v1
 entries:
-  ibm-storage-enabler-for-containers-dev:
+  ibm-storage-enabler-for-containers:
   - apiVersion: v1
     appVersion: 2.1.0
-    created: 2019-04-15T19:41:01.496049+08:00
+    created: 2019-04-19T09:45:33.070882+08:00
     description: A Helm chart for IBM Storage Enabler for Containers
-    digest: aedf1395c7cdc6016a5bb03bd48f5e379792676737e36482962ab5387b911616
+    digest: 9585dae6d23ba9c867a6bce150dc63bdeeca5f6fb5e0e16b50f8cf62181e36aa
     icon: https://raw.githubusercontent.com/IBM/charts/master/logo/IBM_Spectrum_Connect_icon.png
     keywords:
     - ICP
@@ -17,9 +17,9 @@ entries:
     kubeVersion: '>=1.10.0'
     maintainers:
     - name: IBM Storage
-    name: ibm-storage-enabler-for-containers-dev
+    name: ibm-storage-enabler-for-containers
     tillerVersion: '>=2.9.1'
     urls:
-    - https://raw.githubusercontent.com/IBM/ubiquity-k8s/repo/repo/stable/ibm-storage-enabler-for-containers-dev-1.0.0.tgz
+    - https://raw.githubusercontent.com/IBM/ubiquity-k8s/repo/repo/stable/ibm-storage-enabler-for-containers-1.0.0.tgz
     version: 1.0.0
-generated: 2019-04-15T19:41:01.48893+08:00
+generated: 2019-04-19T09:45:33.059617+08:00
